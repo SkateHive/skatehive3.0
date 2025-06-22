@@ -177,11 +177,17 @@ export async function generateMetadata({
     }
 
     if (typeof permlink !== "string") {
-      console.error("generateMetadata: non-string permlink when building URL", permlink);
-    }
-    const permlinkStr = typeof permlink === "string" ? permlink : String(permlink);
 
-    const postUrl = `${DOMAIN_URL}/post/${cleanedAuthor}/${permlinkStr}`;
+      console.error(
+        "generateMetadata: non-string permlink when building URL",
+        permlink,
+      );
+      throw new Error("Invalid permlink type");
+    }
+
+    const postUrl = `${DOMAIN_URL}/post/${encodeURIComponent(
+      cleanedAuthor,
+    )}/${encodeURIComponent(permlink)}`;
 
     console.log("Generated metadata:", {
       title,
