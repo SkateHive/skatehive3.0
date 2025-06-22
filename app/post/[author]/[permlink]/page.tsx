@@ -177,6 +177,7 @@ export async function generateMetadata({
     }
 
     if (typeof permlink !== "string") {
+
       console.error(
         "generateMetadata: non-string permlink when building URL",
         permlink,
