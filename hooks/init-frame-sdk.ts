@@ -6,7 +6,13 @@ import sdk from '@farcaster/frame-sdk';
 const InitFrameSDK = () => {
     useEffect(() => {
         const load = async () => {
-            await sdk.actions.ready();
+            try {
+                if (await sdk.isInMiniApp()) {
+                    await sdk.actions.ready();
+                }
+            } catch (error) {
+                console.error("Failed to initialize Farcaster Frame SDK", error);
+            }
         };
 
         load();

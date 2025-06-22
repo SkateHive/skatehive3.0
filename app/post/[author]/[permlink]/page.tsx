@@ -176,7 +176,12 @@ export async function generateMetadata({
       bannerImage = imageUrls[0];
     }
 
-    const postUrl = `${DOMAIN_URL}/post/${cleanedAuthor}/${permlink}`;
+    if (typeof permlink !== "string") {
+      console.error("generateMetadata: non-string permlink when building URL", permlink);
+    }
+    const permlinkStr = typeof permlink === "string" ? permlink : String(permlink);
+
+    const postUrl = `${DOMAIN_URL}/post/${cleanedAuthor}/${permlinkStr}`;
 
     console.log("Generated metadata:", {
       title,
