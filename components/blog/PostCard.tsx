@@ -438,7 +438,9 @@ export default function PostCard({
             {postDate}
           </Text>
           <Link
-            href={`/post/${author}/${post.permlink}`}
+            href={`/post/${encodeURIComponent(author)}/${encodeURIComponent(
+              post.permlink,
+            )}`}
             _hover={{ textDecoration: "underline" }}
           >
             <Text
@@ -580,7 +582,9 @@ export default function PostCard({
             </Text>
           </Flex>
           <Link
-            href={`/post/${author}/${post.permlink}`}
+            href={`/post/${encodeURIComponent(author)}/${encodeURIComponent(
+              post.permlink,
+            )}`}
             onClick={stopPropagation}
             _hover={{ textDecoration: "underline" }}
           >
