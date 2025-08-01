@@ -4,9 +4,12 @@ import { CSSReset } from "@chakra-ui/react";
 import { Aioha } from "@aioha/aioha";
 import { AiohaProvider } from "@aioha/react-ui";
 import { ThemeProvider } from "./themeProvider";
-import { OnchainKitProvider } from "@coinbase/onchainkit";
-import { WagmiProvider, http, createConfig } from "wagmi";
+import { WagmiProvider, http } from "wagmi";
 import { base, mainnet } from "wagmi/chains";
+import {
+  RainbowKitProvider,
+  getDefaultConfig,
+} from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { UserProvider } from "@/contexts/UserContext";
 import { VoteWeightProvider } from "@/contexts/VoteWeightContext";
@@ -28,12 +31,15 @@ if (typeof window !== "undefined") {
 
 const queryClient = new QueryClient();
 
-export const wagmiConfig = createConfig({
+export const wagmiConfig = getDefaultConfig({
+  appName: "Skatehive",
+  projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || "",
   chains: [base, mainnet],
   transports: {
     [base.id]: http(),
     [mainnet.id]: http(),
   },
+  ssr: true,
 });
 
 const farcasterAuthConfig = {
@@ -50,11 +56,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <WagmiProvider config={wagmiConfig}>
-            <OnchainKitProvider
-              chain={base}
-              apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
-              projectId={process.env.NEXT_PUBLIC_CDP_PROJECT_ID}
-            >
+            <RainbowKitProvider chains={[base, mainnet]}>
               <AuthKitProvider config={farcasterAuthConfig}>
                 <AiohaProvider aioha={aioha}>
                   <VoteWeightProvider>
@@ -63,7 +65,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                   </VoteWeightProvider>
                 </AiohaProvider>
               </AuthKitProvider>
-            </OnchainKitProvider>
+            </RainbowKitProvider>
           </WagmiProvider>
         </QueryClientProvider>
       </ThemeProvider>

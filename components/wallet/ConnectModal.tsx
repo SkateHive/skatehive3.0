@@ -13,7 +13,7 @@ import {
   Box,
   Center,
 } from "@chakra-ui/react";
-import { Wallet, ConnectWallet } from "@coinbase/onchainkit/wallet";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
   Identity,
   Avatar,
@@ -100,15 +100,7 @@ export default function ConnectModal({
                 💰 Wallet Connection
               </Text>
               <Center>
-                <Wallet>
-                  <ConnectWallet
-                    disconnectedLabel="Connect Wallet"
-                    onConnect={onClose}
-                  >
-                    <Avatar className="h-8 w-8" />
-                    <Name />
-                  </ConnectWallet>
-                </Wallet>
+                <ConnectButton />
               </Center>
             </Box>
 

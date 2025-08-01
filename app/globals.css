@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import "@rainbow-me/rainbowkit/styles.css";
+
 /* Import markdown styles */
 @import '../styles/markdown.css';
 
