@@ -293,9 +293,7 @@ export function CoinCreationModal({
         duration: 3000,
       });
     }
-  }, [toast]);
-
-  // Auto-capture first frame when video loads
+  }, [toast]); // Auto-capture first frame when video loads
   const handleVideoLoad = useCallback(() => {
     if (!thumbnailFile && videoRef.current) {
       // Wait a bit for video to be ready
@@ -538,8 +536,8 @@ export function CoinCreationModal({
               <Alert status="warning" borderRadius="md">
                 <AlertIcon />
                 <Text fontSize="sm">
-                  Please connect your wallet to create coins. Make sure you're
-                  on the Base network.
+                  Please connect your wallet to create coins. Make sure
+                  you&apos;re on the Base network.
                 </Text>
               </Alert>
             )}
@@ -549,8 +547,8 @@ export function CoinCreationModal({
                 <AlertIcon />
                 <VStack align="start" spacing={2}>
                   <Text fontSize="sm">
-                    You're connected to the wrong network. Please switch to Base
-                    network to create coins.
+                    You&apos;re connected to the wrong network. Please switch to
+                    Base network to create coins.
                   </Text>
                   <Button
                     size="sm"
