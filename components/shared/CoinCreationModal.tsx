@@ -538,7 +538,7 @@ export function CoinCreationModal({
               <Alert status="warning" borderRadius="md">
                 <AlertIcon />
                 <Text fontSize="sm">
-                  Please connect your wallet to create coins. Make sure you're
+                  Please connect your wallet to create coins. Make sure you&apos;re
                   on the Base network.
                 </Text>
               </Alert>
@@ -549,7 +549,7 @@ export function CoinCreationModal({
                 <AlertIcon />
                 <VStack align="start" spacing={2}>
                   <Text fontSize="sm">
-                    You're connected to the wrong network. Please switch to Base
+                    You&apos;re connected to the wrong network. Please switch to Base
                     network to create coins.
                   </Text>
                   <Button
