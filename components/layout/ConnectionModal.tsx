@@ -20,7 +20,8 @@ import {
 } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { useAioha } from "@aioha/react-ui";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { useFarcasterMiniapp } from "@/hooks/useFarcasterMiniapp";
 import { useSignIn } from "@farcaster/auth-kit";
@@ -96,7 +97,7 @@ export default function ConnectionModal({
   const toast = useToast();
   // Get connection states
   const { isConnected: isEthereumConnected } = useAccount();
-  const { connect, connectors } = useConnect();
+  const { openConnectModal } = useConnectModal();
   const { disconnect } = useDisconnect();
   const {
     isAuthenticated: isFarcasterConnected,
@@ -151,13 +152,9 @@ export default function ConnectionModal({
     });
   };
 
-  const handleEthereumConnect = async () => {
+  const handleEthereumConnect = () => {
     try {
-      const connector = connectors[0];
-      if (connector) {
-        connect({ connector });
-        onClose();
-      }
+      openConnectModal?.();
     } catch (error) {
       toast({
         status: "error",

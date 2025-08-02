@@ -22,7 +22,8 @@ import {
 } from "@chakra-ui/react";
 import countryList from "react-select-country-list";
 import { ProfileData } from "./ProfilePage";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { useAioha } from "@aioha/react-ui";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { KeychainSDK, KeychainKeyTypes, Broadcast } from "keychain-sdk";
@@ -56,7 +57,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { address, isConnected } = useAccount();
-    const { connect, connectors, isPending } = useConnect();
+    const { openConnectModal } = useConnectModal();
     const { disconnect } = useDisconnect();
     const { user } = useAioha();
     const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } =
@@ -406,19 +407,14 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
               {/* Custom wallet connection instead of ConnectButton */}
               {!isConnected ? (
                 <VStack spacing={2} align="stretch">
-                  {connectors.map((connector) => (
-                    <Button
-                      key={connector.id}
-                      onClick={() => connect({ connector })}
-                      isLoading={isPending}
-                      loadingText="Connecting..."
-                      size="sm"
-                      colorScheme="blue"
-                      variant="outline"
-                    >
-                      Connect {connector.name}
-                    </Button>
-                  ))}
+                  <Button
+                    onClick={() => openConnectModal?.()}
+                    size="sm"
+                    colorScheme="blue"
+                    variant="outline"
+                  >
+                    Connect Wallet
+                  </Button>
                 </VStack>
               ) : (
                 <VStack spacing={2} align="stretch">
@@ -500,9 +496,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
       isEditingEthAddress,
       isConnected,
       address,
-      connectors,
-      isPending,
-      connect,
+      openConnectModal,
       disconnect,
       handleConnectEthWallet,
       handleEditEthAddress,
