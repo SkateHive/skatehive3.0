@@ -7,7 +7,6 @@ import {
   Link,
   VStack,
   Tooltip,
-  useToast,
   IconButton,
   MenuButton,
   MenuItem,
@@ -54,11 +53,7 @@ const Snap = ({
   onCommentAdded,
 }: SnapProps) => {
   const { user } = useAioha();
-  const {
-    isLoading: isHivePowerLoading,
-    error: hivePowerError,
-    estimateVoteValue,
-  } = useHivePower(user);
+  const { isLoading: isHivePowerLoading, estimateVoteValue } = useHivePower(user);
   const commentDate = getPostDate(discussion.created);
 
   // Use the custom hook for edit functionality
@@ -160,76 +155,75 @@ const Snap = ({
   return (
     <Box pl={effectiveDepth > 1 ? 1 : 0} ml={effectiveDepth > 1 ? 2 : 0}>
       <Box mt={1} mb={1} borderRadius="base" width="100%">
-        <HStack mb={2}>
-          <Link
-            href={`/user/${discussion.author}`}
-            _hover={{ textDecoration: "none" }}
-            display="flex"
-            alignItems="center"
-            role="group"
-          >
-            <Avatar
-              size="sm"
-              name={discussion.author}
-              src={`https://images.hive.blog/u/${discussion.author}/avatar/sm`}
-              ml={2}
-            />
-            <Text
-              fontWeight="medium"
-              fontSize="sm"
-              ml={2}
-              whiteSpace="nowrap"
-              _groupHover={{ textDecoration: "underline" }}
-            >
-              {discussion.author}
-            </Text>
-          </Link>
-          <HStack ml={0} width="100%" justify="space-between">
-            <HStack>
-              <Text fontWeight="medium" fontSize="sm" color="gray">
-                · {commentDate}
-              </Text>
-            </HStack>
-          </HStack>
-          <Menu>
-            <MenuButton
-              as={IconButton}
-              aria-label="Edit post"
-              icon={<BiDotsHorizontal />}
-              size="sm"
-              variant="ghost"
-              _active={{ bg: "none" }}
-              _hover={{ bg: "none" }}
-              bg={"background"}
-              color={"primary"}
-            />
-            <MenuList bg={"background"} color={"primary"}>
-              {user === discussion.author && (
-                <MenuItem
-                  onClick={handleEditClick}
+        <HStack align="flex-start" spacing={3} mb={2}>
+          <Avatar
+            size="sm"
+            name={discussion.author}
+            src={`https://images.hive.blog/u/${discussion.author}/avatar/sm`}
+          />
+          <VStack align="start" spacing={1} w="100%">
+            <HStack w="100%" justify="space-between" align="center">
+              <HStack spacing={2} align="center">
+                <Link
+                  href={`/user/${discussion.author}`}
+                  _hover={{ textDecoration: "none" }}
+                  role="group"
+                >
+                  <Text
+                    fontWeight="bold"
+                    fontSize="sm"
+                    whiteSpace="nowrap"
+                    _groupHover={{ textDecoration: "underline" }}
+                  >
+                    {discussion.author}
+                  </Text>
+                </Link>
+                <Text fontSize="xs" color="gray">
+                  {commentDate}
+                </Text>
+              </HStack>
+              <Menu>
+                <MenuButton
+                  as={IconButton}
+                  aria-label="Edit post"
+                  icon={<BiDotsHorizontal />}
+                  size="sm"
+                  variant="ghost"
+                  _active={{ bg: "none" }}
+                  _hover={{ bg: "none" }}
                   bg={"background"}
                   color={"primary"}
-                >
-                  <SlPencil style={{ marginRight: "8px" }} />
-                  Edit
-                </MenuItem>
-              )}
-              <ShareMenuButtons comment={discussion} />
-            </MenuList>
-          </Menu>
+                />
+                <MenuList bg={"background"} color={"primary"}>
+                  {user === discussion.author && (
+                    <MenuItem
+                      onClick={handleEditClick}
+                      bg={"background"}
+                      color={"primary"}
+                    >
+                      <SlPencil style={{ marginRight: "8px" }} />
+                      Edit
+                    </MenuItem>
+                  )}
+                  <ShareMenuButtons comment={discussion} />
+                </MenuList>
+              </Menu>
+            </HStack>
+            <Box w="100%" pt={2} pb={2}>
+              <Box
+                sx={{
+                  p: { marginBottom: "1rem", lineHeight: "1.6" },
+                }}
+              >
+                <EnhancedMarkdownRenderer content={text} />
+              </Box>
+              <MediaRenderer
+                mediaContent={media}
+                fullContent={discussion.body}
+              />
+            </Box>
+          </VStack>
         </HStack>
-        <Box>
-          <Box
-            sx={{
-              p: { marginBottom: "1rem", lineHeight: "1.6", marginLeft: "4" },
-            }}
-          >
-            <EnhancedMarkdownRenderer content={text} />
-          </Box>
-          <Box>
-            <MediaRenderer mediaContent={media} fullContent={discussion.body} />
-          </Box>
-        </Box>
 
         {/* Edit Modal */}
         <EditPostModal
