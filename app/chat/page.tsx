@@ -10,7 +10,7 @@ export default function ChatPage() {
     if (!container) return;
 
     const script = document.createElement('script');
-    script.src = 'https://chat.peakd.com/stlib.js';
+    script.src = 'https://chat.peakd.com/stwidget.js';
     script.async = true;
 
     let widget: any = null;
@@ -19,15 +19,11 @@ export default function ChatPage() {
       const StWidget = (window as any).StWidget;
       if (typeof StWidget === 'function') {
         widget = new StWidget('https://chat.peakd.com/t/hive-173115/0');
-        widget.properties = {
+        widget.setProperties({
           allow_resize: true,
           use_dark_mode: false,
-        };
-        widget.setStyle({
-          width: '100%',
-          height: '600px',
         });
-        const element = typeof widget.render === 'function' ? widget.render() : widget;
+        const element = widget.createElement('100%', '600px', false, false);
         container.appendChild(element);
       }
     };
@@ -41,7 +37,10 @@ export default function ChatPage() {
       if (container) {
         container.innerHTML = '';
       }
-      widget = null;
+      if (widget) {
+        widget.cleanup();
+        widget = null;
+      }
     };
   }, []);
 
