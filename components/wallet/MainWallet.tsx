@@ -643,7 +643,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                           </Heading>
                           <Text fontSize="sm" color="text" mb={1}>
                             Fast, secure, and convenient way to send HBD via PIX!
-                            Use Skatebank service powered by Pixbee to Buy and sell HBD instantly using PIX (Brazilian Real currency).                            
+                            Use Skatebank service powered by Pixbee to Buy and sell HBD instantly using PIX.
                           </Text>
                         </Box>
 

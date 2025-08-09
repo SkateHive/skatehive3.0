@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Button,
@@ -62,7 +63,44 @@ export default function AuthButton() {
   const prevEthRef = useRef(isEthereumConnected);
   const prevFcRef = useRef(isFarcasterConnected);
 
-  const handleMergeAccounts = async () => {
+  const generatePreview = useCallback(async () => {
+    if (!user) return;
+
+    setIsGeneratingPreview(true);
+    try {
+      const options: any = {
+        username: user,
+      };
+
+      if (isEthereumConnected && ethereumAddress) {
+        options.ethereumAddress = ethereumAddress;
+      }
+
+      if (isFarcasterConnected && farcasterProfile) {
+        options.farcasterProfile = {
+          fid: farcasterProfile.fid,
+          username: farcasterProfile.username,
+          custody: farcasterProfile.custody,
+          verifications: farcasterProfile.verifications,
+        };
+      }
+
+      const diff = await generateMergePreview(options);
+      setProfileDiff(diff);
+    } catch (err: any) {
+      console.error("Failed to generate merge preview", err);
+      toast({
+        title: "Preview Failed",
+        description: err?.message || "Unable to generate preview",
+        status: "error",
+        duration: 3000,
+      });
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  }, [user, isEthereumConnected, ethereumAddress, isFarcasterConnected, farcasterProfile, toast]);
+
+  const handleMergeAccounts = useCallback(async () => {
     if (!user) {
       setShowMergeModal(false);
       return;
@@ -107,51 +145,14 @@ export default function AuthButton() {
       setShowMergeModal(false);
       setProfileDiff(undefined);
     }
-  };
-
-  const generatePreview = async () => {
-    if (!user) return;
-
-    setIsGeneratingPreview(true);
-    try {
-      const options: any = {
-        username: user,
-      };
-
-      if (isEthereumConnected && ethereumAddress) {
-        options.ethereumAddress = ethereumAddress;
-      }
-
-      if (isFarcasterConnected && farcasterProfile) {
-        options.farcasterProfile = {
-          fid: farcasterProfile.fid,
-          username: farcasterProfile.username,
-          custody: farcasterProfile.custody,
-          verifications: farcasterProfile.verifications,
-        };
-      }
-
-      const diff = await generateMergePreview(options);
-      setProfileDiff(diff);
-    } catch (err: any) {
-      console.error("Failed to generate merge preview", err);
-      toast({
-        title: "Preview Failed",
-        description: err?.message || "Unable to generate preview",
-        status: "error",
-        duration: 3000,
-      });
-    } finally {
-      setIsGeneratingPreview(false);
-    }
-  };
+  }, [user, isEthereumConnected, ethereumAddress, isFarcasterConnected, farcasterProfile, toast]);
 
   // Hidden Farcaster sign-in state
   const hiddenSignInRef = React.useRef<HTMLDivElement>(null);
   const [isFarcasterAuthInProgress, setIsFarcasterAuthInProgress] =
     useState(false);
 
-  // Connection status data with priority (Hive > Ethereum > Farcaster) - Memoized to prevent recreation
+  // Connection status data with priority (Hive > Ethereum > Farcaster) - Memoized
   const connections: ConnectionStatus[] = useMemo(() => [
     {
       name: "Hive",
@@ -211,7 +212,7 @@ export default function AuthButton() {
 
     prevEthRef.current = isEthereumConnected;
     prevFcRef.current = isFarcasterConnected;
-  }, [isEthereumConnected, isFarcasterConnected, parsedMetadata, user, hiveAccount]);
+  }, [isEthereumConnected, isFarcasterConnected, parsedMetadata, user, hiveAccount, generatePreview]);
 
   // Get primary connection (highest priority connected) - Memoized
   const primaryConnection = useMemo(() => 

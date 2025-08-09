@@ -75,41 +75,7 @@ const UpvoteButton = ({
     return Array.from(uniqueVotesMap.values());
   }, [activeVotes]);
 
-  const handleHeartClick = useCallback(() => {
-    // Don't allow voting if user info is still loading
-    if (isLoading) {
-      toast({
-        title: "Please wait",
-        description: "Loading user preferences...",
-        status: "info",
-        duration: 2000,
-        isClosable: true,
-      });
-      return;
-    }
-
-    if (variant === "withSlider" && setShowSlider && !disableSlider) {
-      // Only show slider if it's not disabled in user preferences
-      setShowSlider(!showSlider);
-    } else if (
-      variant === "simple" ||
-      variant === "withVoteCount" ||
-      disableSlider
-    ) {
-      // If slider is disabled or it's a simple variant, vote directly with preferred weight
-      handleVote(userVoteWeight);
-    }
-  }, [
-    variant,
-    setShowSlider,
-    showSlider,
-    userVoteWeight,
-    disableSlider,
-    isLoading,
-    toast,
-  ]);
-
-  const handleVote = useCallback(
+const handleVote = useCallback(
     async (votePercentage: number = sliderValue) => {
       if (!user) {
         toast({
@@ -187,7 +153,6 @@ const UpvoteButton = ({
       discussion.author,
       discussion.permlink,
       sliderValue,
-      userVoteWeight,
       setVoted,
       setActiveVotes,
       activeVotes,
@@ -196,8 +161,46 @@ const UpvoteButton = ({
       toast,
       variant,
       setShowSlider,
+      isHivePowerLoading,
     ]
   );
+
+  const handleHeartClick = useCallback(() => {
+    // Don't allow voting if user info is still loading
+    if (isLoading) {
+      toast({
+        title: "Please wait",
+        description: "Loading user preferences...",
+        status: "info",
+        duration: 2000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    if (variant === "withSlider" && setShowSlider && !disableSlider) {
+      // Only show slider if it's not disabled in user preferences
+      setShowSlider(!showSlider);
+    } else if (
+      variant === "simple" ||
+      variant === "withVoteCount" ||
+      disableSlider
+    ) {
+      // If slider is disabled or it's a simple variant, vote directly with preferred weight
+      handleVote(userVoteWeight);
+    }
+  }, [
+    variant,
+    setShowSlider,
+    showSlider,
+    userVoteWeight,
+    disableSlider,
+    isLoading,
+    toast,
+    handleVote,
+  ]);
+
+  
 
   // Simple variant - just the upvote button (matches Snap styling)
   if (variant === "simple") {

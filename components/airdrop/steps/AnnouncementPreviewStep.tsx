@@ -131,6 +131,7 @@ export function AnnouncementPreviewStep({
     ethereumAddress,
     isAnonymous,
     airdropUsers,
+    onUploadedImageUrlChange, // Added to dependency array
   ]);
 
   return (

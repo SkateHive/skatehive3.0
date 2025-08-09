@@ -1,3 +1,5 @@
+"use client";
+
 import { Transaction, getTransactionHistory } from "@/lib/hive/client-functions";
 import { KeyTypes } from "@aioha/aioha";
 import { useAioha } from "@aioha/react-ui";
@@ -9,12 +11,13 @@ import { PixDashboardData } from "./PIXTabContent";
 const MAX_MEMO_LENGTH = 25;
 const CALENDAR_EMOJI = "📅";
 const ENDECRYPTED_EMOJI = "🔒";
-const DECRYPTED_EMOJI = "" //"🗝️";
+const DECRYPTED_EMOJI = ""; // "🗝️";
 
 const PIXTransactionHistory = ({ searchAccount, pixDashboardData }: { searchAccount: string, pixDashboardData: PixDashboardData | null }) => {
   const { user, aioha } = useAioha();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalSentToPixbee, setTotalSentToPixbee] = useState<Record<string, number>>({});
+  const [totalReceived, setTotalReceived] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [decryptedMemos, setDecryptedMemos] = useState<Record<number, string>>({});
   const toast = useToast();
@@ -61,10 +64,22 @@ const PIXTransactionHistory = ({ searchAccount, pixDashboardData }: { searchAcco
         const { transactions: fetchedTransactions, totalSentToPixbee } = await getTransactionHistory(user, searchAccount);
         setTransactions(fetchedTransactions);
         setTotalSentToPixbee(totalSentToPixbee);
+
+        // Calculate total received by user for each currency
+        const received = fetchedTransactions.reduce((acc, tx) => {
+          if (tx.to === user) {
+            const currency = tx.amount.split(" ")[1]; // e.g., "1.000 HIVE" -> "HIVE"
+            const amount = parseFloat(tx.amount.split(" ")[0]);
+            acc[currency] = (acc[currency] || 0) + amount;
+          }
+          return acc;
+        }, {} as Record<string, number>);
+        setTotalReceived(received);
       } catch (error) {
         console.error("Failed to fetch transactions:", error);
         setTransactions([]);
         setTotalSentToPixbee({});
+        setTotalReceived({});
       } finally {
         setLoading(false);
       }
@@ -81,9 +96,9 @@ const PIXTransactionHistory = ({ searchAccount, pixDashboardData }: { searchAcco
         <Spinner />
       ) : transactions.length > 0 ? (
         <>
-          <Box mb={4} maxWidth="500px">
+          <Box mb={4} w="100%">
             <Text fontSize="lg" fontWeight="bold" mb={2} textAlign="center">
-              Your Withdraw History
+              📊 Your PIX Transaction Summary
             </Text>
 
             <Table size="sm" variant="simple" w="100%">
@@ -91,11 +106,15 @@ const PIXTransactionHistory = ({ searchAccount, pixDashboardData }: { searchAcco
                 <Tr>
                   <Th textAlign="center">Currency</Th>
                   <Th isNumeric>Total Sent</Th>
-                  <Th isNumeric>Now Worth (BRL)</Th>
+                  <Th isNumeric>Now Worth</Th>
+                  <Th isNumeric>Total Received</Th>
+                  <Th isNumeric>Now Worth</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {Object.entries(totalSentToPixbee).map(([currency, amount]) => {
+                {Object.keys({ ...totalSentToPixbee, ...totalReceived }).map((currency) => {
+                  const sentAmount = totalSentToPixbee[currency] || 0;
+                  const receivedAmount = totalReceived[currency] || 0;
                   let priceBRL = 0;
                   if (currency === "HBD" && typeof pixDashboardData?.HBDPriceBRL === "number") {
                     priceBRL = pixDashboardData.HBDPriceBRL;
@@ -106,21 +125,37 @@ const PIXTransactionHistory = ({ searchAccount, pixDashboardData }: { searchAcco
                   return (
                     <Tr key={currency}>
                       <Td textAlign="center">{currency}</Td>
-                      <Td isNumeric>{amount.toFixed(3)}</Td>
-                      <Td isNumeric>
-                        {priceBRL ? `R$ ${(amount * priceBRL).toFixed(2)}` : "-"}
-                      </Td>
+                      <Td isNumeric>{sentAmount.toFixed(3)}</Td>
+                      <Td isNumeric>{priceBRL ? `R$ ${(sentAmount * priceBRL).toFixed(2)}` : "-"}</Td>
+                      <Td isNumeric>{receivedAmount.toFixed(3)}</Td>
+                      <Td isNumeric>{priceBRL ? `R$ ${(receivedAmount * priceBRL).toFixed(2)}` : "-"}</Td>
                     </Tr>
                   );
                 })}
                 <Tr fontWeight="bold">
                   <Td textAlign="center">TOTAL</Td>
                   <Td isNumeric>
-
                   </Td>
                   <Td isNumeric>
                     R${" "}
                     {Object.entries(totalSentToPixbee)
+                      .reduce((sum, [currency, amount]) => {
+                        let priceBRL = 0;
+                        if (currency === "HBD" && typeof pixDashboardData?.HBDPriceBRL === "number") {
+                          priceBRL = pixDashboardData.HBDPriceBRL;
+                        }
+                        if (currency === "HIVE" && typeof pixDashboardData?.HivePriceBRL === "number") {
+                          priceBRL = pixDashboardData.HivePriceBRL;
+                        }
+                        return sum + amount * priceBRL;
+                      }, 0)
+                      .toFixed(2)}
+                  </Td>
+                  <Td isNumeric>
+                  </Td>
+                  <Td isNumeric>
+                    R${" "}
+                    {Object.entries(totalReceived)
                       .reduce((sum, [currency, amount]) => {
                         let priceBRL = 0;
                         if (currency === "HBD" && typeof pixDashboardData?.HBDPriceBRL === "number") {
@@ -138,6 +173,9 @@ const PIXTransactionHistory = ({ searchAccount, pixDashboardData }: { searchAcco
             </Table>
           </Box>
 
+            <Text fontSize="lg" fontWeight="bold" mb={2} textAlign="center">
+              📜 Your PIX Transaction History
+            </Text>
 
           <Box overflowX="auto" color="white" width="100%" maxWidth="1200px" mx="auto">
             <Table size="sm">

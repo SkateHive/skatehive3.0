@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Container,
@@ -34,21 +34,21 @@ export default function GameClientPage() {
   const [gameKey, setGameKey] = useState(0);
   const [gameScale, setGameScale] = useState(0.7); // Start at 70% size
 
-  const toggleModalFullscreen = () => {
-    setIsModalFullscreen(!isModalFullscreen);
-  };
+  const toggleModalFullscreen = useCallback(() => {
+    setIsModalFullscreen((prev) => !prev);
+  }, [setIsModalFullscreen]);
 
-  const refreshGame = () => {
+  const refreshGame = useCallback(() => {
     setGameKey((prev) => prev + 1);
-  };
+  }, []);
 
-  const increaseSize = () => {
+  const increaseSize = useCallback(() => {
     setGameScale((prev) => Math.min(prev + 0.1, 1.0)); // Max 100%
-  };
+  }, []);
 
-  const decreaseSize = () => {
+  const decreaseSize = useCallback(() => {
     setGameScale((prev) => Math.max(prev - 0.1, 0.4)); // Min 40%
-  };
+  }, []);
 
   const bgColor = useColorModeValue("gray.900", "gray.900");
   const textColor = useColorModeValue("white", "white");
@@ -106,7 +106,7 @@ export default function GameClientPage() {
       document.body.style.overflow = "auto";
       document.removeEventListener("keydown", handleKeyPress);
     };
-  }, [isModalFullscreen]);
+  }, [isModalFullscreen, toggleModalFullscreen]);
 
   return (
     <>

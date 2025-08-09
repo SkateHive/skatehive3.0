@@ -38,6 +38,79 @@ export default function BeneficiariesInput({
   const { isOpen, onToggle } = useDisclosure();
   const [errors, setErrors] = useState<string[]>([]);
 
+  const validateBeneficiaries = useCallback(
+    (beneficiariesList: Beneficiary[]) => {
+      console.log("✅ BeneficiariesInput: Starting validation", {
+        beneficiariesList,
+      });
+
+      const validationErrors: string[] = [];
+
+      // Check for empty accounts and invalid usernames
+      beneficiariesList.forEach((beneficiary, index) => {
+        if (!beneficiary.account.trim()) {
+          validationErrors.push(
+            `Beneficiary ${index + 1}: Account name is required`
+          );
+        } else if (beneficiary.isValidAccount !== true) {
+          validationErrors.push(
+            `Beneficiary ${index + 1}: Please enter a valid Hive username`
+          );
+        }
+      });
+
+      // Check total weight doesn't exceed 100%
+      const totalWeight = beneficiariesList.reduce(
+        (sum, b) => sum + b.weight,
+        0
+      );
+      const totalPercentage = totalWeight / 100;
+
+      console.log("📈 BeneficiariesInput: Weight calculation", {
+        beneficiariesList,
+        individualWeights: beneficiariesList.map((b) => ({
+          account: b.account,
+          weight: b.weight,
+          percentage: b.weight / 100,
+        })),
+        totalWeight,
+        totalPercentage,
+        isExceeding100: totalWeight > 10000,
+      });
+
+      if (totalWeight > 10000) {
+        // 10000 basis points = 100%
+        validationErrors.push(
+          `Total beneficiary percentage cannot exceed 100% (currently ${totalPercentage.toFixed(
+            1
+          )}%)`
+        );
+      }
+
+      // Check for duplicate accounts
+      const accounts = beneficiariesList.map((b) => b.account.toLowerCase());
+      const duplicates = accounts.filter(
+        (account, index) => accounts.indexOf(account) !== index
+      );
+      if (duplicates.length > 0) {
+        validationErrors.push(
+          `Duplicate accounts found: ${duplicates.join(", ")}`
+        );
+      }
+
+      console.log("🔍 BeneficiariesInput: Validation results", {
+        validationErrors,
+        hasErrors: validationErrors.length > 0,
+        totalWeight,
+        totalPercentage,
+        duplicates,
+      });
+
+      setErrors(validationErrors);
+    },
+    []
+  );
+
   const addBeneficiary = useCallback(() => {
     const newBeneficiary = { account: "", weight: 500, isValidAccount: false };
     const updatedBeneficiaries = [...beneficiaries, newBeneficiary];
@@ -51,7 +124,7 @@ export default function BeneficiariesInput({
       setBeneficiaries(newBeneficiaries);
       validateBeneficiaries(newBeneficiaries);
     },
-    [beneficiaries, setBeneficiaries]
+    [beneficiaries, setBeneficiaries, validateBeneficiaries]
   );
 
   const updateBeneficiary = useCallback(
@@ -80,57 +153,7 @@ export default function BeneficiariesInput({
       setBeneficiaries(newBeneficiaries);
       validateBeneficiaries(newBeneficiaries);
     },
-    [beneficiaries, setBeneficiaries]
-  );
-
-  const validateBeneficiaries = useCallback(
-    (beneficiariesList: Beneficiary[]) => {
-
-      const validationErrors: string[] = [];
-
-      // Check for empty accounts and invalid usernames
-      beneficiariesList.forEach((beneficiary, index) => {
-        if (!beneficiary.account.trim()) {
-          validationErrors.push(
-            `Beneficiary ${index + 1}: Account name is required`
-          );
-        } else if (beneficiary.isValidAccount !== true) {
-          validationErrors.push(
-            `Beneficiary ${index + 1}: Please enter a valid Hive username`
-          );
-        }
-      });
-
-      // Check total weight doesn't exceed 100%
-      const totalWeight = beneficiariesList.reduce(
-        (sum, b) => sum + b.weight,
-        0
-      );
-      const totalPercentage = totalWeight / 100;
-
-      if (totalWeight > 10000) {
-        // 10000 basis points = 100%
-        validationErrors.push(
-          `Total beneficiary percentage cannot exceed 100% (currently ${totalPercentage.toFixed(
-            1
-          )}%)`
-        );
-      }
-
-      // Check for duplicate accounts
-      const accounts = beneficiariesList.map((b) => b.account.toLowerCase());
-      const duplicates = accounts.filter(
-        (account, index) => accounts.indexOf(account) !== index
-      );
-      if (duplicates.length > 0) {
-        validationErrors.push(
-          `Duplicate accounts found: ${duplicates.join(", ")}`
-        );
-      }
-
-      setErrors(validationErrors);
-    },
-    []
+    [beneficiaries, setBeneficiaries, validateBeneficiaries]
   );
 
   const totalPercentage =
@@ -254,9 +277,9 @@ export default function BeneficiariesInput({
               <Alert status="info" size="sm">
                 <AlertIcon />
                 <Text fontSize="xs">
-                  {beneficiaries.length} beneficiar
-                  {beneficiaries.length === 1 ? "y" : "ies"} will receive{" "}
-                  {totalPercentage.toFixed(1)}% of post rewards
+                  {beneficiaries.length}{" "}
+                  {beneficiaries.length === 1 ? "beneficiary" : "beneficiaries"}{" "}
+                  will receive {totalPercentage.toFixed(1)}% of post rewards
                 </Text>
               </Alert>
             )}

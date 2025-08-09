@@ -6,41 +6,21 @@ import {
   Heading,
   Input,
   Select,
-  // SimpleGrid,
   Spinner,
   Text,
   useToast,
   VStack,
   HStack,
   Tooltip,
-  FormLabel,
+  OrderedList,
+  ListItem,
 } from "@chakra-ui/react";
-import PIXTransactionHistory from "./PIXTransationHistory";
+import PIXTransactionHistory from "./PIXTransactionHistory";
 import { Asset } from "@aioha/aioha";
 import { useAioha } from "@aioha/react-ui";
 import useHiveAccount from "@/hooks/useHiveAccount";
-
-// devs in localhost no pixbee acces due CORS
-// const mockData = {
-//   pixbeePixKey: "816b8bac-bf1f-4689-80c2-c2bc2e2a8d7a",
-//   HivePriceBRL: 1.159,
-//   BRLPriceHive: 1.132,
-//   HivePriceUSD: 0.212,
-//   HBDPriceBRL: 5.555,
-//   BRLPriceHBD: 5.555,
-//   minRefundHive: 5,
-//   minRefundHbd: 2,
-//   minRefundPix: 10,
-//   depositMinLimit: 5,
-//   balancePix: 836.86,
-//   balanceHbd: 87.025,
-//   balanceHive: 0.107,
-//   balanceTotal: 1299.52,
-//   OurExchangePer: 0.01,
-//   OurExchangeFee: 2,
-//   OurRefundPer: 0.01,
-// };
-
+import PixTransferGuide from "./PIXTransferGuide";
+import PIXFAQ from "./PIXFAQ";
 
 export interface PixDashboardData {
   pixbeePixKey: string;
@@ -76,10 +56,10 @@ type PIXFormProps = {
 };
 
 function PIXForm({ pixDashboardData }: PIXFormProps) {
-
+  // Move all hooks to the top level
   const { user, aioha } = useAioha();
   const { hiveAccount, isLoading, error } = useHiveAccount(user || "");
-  const [currency, setCurrency] = useState("HIVE");
+  const [currency, setCurrency] = useState("HBD");
   const [amount, setAmount] = useState("");
   const [pixKey, setPixKey] = useState("");
   const [previewData, setPreviewData] = useState<{
@@ -91,19 +71,29 @@ function PIXForm({ pixDashboardData }: PIXFormProps) {
   const [loading, setLoading] = useState(false);
   const toast = useToast();
 
+  // Declare userAvailableHbd before useEffect
+  const userAvailableHive = hiveAccount?.balance
+    ? Number(String(hiveAccount.balance).split(" ")[0])
+    : 0;
+
+  // Declare userAvailableHbd before useEffect
   const userAvailableHbd = hiveAccount?.hbd_balance
     ? Number(String(hiveAccount.hbd_balance).split(" ")[0])
     : 0;
 
+  // Use appropriate balance based on currency
   useEffect(() => {
-    if (userAvailableHbd > 0) {
-      setAmount(String(userAvailableHbd.toFixed(3)));
+    const balance = currency === "HBD" ? userAvailableHbd : userAvailableHive;
+    if (balance > 0) {
+      setAmount(String(balance.toFixed(3)));
     }
-  }, [userAvailableHbd]);
+  }, [userAvailableHbd, userAvailableHive, currency]);
 
+  // Early return after hooks
   if (!pixDashboardData) {
-    return <div>Loading dashboard data...</div>;
+    return <Text color="red.400">Loading dashboard data...</Text>;
   }
+
   const checkMemoValidity = (memo: string): { isValid: boolean; translatedNote?: string } => {
     const lowerMemo = memo.toLowerCase();
 
@@ -136,7 +126,11 @@ function PIXForm({ pixDashboardData }: PIXFormProps) {
 
     setLoading(true);
     try {
-      const response = await fetch("https://aphid-glowing-fish.ngrok-free.app/simulatehbd2pix", {
+      const endpoint = currency === "HBD"
+        ? "https://aphid-glowing-fish.ngrok-free.app/simulatehbd2pix"
+        : "https://aphid-glowing-fish.ngrok-free.app/simulatehive2pix";
+
+      const response = await fetch(endpoint, {
         method: "POST",
         body: JSON.stringify({ Memo: pixKey, Amount: amount }),
         headers: {
@@ -179,12 +173,13 @@ function PIXForm({ pixDashboardData }: PIXFormProps) {
       }
 
       const memo = `#${pixKey}`; // Encrypt the PIX key
-      const xferResult = await aioha.transfer("pixbee", amountNumber, Asset.HBD, memo);
+      const asset = currency === "HBD" ? Asset.HBD : Asset.HIVE;
+      const xferResult = await aioha.transfer("pixbee", amountNumber, asset, memo);
 
       if (xferResult?.success) {
         toast({
           title: "PIX Transfer Successful",
-          description: `Sent ${amount} HBD to pixbee`,
+          description: `Sent ${amount} ${currency} to pixbee`,
           status: "success",
           duration: 4000,
         });
@@ -212,125 +207,151 @@ function PIXForm({ pixDashboardData }: PIXFormProps) {
   };
 
   return (
-    <VStack spacing={3} align="stretch">
-      <Box fontSize="xs" color="gray.400">
-        Your HBD Balance: {userAvailableHbd.toFixed(3)} HBD<br />
-        Minimal Deposit: R$ {pixDashboardData.depositMinLimit}
-      </Box>
+    <Box
+      p={4}
+      bg="background"
+      borderRadius="lg"
+      border="1px solid"
+      borderColor="muted"
+    >
 
-      <Select
-        value={currency}
-        onChange={(e) => setCurrency(e.target.value)}
-        size="sm"
-        fontFamily="Joystix"
-        fontWeight="bold"
-        borderColor="muted"
-      >
-        <option value="HBD">HBD</option>
-      </Select>
+      <VStack spacing={3} align="stretch">
+        <Heading size="sm" mb={2} color="primary" fontFamily="Joystix">
+          💸 {currency} to PIX Transfer
+        </Heading>
+        <Box fontSize="xs" color="primary">
+          {currency === "HBD" ? (
+            <>
+              Your HBD Balance: {userAvailableHbd.toFixed(3)} HBD<br />
+              Minimal Deposit: {pixDashboardData.depositMinLimit} PIX
+            </>
+          ) : (
+            <>
+              Your HIVE Balance: {userAvailableHive.toFixed(3)} HIVE<br />
+              Minimal Deposit: {pixDashboardData.depositMinLimit} PIX
+            </>
+          )}
+        </Box>
 
-      <HStack>
-
-        <Input
-          placeholder="Amount"
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          size="sm"
-          fontFamily="Joystix"
-          borderColor="muted"
-          flex="1"
-        />
-        <Button
+        <Select
+          value={currency}
+          onChange={(e) => setCurrency(e.target.value)}
           size="sm"
           fontFamily="Joystix"
           fontWeight="bold"
-          onClick={() => setAmount(String(userAvailableHbd.toFixed(3)))}
-          isDisabled={userAvailableHbd === 0}
-        >
-          MAX
-        </Button>
-      </HStack>
-
-      <Input
-        placeholder="PIX key"
-        value={pixKey}
-        onChange={(e) => setPixKey(e.target.value)}
-        size="sm"
-        fontFamily="Joystix"
-        borderColor="muted"
-      />
-
-      <Button
-        size="sm"
-        colorScheme="green"
-        onClick={handlePreview}
-        isLoading={loading}
-        fontFamily="Joystix"
-        fontWeight="bold"
-      >
-        👀 Preview
-      </Button>
-
-      {previewData && (
-        <Box
-          mt={3}
-          p={3}
-          border="1px solid"
           borderColor="muted"
-          borderRadius="md"
-          backgroundImage="url('/images/brl.webp')"
-          backgroundSize="cover"
-          backgroundPosition="left"
-          backgroundRepeat="no-repeat"
-          position="relative"
-          minHeight="250px"
-          _before={{
-            content: '""',
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.8)", // Semi-transparent black overlay (adjust opacity as needed)
-            zIndex: 1,
-          }}
         >
-          <Box position="relative" zIndex={2}> {/* Ensure content is above the overlay */}
-            <Text fontSize="md"><strong>Preview:</strong></Text><br />
-            <Text fontSize="sm">💸 <strong>{previewData.resAmount}</strong></Text>
-            <Text fontSize="sm">📝 <strong>{previewData.resMemo}</strong></Text>
+          <option value="HBD">HBD</option>
+          <option value="HIVE">HIVE</option>
+        </Select>
 
-            {!previewData.isValid && (
-              <Text fontSize="sm" color="red.400" mt={2}>
-                {previewData.translatedNote}
+        <HStack>
+          <Input
+            placeholder="Amount"
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            size="sm"
+            fontFamily="Joystix"
+            borderColor="muted"
+            flex="1"
+          />
+          <Button
+            size="sm"
+            fontFamily="Joystix"
+            fontWeight="bold"
+            onClick={() => setAmount(String(currency === "HBD" ? userAvailableHbd : userAvailableHive))}
+            isDisabled={currency === "HBD" ? userAvailableHbd === 0 : userAvailableHive === 0}
+          >
+            MAX
+          </Button>
+        </HStack>
+
+        <Input
+          placeholder="PIX key"
+          value={pixKey}
+          onChange={(e) => setPixKey(e.target.value)}
+          size="sm"
+          fontFamily="Joystix"
+          borderColor="muted"
+        />
+
+        <Button
+          size="sm"
+          colorScheme="green"
+          onClick={handlePreview}
+          isLoading={loading}
+          fontFamily="Joystix"
+          fontWeight="bold"
+        >
+          👀 Preview
+        </Button>
+
+        {previewData && (
+          <Box
+            mt={3}
+            p={3}
+            border="1px solid"
+            borderColor="muted"
+            borderRadius="md"
+            backgroundImage="url('/images/brl.webp')"
+            backgroundSize="cover"
+            backgroundPosition="left"
+            backgroundRepeat="no-repeat"
+            position="relative"
+            minHeight="250px"
+            _before={{
+              content: '""',
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.8)",
+              zIndex: 1,
+            }}
+          >
+            <Box position="relative" zIndex={2}>
+              <Text fontSize="md">
+                <strong>Preview:</strong>
               </Text>
-            )}
+              <br />
+              <Text fontSize="sm">
+                💸 <strong>{previewData.resAmount}</strong>
+              </Text>
+              <Text fontSize="sm">
+                📝 <strong>{previewData.resMemo}</strong>
+              </Text>
 
-            <Button
-              mt={2}
-              size="sm"
-              colorScheme="blue"
-              onClick={handleSend}
-              fontFamily="Joystix"
-              fontWeight="bold"
-              isDisabled={!previewData.isValid}
-            >
-              💸 Sign & Send
-            </Button>
+              {!previewData.isValid && (
+                <Text fontSize="sm" color="red.400" mt={2}>
+                  {previewData.translatedNote}
+                </Text>
+              )}
+
+              <Button
+                mt={2}
+                size="sm"
+                colorScheme="blue"
+                onClick={handleSend}
+                fontFamily="Joystix"
+                fontWeight="bold"
+                isDisabled={!previewData.isValid}
+              >
+                💸 Sign & Send
+              </Button>
+            </Box>
           </Box>
-        </Box>
-      )}
-    </VStack>
+        )}
+      </VStack>
+    </Box>
   );
 }
-
-
 
 // 📊 Balance Bar Graph
 function BalanceBarGraph({ data }: { data: PixDashboardData }) {
   const hiveBRL = data.balanceHive * data.HivePriceBRL;
-  const hbdBRL = data.balanceHbd * data.HBDPriceBRL;
+  const hbdBRL = data.balanceHbd * ((data.HBDPriceBRL + data.BRLPriceHBD) / 2);
   const pixBRL = data.balancePix;
 
   const total = hiveBRL + hbdBRL + pixBRL;
@@ -342,7 +363,8 @@ function BalanceBarGraph({ data }: { data: PixDashboardData }) {
   return (
     <Box>
       <Text fontWeight="bold" mb={1}>
-        💰 Skatebank Balance (BRL {total.toFixed(2)})
+        💰 Skatebank Balance
+        {/* (BRL {total.toFixed(2)}) */}
       </Text>
       <HStack
         h="24px"
@@ -364,25 +386,23 @@ function BalanceBarGraph({ data }: { data: PixDashboardData }) {
         </Tooltip>
       </HStack>
 
-      {/* Updated Legend */}
       <HStack spacing={4} mt={2} fontSize="xs" color="text">
         <HStack>
           <Box w={3} h={3} bg="blue.400" borderRadius="sm" />
-          <Text>PIX: R$ {pixBRL.toFixed(2)}</Text>
+          <Text>{pixBRL.toFixed(2)} PIX</Text>
         </HStack>
         <HStack>
           <Box w={3} h={3} bg="green.400" borderRadius="sm" />
-          <Text>HBD: R$ {hbdBRL.toFixed(2)}</Text>
+          <Text>{data.balanceHbd.toFixed(3)} HBD</Text>
         </HStack>
         <HStack>
           <Box w={3} h={3} bg="red.400" borderRadius="sm" />
-          <Text>HIVE: R$ {hiveBRL.toFixed(2)}</Text>
+          <Text>{data.balanceHive.toFixed(3)} HIVE</Text>
         </HStack>
       </HStack>
     </Box>
   );
 }
-
 
 // 🧠 Main Component
 export default function PIXTabContent() {
@@ -393,26 +413,16 @@ export default function PIXTabContent() {
   useEffect(() => {
     async function fetchData() {
       try {
-        let json;
+        const res = await fetch(
+          (process.env.NEXT_PUBLIC_PIXBEE_ENDPOINT || "https://aphid-glowing-fish.ngrok-free.app") + "/skatebank",
+          glowinOptions
+        );
 
-        try {
-          const res = await fetch(
-            (process.env.NEXT_PUBLIC_PIXBEE_ENDPOINT || "https://aphid-glowing-fish.ngrok-free.app") + "/skatebank",
-            glowinOptions
-          );
-
-          if (!res.ok) {
-            console.warn("❌ Server responded with error, use mock data.");
-            // json = mockData;
-            throw new Error("Pixbee offline");
-          } else {
-            json = await res.json();
-          }
-        } catch (err) {
-          console.error("❌ Fetch failed, use mock data.", err);
-          // json = mockData;
-          throw new Error("Pixbee offline");
+        if (!res.ok) {
+          throw new Error("Skatebank offline");
         }
+
+        const json = await res.json();
 
         // Convert to numbers if some are strings
         const parsedData = {
@@ -427,46 +437,41 @@ export default function PIXTabContent() {
 
         setDashboardData(parsedData);
       } catch (error) {
-        console.error("❌ Failed to load PIX data", error);
-        toast({ title: "Failed to load PIX data", status: "error" });
+        console.error("Failed to load PIX data", error);
+        toast({ title: "Failed to load PIX data", status: "error", duration: 3000 });
       } finally {
         setLoading(false);
       }
     }
 
     fetchData();
-  }, []);
+  }, [toast]);
 
   return (
     <VStack spacing={4} align="stretch">
       {loading ? (
-        <Center><Spinner /></Center>
+        <Center>
+          <Spinner />
+        </Center>
       ) : pixDashboardData ? (
         <>
           <BalanceBarGraph data={pixDashboardData} />
 
-          {/* PIX Form */}
-          <Box
-            p={4}
-            bg="background"
-            borderRadius="lg"
-            border="1px solid"
-            borderColor="muted"
-          >
-            <Heading size="sm" mb={4} color="primary" fontFamily="Joystix">
-              💸 Send PIX Transfer
-            </Heading>
-            <PIXForm pixDashboardData={pixDashboardData} />
-          </Box>
+          {/* HBD to PIX Form */}
+          <PIXForm pixDashboardData={pixDashboardData} />
+
+          {/* PIX to HBD Transfer Guide */}
+          <PixTransferGuide pixDashboardData={pixDashboardData} />
+
+          {/* Transaction History */}
+          <PIXTransactionHistory searchAccount={"pixbee"} pixDashboardData={pixDashboardData} />
+
+          {/* PIX FAQ */}
+          <PIXFAQ />
         </>
       ) : (
-        <Text color="red.400">Pixbee is offline now. Try later</Text>
+        <Text color="red.400">Skatebank is offline now. Try later</Text>
       )}
-
-      <Box>
-        <PIXTransactionHistory searchAccount={"pixbee"} pixDashboardData={pixDashboardData} />
-      </Box>
-
     </VStack>
   );
 }
