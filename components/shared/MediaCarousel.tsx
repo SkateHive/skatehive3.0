@@ -21,7 +21,10 @@ interface MediaCarouselProps {
   onMobileVideoFullscreen?: (videoSrc: string) => void;
 }
 
-const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems, onMobileVideoFullscreen }) => {
+const MediaCarousel: React.FC<MediaCarouselProps> = ({
+  mediaItems,
+  onMobileVideoFullscreen,
+}) => {
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   if (mediaItems.length === 0) return null;
@@ -70,7 +73,10 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems, onMobileVideo
   );
 };
 
-function renderMediaItem(item: MediaItem, onMobileVideoFullscreen?: (videoSrc: string) => void) {
+function renderMediaItem(
+  item: MediaItem,
+  onMobileVideoFullscreen?: (videoSrc: string) => void
+) {
   switch (item.type) {
     case "image":
       return (
@@ -93,7 +99,10 @@ function renderMediaItem(item: MediaItem, onMobileVideoFullscreen?: (videoSrc: s
     case "video":
       return item.src ? (
         <Box width="100%">
-          <VideoRenderer src={item.src} onMobileFullscreen={onMobileVideoFullscreen} />
+          <VideoRenderer
+            src={item.src}
+            onMobileFullscreen={onMobileVideoFullscreen}
+          />
         </Box>
       ) : null;
     case "iframe":

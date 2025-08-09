@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   Box,
   IconButton,
@@ -23,7 +29,11 @@ import { Discussion } from "@hiveio/dhive";
 import { useFarcasterMiniapp } from "@/hooks/useFarcasterMiniapp";
 import { parseMediaContent } from "@/lib/utils/snapUtils";
 import { useVideoPreloader } from "@/hooks/useVideoPreloader";
-import { getVideoFeedConfig, VIDEO_FEED_CONFIG, VideoFeedPerformance } from "@/lib/config/videoFeedConfig";
+import {
+  getVideoFeedConfig,
+  VIDEO_FEED_CONFIG,
+  VideoFeedPerformance,
+} from "@/lib/config/videoFeedConfig";
 
 // Get environment-specific configuration
 const config = getVideoFeedConfig();
@@ -67,9 +77,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [videoReady, setVideoReady] = useState(false);
   const [hasEnoughData, setHasEnoughData] = useState(false);
-  const [swipeDirection, setSwipeDirection] = useState<'up' | 'down' | null>(null);
+  const [swipeDirection, setSwipeDirection] = useState<"up" | "down" | null>(
+    null
+  );
   const [showControls, setShowControls] = useState(true);
-  const [controlsTimeoutId, setControlsTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const [controlsTimeoutId, setControlsTimeoutId] =
+    useState<NodeJS.Timeout | null>(null);
   const touchStartY = useRef<number>(0);
   const touchStartTime = useRef<number>(0);
   const touchStartX = useRef<number>(0);
@@ -88,27 +101,29 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setIsInitialLoad(false); // Never show loading
     setVideoReady(true); // Always assume ready
     setHasEnoughData(true);
-    
+
     const attemptPlay = async () => {
       try {
         video.currentTime = 0;
         video.muted = true;
-        
+
         const playPromise = video.play();
         if (playPromise !== undefined) {
-          playPromise.then(() => {
-            setIsPlaying(true);
-            onVideoReady?.(); // Immediately notify ready
-          }).catch((error) => {
-            if (error.name !== 'AbortError' && config.enableConsoleLogging) {
-              console.warn('Autoplay failed:', error.name);
-            }
-            setIsPlaying(false);
-          });
+          playPromise
+            .then(() => {
+              setIsPlaying(true);
+              onVideoReady?.(); // Immediately notify ready
+            })
+            .catch((error) => {
+              if (error.name !== "AbortError" && config.enableConsoleLogging) {
+                console.warn("Autoplay failed:", error.name);
+              }
+              setIsPlaying(false);
+            });
         }
       } catch (error) {
         if (config.enableConsoleLogging) {
-          console.warn('Play failed:', error);
+          console.warn("Play failed:", error);
         }
         setIsPlaying(false);
       }
@@ -125,27 +140,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     };
 
-    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener("canplay", handleCanPlay);
 
     return () => {
-      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener("canplay", handleCanPlay);
     };
   }, [src, isActive, onVideoReady]);
 
   // Controls visibility management
   const showControlsTemporarily = useCallback(() => {
     setShowControls(true);
-    
+
     // Clear existing timeout
     if (controlsTimeoutId) {
       clearTimeout(controlsTimeoutId);
     }
-    
+
     // Set new timeout to hide controls after 3 seconds
     const timeoutId = setTimeout(() => {
       setShowControls(false);
     }, 3000);
-    
+
     setControlsTimeoutId(timeoutId);
   }, [controlsTimeoutId]);
 
@@ -154,7 +169,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (isActive) {
       showControlsTemporarily();
     }
-    
+
     return () => {
       if (controlsTimeoutId) {
         clearTimeout(controlsTimeoutId);
@@ -183,16 +198,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setIsInitialLoad(false);
     };
 
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('waiting', handleWaiting);
-    video.addEventListener('playing', handlePlaying);
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
+    video.addEventListener("waiting", handleWaiting);
+    video.addEventListener("playing", handlePlaying);
 
     return () => {
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('waiting', handleWaiting);
-      video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
+      video.removeEventListener("waiting", handleWaiting);
+      video.removeEventListener("playing", handlePlaying);
     };
   }, [isInitialLoad]);
 
@@ -233,7 +248,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setIsPlaying(true);
       videoRef.current.play().catch((error) => {
         if (config.enableConsoleLogging) {
-          console.warn('Play failed on toggle:', error);
+          console.warn("Play failed on toggle:", error);
         }
         setIsPlaying(false);
       });
@@ -268,25 +283,25 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const currentX = e.touches[0].clientX;
         const deltaY = Math.abs(currentY - touchStartY.current);
         const deltaX = Math.abs(currentX - touchStartX.current);
-        
+
         // Only start dragging if vertical movement is greater than horizontal
         if (deltaY > 10 && deltaY > deltaX) {
           isDragging.current = true;
           e.preventDefault();
         }
       }
-      
+
       if (isDragging.current) {
         const currentY = e.touches[0].clientY;
         const deltaY = touchStartY.current - currentY;
-        
+
         // Show swipe direction hint
         if (Math.abs(deltaY) > 20) {
-          setSwipeDirection(deltaY > 0 ? 'up' : 'down');
+          setSwipeDirection(deltaY > 0 ? "up" : "down");
         } else {
           setSwipeDirection(null);
         }
-        
+
         e.preventDefault();
       }
     };
@@ -295,7 +310,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const touchEndY = e.changedTouches[0].clientY;
       const touchEndTime = Date.now();
       const deltaY = touchStartY.current - touchEndY;
-      const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX.current);
+      const deltaX = Math.abs(
+        e.changedTouches[0].clientX - touchStartX.current
+      );
       const deltaTime = touchEndTime - touchStartTime.current;
 
       // Improved swipe detection parameters
@@ -304,23 +321,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const maxHorizontalDrift = 100;
 
       // Check if this was a tap (small movement, quick time)
-      const isTap = Math.abs(deltaY) < 10 && deltaX < 10 && deltaTime < 300 && !isDragging.current;
-      
+      const isTap =
+        Math.abs(deltaY) < 10 &&
+        deltaX < 10 &&
+        deltaTime < 300 &&
+        !isDragging.current;
+
       if (isTap) {
         // Show controls on tap
         showControlsTemporarily();
       } else if (
         // Only trigger swipe if it was a vertical swipe
-        Math.abs(deltaY) > minSwipeDistance && 
-        deltaTime < maxSwipeTime && 
+        Math.abs(deltaY) > minSwipeDistance &&
+        deltaTime < maxSwipeTime &&
         deltaX < maxHorizontalDrift &&
         isDragging.current
       ) {
         // Add haptic feedback if available
-        if ('vibrate' in navigator) {
+        if ("vibrate" in navigator) {
           navigator.vibrate(50);
         }
-        
+
         if (deltaY > 0) {
           // Swipe up - next video
           onNext();
@@ -329,21 +350,25 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           onPrev();
         }
       }
-      
+
       // Reset swipe direction
       setSwipeDirection(null);
       isDragging.current = false;
     };
 
     // Add event listeners with proper passive options
-    container.addEventListener('touchstart', handleTouchStart, { passive: true });
-    container.addEventListener('touchmove', handleTouchMove, { passive: false });
-    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    container.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
+    container.addEventListener("touchmove", handleTouchMove, {
+      passive: false,
+    });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
 
     return () => {
-      container.removeEventListener('touchstart', handleTouchStart);
-      container.removeEventListener('touchmove', handleTouchMove);
-      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
     };
   }, [onNext, onPrev]);
 
@@ -382,10 +407,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       display="flex"
       alignItems="center"
       justifyContent="center"
-      style={{ 
-        touchAction: 'pan-y', // Allow vertical scrolling but prevent horizontal
-        userSelect: 'none',
-        WebkitUserSelect: 'none'
+      style={{
+        touchAction: "pan-y", // Allow vertical scrolling but prevent horizontal
+        userSelect: "none",
+        WebkitUserSelect: "none",
       }}
     >
       {/* Video Element - Always visible for smooth experience */}
@@ -440,23 +465,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       </Box>
 
       {/* Play/Pause Overlay - Show when paused and controls are visible */}
-      {!isPlaying && !isInitialLoad && videoRef.current?.paused !== false && showControls && (
-        <Box
-          position="absolute"
-          top="50%"
-          left="50%"
-          transform="translate(-50%, -50%)"
-          bg="rgba(0,0,0,0.6)"
-          borderRadius="50%"
-          p={4}
-          cursor="pointer"
-          onClick={togglePlayPause}
-          zIndex={1001}
-          transition="opacity 0.3s ease"
-        >
-          <LuPlay size={48} color="white" />
-        </Box>
-      )}
+      {!isPlaying &&
+        !isInitialLoad &&
+        videoRef.current?.paused !== false &&
+        showControls && (
+          <Box
+            position="absolute"
+            top="50%"
+            left="50%"
+            transform="translate(-50%, -50%)"
+            bg="rgba(0,0,0,0.6)"
+            borderRadius="50%"
+            p={4}
+            cursor="pointer"
+            onClick={togglePlayPause}
+            zIndex={1001}
+            transition="opacity 0.3s ease"
+          >
+            <LuPlay size={48} color="white" />
+          </Box>
+        )}
 
       {/* Swipe Direction Indicator */}
       {swipeDirection && (
@@ -471,7 +499,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           pointerEvents="none"
           transition="opacity 0.2s"
         >
-          {swipeDirection === 'up' ? (
+          {swipeDirection === "up" ? (
             <FaChevronUp size={32} color="black" />
           ) : (
             <FaChevronDown size={32} color="black" />
@@ -605,7 +633,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           @{discussion.author}
         </Text>
         <Text fontSize="sm" opacity={0.9} noOfLines={2}>
-          {discussion.title || (discussion.body ? discussion.body.slice(0, 100) : '')}
+          {discussion.title ||
+            (discussion.body ? discussion.body.slice(0, 100) : "")}
         </Text>
       </Box>
     </Box>
@@ -646,18 +675,20 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
     // Preserve current video position when content updates
     let newIndex = 0;
     const targetVideoSrc = initialVideoSrc || currentVideoSrc;
-    
+
     if (targetVideoSrc) {
       const foundIndex = filtered.findIndex((comment) => {
         if (!comment?.body) return false;
         try {
           const mediaItems = parseMediaContent(comment.body);
-          return mediaItems.some((item) => item.type === "video" && item.src === targetVideoSrc);
+          return mediaItems.some(
+            (item) => item.type === "video" && item.src === targetVideoSrc
+          );
         } catch (error) {
           return false;
         }
       });
-      
+
       if (foundIndex >= 0) {
         newIndex = foundIndex;
       } else if (currentVideoSrc && prevVideoComments.length > 0) {
@@ -675,10 +706,10 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
         }
       }
     }
-    
+
     setVideoComments(filtered);
     setCurrentIndex(newIndex);
-    
+
     // Update current video src if we have a new current video
     if (filtered[newIndex]) {
       try {
@@ -693,61 +724,72 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
         }
       }
     }
-    
+
     setIsLoading(false);
-    
+
     // Log for debugging (only in development)
-    if (prevVideoComments.length !== filtered.length && config.enableConsoleLogging) {
-      console.log(`Video feed updated: ${prevVideoComments.length} -> ${filtered.length} videos, current index: ${newIndex}`);
+    if (
+      prevVideoComments.length !== filtered.length &&
+      config.enableConsoleLogging
+    ) {
+      console.log(
+        `Video feed updated: ${prevVideoComments.length} -> ${filtered.length} videos, current index: ${newIndex}`
+      );
     }
   }, [comments, initialVideoSrc]);
 
   // Extract video sources for preloading
   const videoSources = useMemo(() => {
-    return videoComments.map((comment) => {
-      try {
-        const mediaItems = parseMediaContent(comment.body);
-        const videoItem = mediaItems.find((item) => item.type === "video");
-        return videoItem?.src || '';
-      } catch (error) {
-        return '';
-      }
-    }).filter(Boolean);
+    return videoComments
+      .map((comment) => {
+        try {
+          const mediaItems = parseMediaContent(comment.body);
+          const videoItem = mediaItems.find((item) => item.type === "video");
+          return videoItem?.src || "";
+        } catch (error) {
+          return "";
+        }
+      })
+      .filter(Boolean);
   }, [videoComments]);
 
   // Enhanced video preloader with performance options
-  const { isVideoPreloaded, isVideoLoading } = useVideoPreloader(videoSources, currentIndex, {
-    enabled: VIDEO_FEED_CONFIG.FEATURES.enableVideoPreloading,
-    maxConcurrent: config.maxConcurrentPreloads,
-    lookahead: config.lookaheadCount,
-    debugMode: config.debugMode
-  });
+  const { isVideoPreloaded, isVideoLoading } = useVideoPreloader(
+    videoSources,
+    currentIndex,
+    {
+      enabled: VIDEO_FEED_CONFIG.FEATURES.enableVideoPreloading,
+      maxConcurrent: config.maxConcurrentPreloads,
+      lookahead: config.lookaheadCount,
+      debugMode: config.debugMode,
+    }
+  );
 
   const goToNext = useCallback(() => {
     if (transitioning) return; // Prevent multiple transitions
-    
+
     setCurrentIndex((prev) => {
       if (videoComments.length === 0) return 0;
-      
+
       const nextIndex = prev + 1;
-      
+
       // Check if we're near the end and need to load more
       if (nextIndex >= videoComments.length - 2 && hasMore && onLoadMore) {
         onLoadMore();
       }
-      
+
       // Don't go beyond the last video, just stay there
       const newIndex = Math.min(nextIndex, videoComments.length - 1);
-      
+
       // Instant transition - no waiting
       setTransitioning(true);
       setNextVideoIndex(newIndex);
-      
+
       // Quick transition for smooth experience
       setTimeout(() => {
         setTransitioning(false);
         setNextVideoIndex(null);
-        
+
         // Update current video src
         if (videoComments[newIndex]) {
           try {
@@ -763,27 +805,27 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
           }
         }
       }, 200); // Fast 200ms transition
-      
+
       return newIndex;
     });
   }, [videoComments.length, hasMore, onLoadMore, transitioning]);
 
   const goToPrev = useCallback(() => {
     if (transitioning) return; // Prevent multiple transitions
-    
+
     setCurrentIndex((prev) => {
       if (videoComments.length === 0) return 0;
       const newIndex = prev === 0 ? videoComments.length - 1 : prev - 1;
-      
+
       // Instant transition
       setTransitioning(true);
       setNextVideoIndex(newIndex);
-      
+
       // Quick transition for smooth experience
       setTimeout(() => {
         setTransitioning(false);
         setNextVideoIndex(null);
-        
+
         // Update current video src
         if (videoComments[newIndex]) {
           try {
@@ -799,7 +841,7 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
           }
         }
       }, 200); // Fast 200ms transition
-      
+
       return newIndex;
     });
   }, [videoComments.length, transitioning]);
@@ -808,11 +850,11 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
   useEffect(() => {
     return () => {
       // Stop any ongoing video playback and free memory
-      const videos = document.querySelectorAll('video');
-      videos.forEach(video => {
+      const videos = document.querySelectorAll("video");
+      videos.forEach((video) => {
         if (video.src) {
           video.pause();
-          video.removeAttribute('src');
+          video.removeAttribute("src");
           video.load();
         }
       });
@@ -877,7 +919,7 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
   }
 
   const currentComment = videoComments[currentIndex];
-  
+
   if (!currentComment || !currentComment.body) {
     return (
       <Box
@@ -921,11 +963,11 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
       zIndex={9999}
       bg="black"
       overflow="hidden"
-      style={{ 
-        touchAction: 'pan-y',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        WebkitTouchCallout: 'none'
+      style={{
+        touchAction: "pan-y",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        WebkitTouchCallout: "none",
       }}
     >
       {/* Close Button */}
@@ -967,18 +1009,24 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
           {[1, 2].map((offset) => {
             const nextIndex = currentIndex + offset;
             if (nextIndex >= videoSources.length) return null;
-            
+
             const nextSrc = videoSources[nextIndex];
             const isPreloaded = isVideoPreloaded(nextSrc);
             const isLoading = isVideoLoading(nextSrc);
-            
+
             return (
               <Box
                 key={offset}
                 width="4px"
                 height="4px"
                 borderRadius="50%"
-                bg={isPreloaded ? "green.400" : isLoading ? "yellow.400" : "gray.400"}
+                bg={
+                  isPreloaded
+                    ? "green.400"
+                    : isLoading
+                    ? "yellow.400"
+                    : "gray.400"
+                }
                 opacity={0.8}
               />
             );
@@ -1000,27 +1048,32 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
           opacity={transitioning ? 0 : 1}
           zIndex={transitioning ? 1 : 2}
         />
-        
+
         {/* Next Video (for smooth transition) - Always visible when transitioning */}
-        {transitioning && nextVideoIndex !== null && videoComments[nextVideoIndex] && (() => {
-          const nextComment = videoComments[nextVideoIndex];
-          const nextMediaItems = parseMediaContent(nextComment.body);
-          const nextVideoItem = nextMediaItems.find((item) => item.type === "video");
-          
-          return nextVideoItem?.src ? (
-            <VideoPlayer
-              key={`next-video-${nextVideoIndex}`}
-              src={nextVideoItem.src}
-              isActive={true}
-              onNext={goToNext}
-              onPrev={goToPrev}
-              discussion={nextComment}
-              isPreloaded={isVideoPreloaded(nextVideoItem.src)}
-              opacity={1} // Always visible for instant experience
-              zIndex={2}
-            />
-          ) : null;
-        })()}
+        {transitioning &&
+          nextVideoIndex !== null &&
+          videoComments[nextVideoIndex] &&
+          (() => {
+            const nextComment = videoComments[nextVideoIndex];
+            const nextMediaItems = parseMediaContent(nextComment.body);
+            const nextVideoItem = nextMediaItems.find(
+              (item) => item.type === "video"
+            );
+
+            return nextVideoItem?.src ? (
+              <VideoPlayer
+                key={`next-video-${nextVideoIndex}`}
+                src={nextVideoItem.src}
+                isActive={true}
+                onNext={goToNext}
+                onPrev={goToPrev}
+                discussion={nextComment}
+                isPreloaded={isVideoPreloaded(nextVideoItem.src)}
+                opacity={1} // Always visible for instant experience
+                zIndex={2}
+              />
+            ) : null;
+          })()}
       </Box>
     </Box>
   );

@@ -11,14 +11,23 @@ interface MediaRendererProps {
   onMobileVideoFullscreen?: (videoSrc: string) => void; // Add mobile fullscreen callback
 }
 
-const MediaRenderer = ({ mediaContent, fullContent, onMobileVideoFullscreen }: MediaRendererProps) => {
+const MediaRenderer = ({
+  mediaContent,
+  fullContent,
+  onMobileVideoFullscreen,
+}: MediaRendererProps) => {
   const mediaItems = parseMediaContent(mediaContent);
   const lastUrl = extractLastUrl(fullContent);
 
   return (
     <>
       {/* Render media content */}
-      {mediaItems.length >= 2 && <MediaCarousel mediaItems={mediaItems} onMobileVideoFullscreen={onMobileVideoFullscreen} />}
+      {mediaItems.length >= 2 && (
+        <MediaCarousel
+          mediaItems={mediaItems}
+          onMobileVideoFullscreen={onMobileVideoFullscreen}
+        />
+      )}
 
       {mediaItems.length === 1 &&
         (() => {
@@ -43,7 +52,12 @@ const MediaRenderer = ({ mediaContent, fullContent, onMobileVideoFullscreen }: M
           }
 
           if (item.type === "video" && item.src) {
-            return <VideoRenderer src={item.src} onMobileFullscreen={onMobileVideoFullscreen} />;
+            return (
+              <VideoRenderer
+                src={item.src}
+                onMobileFullscreen={onMobileVideoFullscreen}
+              />
+            );
           }
 
           if (item.type === "iframe") {

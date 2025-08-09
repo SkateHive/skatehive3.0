@@ -111,8 +111,8 @@ export default function SnapList({
       setOriginalScrollPosition(scrollElement.scrollTop);
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Opening video with src:', videoSrc);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Opening video with src:", videoSrc);
     }
     setVideoFeedStartSrc(videoSrc);
     setShowVerticalVideoFeed(true);
@@ -120,7 +120,7 @@ export default function SnapList({
 
   const handleCloseVideoFeed = () => {
     setShowVerticalVideoFeed(false);
-    
+
     // Restore scroll position after a brief delay
     setTimeout(() => {
       const scrollElement = document.getElementById("scrollableDiv");

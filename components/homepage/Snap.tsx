@@ -229,8 +229,8 @@ const Snap = ({
             <EnhancedMarkdownRenderer content={text} />
           </Box>
           <Box>
-            <MediaRenderer 
-              mediaContent={media} 
+            <MediaRenderer
+              mediaContent={media}
               fullContent={discussion.body}
               onMobileVideoFullscreen={onMobileVideoFullscreen}
             />

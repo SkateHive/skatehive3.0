@@ -1,4 +1,10 @@
-import { Box, Button, HStack, IconButton, useBreakpointValue } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  HStack,
+  IconButton,
+  useBreakpointValue,
+} from "@chakra-ui/react";
 import React, {
   useCallback,
   useEffect,
@@ -105,7 +111,7 @@ const VideoControls = React.memo(
 
     const handleFullscreenClick = (e: React.MouseEvent) => {
       e.stopPropagation();
-      
+
       // If mobile and we have mobile fullscreen callback, use that instead
       if (isMobile && onMobileFullscreen && videoSrc) {
         onMobileFullscreen(videoSrc);

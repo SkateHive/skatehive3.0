@@ -63,20 +63,29 @@ const UpvoteButton = ({
 
   // Debug logging
   useEffect(() => {
-    console.log('UpvoteButton debug:', {
+    console.log("UpvoteButton debug:", {
       user,
       aioha: !!aioha,
-      aiohaMethods: aioha ? Object.keys(aioha) : 'aioha is null',
+      aiohaMethods: aioha ? Object.keys(aioha) : "aioha is null",
       userVoteWeight,
       disableSlider,
       isLoading,
       voted,
       discussion: {
         author: discussion.author,
-        permlink: discussion.permlink
-      }
+        permlink: discussion.permlink,
+      },
     });
-  }, [user, aioha, userVoteWeight, disableSlider, isLoading, voted, discussion.author, discussion.permlink]);
+  }, [
+    user,
+    aioha,
+    userVoteWeight,
+    disableSlider,
+    isLoading,
+    voted,
+    discussion.author,
+    discussion.permlink,
+  ]);
 
   // Update slider value when user's vote weight changes from context
   useEffect(() => {
@@ -92,7 +101,7 @@ const UpvoteButton = ({
     return Array.from(uniqueVotesMap.values());
   }, [activeVotes]);
 
-const handleVote = useCallback(
+  const handleVote = useCallback(
     async (votePercentage: number = sliderValue) => {
       if (!user) {
         toast({
@@ -108,21 +117,21 @@ const handleVote = useCallback(
       setIsVoting(true);
 
       try {
-        console.log('Attempting vote with:', {
+        console.log("Attempting vote with:", {
           author: discussion.author,
           permlink: discussion.permlink,
           weight: votePercentage * 100,
           votePercentage,
           user,
-          aiohaMethods: aioha ? Object.keys(aioha) : 'aioha is null'
+          aiohaMethods: aioha ? Object.keys(aioha) : "aioha is null",
         });
 
         if (!aioha) {
-          throw new Error('Aioha instance is not available');
+          throw new Error("Aioha instance is not available");
         }
 
         if (!aioha.vote) {
-          throw new Error('Aioha vote method is not available');
+          throw new Error("Aioha vote method is not available");
         }
 
         const vote = await aioha.vote(
@@ -131,22 +140,30 @@ const handleVote = useCallback(
           votePercentage * 100
         );
 
-        console.log('Vote response:', vote);
+        console.log("Vote response:", vote);
 
         if (vote && vote.success) {
           // On Hive, voting again overwrites the previous vote, so we always set voted to true
           setVoted(true);
-          
+
           // Update active votes - replace or add the user's vote
-          const existingVoteIndex = activeVotes.findIndex(vote => vote.voter === user);
+          const existingVoteIndex = activeVotes.findIndex(
+            (vote) => vote.voter === user
+          );
           if (existingVoteIndex >= 0) {
             // Update existing vote
             const updatedVotes = [...activeVotes];
-            updatedVotes[existingVoteIndex] = { voter: user, weight: votePercentage * 100 };
+            updatedVotes[existingVoteIndex] = {
+              voter: user,
+              weight: votePercentage * 100,
+            };
             setActiveVotes(updatedVotes);
           } else {
             // Add new vote
-            setActiveVotes([...activeVotes, { voter: user, weight: votePercentage * 100 }]);
+            setActiveVotes([
+              ...activeVotes,
+              { voter: user, weight: votePercentage * 100 },
+            ]);
           }
 
           // Estimate the value and call onVoteSuccess if provided
@@ -155,7 +172,7 @@ const handleVote = useCallback(
               const estimatedValue = await estimateVoteValue(votePercentage);
               onVoteSuccess(estimatedValue);
             } catch (e) {
-              console.warn('Error estimating vote value:', e);
+              console.warn("Error estimating vote value:", e);
               onVoteSuccess();
             }
           } else if (onVoteSuccess) {
@@ -169,10 +186,10 @@ const handleVote = useCallback(
             isClosable: true,
           });
         } else {
-          throw new Error(vote?.error || 'Vote failed');
+          throw new Error(vote?.error || "Vote failed");
         }
       } catch (error: any) {
-        console.error('Vote error:', error);
+        console.error("Vote error:", error);
         toast({
           title: "Failed to vote",
           description: error.message || "Please try again",
@@ -267,8 +284,6 @@ const handleVote = useCallback(
     voted,
   ]);
 
-  
-
   // Simple variant - just the upvote button (matches Snap styling)
   if (variant === "simple") {
     return (
@@ -298,7 +313,11 @@ const handleVote = useCallback(
           >
             <LuArrowUpRight
               size={24}
-              color={voted ? "var(--chakra-colors-success)" : "var(--chakra-colors-primary)"}
+              color={
+                voted
+                  ? "var(--chakra-colors-success)"
+                  : "var(--chakra-colors-primary)"
+              }
               style={{ opacity: 1 }}
               className={!voted ? "arrow-pulse-hover" : ""}
             />
@@ -337,7 +356,11 @@ const handleVote = useCallback(
           >
             <LuArrowUpRight
               size={24}
-              color={voted ? "var(--chakra-colors-success)" : "var(--chakra-colors-primary)"}
+              color={
+                voted
+                  ? "var(--chakra-colors-success)"
+                  : "var(--chakra-colors-primary)"
+              }
               style={{ opacity: 1 }}
               className={!voted ? "arrow-pulse-hover" : ""}
             />
@@ -394,7 +417,11 @@ const handleVote = useCallback(
             >
               <LuArrowUpRight
                 size={24}
-                color={voted ? "var(--chakra-colors-success)" : "var(--chakra-colors-primary)"}
+                color={
+                  voted
+                    ? "var(--chakra-colors-success)"
+                    : "var(--chakra-colors-primary)"
+                }
                 style={{ opacity: 1 }}
                 className={!voted ? "arrow-pulse-hover" : ""}
               />
@@ -512,7 +539,11 @@ const handleVote = useCallback(
           >
             <LuArrowUpRight
               size={24}
-              color={voted ? "var(--chakra-colors-success)" : "var(--chakra-colors-primary)"}
+              color={
+                voted
+                  ? "var(--chakra-colors-success)"
+                  : "var(--chakra-colors-primary)"
+              }
               style={{ opacity: 1 }}
               className={!voted ? "arrow-pulse-hover" : ""}
             />
