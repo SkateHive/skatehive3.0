@@ -1,4 +1,4 @@
-import { Box, Button, HStack, IconButton } from "@chakra-ui/react";
+import { Box, Button, HStack, IconButton, useBreakpointValue } from "@chakra-ui/react";
 import React, {
   useCallback,
   useEffect,
@@ -46,6 +46,7 @@ type RendererProps = {
   src?: string;
   loop?: boolean;
   skipThumbnailLoad?: boolean; // New prop to skip thumbnail loading
+  onMobileFullscreen?: (videoSrc: string) => void; // Callback for mobile fullscreen
   [key: string]: any;
 };
 
@@ -68,6 +69,8 @@ interface VideoControlsProps {
   progressSliderStyle: React.CSSProperties;
   volumeSliderStyle: React.CSSProperties;
   videoRef: RefObject<HTMLVideoElement>;
+  onMobileFullscreen?: (videoSrc: string) => void;
+  videoSrc?: string;
 }
 
 // Memoized LoadingComponent to prevent unnecessary re-renders
@@ -93,9 +96,23 @@ const VideoControls = React.memo(
     progressSliderStyle,
     volumeSliderStyle,
     videoRef,
+    onMobileFullscreen,
+    videoSrc,
   }: VideoControlsProps) => {
     // Check if video has ended (progress is at or very close to 100%)
     const isVideoEnded = progress >= 99.9;
+    const isMobile = useBreakpointValue({ base: true, md: false });
+
+    const handleFullscreenClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      
+      // If mobile and we have mobile fullscreen callback, use that instead
+      if (isMobile && onMobileFullscreen && videoSrc) {
+        onMobileFullscreen(videoSrc);
+      } else {
+        handleFullscreenToggle();
+      }
+    };
 
     return (
       <Box
@@ -175,10 +192,7 @@ const VideoControls = React.memo(
           </Box>
           <IconButton
             aria-label="Fullscreen"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleFullscreenToggle();
-            }}
+            onClick={handleFullscreenClick}
             p={2}
             variant={"ghost"}
             color={"white"}
@@ -267,6 +281,7 @@ const BASE_SLIDER_STYLE = {
 const VideoRenderer = ({
   src,
   skipThumbnailLoad = false,
+  onMobileFullscreen,
   ...props
 }: RendererProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -625,6 +640,8 @@ const VideoRenderer = ({
           progressSliderStyle={progressSliderStyle}
           volumeSliderStyle={volumeSliderStyle}
           videoRef={videoRef as React.RefObject<HTMLVideoElement>}
+          onMobileFullscreen={onMobileFullscreen}
+          videoSrc={src}
         />
       )}
     </Box>

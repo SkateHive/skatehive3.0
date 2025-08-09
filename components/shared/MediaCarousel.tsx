@@ -18,9 +18,10 @@ interface MediaItem {
 
 interface MediaCarouselProps {
   mediaItems: MediaItem[];
+  onMobileVideoFullscreen?: (videoSrc: string) => void;
 }
 
-const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems }) => {
+const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems, onMobileVideoFullscreen }) => {
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   if (mediaItems.length === 0) return null;
@@ -30,7 +31,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems }) => {
     const item = mediaItems[0];
     return (
       <Box mt={2} mb={2}>
-        {renderMediaItem(item)}
+        {renderMediaItem(item, onMobileVideoFullscreen)}
       </Box>
     );
   }
@@ -60,7 +61,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems }) => {
         {mediaItems.map((item, index) => (
           <SwiperSlide key={index}>
             <Box width="100%" display="flex" justifyContent="center">
-              {renderMediaItem(item)}
+              {renderMediaItem(item, onMobileVideoFullscreen)}
             </Box>
           </SwiperSlide>
         ))}
@@ -69,7 +70,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems }) => {
   );
 };
 
-function renderMediaItem(item: MediaItem) {
+function renderMediaItem(item: MediaItem, onMobileVideoFullscreen?: (videoSrc: string) => void) {
   switch (item.type) {
     case "image":
       return (
@@ -92,7 +93,7 @@ function renderMediaItem(item: MediaItem) {
     case "video":
       return item.src ? (
         <Box width="100%">
-          <VideoRenderer src={item.src} />
+          <VideoRenderer src={item.src} onMobileFullscreen={onMobileVideoFullscreen} />
         </Box>
       ) : null;
     case "iframe":

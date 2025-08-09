@@ -61,6 +61,23 @@ const UpvoteButton = ({
   const [sliderValue, setSliderValue] = useState(userVoteWeight);
   const [isVoting, setIsVoting] = useState(false);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('UpvoteButton debug:', {
+      user,
+      aioha: !!aioha,
+      aiohaMethods: aioha ? Object.keys(aioha) : 'aioha is null',
+      userVoteWeight,
+      disableSlider,
+      isLoading,
+      voted,
+      discussion: {
+        author: discussion.author,
+        permlink: discussion.permlink
+      }
+    });
+  }, [user, aioha, userVoteWeight, disableSlider, isLoading, voted, discussion.author, discussion.permlink]);
+
   // Update slider value when user's vote weight changes from context
   useEffect(() => {
     setSliderValue(userVoteWeight);
@@ -91,13 +108,32 @@ const handleVote = useCallback(
       setIsVoting(true);
 
       try {
+        console.log('Attempting vote with:', {
+          author: discussion.author,
+          permlink: discussion.permlink,
+          weight: votePercentage * 100,
+          votePercentage,
+          user,
+          aiohaMethods: aioha ? Object.keys(aioha) : 'aioha is null'
+        });
+
+        if (!aioha) {
+          throw new Error('Aioha instance is not available');
+        }
+
+        if (!aioha.vote) {
+          throw new Error('Aioha vote method is not available');
+        }
+
         const vote = await aioha.vote(
           discussion.author,
           discussion.permlink,
           votePercentage * 100
         );
 
-        if (vote.success) {
+        console.log('Vote response:', vote);
+
+        if (vote && vote.success) {
           // On Hive, voting again overwrites the previous vote, so we always set voted to true
           setVoted(true);
           
@@ -119,6 +155,7 @@ const handleVote = useCallback(
               const estimatedValue = await estimateVoteValue(votePercentage);
               onVoteSuccess(estimatedValue);
             } catch (e) {
+              console.warn('Error estimating vote value:', e);
               onVoteSuccess();
             }
           } else if (onVoteSuccess) {
@@ -131,8 +168,11 @@ const handleVote = useCallback(
             duration: 3000,
             isClosable: true,
           });
+        } else {
+          throw new Error(vote?.error || 'Vote failed');
         }
       } catch (error: any) {
+        console.error('Vote error:', error);
         toast({
           title: "Failed to vote",
           description: error.message || "Please try again",
@@ -178,6 +218,30 @@ const handleVote = useCallback(
       return;
     }
 
+    // Check if user is logged in
+    if (!user) {
+      toast({
+        title: "Please log in",
+        description: "You need to be logged in to vote.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    // Check if already voted
+    if (voted) {
+      toast({
+        title: "Already voted",
+        description: "You have already voted on this post.",
+        status: "info",
+        duration: 2000,
+        isClosable: true,
+      });
+      return;
+    }
+
     if (variant === "withSlider" && setShowSlider && !disableSlider) {
       // Only show slider if it's not disabled in user preferences
       setShowSlider(!showSlider);
@@ -187,7 +251,8 @@ const handleVote = useCallback(
       disableSlider
     ) {
       // If slider is disabled or it's a simple variant, vote directly with preferred weight
-      handleVote(userVoteWeight);
+      const voteWeight = userVoteWeight > 0 ? userVoteWeight : 100; // Default to 100% if no weight set
+      handleVote(voteWeight);
     }
   }, [
     variant,
@@ -198,6 +263,8 @@ const handleVote = useCallback(
     isLoading,
     toast,
     handleVote,
+    user,
+    voted,
   ]);
 
   

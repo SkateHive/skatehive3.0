@@ -8,16 +8,17 @@ import { parseMediaContent, extractLastUrl } from "@/lib/utils/snapUtils";
 interface MediaRendererProps {
   mediaContent: string;
   fullContent: string; // Add full content to extract URLs from
+  onMobileVideoFullscreen?: (videoSrc: string) => void; // Add mobile fullscreen callback
 }
 
-const MediaRenderer = ({ mediaContent, fullContent }: MediaRendererProps) => {
+const MediaRenderer = ({ mediaContent, fullContent, onMobileVideoFullscreen }: MediaRendererProps) => {
   const mediaItems = parseMediaContent(mediaContent);
   const lastUrl = extractLastUrl(fullContent);
 
   return (
     <>
       {/* Render media content */}
-      {mediaItems.length >= 2 && <MediaCarousel mediaItems={mediaItems} />}
+      {mediaItems.length >= 2 && <MediaCarousel mediaItems={mediaItems} onMobileVideoFullscreen={onMobileVideoFullscreen} />}
 
       {mediaItems.length === 1 &&
         (() => {
@@ -42,7 +43,7 @@ const MediaRenderer = ({ mediaContent, fullContent }: MediaRendererProps) => {
           }
 
           if (item.type === "video" && item.src) {
-            return <VideoRenderer src={item.src} />;
+            return <VideoRenderer src={item.src} onMobileFullscreen={onMobileVideoFullscreen} />;
           }
 
           if (item.type === "iframe") {

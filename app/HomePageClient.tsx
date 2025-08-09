@@ -8,6 +8,7 @@ import { Discussion } from "@hiveio/dhive";
 import Conversation from "@/components/homepage/Conversation";
 import SnapReplyModal from "@/components/homepage/SnapReplyModal";
 import { useSnaps } from "@/hooks/useSnaps";
+import useIsMobile from "@/hooks/useIsMobile";
 
 export default function HomePageClient() {
   const thread_author = "peak.snaps";
@@ -17,6 +18,8 @@ export default function HomePageClient() {
   const [reply, setReply] = useState<Discussion>();
   const [isOpen, setIsOpen] = useState(false);
   const [newComment, setNewComment] = useState<Discussion | null>(null);
+
+  const isMobile = useIsMobile();
 
   const onOpen = () => setIsOpen(true);
   const onClose = () => setIsOpen(false);

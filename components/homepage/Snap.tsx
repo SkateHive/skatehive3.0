@@ -44,6 +44,7 @@ interface SnapProps {
   setReply: (discussion: Discussion) => void;
   setConversation?: (conversation: Discussion) => void;
   onCommentAdded?: () => void;
+  onMobileVideoFullscreen?: (videoSrc: string) => void;
 }
 
 const Snap = ({
@@ -52,6 +53,7 @@ const Snap = ({
   setReply,
   setConversation,
   onCommentAdded,
+  onMobileVideoFullscreen,
 }: SnapProps) => {
   const { user } = useAioha();
   const {
@@ -227,7 +229,11 @@ const Snap = ({
             <EnhancedMarkdownRenderer content={text} />
           </Box>
           <Box>
-            <MediaRenderer mediaContent={media} fullContent={discussion.body} />
+            <MediaRenderer 
+              mediaContent={media} 
+              fullContent={discussion.body}
+              onMobileVideoFullscreen={onMobileVideoFullscreen}
+            />
           </Box>
         </Box>
 

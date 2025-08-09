@@ -27,9 +27,12 @@ import { Discussion } from "@hiveio/dhive"; // Add this import for consistency
 import LogoMatrix from "../graphics/LogoMatrix";
 import UpvoteSnapContainer from "./UpvoteSnapContainer";
 import { countDownvotes } from "@/lib/utils/postUtils";
+import { separateContent, parseMediaContent } from "@/lib/utils/snapUtils";
 import { useAioha } from "@aioha/react-ui";
 import { useAccount } from "wagmi";
 import SidebarLogo from "../graphics/SidebarLogo";
+import VerticalVideoFeed from "./VerticalVideoFeed";
+import useIsMobile from "@/hooks/useIsMobile";
 
 interface SnapListProps {
   author: string;
@@ -87,6 +90,40 @@ export default function SnapList({
     setHasMounted(true);
   }, []);
 
+  // Mobile video feed state
+  const isMobile = useIsMobile();
+  const [showVerticalVideoFeed, setShowVerticalVideoFeed] = useState(false);
+  const [videoFeedStartSrc, setVideoFeedStartSrc] = useState<string>("");
+  const [originalScrollPosition, setOriginalScrollPosition] = useState(0);
+  const [lastCommentCount, setLastCommentCount] = useState(0);
+
+  // Handle mobile video fullscreen
+  const handleMobileVideoFullscreen = (videoSrc: string) => {
+    if (!isMobile) return;
+
+    // Save current scroll position
+    const scrollElement = document.getElementById("scrollableDiv");
+    if (scrollElement) {
+      setOriginalScrollPosition(scrollElement.scrollTop);
+    }
+
+    console.log('Opening video with src:', videoSrc);
+    setVideoFeedStartSrc(videoSrc);
+    setShowVerticalVideoFeed(true);
+  };
+
+  const handleCloseVideoFeed = () => {
+    setShowVerticalVideoFeed(false);
+    
+    // Restore scroll position after a brief delay
+    setTimeout(() => {
+      const scrollElement = document.getElementById("scrollableDiv");
+      if (scrollElement) {
+        scrollElement.scrollTop = originalScrollPosition;
+      }
+    }, 100);
+  };
+
   // Update displayed comments when data.comments changes or newComment is added
   useEffect(() => {
     if (comments) {
@@ -122,6 +159,7 @@ export default function SnapList({
 
   const filteredAndSortedComments = [...displayedComments]
     .filter((discussion: Discussion) => {
+      if (!discussion || !discussion.active_votes) return false;
       const downvoteCount = countDownvotes(discussion.active_votes);
       // Filter out posts with 2 or more downvotes (community disapproval)
       const shouldShow = downvoteCount < 2;
@@ -130,8 +168,16 @@ export default function SnapList({
       return shouldShow;
     })
     .sort((a: Discussion, b: Discussion) => {
+      if (!a || !b || !a.created || !b.created) return 0;
       return new Date(b.created).getTime() - new Date(a.created).getTime();
     });
+
+  // Track when new content is loaded to maintain video position
+  useEffect(() => {
+    if (filteredAndSortedComments.length !== lastCommentCount) {
+      setLastCommentCount(filteredAndSortedComments.length);
+    }
+  }, [filteredAndSortedComments.length, lastCommentCount]);
 
   // Conditionally render after all hooks have run
   if (!hasMounted) return null;
@@ -428,12 +474,25 @@ export default function SnapList({
                   discussion={discussion}
                   onOpen={onOpenConversation}
                   setReply={setReply}
+                  onMobileVideoFullscreen={handleMobileVideoFullscreen}
                   {...(!post ? { setConversation } : {})}
                 />
               ))}
             </VStack>
           </InfiniteScroll>
         </>
+      )}
+
+      {/* Vertical Video Feed - Mobile Only */}
+      {showVerticalVideoFeed && (
+        <VerticalVideoFeed
+          comments={filteredAndSortedComments}
+          onClose={handleCloseVideoFeed}
+          initialVideoSrc={videoFeedStartSrc}
+          onLoadMore={loadNextPage}
+          hasMore={hasMore}
+          isLoading={isLoading}
+        />
       )}
     </VStack>
   );
