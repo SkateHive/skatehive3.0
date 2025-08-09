@@ -64,6 +64,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [videoReady, setVideoReady] = useState(false);
   const [hasEnoughData, setHasEnoughData] = useState(false);
   const [swipeDirection, setSwipeDirection] = useState<'up' | 'down' | null>(null);
+  const [showControls, setShowControls] = useState(true);
+  const [controlsTimeoutId, setControlsTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const touchStartY = useRef<number>(0);
   const touchStartTime = useRef<number>(0);
   const touchStartX = useRef<number>(0);
@@ -71,118 +73,88 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const { isInMiniapp } = useFarcasterMiniapp();
 
-  // Auto-play when component mounts or video changes
+  // Simplified auto-play for instant experience - no loading states
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !isActive) return;
 
-    // Reset video state but start with optimistic playing state
+    // Immediate setup for smooth experience
     setProgress(0);
-    setIsPlaying(true); // Start optimistic - assume it will play
-    setIsInitialLoad(true); // Mark as initial load
+    setIsPlaying(true);
+    setIsInitialLoad(false); // Never show loading
+    setVideoReady(true); // Always assume ready
+    setHasEnoughData(true);
     
     const attemptPlay = async () => {
       try {
         video.currentTime = 0;
-        video.muted = true; // Ensure muted for autoplay
+        video.muted = true;
         
-        // Create a new play promise and handle it properly
         const playPromise = video.play();
-        
         if (playPromise !== undefined) {
           playPromise.then(() => {
             setIsPlaying(true);
-            setIsInitialLoad(false);
+            onVideoReady?.(); // Immediately notify ready
           }).catch((error) => {
-            // Only log if it's not an abort error (which is normal)
             if (error.name !== 'AbortError') {
-              console.warn('Autoplay failed:', error.name, error.message);
+              console.warn('Autoplay failed:', error.name);
             }
             setIsPlaying(false);
-            setIsInitialLoad(false);
-            
-            // Fallback: try again after user interaction
-            const playOnInteraction = async () => {
-              try {
-                await video.play();
-                setIsPlaying(true);
-              } catch (e) {
-                console.warn('Play on interaction failed:', e);
-              }
-            };
-            
-            // Add one-time listeners for user interaction
-            video.addEventListener('click', playOnInteraction, { once: true });
-            document.addEventListener('touchstart', playOnInteraction, { once: true, passive: true });
           });
         }
-        
       } catch (error) {
-        console.warn('Immediate play failed:', error);
+        console.warn('Play failed:', error);
         setIsPlaying(false);
-        setIsInitialLoad(false);
       }
     };
 
-    // Try to play immediately without waiting
+    // Play immediately
     attemptPlay();
 
-    // Also set up listeners for when video is ready
+    // Minimal event handlers for instant experience
     const handleCanPlay = () => {
-      setVideoReady(true);
-      setIsInitialLoad(false);
+      onVideoReady?.();
       if (video.paused && isActive) {
         attemptPlay();
       }
-    };
-
-    const handleLoadedMetadata = () => {
-      setVideoReady(true);
-      setIsInitialLoad(false);
-      if (video.paused && isActive) {
-        attemptPlay();
-      }
-    };
-
-    const handleCanPlayThrough = () => {
-      setHasEnoughData(true);
-      setVideoReady(true);
-      setIsInitialLoad(false);
-      onVideoReady?.(); // Notify parent that video is ready
-      if (video.paused && isActive) {
-        attemptPlay();
-      }
-    };
-
-    const handleLoadStart = () => {
-      setVideoReady(false);
-      setHasEnoughData(false);
-      setIsInitialLoad(true);
-    };
-
-    const handleError = () => {
-      setVideoReady(false);
-      setHasEnoughData(false);
-      setIsInitialLoad(false);
-      console.warn('Video load error for:', src);
     };
 
     video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('canplaythrough', handleCanPlayThrough);
-    video.addEventListener('loadstart', handleLoadStart);
-    video.addEventListener('error', handleError);
 
-    // Cleanup function
     return () => {
       video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('canplaythrough', handleCanPlayThrough);
-      video.removeEventListener('loadstart', handleLoadStart);
-      video.removeEventListener('error', handleError);
-      video.pause();
     };
-  }, [src, isActive, isPreloaded]);
+  }, [src, isActive, onVideoReady]);
+
+  // Controls visibility management
+  const showControlsTemporarily = useCallback(() => {
+    setShowControls(true);
+    
+    // Clear existing timeout
+    if (controlsTimeoutId) {
+      clearTimeout(controlsTimeoutId);
+    }
+    
+    // Set new timeout to hide controls after 3 seconds
+    const timeoutId = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+    
+    setControlsTimeoutId(timeoutId);
+  }, [controlsTimeoutId]);
+
+  // Show controls when video becomes active
+  useEffect(() => {
+    if (isActive) {
+      showControlsTemporarily();
+    }
+    
+    return () => {
+      if (controlsTimeoutId) {
+        clearTimeout(controlsTimeoutId);
+      }
+    };
+  }, [isActive, showControlsTemporarily, controlsTimeoutId]);
 
   // Handle video events for accurate play state
   useEffect(() => {
@@ -323,8 +295,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const maxSwipeTime = 500;
       const maxHorizontalDrift = 100;
 
-      // Only trigger if it was a vertical swipe
-      if (
+      // Check if this was a tap (small movement, quick time)
+      const isTap = Math.abs(deltaY) < 10 && deltaX < 10 && deltaTime < 300 && !isDragging.current;
+      
+      if (isTap) {
+        // Show controls on tap
+        showControlsTemporarily();
+      } else if (
+        // Only trigger swipe if it was a vertical swipe
         Math.abs(deltaY) > minSwipeDistance && 
         deltaTime < maxSwipeTime && 
         deltaX < maxHorizontalDrift &&
@@ -402,20 +380,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         WebkitUserSelect: 'none'
       }}
     >
-      {/* Video Element - Only visible when ready */}
+      {/* Video Element - Always visible for smooth experience */}
       <video
         ref={videoRef}
         src={src}
         muted={isMuted}
         playsInline
         loop
-        autoPlay // Add native autoplay attribute
-        preload={isPreloaded ? "metadata" : "auto"} // Load metadata at least
-        crossOrigin="anonymous" // Handle CORS for external videos
+        autoPlay
+        preload="auto" // Always preload for instant availability
+        crossOrigin="anonymous"
         onClick={(e) => {
-          // Only toggle play/pause if it wasn't a swipe gesture
+          // Show controls and toggle play/pause if it wasn't a swipe gesture
           if (!isDragging.current) {
-            togglePlayPause();
+            showControlsTemporarily();
+            // Don't toggle play/pause immediately, let user interact with controls
           }
         }}
         style={{
@@ -425,31 +404,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           width: "100%",
           height: "100%",
           objectFit: "cover",
-          opacity: videoReady ? opacity : 0, // Only show when video is ready
+          opacity: opacity,
           zIndex: zIndex,
-          transition: "opacity 0.3s ease-in-out", // Smooth transition
+          transition: "opacity 0.2s ease-out", // Faster transition for snappier feel
+          backgroundColor: "black", // Prevent flash of white
         }}
       />
 
-      {/* Loading Overlay - Show until video is ready */}
-      {(!videoReady || isInitialLoad) && (
-        <Box
-          position="absolute"
-          top={0}
-          left={0}
-          width="100%"
-          height="100%"
-          bg="black"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          zIndex={zIndex + 1}
-        >
-          <Spinner size="xl" color="white" thickness="4px" />
-        </Box>
-      )}
-
-      {/* Progress Bar */}
+      {/* Progress Bar - Show/hide with controls */}
       <Box
         position="absolute"
         bottom={0}
@@ -457,6 +419,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         right={0}
         height="2px"
         bg="rgba(255,255,255,0.3)"
+        opacity={showControls ? 1 : 0}
+        transition="opacity 0.3s ease"
+        zIndex={998}
       >
         <Box
           height="100%"
@@ -466,8 +431,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         />
       </Box>
 
-      {/* Play/Pause Overlay - Only show when definitively paused and not initial loading */}
-      {!isPlaying && !isInitialLoad && videoRef.current?.paused !== false && (
+      {/* Play/Pause Overlay - Show when paused and controls are visible */}
+      {!isPlaying && !isInitialLoad && videoRef.current?.paused !== false && showControls && (
         <Box
           position="absolute"
           top="50%"
@@ -478,6 +443,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           p={4}
           cursor="pointer"
           onClick={togglePlayPause}
+          zIndex={1001}
+          transition="opacity 0.3s ease"
         >
           <LuPlay size={48} color="white" />
         </Box>
@@ -504,13 +471,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </Box>
       )}
 
-      {/* Side Controls */}
+      {/* Side Controls - Show/hide based on touch interaction */}
       <VStack
         position="absolute"
         right={4}
         bottom={20}
         spacing={4}
         alignItems="center"
+        opacity={showControls ? 1 : 0}
+        transition="opacity 0.3s ease"
+        pointerEvents={showControls ? "auto" : "none"}
+        zIndex={1000} // High z-index to ensure accessibility
       >
         {/* Mute/Unmute */}
         <IconButton
@@ -520,7 +491,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           color="white"
           borderRadius="50%"
           size="lg"
-          onClick={toggleMute}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleMute();
+            showControlsTemporarily(); // Extend visibility
+          }}
           _hover={{ bg: "rgba(0,0,0,0.8)" }}
         />
 
@@ -532,6 +507,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           color="white"
           borderRadius="50%"
           size="lg"
+          onClick={(e) => {
+            e.stopPropagation();
+            showControlsTemporarily(); // Extend visibility
+          }}
           _hover={{ bg: "rgba(0,0,0,0.8)" }}
         />
 
@@ -543,6 +522,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           color="white"
           borderRadius="50%"
           size="lg"
+          onClick={(e) => {
+            e.stopPropagation();
+            showControlsTemporarily(); // Extend visibility
+          }}
           _hover={{ bg: "rgba(0,0,0,0.8)" }}
         />
 
@@ -554,12 +537,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           color="white"
           borderRadius="50%"
           size="lg"
+          onClick={(e) => {
+            e.stopPropagation();
+            showControlsTemporarily(); // Extend visibility
+          }}
           _hover={{ bg: "rgba(0,0,0,0.8)" }}
         />
       </VStack>
 
-      {/* Navigation Arrows (visible in miniapp context) */}
-      {isInMiniapp && (
+      {/* Navigation Arrows (visible in miniapp context and when controls are shown) */}
+      {isInMiniapp && showControls && (
         <>
           <IconButton
             aria-label="Previous video"
@@ -574,6 +561,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             size="lg"
             onClick={onPrev}
             _hover={{ bg: "rgba(0,0,0,0.8)" }}
+            zIndex={1000}
           />
           <IconButton
             aria-label="Next video"
@@ -588,17 +576,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             size="lg"
             onClick={onNext}
             _hover={{ bg: "rgba(0,0,0,0.8)" }}
+            zIndex={1000}
           />
         </>
       )}
 
-      {/* User Info */}
+      {/* User Info - Show/hide with controls */}
       <Box
         position="absolute"
         bottom={6}
         left={4}
         right={20}
         color="white"
+        opacity={showControls ? 1 : 0}
+        transition="opacity 0.3s ease"
+        pointerEvents={showControls ? "auto" : "none"}
+        zIndex={999}
       >
         <Text fontWeight="bold" fontSize="lg" mb={1}>
           @{discussion.author}
@@ -625,7 +618,6 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
   const [currentVideoSrc, setCurrentVideoSrc] = useState<string>("");
   const [transitioning, setTransitioning] = useState(false);
   const [nextVideoIndex, setNextVideoIndex] = useState<number | null>(null);
-  const [nextVideoReady, setNextVideoReady] = useState(false);
 
   // Filter comments to only include ones with videos
   useEffect(() => {
@@ -712,6 +704,7 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
   }, [videoComments]);
 
   // Use video preloader hook
+  // Enhanced video preloader with aggressive preloading (3 videos ahead)
   const { isVideoPreloaded, isVideoLoading } = useVideoPreloader(videoSources, currentIndex);
 
   const goToNext = useCallback(() => {
@@ -730,17 +723,14 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
       // Don't go beyond the last video, just stay there
       const newIndex = Math.min(nextIndex, videoComments.length - 1);
       
-      // Start transition by preloading next video
+      // Instant transition - no waiting
       setTransitioning(true);
       setNextVideoIndex(newIndex);
-      setNextVideoReady(false);
       
-      // Wait for next video to be ready, then complete transition
-      // The timeout ensures we don't wait forever
-      const transitionTimeout = setTimeout(() => {
+      // Quick transition for smooth experience
+      setTimeout(() => {
         setTransitioning(false);
         setNextVideoIndex(null);
-        setNextVideoReady(false);
         
         // Update current video src
         if (videoComments[newIndex]) {
@@ -754,36 +744,11 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
             console.warn("Error updating video src on next:", error);
           }
         }
-      }, 2000); // Maximum 2 seconds wait
+      }, 200); // Fast 200ms transition
       
       return newIndex;
     });
   }, [videoComments.length, hasMore, onLoadMore, transitioning]);
-
-  // Complete transition when next video is ready
-  useEffect(() => {
-    if (transitioning && nextVideoReady && nextVideoIndex !== null) {
-      // Small delay to ensure smooth transition
-      setTimeout(() => {
-        setTransitioning(false);
-        setNextVideoIndex(null);
-        setNextVideoReady(false);
-        
-        // Update current video src
-        if (videoComments[nextVideoIndex]) {
-          try {
-            const mediaItems = parseMediaContent(videoComments[nextVideoIndex].body);
-            const videoItem = mediaItems.find((item) => item.type === "video");
-            if (videoItem?.src) {
-              setCurrentVideoSrc(videoItem.src);
-            }
-          } catch (error) {
-            console.warn("Error updating video src:", error);
-          }
-        }
-      }, 150); // Small delay for smooth visual transition
-    }
-  }, [transitioning, nextVideoReady, nextVideoIndex, videoComments]);
 
   const goToPrev = useCallback(() => {
     if (transitioning) return; // Prevent multiple transitions
@@ -792,17 +757,14 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
       if (videoComments.length === 0) return 0;
       const newIndex = prev === 0 ? videoComments.length - 1 : prev - 1;
       
-      // Start transition by preloading next video
+      // Instant transition
       setTransitioning(true);
       setNextVideoIndex(newIndex);
-      setNextVideoReady(false);
       
-      // Wait for next video to be ready, then complete transition
-      // The timeout ensures we don't wait forever
-      const transitionTimeout = setTimeout(() => {
+      // Quick transition for smooth experience
+      setTimeout(() => {
         setTransitioning(false);
         setNextVideoIndex(null);
-        setNextVideoReady(false);
         
         // Update current video src
         if (videoComments[newIndex]) {
@@ -816,7 +778,7 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
             console.warn("Error updating video src on prev:", error);
           }
         }
-      }, 2000); // Maximum 2 seconds wait
+      }, 200); // Fast 200ms transition
       
       return newIndex;
     });
@@ -1004,7 +966,7 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
           zIndex={transitioning ? 1 : 2}
         />
         
-        {/* Next Video (for smooth transition) */}
+        {/* Next Video (for smooth transition) - Always visible when transitioning */}
         {transitioning && nextVideoIndex !== null && videoComments[nextVideoIndex] && (() => {
           const nextComment = videoComments[nextVideoIndex];
           const nextMediaItems = parseMediaContent(nextComment.body);
@@ -1019,9 +981,8 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
               onPrev={goToPrev}
               discussion={nextComment}
               isPreloaded={isVideoPreloaded(nextVideoItem.src)}
-              opacity={nextVideoReady ? 1 : 0}
+              opacity={1} // Always visible for instant experience
               zIndex={2}
-              onVideoReady={() => setNextVideoReady(true)}
             />
           ) : null;
         })()}

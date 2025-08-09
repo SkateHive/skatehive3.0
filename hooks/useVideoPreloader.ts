@@ -12,7 +12,7 @@ export const useVideoPreloader = (videoSources: string[], currentIndex: number) 
 
   // Create and preload video elements
   useEffect(() => {
-    const preloadNext = (index: number, lookahead: number = 2) => {
+    const preloadNext = (index: number, lookahead: number = 4) => { // Increased from 2 to 4
       for (let i = 1; i <= lookahead; i++) {
         const nextIndex = index + i;
         if (nextIndex >= videoSources.length) continue;
@@ -25,7 +25,7 @@ export const useVideoPreloader = (videoSources: string[], currentIndex: number) 
         video.src = src;
         video.muted = true;
         video.playsInline = true;
-        video.preload = 'auto';
+        video.preload = 'auto'; // More aggressive preloading
         video.crossOrigin = 'anonymous';
         
         // Hide the video element
