@@ -31,7 +31,7 @@ import { separateContent, parseMediaContent } from "@/lib/utils/snapUtils";
 import { useAioha } from "@aioha/react-ui";
 import { useAccount } from "wagmi";
 import SidebarLogo from "../graphics/SidebarLogo";
-import VerticalVideoFeed from "./VerticalVideoFeed";
+import VerticalVideoFeedLazy from "./VerticalVideoFeedLazy";
 import useIsMobile from "@/hooks/useIsMobile";
 
 interface SnapListProps {
@@ -90,15 +90,19 @@ export default function SnapList({
     setHasMounted(true);
   }, []);
 
-  // Mobile video feed state
+  // Mobile video feed state with performance guards
   const isMobile = useIsMobile();
   const [showVerticalVideoFeed, setShowVerticalVideoFeed] = useState(false);
   const [videoFeedStartSrc, setVideoFeedStartSrc] = useState<string>("");
   const [originalScrollPosition, setOriginalScrollPosition] = useState(0);
   const [lastCommentCount, setLastCommentCount] = useState(0);
 
-  // Handle mobile video fullscreen
+  // Performance guard: Only enable video features on mobile
+  const isVideoFeedEnabled = isMobile && showVerticalVideoFeed;
+
+  // Handle mobile video fullscreen with performance check
   const handleMobileVideoFullscreen = (videoSrc: string) => {
+    // Performance guard: Only enable on mobile devices
     if (!isMobile) return;
 
     // Save current scroll position
@@ -107,7 +111,9 @@ export default function SnapList({
       setOriginalScrollPosition(scrollElement.scrollTop);
     }
 
-    console.log('Opening video with src:', videoSrc);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Opening video with src:', videoSrc);
+    }
     setVideoFeedStartSrc(videoSrc);
     setShowVerticalVideoFeed(true);
   };
@@ -483,9 +489,9 @@ export default function SnapList({
         </>
       )}
 
-      {/* Vertical Video Feed - Mobile Only */}
-      {showVerticalVideoFeed && (
-        <VerticalVideoFeed
+      {/* Vertical Video Feed - Mobile Only with Performance Guards */}
+      {isVideoFeedEnabled && (
+        <VerticalVideoFeedLazy
           comments={filteredAndSortedComments}
           onClose={handleCloseVideoFeed}
           initialVideoSrc={videoFeedStartSrc}

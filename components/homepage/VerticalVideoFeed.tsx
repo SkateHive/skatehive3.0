@@ -23,6 +23,10 @@ import { Discussion } from "@hiveio/dhive";
 import { useFarcasterMiniapp } from "@/hooks/useFarcasterMiniapp";
 import { parseMediaContent } from "@/lib/utils/snapUtils";
 import { useVideoPreloader } from "@/hooks/useVideoPreloader";
+import { getVideoFeedConfig, VIDEO_FEED_CONFIG, VideoFeedPerformance } from "@/lib/config/videoFeedConfig";
+
+// Get environment-specific configuration
+const config = getVideoFeedConfig();
 
 interface VerticalVideoFeedProps {
   comments: Discussion[];
@@ -96,14 +100,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             setIsPlaying(true);
             onVideoReady?.(); // Immediately notify ready
           }).catch((error) => {
-            if (error.name !== 'AbortError') {
+            if (error.name !== 'AbortError' && config.enableConsoleLogging) {
               console.warn('Autoplay failed:', error.name);
             }
             setIsPlaying(false);
           });
         }
       } catch (error) {
-        console.warn('Play failed:', error);
+        if (config.enableConsoleLogging) {
+          console.warn('Play failed:', error);
+        }
         setIsPlaying(false);
       }
     };
@@ -226,7 +232,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       // Optimistically set playing state immediately
       setIsPlaying(true);
       videoRef.current.play().catch((error) => {
-        console.warn('Play failed on toggle:', error);
+        if (config.enableConsoleLogging) {
+          console.warn('Play failed on toggle:', error);
+        }
         setIsPlaying(false);
       });
     }
@@ -628,7 +636,9 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
         const mediaItems = parseMediaContent(comment.body);
         return mediaItems.some((item) => item.type === "video" && item.src);
       } catch (error) {
-        console.warn("Error parsing media content:", error);
+        if (config.enableConsoleLogging) {
+          console.warn("Error parsing media content:", error);
+        }
         return false;
       }
     });
@@ -678,14 +688,16 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
           setCurrentVideoSrc(videoItem.src);
         }
       } catch (error) {
-        console.warn("Error getting current video src:", error);
+        if (config.enableConsoleLogging) {
+          console.warn("Error getting current video src:", error);
+        }
       }
     }
     
     setIsLoading(false);
     
-    // Log for debugging
-    if (prevVideoComments.length !== filtered.length) {
+    // Log for debugging (only in development)
+    if (prevVideoComments.length !== filtered.length && config.enableConsoleLogging) {
       console.log(`Video feed updated: ${prevVideoComments.length} -> ${filtered.length} videos, current index: ${newIndex}`);
     }
   }, [comments, initialVideoSrc]);
@@ -703,9 +715,13 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
     }).filter(Boolean);
   }, [videoComments]);
 
-  // Use video preloader hook
-  // Enhanced video preloader with aggressive preloading (3 videos ahead)
-  const { isVideoPreloaded, isVideoLoading } = useVideoPreloader(videoSources, currentIndex);
+  // Enhanced video preloader with performance options
+  const { isVideoPreloaded, isVideoLoading } = useVideoPreloader(videoSources, currentIndex, {
+    enabled: VIDEO_FEED_CONFIG.FEATURES.enableVideoPreloading,
+    maxConcurrent: config.maxConcurrentPreloads,
+    lookahead: config.lookaheadCount,
+    debugMode: config.debugMode
+  });
 
   const goToNext = useCallback(() => {
     if (transitioning) return; // Prevent multiple transitions
@@ -741,7 +757,9 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
               setCurrentVideoSrc(videoItem.src);
             }
           } catch (error) {
-            console.warn("Error updating video src on next:", error);
+            if (config.enableConsoleLogging) {
+              console.warn("Error updating video src on next:", error);
+            }
           }
         }
       }, 200); // Fast 200ms transition
@@ -775,7 +793,9 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
               setCurrentVideoSrc(videoItem.src);
             }
           } catch (error) {
-            console.warn("Error updating video src on prev:", error);
+            if (config.enableConsoleLogging) {
+              console.warn("Error updating video src on prev:", error);
+            }
           }
         }
       }, 200); // Fast 200ms transition
@@ -783,6 +803,21 @@ const VerticalVideoFeed: React.FC<VerticalVideoFeedProps> = ({
       return newIndex;
     });
   }, [videoComments.length, transitioning]);
+
+  // Cleanup on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Stop any ongoing video playback and free memory
+      const videos = document.querySelectorAll('video');
+      videos.forEach(video => {
+        if (video.src) {
+          video.pause();
+          video.removeAttribute('src');
+          video.load();
+        }
+      });
+    };
+  }, []);
 
   // Handle escape key to close
   useEffect(() => {
