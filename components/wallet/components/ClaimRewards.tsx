@@ -122,7 +122,6 @@ export default function ClaimRewards({
           </Text>
           <HStack justifyContent="space-between" alignItems="center">
             <VStack align="start">
-              <Text>You have some pending rewards to claim:</Text>
               {parseFloat(String(pendingRewards.hive)) > 0 && (
                 <Text>{pendingRewards.hive} HIVE</Text>
               )}
@@ -147,7 +146,7 @@ export default function ClaimRewards({
       ) : (
         <Box>
           {isLoadingRewards ? (
-            <Text>Loading potential rewards...</Text>
+            <Text>Loading rewards...</Text>
           ) : fetchError ? (
             <Text color="red.500">Error: {fetchError}</Text>
           ) : (
