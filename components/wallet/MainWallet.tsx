@@ -584,8 +584,8 @@ export default function MainWallet({ username }: MainWalletProps) {
                             <small>USD value of all Hive tokens and Ivenstments in your wallet.</small>
                           </Text>
 
-                          {hiveAccount?.savings_withdraw_requests &&
-                            hiveAccount.savings_withdraw_requests > 0 && (
+                          {hiveAccount &&
+                            Number(hiveAccount.savings_withdraw_requests) > 0 && (
                               <Text color="orange.400" fontSize="sm" mt={1}>
                                 🚨 You have {hiveAccount.savings_withdraw_requests} savings withdrawal
                                 {hiveAccount.savings_withdraw_requests > 1 ? "s" : ""} in progress.
@@ -671,7 +671,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                               lastInterestPayment={
                                 hbdInterestData.lastInterestPayment
                               }
-                              savings_withdraw_requests={(hiveAccount?.savings_withdraw_requests || 0)}
+                              savings_withdraw_requests={(hiveAccount?.savings_withdraw_requests || null)}
                               onModalOpen={handleModalOpen}
                               onClaimInterest={handleClaimHbdInterest}
                             />
