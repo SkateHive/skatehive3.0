@@ -39,11 +39,11 @@ export default function ClaimRewards({
     vests_hive: reward_vesting_hive ? extractNumber(reward_vesting_hive.toString()) : "0.000",
   };
 
-  // Check if there are any claimable rewards > 0.5
+  // Check if there are any claimable rewards > 0.0
   const hasRewards =
-    parseFloat(String(pendingRewards.hive)) > 0.5 ||
-    parseFloat(String(pendingRewards.hbd)) > 0.5 ||
-    parseFloat(String(pendingRewards.vests_hive)) > 0.5;
+    parseFloat(String(pendingRewards.hive)) > 0 ||
+    parseFloat(String(pendingRewards.hbd)) > 0 ||
+    parseFloat(String(pendingRewards.vests_hive)) > 0;
 
   // Reset hasClaimed when rewards change
   useEffect(() => {
