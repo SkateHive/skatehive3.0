@@ -182,6 +182,8 @@ export function AirdropModal({
       if (updates.totalAmount !== undefined)
         setTotalAmount(updates.totalAmount);
       setCostEstimate(null); // Reset cost estimate when config changes
+      if (updates.totalAmount === "")
+        setTotalAmount("0");
     },
     []
   );
@@ -468,7 +470,7 @@ export function AirdropModal({
                 _hover={{ bg: "primaryDark" }}
                 size={isMobile ? "sm" : "md"}
                 flex="2"
-                disabled={!selectedToken || parseFloat(totalAmount) <= 0}
+                disabled={!selectedToken || parseFloat(totalAmount) <= 0 || totalAmount == "NaN"}
               >
                 Next: Configure Recipients
               </Button>
