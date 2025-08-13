@@ -70,7 +70,7 @@ const Settings = () => {
                 color="primary"
                 fontWeight="semibold"
               >
-                🏠 Main Settings
+                🔧 Main Settings
               </Tab>
               <Tab
                 _selected={{
@@ -82,7 +82,7 @@ const Settings = () => {
                 color="primary"
                 fontWeight="semibold"
               >
-                🔧 Advanced
+                🛠 Advanced
               </Tab>
             </TabList>
 
