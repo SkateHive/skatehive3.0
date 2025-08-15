@@ -115,6 +115,7 @@ const HiveTransactionHistory = ({ searchAccount }: { searchAccount: string }) =>
                             textAlign="center"
                             justify="center"
                             position="relative"
+                            cursor="pointer"
                             onClick={() => setShowHiveTransactions(!showHiveTransactions)}
                         >
                             {/* Absolutely centered text */}
@@ -125,7 +126,7 @@ const HiveTransactionHistory = ({ searchAccount }: { searchAccount: string }) =>
                                 transform="translate(-50%, -50%)"
                                 zIndex={1}
                             >
-                                <Text fontSize="sm" color="primary" cursor="default">
+                                <Text fontSize="sm" color="primary">
                                     Hive Activity
                                 </Text>
                             </Box>
