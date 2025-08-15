@@ -214,7 +214,7 @@ const SkateBankSection = memo(function HBDSection({
               onClick={handleAddToSavings}
               flex={1}
             >
-              💰 Add to Savings
+              💰 Save
             </Box>
           </Tooltip>
           <Tooltip label="Withdraw from Savings (3-day cooldown)" hasArrow>
