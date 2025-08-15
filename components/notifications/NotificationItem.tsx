@@ -509,12 +509,10 @@ export default function NotificationItem({
                     borderRadius="0"
                     maxW={{ base: "95vw", md: "100%" }}
                     overflowX="auto"
-                    h="200px"           // fixed preview height
-                    overflow="hidden"   // clip anything taller
-                    w="full"
+                    maxH="200px"
+                    // overflow="hidden"   // clip anything taller
+                    // w="full"
                     sx={{
-                      // tighten default <p> spacing from markdown
-                      '& .notification-reply-comment-markdown p': { m: 0, lineHeight: 0 },
                       // clamp images inside the markdown
                       '& .notification-reply-comment-markdown img': {
                         maxHeight: '200px !important',
