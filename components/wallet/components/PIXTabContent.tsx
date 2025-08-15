@@ -15,6 +15,7 @@ import {
   OrderedList,
   ListItem,
   IconButton,
+  Image
 } from "@chakra-ui/react";
 import { FaGlobe } from 'react-icons/fa';
 import PIXTransactionHistory from "./PIXTransactionHistory";
@@ -530,37 +531,36 @@ export default function PIXTabContent() {
   return (
     <Box position="relative">
       <VStack spacing={4} align="stretch">
+        <Box>
+          <Heading
+            size="md"
+            mb={4}
+            color="primary"
+            fontFamily="Joystix"
+          >
+            {langContent.heading}
+            <IconButton
+              aria-label="Toggle language"
+              icon={<FaGlobe />}
+              size="sm"
+              position="absolute"
+              top={0}
+              right={2}
+              onClick={toggleLanguage}
+              color="black"
+              zIndex={10}
+            />
+          </Heading>
+          <Text fontSize="sm" color="text" mb={1}>
+            {langContent.description}
+          </Text>
+        </Box>
         {loading ? (
           <Center>
             <Spinner />
           </Center>
         ) : pixDashboardData ? (
           <>
-            <Box>
-              <Heading
-                size="md"
-                mb={4}
-                color="primary"
-                fontFamily="Joystix"
-              >
-                {langContent.heading}
-                <IconButton
-                  aria-label="Toggle language"
-                  icon={<FaGlobe />}
-                  size="sm"
-                  position="absolute"
-                  top={0}
-                  right={2}
-                  onClick={toggleLanguage}
-                  color="black"
-                  zIndex={10}
-                />
-              </Heading>
-              <Text fontSize="sm" color="text" mb={1}>
-                {langContent.description}
-              </Text>
-            </Box>
-
             <BalanceBarGraph data={pixDashboardData} />
 
             {/* HBD to PIX Form */}
@@ -569,15 +569,26 @@ export default function PIXTabContent() {
             {/* PIX to HBD Transfer Guide */}
             <PixTransferGuide pixDashboardData={pixDashboardData} language={language} />
 
-            {/* Transaction History */}
-            <PIXTransactionHistory searchAccount={"pixbee"} pixDashboardData={pixDashboardData} language={language} />
 
-            {/* PIX FAQ */}
-            <PIXFAQ language={language} />
           </>
         ) : (
-          <Text color="red.400">{langContent.offline}</Text>
+          <Center flexDirection="column">
+            <Text color="red.400">{langContent.offline}</Text>
+            <Image 
+             src="/images/boardslideerro404.gif"
+              width="40"
+              alt={langContent.offline}
+              objectFit={"cover"}
+            />
+          </Center>
         )}
+
+        {/* Transaction History */}
+        <PIXTransactionHistory searchAccount={"pixbee"} pixDashboardData={pixDashboardData} language={language} />
+
+        {/* PIX FAQ */}
+        <PIXFAQ language={language} />
+
       </VStack>
     </Box>
   );

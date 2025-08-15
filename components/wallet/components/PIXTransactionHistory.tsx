@@ -149,9 +149,13 @@ const PIXTransactionHistory = ({ searchAccount, pixDashboardData, language }: { 
                 <Tr>
                   <Th textAlign="center">{langContent.currency}</Th>
                   <Th isNumeric>{langContent.totalSent}</Th>
+                  {pixDashboardData && (
                   <Th isNumeric>{langContent.nowWorth}</Th>
+                  )}
                   <Th isNumeric>{langContent.totalReceived}</Th>
+                  {pixDashboardData && (
                   <Th isNumeric>{langContent.nowWorth}</Th>
+                  )}
                 </Tr>
               </Thead>
               <Tbody>
@@ -169,12 +173,17 @@ const PIXTransactionHistory = ({ searchAccount, pixDashboardData, language }: { 
                     <Tr key={currency}>
                       <Td textAlign="center">{currency}</Td>
                       <Td isNumeric>{sentAmount.toFixed(3)}</Td>
+                      {pixDashboardData && (
                       <Td isNumeric>{priceBRL ? `R$ ${(sentAmount * priceBRL).toFixed(2)}` : "-"}</Td>
+                      )}
                       <Td isNumeric>{receivedAmount.toFixed(3)}</Td>
+                      {pixDashboardData && (
                       <Td isNumeric>{priceBRL ? `R$ ${(receivedAmount * priceBRL).toFixed(2)}` : "-"}</Td>
+                      )}
                     </Tr>
                   );
                 })}
+                {pixDashboardData && (
                 <Tr fontWeight="bold">
                   <Td textAlign="center">{langContent.total}</Td>
                   <Td isNumeric>
@@ -212,6 +221,7 @@ const PIXTransactionHistory = ({ searchAccount, pixDashboardData, language }: { 
                       .toFixed(2)}
                   </Td>
                 </Tr>
+                )}
               </Tbody>
             </Table>
           </Box>
