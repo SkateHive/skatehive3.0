@@ -93,7 +93,7 @@ const PIXTransactionHistory = ({ searchAccount, pixDashboardData, language }: { 
         });
       }
     },
-    [aioha, toast, language, langContent]
+    [aioha, toast, langContent]
   );
 
   useEffect(() => {

@@ -261,7 +261,7 @@ export default function MainWallet({ username }: MainWalletProps) {
       }
 
     },
-    [modalContent, handleConfirm, onClose]
+    [modalContent, handleConfirm, onClose, toast]
   );
 
   // Memoize balance calculations - only if user is connected to Hive
