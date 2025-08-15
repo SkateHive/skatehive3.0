@@ -39,18 +39,18 @@ export default function ClaimRewards({
     vests_hive: reward_vesting_hive ? extractNumber(reward_vesting_hive.toString()) : "0.000",
   };
 
-  // Check if there are any claimable rewards > 0.5
+  // Check if there are any claimable rewards > 0.0
   const hasRewards =
-    parseFloat(String(pendingRewards.hive)) > 0.5 ||
-    parseFloat(String(pendingRewards.hbd)) > 0.5 ||
-    parseFloat(String(pendingRewards.vests_hive)) > 0.5;
+    parseFloat(String(pendingRewards.hive)) > 0 ||
+    parseFloat(String(pendingRewards.hbd)) > 0 ||
+    parseFloat(String(pendingRewards.vests_hive)) > 0;
 
   // Reset hasClaimed when rewards change
   useEffect(() => {
     if (hasRewards) {
       setHasClaimed(false); // Show claim box if rewards > 0.5
     }
-  }, [pendingRewards.hive, pendingRewards.hbd, pendingRewards.vests_hive]);
+  }, [pendingRewards.hive, pendingRewards.hbd, pendingRewards.vests_hive, hasRewards]);
 
   // Fetch potential rewards from Skatehive API
   useEffect(() => {
@@ -122,7 +122,6 @@ export default function ClaimRewards({
           </Text>
           <HStack justifyContent="space-between" alignItems="center">
             <VStack align="start">
-              <Text>You have some pending rewards to claim:</Text>
               {parseFloat(String(pendingRewards.hive)) > 0 && (
                 <Text>{pendingRewards.hive} HIVE</Text>
               )}
@@ -147,7 +146,7 @@ export default function ClaimRewards({
       ) : (
         <Box>
           {isLoadingRewards ? (
-            <Text>Loading potential rewards...</Text>
+            <Text>Loading rewards...</Text>
           ) : fetchError ? (
             <Text color="red.500">Error: {fetchError}</Text>
           ) : (

@@ -115,6 +115,8 @@ const HiveTransactionHistory = ({ searchAccount }: { searchAccount: string }) =>
                             textAlign="center"
                             justify="center"
                             position="relative"
+                            cursor="pointer"
+                            onClick={() => setShowHiveTransactions(!showHiveTransactions)}
                         >
                             {/* Absolutely centered text */}
                             <Box
@@ -139,7 +141,6 @@ const HiveTransactionHistory = ({ searchAccount }: { searchAccount: string }) =>
                                 <IconButton
                                     aria-label={showHiveTransactions ? "Hide NFTs" : "Show NFTs"}
                                     icon={showHiveTransactions ? <FaEyeSlash /> : <FaEye />}
-                                    onClick={() => setShowHiveTransactions(!showHiveTransactions)}
                                     variant="ghost"
                                     colorScheme="purple"
                                     size="sm"

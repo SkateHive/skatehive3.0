@@ -29,7 +29,7 @@ interface HBDSectionProps {
   estimatedClaimableInterest: number;
   daysUntilClaim: number;
   lastInterestPayment?: string;
-  savings_withdraw_requests?: number;
+  savings_withdraw_requests?: number | null;
   onModalOpen: (
     title: string,
     description?: string,
@@ -175,8 +175,7 @@ const SkateBankSection = memo(function HBDSection({
       {/* Available HBD to invest */}
       <Box p={3} borderRadius="md" bg={theme.colors.muted}>
 
-        {savings_withdraw_requests &&
-          savings_withdraw_requests > 0 && (
+        {savings_withdraw_requests && savings_withdraw_requests > 0 && (
             <Text color="orange.400" fontSize="sm" mt={1} mb={1}>
               🚨 You have {savings_withdraw_requests} savings withdrawal
               {savings_withdraw_requests > 1 ? "s" : ""} in progress.
@@ -214,7 +213,7 @@ const SkateBankSection = memo(function HBDSection({
               onClick={handleAddToSavings}
               flex={1}
             >
-              💰 Add to Savings
+              💰 Save
             </Box>
           </Tooltip>
           <Tooltip label="Withdraw from Savings (3-day cooldown)" hasArrow>

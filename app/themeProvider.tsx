@@ -118,7 +118,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
             textDecoration: "underline",
           },
           _visited: {
-            color: "secondary",
+            textDecoration: "none",
+            color: "inherit"
           },
         },
         ".chakra-link": {
@@ -127,7 +128,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
             color: "accent",
           },
           _visited: {
-            color: "secondary",
+            textDecoration: "none",
+            color: "inherit"
           },
         },
       },
