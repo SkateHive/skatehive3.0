@@ -306,24 +306,24 @@ export default function NotificationItem({
         sx={
           isNew
             ? {
-                boxShadow: "none",
-                animation: undefined,
-              }
+              boxShadow: "none",
+              animation: undefined,
+            }
             : {}
         }
         _before={
           isNew
             ? {
-                content: '""',
-                position: "absolute",
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: { base: "4px", md: "6px" },
-                background: notificationPulseGradient,
-                boxShadow: notificationBoxShadowAccent,
-                animation: "pulseGlowLeft 1.5s infinite",
-              }
+              content: '""',
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: { base: "4px", md: "6px" },
+              background: notificationPulseGradient,
+              boxShadow: notificationBoxShadowAccent,
+              animation: "pulseGlowLeft 1.5s infinite",
+            }
             : {}
         }
       >
@@ -458,11 +458,10 @@ export default function NotificationItem({
                     replied to your
                   </Text>
                   <Link
-                    href={`/${
-                      parentPost
+                    href={`/${parentPost
                         ? `@${parentPost.author}/${parentPost.permlink}`
                         : notification.url
-                    }`}
+                      }`}
                     color={isNew ? "accent" : "primary"}
                     fontWeight="bold"
                     _hover={{ textDecoration: "underline" }}
@@ -490,9 +489,8 @@ export default function NotificationItem({
                           .replace(/!\[.*?\]\(.*?\)/g, "🖼️")
                           .replace(/<img[^>]*>/gi, "🖼️")
                           .replace(/\n/g, " ");
-                        return `"${replaced.slice(0, 60)}${
-                          replaced.length > 60 ? "…" : ""
-                        }"`;
+                        return `"${replaced.slice(0, 60)}${replaced.length > 60 ? "…" : ""
+                          }"`;
                       })()}
                     </Text>
                   )}
@@ -511,6 +509,22 @@ export default function NotificationItem({
                     borderRadius="0"
                     maxW={{ base: "95vw", md: "100%" }}
                     overflowX="auto"
+                    h="200px"           // fixed preview height
+                    overflow="hidden"   // clip anything taller
+                    w="full"
+                    sx={{
+                      // tighten default <p> spacing from markdown
+                      '& .notification-reply-comment-markdown p': { m: 0, lineHeight: 0 },
+                      // clamp images inside the markdown
+                      '& .notification-reply-comment-markdown img': {
+                        maxHeight: '200px !important',
+                        maxWidth: '100%',
+                        width: 'auto',
+                        height: 'auto',
+                        objectFit: 'contain',
+                        display: 'block',   // prevents extra gaps from inline images
+                      },
+                    }}
                   >
                     <HiveMarkdown
                       markdown={postContent}
@@ -543,11 +557,10 @@ export default function NotificationItem({
                   </Text>
                   {parentPost?.title && (
                     <Link
-                      href={`/${
-                        parentPost
+                      href={`/${parentPost
                           ? `@${parentPost.author}/${parentPost.permlink}`
                           : notification.url
-                      }`}
+                        }`}
                       color={isNew ? "accent" : "primary"}
                       fontWeight="bold"
                       _hover={{ textDecoration: "underline" }}
@@ -590,11 +603,10 @@ export default function NotificationItem({
                     replied to your
                   </Text>
                   <Link
-                    href={`/${
-                      parentPost
+                    href={`/${parentPost
                         ? `@${parentPost.author}/${parentPost.permlink}`
                         : notification.url
-                    }`}
+                      }`}
                     color={isNew ? "accent" : "primary"}
                     fontWeight="bold"
                     _hover={{ textDecoration: "underline" }}
@@ -672,44 +684,44 @@ export default function NotificationItem({
           {/* Indent Reply and upvote to align with main text, not all the way right */}
           {(notification.type === "reply" ||
             notification.type === "reply_comment") && (
-            <Box mt={2} w="100%" ml={{ base: 2, md: 8 }}>
-              <Flex alignItems="center" mb={2}>
-                <Text
-                  onClick={handleReplyClick}
-                  fontSize={{ base: "xs", md: "sm" }}
-                  cursor="pointer"
-                  mr={2}
-                >
-                  Reply
-                </Text>
-                {reply ? (
-                  <Box w="50%">
-                    <UpvoteButton
-                      discussion={reply}
-                      voted={hasVoted}
-                      setVoted={(newVotedState) => {
-                        setHasVoted(newVotedState);
-                      }}
-                      activeVotes={reply.active_votes || []}
-                      setActiveVotes={(votes) => {
-                        if (reply) {
-                          setReply({ ...reply, active_votes: votes });
-                        }
-                      }}
-                      showSlider={showSlider}
-                      setShowSlider={setShowSlider}
-                      variant="withSlider"
-                      size="sm"
-                    />
-                  </Box>
-                ) : (
-                  <Text fontSize="xs" color="muted">
-                    Loading...
+              <Box mt={2} w="100%" ml={{ base: 2, md: 8 }}>
+                <Flex alignItems="center" mb={2}>
+                  <Text
+                    onClick={handleReplyClick}
+                    fontSize={{ base: "xs", md: "sm" }}
+                    cursor="pointer"
+                    mr={2}
+                  >
+                    Reply
                   </Text>
-                )}
-              </Flex>
-            </Box>
-          )}
+                  {reply ? (
+                    <Box w="50%">
+                      <UpvoteButton
+                        discussion={reply}
+                        voted={hasVoted}
+                        setVoted={(newVotedState) => {
+                          setHasVoted(newVotedState);
+                        }}
+                        activeVotes={reply.active_votes || []}
+                        setActiveVotes={(votes) => {
+                          if (reply) {
+                            setReply({ ...reply, active_votes: votes });
+                          }
+                        }}
+                        showSlider={showSlider}
+                        setShowSlider={setShowSlider}
+                        variant="withSlider"
+                        size="sm"
+                      />
+                    </Box>
+                  ) : (
+                    <Text fontSize="xs" color="muted">
+                      Loading...
+                    </Text>
+                  )}
+                </Flex>
+              </Box>
+            )}
         </Box>
         {/* No thumbnail for reply notifications */}
       </HStack>
