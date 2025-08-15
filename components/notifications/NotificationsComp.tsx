@@ -98,10 +98,10 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
   const containerPadding = useBreakpointValue({ base: 2, md: 4 });
 
 
-  return (
+  return (<>
     <VStack
       spacing={0}
-      h="100vh"
+      // h="100vh"
       bg="background"
       color="text"
       overflow="hidden"
@@ -173,63 +173,63 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
           </HStack>
         </VStack>
       </Box>
+    </VStack>
 
-      <Box>
 
-
-        {isLoading ? (
-          <Stack spacing={4} w="full">
-            {[...Array(5)].map((_, i) => (
-              <Box
-                key={i}
-                p={3}
-                borderRadius="base"
-                bg="primary"
-                w="full"
-                minH="80px"
-                display="flex"
-                alignItems="center"
-              >
-                <SkeletonCircle
-                  size="8"
-                  mr={4}
+    <Box>
+      {isLoading ? (
+        <Stack spacing={4} w="full">
+          {[...Array(5)].map((_, i) => (
+            <Box
+              key={i}
+              p={3}
+              borderRadius="base"
+              bg="primary"
+              w="full"
+              minH="80px"
+              display="flex"
+              alignItems="center"
+            >
+              <SkeletonCircle
+                size="8"
+                mr={4}
+                startColor="muted"
+                endColor="primary"
+              />
+              <Box flex="1">
+                <Skeleton
+                  height="16px"
+                  width="40%"
+                  mb={2}
                   startColor="muted"
                   endColor="primary"
                 />
-                <Box flex="1">
-                  <Skeleton
-                    height="16px"
-                    width="40%"
-                    mb={2}
-                    startColor="muted"
-                    endColor="primary"
-                  />
-                  <SkeletonText
-                    noOfLines={2}
-                    spacing={2}
-                    width="80%"
-                    startColor="muted"
-                    endColor="primary"
-                  />
-                </Box>
+                <SkeletonText
+                  noOfLines={2}
+                  spacing={2}
+                  width="80%"
+                  startColor="muted"
+                  endColor="primary"
+                />
               </Box>
-            ))}
-          </Stack>
-        ) : filteredNotifications.length > 0 ? (
-          <Stack spacing={4} w="full">
-            {filteredNotifications.map((notification) => (
-              <NotificationItem
-                key={notification.id}
-                notification={notification}
-                lastReadDate={lastReadDate}
-                currentUser={username}
-              />
-            ))}
-          </Stack>
-        ) : (
-          <Text>No notifications</Text>
-        )}
-      </Box>
-    </VStack>
+            </Box>
+          ))}
+        </Stack>
+      ) : filteredNotifications.length > 0 ? (
+        <Stack spacing={4} w="full">
+          {filteredNotifications.map((notification) => (
+            <NotificationItem
+              key={notification.id}
+              notification={notification}
+              lastReadDate={lastReadDate}
+              currentUser={username}
+            />
+          ))}
+        </Stack>
+      ) : (
+        <Text>No notifications</Text>
+      )}
+    </Box>
+  </>
   );
 }
