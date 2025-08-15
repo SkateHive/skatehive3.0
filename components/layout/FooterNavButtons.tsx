@@ -476,7 +476,7 @@ export default function FooterNavButtons() {
         if (rect) {
           const moveDistance = Math.sqrt(
             Math.pow(touch.clientX - (rect.left + dragStart.x), 2) +
-              Math.pow(touch.clientY - (rect.top + dragStart.y), 2)
+            Math.pow(touch.clientY - (rect.top + dragStart.y), 2)
           );
 
           // If user moves more than 10px before the timer, cancel hold-to-drag
@@ -576,9 +576,8 @@ export default function FooterNavButtons() {
         safeCloseConnectionModal();
         toast({
           title: "Already Connected",
-          description: `Already connected as @${
-            connectedProfile?.username || "unknown"
-          }`,
+          description: `Already connected as @${connectedProfile?.username || "unknown"
+            }`,
           status: "info",
           duration: 3000,
         });
@@ -716,26 +715,21 @@ export default function FooterNavButtons() {
       onClick: () => router.push("/bounties"),
       name: "Bounties",
     },
-    // Only show auction button if not already on auction page
-    ...(!pathname.startsWith("/auction")
-      ? [
-          {
-            icon: FiTrendingUp, // Using trending up icon for auction
-            onClick: () => router.push("/auction"),
-            name: "Auction",
-          },
-        ]
-      : []),
+    {
+      icon: FiTrendingUp, // Using trending up icon for auction
+      onClick: () => router.push("/auction"),
+      name: "Auction",
+    },
     // Notifications (conditional - only for logged in users)
     ...(user
       ? [
-          {
-            icon: FiBell,
-            onClick: () => router.push("/notifications"),
-            name: "Notifications",
-            badge: newNotificationCount,
-          },
-        ]
+        {
+          icon: FiBell,
+          onClick: () => router.push("/notifications"),
+          name: "Notifications",
+          badge: newNotificationCount,
+        },
+      ]
       : []),
     {
       icon: FiCreditCard,
@@ -774,13 +768,13 @@ export default function FooterNavButtons() {
           transform: isDragging
             ? "scale(1.08) rotate(2deg)"
             : isHolding
-            ? "scale(1.04)"
-            : "scale(1)",
+              ? "scale(1.04)"
+              : "scale(1)",
           transition: isDragging
             ? "none"
             : isSnapping
-            ? "all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-            : "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              ? "all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+              : "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           filter: isDragging
             ? "drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3))"
             : "none",
