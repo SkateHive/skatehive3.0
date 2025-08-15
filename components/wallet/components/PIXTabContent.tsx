@@ -518,7 +518,7 @@ export default function PIXTabContent() {
         setDashboardData(parsedData);
       } catch (error) {
         console.error("Failed to load PIX data", error);
-        toast({ title: "Failed to load PIX data", status: "error", duration: 3000 });
+        // toast({ title: "Failed to load PIX data", status: "error", duration: 3000 });
       } finally {
         setLoading(false);
       }
