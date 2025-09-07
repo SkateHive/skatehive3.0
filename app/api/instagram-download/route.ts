@@ -75,12 +75,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate Instagram URL format
-    const instagramRegex = /^https?:\/\/(www\.)?(instagram\.com|instagr\.am)\/(p\/[A-Za-z0-9_-]+|[A-Za-z0-9_.]+\/(reel|tv)\/[A-Za-z0-9_-]+)\/?(\?.*)?$/;
+    const instagramRegex =
+      /^https?:\/\/(www\.)?(instagram\.com|instagr\.am)\/(p\/[A-Za-z0-9_-]+|([A-Za-z0-9_.]+\/)?(reel|tv)\/[A-Za-z0-9_-]+)\/?(\?.*)?$/;
     if (!instagramRegex.test(url)) {
       return NextResponse.json(
         { error: 'Invalid Instagram URL format' },
         { status: 400 }
       );
+    }
+
+    let finalUrl = url;
+
+    // Handle reel or tv URLs without username by extracting from OpenGraph
+    const noUsernameRegex =
+      /^https?:\/\/(www\.)?(instagram\.com|instagr\.am)\/(reel|tv)\/[A-Za-z0-9_-]+\/?(\?.*)?$/;
+    if (noUsernameRegex.test(url)) {
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0'
+          }
+        });
+        const html = await response.text();
+        const match = html.match(/<meta property="og:url" content="([^\"]+)"/);
+        if (match && match[1]) {
+          finalUrl = match[1];
+        }
+      } catch {
+        // If fetching fails, proceed with original URL
+      }
     }
 
     let lastError = '';
@@ -89,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Try each server in order
     for (const server of INSTAGRAM_SERVERS) {
       try {
-        const result = await tryDownloadFromServer(server, url);
+        const result = await tryDownloadFromServer(server, finalUrl);
         
         // Success! Return the result
         return NextResponse.json(result);

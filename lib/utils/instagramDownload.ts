@@ -16,8 +16,9 @@ export interface InstagramDownloadResult {
  */
 export async function downloadInstagramMedia(instagramUrl: string): Promise<InstagramDownloadResult> {
   try {
-    // Validate Instagram URL format - supports both posts and reels with usernames
-    const instagramRegex = /^https?:\/\/(www\.)?(instagram\.com|instagr\.am)\/(p\/[A-Za-z0-9_-]+|[A-Za-z0-9_.]+\/(reel|tv)\/[A-Za-z0-9_-]+)\/?(\?.*)?$/;
+    // Validate Instagram URL format - supports posts and reels with or without usernames
+    const instagramRegex =
+      /^https?:\/\/(www\.)?(instagram\.com|instagr\.am)\/(p\/[A-Za-z0-9_-]+|([A-Za-z0-9_.]+\/)?(reel|tv)\/[A-Za-z0-9_-]+)\/?(\?.*)?$/;
     if (!instagramRegex.test(instagramUrl)) {
       throw new Error('Invalid Instagram URL format');
     }
@@ -51,7 +52,8 @@ export async function downloadInstagramMedia(instagramUrl: string): Promise<Inst
  * Validate Instagram URL format
  */
 export function isValidInstagramUrl(url: string): boolean {
-  const instagramRegex = /^https?:\/\/(www\.)?instagram\.com\/(p\/[A-Za-z0-9_-]+|[A-Za-z0-9_.]+\/(reel|tv)\/[A-Za-z0-9_-]+)\/?/;
+  const instagramRegex =
+    /^https?:\/\/(www\.)?instagram\.com\/(p\/[A-Za-z0-9_-]+|([A-Za-z0-9_.]+\/)?(reel|tv)\/[A-Za-z0-9_-]+)\/?/;
   return instagramRegex.test(url);
 }
 
