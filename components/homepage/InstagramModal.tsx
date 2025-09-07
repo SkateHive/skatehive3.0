@@ -119,7 +119,7 @@ const InstagramModal: React.FC<InstagramModalProps> = ({
                 Paste an Instagram post or reel URL:
               </Text>
               <Input
-                placeholder="https://www.instagram.com/username/reel/ABC123..."
+                placeholder="https://www.instagram.com/reel/ABC123... (username optional)"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 isDisabled={isDownloading}
