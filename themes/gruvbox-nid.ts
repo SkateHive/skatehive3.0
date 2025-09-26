@@ -1,32 +1,32 @@
 import { extendTheme } from '@chakra-ui/react';
 import { COLORS } from './colors';
 
-const gruvboxTheme = extendTheme({
+const gruvboxNidTheme = extendTheme({
     config: {
         usesHeader: true,
         usesSidebar: false,
-        initialColorMode: 'dark',
+        initialColorMode: 'light',
         useSystemColorMode: false,
     },
     semanticTokens: {
         colors: {
             _colorScheme: { _light: 'orange', _dark: 'orange' },
-            _colorMode: 'dark',
+            _colorMode: 'light',
         },
     },
-    initialColorMode: 'dark',
+    initialColorMode: 'light',
     useSystemColorMode: false,
     colors: {
-        background: COLORS.GRUVBOX_DARK_BG, // Authentic dark gruvbox background
-        text: COLORS.GRUVBOX_DARK_FG, // Warm cream text
+        background: COLORS.GRUVBOX_LIGHT_BG, // Light gruvbox background
+        text: COLORS.GRUVBOX_LIGHT_FG, // Dark text on light background
         primary: COLORS.GRUVBOX_ORANGE_BRIGHT, // Bright orange for primary actions
-        secondary: COLORS.GRUVBOX_GRAY, // Neutral gray for secondary elements
-        accent: COLORS.GRUVBOX_YELLOW_BRIGHT, // Bright yellow for accents
-        muted: COLORS.GRUVBOX_DARK_BG_SOFT, // Slightly lighter background for muted elements
-        border: COLORS.GRUVBOX_GRAY_DARK, // Darker gray for borders
-        error: COLORS.GRUVBOX_RED_BRIGHT, // Bright red for errors
-        success: COLORS.GRUVBOX_GREEN_BRIGHT, // Bright green for success
-        warning: COLORS.GRUVBOX_YELLOW, // Yellow for warnings
+        secondary: COLORS.GRUVBOX_GRAY_DARK, // Darker gray for secondary elements
+        accent: COLORS.GRUVBOX_ORANGE, // Orange for accents - keeping orange theme
+        muted: COLORS.GRUVBOX_LIGHT_BG_SOFT, // Slightly darker background for muted elements
+        border: COLORS.GRUVBOX_GRAY, // Gray for borders
+        error: COLORS.GRUVBOX_RED, // Red for errors
+        success: COLORS.GRUVBOX_GREEN, // Green for success
+        warning: COLORS.GRUVBOX_YELLOW_BRIGHT, // Bright yellow for warnings
     },
     fonts: {
         heading: 'var(--font-fira-mono), "Fira Code", "Consolas", monospace',
@@ -60,7 +60,7 @@ const gruvboxTheme = extendTheme({
         taller: '2',
     },
     borders: {
-        tb1: `1px solid ${COLORS.GRUVBOX_GRAY_DARK}`,
+        tb1: `1px solid ${COLORS.GRUVBOX_GRAY}`,
         tb2: `2px solid ${COLORS.GRUVBOX_ORANGE}`,
         borderRadius: '6px', // Slightly rounded for warmth
     },
@@ -118,17 +118,17 @@ const gruvboxTheme = extendTheme({
         },
     },
     shadows: {
-        xs: `0 0 2px 0 rgba(215, 153, 33, 0.3)`, // Warm yellow glow
-        sm: `0 1px 2px 0 rgba(215, 153, 33, 0.4)`,
-        base: `0 1px 3px 0 rgba(215, 153, 33, 0.4), 0 1px 2px 0 rgba(215, 153, 33, 0.2)`,
-        md: `0 4px 6px -1px rgba(215, 153, 33, 0.4), 0 2px 4px -1px rgba(215, 153, 33, 0.2)`,
-        lg: `0 10px 15px -3px rgba(215, 153, 33, 0.4), 0 4px 6px -2px rgba(215, 153, 33, 0.2)`,
-        xl: `0 20px 25px -5px rgba(215, 153, 33, 0.4), 0 10px 10px -5px rgba(215, 153, 33, 0.2)`,
-        '2xl': `0 25px 50px -12px rgba(215, 153, 33, 0.6)`,
-        outline: `0 0 0 3px rgba(254, 128, 25, 0.5)`, // Orange focus outline
-        inner: `inset 0 2px 4px 0 rgba(0, 0, 0, 0.6)`,
+        xs: `0 0 2px 0 rgba(254, 128, 25, 0.2)`, // Subtle orange glow for light theme
+        sm: `0 1px 2px 0 rgba(254, 128, 25, 0.3)`,
+        base: `0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(254, 128, 25, 0.2)`,
+        md: `0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(254, 128, 25, 0.2)`,
+        lg: `0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(254, 128, 25, 0.2)`,
+        xl: `0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(254, 128, 25, 0.2)`,
+        '2xl': `0 25px 50px -12px rgba(0, 0, 0, 0.2)`,
+        outline: `0 0 0 3px rgba(254, 128, 25, 0.4)`, // Orange focus outline
+        inner: `inset 0 2px 4px 0 rgba(0, 0, 0, 0.1)`,
         none: 'none',
-        'dark-lg': `rgba(215, 153, 33, 0.4) 0px 10px 15px -3px, rgba(215, 153, 33, 0.2) 0px 4px 6px -2px`,
+        'dark-lg': `rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(254, 128, 25, 0.2) 0px 4px 6px -2px`,
     },
     components: {
         Button: {
@@ -156,7 +156,7 @@ const gruvboxTheme = extendTheme({
                     bg: 'primary',
                     color: 'background',
                     _hover: {
-                        bg: COLORS.GRUVBOX_ORANGE,
+                        bg: 'accent',
                         transform: 'translateY(-1px)',
                     },
                     _active: {
@@ -168,14 +168,14 @@ const gruvboxTheme = extendTheme({
                     color: 'primary',
                     _hover: {
                         bg: 'muted',
-                        borderColor: COLORS.GRUVBOX_ORANGE,
+                        borderColor: 'accent',
                     },
                 },
                 ghost: {
                     color: 'primary',
                     _hover: {
                         bg: 'muted',
-                        color: COLORS.GRUVBOX_ORANGE,
+                        color: 'accent',
                     },
                 },
             },
@@ -184,14 +184,14 @@ const gruvboxTheme = extendTheme({
             baseStyle: {
                 field: {
                     borderColor: 'border',
-                    bg: 'muted',
+                    bg: 'background',
                     color: 'text',
                     _focus: {
                         borderColor: 'primary',
                         boxShadow: 'outline',
                     },
                     _hover: {
-                        borderColor: COLORS.GRUVBOX_GRAY,
+                        borderColor: COLORS.GRUVBOX_GRAY_DARK,
                     },
                 },
             },
@@ -209,7 +209,7 @@ const gruvboxTheme = extendTheme({
                     field: {
                         borderColor: 'border',
                         _hover: {
-                            borderColor: COLORS.GRUVBOX_GRAY,
+                            borderColor: COLORS.GRUVBOX_GRAY_DARK,
                         },
                         _focus: {
                             borderColor: 'primary',
@@ -219,12 +219,12 @@ const gruvboxTheme = extendTheme({
                 },
                 filled: {
                     field: {
-                        bg: COLORS.GRUVBOX_DARK_BG_HARD,
+                        bg: COLORS.GRUVBOX_LIGHT_BG_HARD,
                         _hover: {
-                            bg: COLORS.GRUVBOX_DARK_BG_SOFT,
+                            bg: COLORS.GRUVBOX_LIGHT_BG_SOFT,
                         },
                         _focus: {
-                            bg: COLORS.GRUVBOX_DARK_BG_SOFT,
+                            bg: 'background',
                             borderColor: 'primary',
                             boxShadow: 'outline',
                         },
@@ -256,4 +256,4 @@ const gruvboxTheme = extendTheme({
     },
 });
 
-export default gruvboxTheme;
+export default gruvboxNidTheme;
