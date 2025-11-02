@@ -394,6 +394,10 @@ const VideoRenderer = ({ src, skipThumbnailLoad, ...props }: RendererProps) => {
   useEffect(() => {
     if (videoRef.current && !hasError) {
       if (isInView) {
+        // CRITICAL: With preload="none", explicitly load video when in view
+        if (videoRef.current.readyState === 0) {
+          videoRef.current.load();
+        }
         videoRef.current.play().catch(() => {
           // Silent fail if autoplay is blocked
         });
@@ -452,7 +456,7 @@ const VideoRenderer = ({ src, skipThumbnailLoad, ...props }: RendererProps) => {
           playsInline={true}
           autoPlay={true}
           loop={shouldLoop}
-          preload="metadata"
+          preload="none"
           onLoadedData={handleLoadedData}
           onEnded={handleVideoEnded}
           onError={handleVideoError}
