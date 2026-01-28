@@ -114,7 +114,36 @@ export const lg = {
     open: 'Debug',
     title: 'Okukebera puloofa',
     empty: 'Tewali data ya debug.',
-  },
+    tabs: {
+      overview: 'Okusaba',
+      hive: 'Hive',
+      evm: 'Ethereum',
+      farcaster: 'Farcaster',
+      userbase: 'Userbase',
+      rawJson: 'Raw JSON',
+    },
+    sections: {
+      profileContext: 'Obusobozi bwa Puloofa',
+      handleResolution: 'Okukakasa Handle',
+      linkedIdentitiesSummary: 'Obusobozi bw’Obukakafu Obugattiddwa',
+      hiveAccountData: 'Ebikwata ku Akawunti ya Hive',
+      hiveAccountMetadata: 'Ebikwata ku Metadatta ya Hive',
+      linkedHiveIdentity: 'Obukakafu bwa Hive Obugattiddwa',
+      linkedEvmIdentity: 'Obukakafu bwa EVM Obugattiddwa',
+      linkedFarcasterIdentity: 'Obukakafu bwa Farcaster Obugattiddwa',
+      warpcastLink: 'Warpcast Link',
+      resolvedEthereum: 'Ethereum Ekyakakasiddwa',
+      userbaseUser: 'Omukozesa wa Userbase',
+      allIdentities: 'Obukakafu Bwonna',
+      liteProfileData: 'Lite Profile Data',
+    },
+    emptyStates: {
+      noHiveIdentity: 'Tewali bukakafu bwa Hive bugattiddwa.',
+      noEvmIdentity: 'Tewali bukakafu bwa EVM bugattiddwa.',
+      noFarcasterIdentity: 'Tewali bukakafu bwa Farcaster bugattiddwa.',
+      noIdentities: 'Tewali bukakafu bunasangiddwa.',
+    },
+    },
   userbaseAuth: {
     title: 'Akawunti ya app',
     signedInAs: 'Oyingidde nga',
@@ -969,4 +998,4 @@ export const lg = {
   share: {
     pageTitle: 'Cast Ekakasizza',
   },
-} as const;
+};

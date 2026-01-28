@@ -246,7 +246,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     evmIdentityAddress ||
     (isEvmAddress ? username : "");
 
-  // When user has linked Hive account, prefer Hive avatar
+  // When user has linked Hive account, use Hive avatar only if app profile doesn't have one
   const hiveAvatarUrl = hiveIdentityHandle
     ? `https://images.hive.blog/u/${hiveIdentityHandle}/avatar`
     : null;
@@ -254,14 +254,14 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const liteProfileData = useMemo<ProfileData>(() => {
     if (userbaseUser) {
       return {
-        // Prefer Hive avatar when Hive account is linked, then userbase avatar
-        profileImage: hiveAvatarUrl || userbaseUser.avatar_url || "",
+        // Prefer app profile assets; fall back to Hive only if app assets are missing
+        profileImage: userbaseUser.avatar_url || hiveAvatarUrl || "",
         coverImage: userbaseUser.cover_url || "",
         website: "",
         name:
-          hiveIdentityHandle ||
           userbaseUser.display_name ||
           userbaseUser.handle ||
+          hiveIdentityHandle ||
           username ||
           "Skater",
         followers: 0,
@@ -620,6 +620,8 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
             {/* Profile Header */}
             <ProfileHeader
               profileData={activeProfileData}
+              hiveProfileData={profileData}
+              skateProfileData={liteProfileData}
               username={headerUsername}
               isOwner={isOwner}
               isUserbaseOwner={isUserbaseOwner}
