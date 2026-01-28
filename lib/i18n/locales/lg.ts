@@ -350,7 +350,7 @@ export const lg = {
     mergeCountSessions: 'Sessions',
     mergeCountSoftPosts: 'Soft posts',
     mergeCountSoftVotes: 'Soft votes',
-    mainSettings: '🏠 Setinga Enkulu',
+    mainSettings: '🏠 Setinga',
     assets: '🎨 Assets',
     advanced: '🔧 Advanced',
     themeSelection: '🎨 Theme Selection',

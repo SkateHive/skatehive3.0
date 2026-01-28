@@ -350,7 +350,7 @@ export const en = {
     mergeCountSessions: 'Sessions',
     mergeCountSoftPosts: 'Soft posts',
     mergeCountSoftVotes: 'Soft votes',
-    mainSettings: '🏠 Main Settings',
+    mainSettings: '🏠 Settings',
     assets: '🎨 Assets',
     advanced: '🔧 Advanced',
     themeSelection: '🎨 Theme Selection',
