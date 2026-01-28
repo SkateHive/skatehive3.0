@@ -1,6 +1,6 @@
 export const ptBR = {
   navigation: {
-    home: 'Início',
+    home: 'Home',
     magazine: 'Revista',
     leaderboard: 'Placar',
     skatespots: 'Picos',
