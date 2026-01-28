@@ -194,11 +194,30 @@ export default function EditUserbaseProfile({
       isCentered
       footer={
         <HStack spacing={3} justify="flex-end" w="full">
-          <Button variant="ghost" onClick={onClose} color="text">
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            color="text"
+            fontFamily="mono"
+            textTransform="uppercase"
+            letterSpacing="wider"
+          >
             Cancel
           </Button>
           <Button
-            colorScheme="primary"
+            bg="primary"
+            color="background"
+            border="2px solid"
+            borderColor="primary"
+            fontFamily="mono"
+            textTransform="uppercase"
+            letterSpacing="wider"
+            _hover={{
+              bg: "transparent",
+              color: "primary",
+              borderColor: "primary",
+            }}
+            _active={{ bg: "primary", color: "background" }}
             onClick={handleSave}
             isLoading={isSaving}
             isDisabled={isUploadingAvatar || isUploadingCover}
@@ -208,16 +227,16 @@ export default function EditUserbaseProfile({
         </HStack>
       }
     >
-      <VStack spacing={5} align="stretch">
+      <VStack spacing={4} align="stretch" px={4} py={3}>
         {/* Cover Image Section */}
-        <Box position="relative" mb={8}>
+        <Box position="relative" mb={10}>
           <Box
             h="120px"
-            bg={formData.cover_url ? "transparent" : "whiteAlpha.100"}
-            borderRadius="md"
+            bg={formData.cover_url ? "transparent" : "blackAlpha.400"}
+            borderRadius="sm"
             overflow="hidden"
-            border="1px dashed"
-            borderColor="border"
+            border="1px solid"
+            borderColor="whiteAlpha.200"
           >
             {formData.cover_url ? (
               <Box
@@ -232,7 +251,9 @@ export default function EditUserbaseProfile({
               <Flex h="100%" align="center" justify="center">
                 <VStack spacing={1}>
                   <Icon as={FiImage} color="dim" boxSize={6} />
-                  <Text fontSize="xs" color="dim">Cover Image</Text>
+                  <Text fontSize="xs" color="dim" fontFamily="mono">
+                    Cover Image
+                  </Text>
                 </VStack>
               </Flex>
             )}
@@ -258,7 +279,7 @@ export default function EditUserbaseProfile({
             _hover={{ bg: "blackAlpha.800" }}
             isLoading={isUploadingCover}
             cursor="pointer"
-            borderRadius="full"
+            borderRadius="sm"
           />
 
           {/* Avatar overlapping cover */}
@@ -268,8 +289,8 @@ export default function EditUserbaseProfile({
                 size="2xl"
                 src={formData.avatar_url}
                 name={formData.display_name || formData.handle || "User"}
-                border="4px solid"
-                borderColor="background"
+                border="2px solid"
+                borderColor="primary"
                 bg="panel"
               />
               <Input
@@ -293,7 +314,7 @@ export default function EditUserbaseProfile({
                 _hover={{ bg: "accent" }}
                 isLoading={isUploadingAvatar}
                 cursor="pointer"
-                borderRadius="full"
+                borderRadius="sm"
               />
             </Box>
           </Box>
@@ -301,7 +322,14 @@ export default function EditUserbaseProfile({
 
         {/* Display Name */}
         <FormControl>
-          <FormLabel color="text" fontSize="sm" display="flex" alignItems="center" gap={2}>
+          <FormLabel
+            color="text"
+            fontSize="xs"
+            display="flex"
+            alignItems="center"
+            gap={2}
+            fontFamily="mono"
+          >
             <Icon as={FiUser} />
             Display Name
           </FormLabel>
@@ -310,18 +338,29 @@ export default function EditUserbaseProfile({
             value={formData.display_name}
             onChange={handleInputChange}
             placeholder="Your display name"
-            bg="inputBg"
-            color="inputText"
-            borderColor="inputBorder"
-            borderRadius="md"
-            _placeholder={{ color: "inputPlaceholder" }}
-            _focus={{ borderColor: "primary", boxShadow: "0 0 0 1px var(--chakra-colors-primary)" }}
+            bg="blackAlpha.400"
+            color="text"
+            borderColor="whiteAlpha.200"
+            borderRadius="sm"
+            fontFamily="mono"
+            _placeholder={{ color: "gray.600" }}
+            _focus={{
+              borderColor: "primary",
+              boxShadow: "0 0 0 1px var(--chakra-colors-primary)",
+            }}
           />
         </FormControl>
 
         {/* Handle */}
         <FormControl isInvalid={!!handleError}>
-          <FormLabel color="text" fontSize="sm" display="flex" alignItems="center" gap={2}>
+          <FormLabel
+            color="text"
+            fontSize="xs"
+            display="flex"
+            alignItems="center"
+            gap={2}
+            fontFamily="mono"
+          >
             <Icon as={FiAtSign} />
             Handle
           </FormLabel>
@@ -330,17 +369,21 @@ export default function EditUserbaseProfile({
             value={formData.handle}
             onChange={handleInputChange}
             placeholder="your-handle"
-            bg="inputBg"
-            color="inputText"
-            borderColor="inputBorder"
-            borderRadius="md"
-            _placeholder={{ color: "inputPlaceholder" }}
-            _focus={{ borderColor: "primary", boxShadow: "0 0 0 1px var(--chakra-colors-primary)" }}
+            bg="blackAlpha.400"
+            color="text"
+            borderColor="whiteAlpha.200"
+            borderRadius="sm"
+            fontFamily="mono"
+            _placeholder={{ color: "gray.600" }}
+            _focus={{
+              borderColor: "primary",
+              boxShadow: "0 0 0 1px var(--chakra-colors-primary)",
+            }}
           />
           {handleError ? (
-            <FormErrorMessage>{handleError}</FormErrorMessage>
+            <FormErrorMessage fontFamily="mono">{handleError}</FormErrorMessage>
           ) : (
-            <Text fontSize="xs" color="dim" mt={1}>
+            <Text fontSize="2xs" color="dim" mt={1} fontFamily="mono">
               This will be your unique @handle for your profile URL
             </Text>
           )}
@@ -348,7 +391,14 @@ export default function EditUserbaseProfile({
 
         {/* Bio */}
         <FormControl>
-          <FormLabel color="text" fontSize="sm" display="flex" alignItems="center" gap={2}>
+          <FormLabel
+            color="text"
+            fontSize="xs"
+            display="flex"
+            alignItems="center"
+            gap={2}
+            fontFamily="mono"
+          >
             <Icon as={FiFileText} />
             Bio
           </FormLabel>
@@ -358,19 +408,30 @@ export default function EditUserbaseProfile({
             onChange={handleInputChange}
             placeholder="Tell us about yourself..."
             rows={3}
-            bg="inputBg"
-            color="inputText"
-            borderColor="inputBorder"
-            borderRadius="md"
-            _placeholder={{ color: "inputPlaceholder" }}
-            _focus={{ borderColor: "primary", boxShadow: "0 0 0 1px var(--chakra-colors-primary)" }}
+            bg="blackAlpha.400"
+            color="text"
+            borderColor="whiteAlpha.200"
+            borderRadius="sm"
+            fontFamily="mono"
+            _placeholder={{ color: "gray.600" }}
+            _focus={{
+              borderColor: "primary",
+              boxShadow: "0 0 0 1px var(--chakra-colors-primary)",
+            }}
             resize="none"
           />
         </FormControl>
 
         {/* Location */}
         <FormControl>
-          <FormLabel color="text" fontSize="sm" display="flex" alignItems="center" gap={2}>
+          <FormLabel
+            color="text"
+            fontSize="xs"
+            display="flex"
+            alignItems="center"
+            gap={2}
+            fontFamily="mono"
+          >
             <Icon as={FiMapPin} />
             Location
           </FormLabel>
@@ -379,12 +440,16 @@ export default function EditUserbaseProfile({
             value={formData.location}
             onChange={handleInputChange}
             placeholder="Your location"
-            bg="inputBg"
-            color="inputText"
-            borderColor="inputBorder"
-            borderRadius="md"
-            _placeholder={{ color: "inputPlaceholder" }}
-            _focus={{ borderColor: "primary", boxShadow: "0 0 0 1px var(--chakra-colors-primary)" }}
+            bg="blackAlpha.400"
+            color="text"
+            borderColor="whiteAlpha.200"
+            borderRadius="sm"
+            fontFamily="mono"
+            _placeholder={{ color: "gray.600" }}
+            _focus={{
+              borderColor: "primary",
+              boxShadow: "0 0 0 1px var(--chakra-colors-primary)",
+            }}
           />
         </FormControl>
       </VStack>
