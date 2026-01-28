@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import crypto from "crypto";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -18,6 +19,10 @@ const supabase =
 
 function normalize(value: string | null) {
   return value ? value.trim().toLowerCase() : null;
+}
+
+function hashToken(token: string) {
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 async function getUserByHandle(handle: string) {
@@ -220,8 +225,8 @@ export async function PATCH(request: NextRequest) {
 
     // Get session from cookie
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("userbase_session");
-    if (!sessionCookie?.value) {
+    const refreshToken = cookieStore.get("userbase_refresh")?.value;
+    if (!refreshToken) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -229,7 +234,7 @@ export async function PATCH(request: NextRequest) {
     const { data: session, error: sessionError } = await supabase
       .from("userbase_sessions")
       .select("user_id, expires_at")
-      .eq("id", sessionCookie.value)
+      .eq("refresh_token_hash", hashToken(refreshToken))
       .single();
 
     if (sessionError || !session) {
