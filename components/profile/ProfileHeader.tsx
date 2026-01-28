@@ -33,6 +33,8 @@ type ProfileView = "hive" | "zora" | "skate" | "farcaster";
 
 interface ProfileHeaderProps {
   profileData: ProfileData;
+  hiveProfileData?: ProfileData;
+  skateProfileData?: ProfileData;
   username: string;
   isOwner: boolean;
   isUserbaseOwner?: boolean;
@@ -53,6 +55,8 @@ interface ProfileHeaderProps {
 
 const ProfileHeader = function ProfileHeader({
   profileData,
+  hiveProfileData,
+  skateProfileData,
   username,
   isOwner,
   isUserbaseOwner,
@@ -69,6 +73,9 @@ const ProfileHeader = function ProfileHeader({
   userbaseIdentities = [],
   farcasterProfile = null,
 }: ProfileHeaderProps) {
+  const hiveHeaderData = hiveProfileData || profileData;
+  const skateHeaderData = skateProfileData || profileData;
+
   // Determine available views and default view
   const hasZora = !!profileData.ethereum_address;
   const hasHive = hasHiveProfile;
@@ -95,6 +102,13 @@ const ProfileHeader = function ProfileHeader({
 
   const [activeView, setActiveView] = useState<ProfileView>(defaultView);
 
+  const activeHeaderData =
+    activeView === "skate"
+      ? skateHeaderData
+      : activeView === "hive"
+      ? hiveHeaderData
+      : profileData;
+
   // Determine which edit handler to use per profile type
   const userbaseEditHandler =
     isUserbaseOwner && onUserbaseEditModalOpen
@@ -109,7 +123,7 @@ const ProfileHeader = function ProfileHeader({
     <Box position="relative" w="100%">
       {/* Mobile Component */}
       <MobileProfileHeader
-        profileData={profileData}
+        profileData={activeHeaderData}
         username={username}
         isOwner={canEdit}
         user={user}
@@ -134,7 +148,7 @@ const ProfileHeader = function ProfileHeader({
           {hasSkate && (
             <Box display={activeView === "skate" ? "block" : "none"} w="100%">
               <SkateProfileHeader
-                profileData={profileData}
+                profileData={skateHeaderData}
                 username={username}
                 isOwner={canEdit}
                 onEditModalOpen={userbaseEditHandler}
@@ -156,7 +170,7 @@ const ProfileHeader = function ProfileHeader({
           {hasHive && (
             <Box display={activeView === "hive" ? "block" : "none"} w="100%">
               <HiveProfileHeader
-                profileData={profileData}
+                profileData={hiveHeaderData}
                 username={username}
                 isOwner={canEdit}
                 user={user}

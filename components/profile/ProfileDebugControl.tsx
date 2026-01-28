@@ -89,9 +89,9 @@ export default function ProfileDebugControl({
 
   return (
     <>
-      <Tooltip label={t("open")} placement="top">
+      <Tooltip label={t('open')} placement="top">
         <IconButton
-          aria-label={t("open")}
+          aria-label={t('open')}
           icon={<InfoIcon />}
           size="xs"
           variant="ghost"
@@ -100,7 +100,7 @@ export default function ProfileDebugControl({
           border="1px solid"
           borderColor="whiteAlpha.300"
           bg="whiteAlpha.200"
-          _hover={{ borderColor: "primary", bg: "whiteAlpha.300" }}
+          _hover={{ borderColor: 'primary', bg: 'whiteAlpha.300' }}
           onClick={onOpen}
         />
       </Tooltip>
@@ -111,7 +111,7 @@ export default function ProfileDebugControl({
           <ModalHeader borderBottom="1px solid" borderColor="border">
             <HStack>
               <InfoIcon />
-              <Text>{t("title")}</Text>
+              <Text>{t('title')}</Text>
             </HStack>
           </ModalHeader>
           <ModalCloseButton />
@@ -119,25 +119,25 @@ export default function ProfileDebugControl({
             {payload ? (
               <Tabs variant="soft-rounded" colorScheme="green" size="sm">
                 <TabList flexWrap="wrap" gap={1} pb={4}>
-                  <Tab _selected={{ bg: "primary", color: "background" }}>{t("tabs.overview")}</Tab>
-                  <Tab _selected={{ bg: "yellow.500", color: "black" }}>
-                    {t("tabs.hive")} {hiveIdentity && <Badge ml={1} colorScheme="green" fontSize="2xs">✓</Badge>}
+                  <Tab _selected={{ bg: 'primary', color: 'background' }}>{t('tabs.overview')}</Tab>
+                  <Tab _selected={{ bg: 'yellow.500', color: 'black' }}>
+                    {t('tabs.hive')} {hiveIdentity && <Badge ml={1} colorScheme="green" fontSize="2xs">✓</Badge>}
                   </Tab>
-                  <Tab _selected={{ bg: "blue.500", color: "white" }}>
-                    {t("tabs.evm")} {evmIdentity && <Badge ml={1} colorScheme="green" fontSize="2xs">✓</Badge>}
+                  <Tab _selected={{ bg: 'blue.500', color: 'white' }}>
+                    {t('tabs.evm')} {evmIdentity && <Badge ml={1} colorScheme="green" fontSize="2xs">✓</Badge>}
                   </Tab>
-                  <Tab _selected={{ bg: "purple.500", color: "white" }}>
-                    {t("tabs.farcaster")} {farcasterIdentity && <Badge ml={1} colorScheme="green" fontSize="2xs">✓</Badge>}
+                  <Tab _selected={{ bg: 'purple.500', color: 'white' }}>
+                    {t('tabs.farcaster')} {farcasterIdentity && <Badge ml={1} colorScheme="green" fontSize="2xs">✓</Badge>}
                   </Tab>
-                  <Tab _selected={{ bg: "gray.600", color: "white" }}>{t("tabs.userbase")}</Tab>
-                  <Tab _selected={{ bg: "gray.600", color: "white" }}>{t("tabs.rawJson")}</Tab>
+                  <Tab _selected={{ bg: 'gray.600', color: 'white' }}>{t('tabs.userbase')}</Tab>
+                  <Tab _selected={{ bg: 'gray.600', color: 'white' }}>{t('tabs.rawJson')}</Tab>
                 </TabList>
 
                 <TabPanels>
                   {/* Overview Tab */}
                   <TabPanel px={0}>
                     <VStack align="stretch" spacing={2}>
-                      <DebugSection title="Profile Context">
+                      <DebugSection title={t('sections.profileContext')}>
                         <DebugField label="Username" value={payload.username} />
                         <DebugField label="View Mode" value={payload.viewMode} />
                         <DebugField label="Is Hive Profile" value={payload.isHiveProfile} />
@@ -146,14 +146,14 @@ export default function ProfileDebugControl({
                         <DebugField label="Can Show Hive Views" value={payload.canShowHiveViews} />
                       </DebugSection>
 
-                      <DebugSection title="Handle Resolution">
+                      <DebugSection title={t('sections.handleResolution')}>
                         <DebugField label="Hive Lookup Handle" value={payload.hiveLookupHandle} />
                         <DebugField label="Hive Identity Handle" value={payload.hiveIdentityHandle} />
                         <DebugField label="Hive Posts Handle" value={payload.hivePostsHandle} />
                         <DebugField label="Userbase Match" value={payload.userbaseMatch} />
                       </DebugSection>
 
-                      <DebugSection title="Linked Identities Summary">
+                      <DebugSection title={t('sections.linkedIdentitiesSummary')}>
                         <DebugField label="Hive Linked" value={!!hiveIdentity} />
                         <DebugField label="EVM Linked" value={!!evmIdentity} />
                         <DebugField label="Farcaster Linked" value={!!farcasterIdentity} />
@@ -167,7 +167,7 @@ export default function ProfileDebugControl({
                     <VStack align="stretch" spacing={2}>
                       {hiveIdentity ? (
                         <>
-                          <DebugSection title="Linked Hive Identity">
+                          <DebugSection title={t('sections.linkedHiveIdentity')}>
                             <DebugField label="Type" value={hiveIdentity.type} />
                             <DebugField label="Handle" value={hiveIdentity.handle} />
                             <DebugField label="External ID" value={hiveIdentity.external_id} />
@@ -177,17 +177,17 @@ export default function ProfileDebugControl({
                         </>
                       ) : (
                         <Box p={4} bg="blackAlpha.300" borderRadius="md" textAlign="center">
-                          <Text color="gray.500">{t("emptyStates.noHiveIdentity")}</Text>
+                          <Text color="gray.500">{t('emptyStates.noHiveIdentity')}</Text>
                         </Box>
                       )}
 
-                      <DebugSection title="Hive Account Data">
+                      <DebugSection title={t('sections.hiveAccountData')}>
                         <DebugField label="Account Name" value={payload.hiveAccountName} />
                         <DebugField label="Has Metadata" value={!!payload.hiveAccountMetadata} />
                       </DebugSection>
 
                       {payload.hiveAccountMetadata && (
-                        <DebugSection title="Hive Account Metadata">
+                        <DebugSection title={t('sections.hiveAccountMetadata')}>
                           <DebugField label="Profile" value={payload.hiveAccountMetadata.profile} />
                         </DebugSection>
                       )}
@@ -199,7 +199,7 @@ export default function ProfileDebugControl({
                     <VStack align="stretch" spacing={2}>
                       {evmIdentity ? (
                         <>
-                          <DebugSection title="Linked EVM Identity">
+                          <DebugSection title={t('sections.linkedEvmIdentity')}>
                             <DebugField label="Type" value={evmIdentity.type} />
                             <DebugField label="Address" value={evmIdentity.address} />
                             <DebugField label="Handle" value={evmIdentity.handle} />
@@ -209,11 +209,11 @@ export default function ProfileDebugControl({
                         </>
                       ) : (
                         <Box p={4} bg="blackAlpha.300" borderRadius="md" textAlign="center">
-                          <Text color="gray.500">{t("emptyStates.noEvmIdentity")}</Text>
+                          <Text color="gray.500">{t('emptyStates.noEvmIdentity')}</Text>
                         </Box>
                       )}
 
-                      <DebugSection title="Resolved Ethereum">
+                      <DebugSection title={t('sections.resolvedEthereum')}>
                         <DebugField label="Resolved Address" value={payload.resolvedEthereumAddress} />
                         <DebugField label="From Profile" value={payload.profileData?.ethereum_address} />
                       </DebugSection>
@@ -225,7 +225,7 @@ export default function ProfileDebugControl({
                     <VStack align="stretch" spacing={2}>
                       {farcasterIdentity ? (
                         <>
-                          <DebugSection title="Linked Farcaster Identity">
+                          <DebugSection title={t('sections.linkedFarcasterIdentity')}>
                             <DebugField label="Type" value={farcasterIdentity.type} />
                             <DebugField label="Handle" value={farcasterIdentity.handle} />
                             <DebugField label="FID (External ID)" value={farcasterIdentity.external_id} />
@@ -233,7 +233,7 @@ export default function ProfileDebugControl({
                             <DebugField label="Created At" value={farcasterIdentity.created_at} />
                           </DebugSection>
 
-                          <DebugSection title="Warpcast Link">
+                          <DebugSection title={t('sections.warpcastLink')}>
                             <DebugField 
                               label="Profile URL" 
                               value={farcasterIdentity.handle ? `https://warpcast.com/${farcasterIdentity.handle}` : null} 
@@ -242,7 +242,7 @@ export default function ProfileDebugControl({
                         </>
                       ) : (
                         <Box p={4} bg="blackAlpha.300" borderRadius="md" textAlign="center">
-                          <Text color="gray.500">{t("emptyStates.noFarcasterIdentity")}</Text>
+                          <Text color="gray.500">{t('emptyStates.noFarcasterIdentity')}</Text>
                         </Box>
                       )}
                     </VStack>
@@ -251,12 +251,12 @@ export default function ProfileDebugControl({
                   {/* Userbase Tab */}
                   <TabPanel px={0}>
                     <VStack align="stretch" spacing={2}>
-                      <DebugSection title="Userbase User">
+                      <DebugSection title={t('sections.userbaseUser')}>
                         <DebugField label="User ID" value={payload.currentUserbaseUserId} />
                         <DebugField label="User Object" value={payload.userbaseUser} />
                       </DebugSection>
 
-                      <DebugSection title="All Identities">
+                      <DebugSection title={t('sections.allIdentities')}>
                         {payload.userbaseIdentities?.length > 0 ? (
                           payload.userbaseIdentities.map((identity: any, index: number) => (
                             <Box key={index} p={2} bg="blackAlpha.200" borderRadius="sm" mb={2}>
@@ -267,11 +267,11 @@ export default function ProfileDebugControl({
                             </Box>
                           ))
                         ) : (
-                          <Text color="gray.500" fontSize="sm">{t("emptyStates.noIdentities")}</Text>
+                          <Text color="gray.500" fontSize="sm">{t('emptyStates.noIdentities')}</Text>
                         )}
                       </DebugSection>
 
-                      <DebugSection title="Lite Profile Data">
+                      <DebugSection title={t('sections.liteProfileData')}>
                         <DebugField label="Profile" value={payload.liteProfileData} />
                       </DebugSection>
                     </VStack>
@@ -300,7 +300,7 @@ export default function ProfileDebugControl({
               </Tabs>
             ) : (
               <Box color="dim" fontSize="sm">
-                {t("empty")}
+                {t('empty')}
               </Box>
             )}
           </ModalBody>
