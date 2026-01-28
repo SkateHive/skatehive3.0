@@ -350,7 +350,7 @@ export const en = {
     mergeCountSessions: 'Sessions',
     mergeCountSoftPosts: 'Soft posts',
     mergeCountSoftVotes: 'Soft votes',
-    mainSettings: '🏠 Main Settings',
+    mainSettings: '🏠 Settings',
     assets: '🎨 Assets',
     advanced: '🔧 Advanced',
     themeSelection: '🎨 Theme Selection',
@@ -672,6 +672,7 @@ export const en = {
     deposit: 'Deposit',
     withdraw: 'Withdraw',
     convert: 'Convert',
+    maybeLater: 'Maybe Later',
   },
   tooltips: {
     sendHive: 'Send HIVE',

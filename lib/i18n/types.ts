@@ -630,6 +630,7 @@ export interface TranslationSchema {
     deposit: string;
     withdraw: string;
     convert: string;
+    maybeLater: string;
   };
   tooltips: {
     sendHive: string;

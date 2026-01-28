@@ -350,7 +350,7 @@ export const es = {
     mergeCountSessions: 'Sesiones',
     mergeCountSoftPosts: 'Publicaciones soft',
     mergeCountSoftVotes: 'Votos soft',
-    mainSettings: '🏠 Configuración Principal',
+    mainSettings: '🏠 Configuración',
     assets: '🎨 Recursos',
     advanced: '🔧 Avanzado',
     themeSelection: '🎨 Selección de Tema',
@@ -672,6 +672,7 @@ export const es = {
     deposit: 'Depositar',
     withdraw: 'Retirar',
     convert: 'Convertir',
+    maybeLater: 'Tal vez después',
   },
   tooltips: {
     sendHive: 'Enviar HIVE',

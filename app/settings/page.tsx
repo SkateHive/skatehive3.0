@@ -74,7 +74,7 @@ const Settings = () => {
                 color="primary"
                 fontWeight="semibold"
               >
-                {t('settings.appAccountTab')}
+                {t('settings.mainSettings')}
               </Tab>
               <Tab
                 _selected={{
@@ -86,7 +86,7 @@ const Settings = () => {
                 color="primary"
                 fontWeight="semibold"
               >
-                {t('settings.mainSettings')}
+                {t('settings.appAccountTab')}
               </Tab>
               <Tab
                 _selected={{
@@ -116,10 +116,10 @@ const Settings = () => {
 
             <TabPanels>
               <TabPanel px={0} py={6}>
-                <UserbaseAccountSettings />
+                <MainSettings userData={userData} />
               </TabPanel>
               <TabPanel px={0} py={6}>
-                <MainSettings userData={userData} />
+                <UserbaseAccountSettings />
               </TabPanel>
               <TabPanel px={0} py={6}>
                 <AssetsSettings userData={userData} />

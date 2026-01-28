@@ -1,6 +1,7 @@
 import { Button } from "@chakra-ui/react";
 import { ReactElement, ReactNode } from "react";
 import { TOAST_STYLES } from "@/config/toast.config";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 interface ToastCardProps {
   title: string;
@@ -28,6 +29,8 @@ export default function ToastCard({
   borderColor = "var(--chakra-colors-primary)",
   titleColor = "var(--chakra-colors-primary)",
 }: ToastCardProps) {
+  const t = useTranslations("buttons");
+
   return (
     <div
       style={{
@@ -57,7 +60,7 @@ export default function ToastCard({
             {primaryButton.label}
           </Button>
           <Button size="sm" variant="ghost" onClick={onClose}>
-            Maybe Later
+            {t("maybeLater")}
           </Button>
         </div>
       </div>
