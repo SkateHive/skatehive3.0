@@ -430,6 +430,7 @@ export const lg = {
     title: 'Mwaliko Amusika Okuyingira Skatehive',
     needLogin: 'Kyetaagisa okuwingira okukola mwaliko!',
     pleaseLoginRetry: 'Ndagala okuwingira okuzzyako.',
+    pleaseLoginHive: 'Ndagala okuwingira n\'akawunti yo ya Hive okusobola okuyingira mwaliko.',
     chooseMethod: 'Londa Account Creation Method',
     usingACT: 'Kozesa Account Creation Token',
     paying3Hive: 'Kuwangulira 3 HIVE',
@@ -457,6 +458,9 @@ export const lg = {
     inviteSentSuccess: 'Mwaliko otumiridde bulungi!',
     inviteFailedRetry: 'Kifo mu kutumira mwaliko. Zyako oba okukubaganya support.',
     unknownError: 'Unknown error okakitaano.',
+    needHiveAccount: 'Yeetaga akawunti ya Hive okuyita abantu mu Hive',
+    spreadTheWord: 'Naye oyinza okubunya ebigambo bya Skatehive',
+    shareDescription: 'Gabanira omukwano gwa skate n\'eowa Web3 n\'abakwani bo!',
   },
   blog: {
     scanningGoat: 'Okusaganya GOAT posts...',

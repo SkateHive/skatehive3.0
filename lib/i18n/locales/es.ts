@@ -430,6 +430,7 @@ export const es = {
     title: 'Invita a un Skater a Skatehive',
     needLogin: '¡Necesitas estar conectado para invitar!',
     pleaseLoginRetry: 'Por favor, inicia sesión e inténtalo de nuevo.',
+    pleaseLoginHive: 'Por favor, inicia sesión con tu cuenta Hive para acceder a la herramienta de invitación.',
     chooseMethod: 'Elige el Método de Creación de Cuenta',
     usingACT: 'Usando Token de Creación de Cuenta',
     paying3Hive: 'Pagando 3 HIVE',
@@ -457,6 +458,9 @@ export const es = {
     inviteSentSuccess: '¡Invitación enviada exitosamente!',
     inviteFailedRetry: 'Error al enviar invitación. Inténtalo de nuevo o contacta a soporte.',
     unknownError: 'Ocurrió un error desconocido.',
+    needHiveAccount: 'Necesitas una cuenta Hive para invitar usuarios a Hive',
+    spreadTheWord: 'Pero puedes correr la voz sobre Skatehive',
+    shareDescription: '¡Comparte el amor por el skate y la Web3 con tus amigos!',
   },
   blog: {
     scanningGoat: 'Buscando posts GOAT...',

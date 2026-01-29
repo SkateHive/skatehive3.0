@@ -459,7 +459,7 @@ export const en = {
     inviteFailedRetry: 'Failed to send invite. Try again or contact support.',
     unknownError: 'Unknown error occurred.',
     needHiveAccount: 'You need a Hive account to invite users to Hive',
-    spreadTheWord: 'Spread the Skatehive Word',
+    spreadTheWord: 'But you can spread the Skatehive Word',
     shareDescription: 'Share the love for skateboarding and Web3 with your friends!',
   },
   blog: {
