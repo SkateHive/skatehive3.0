@@ -307,21 +307,6 @@ export default function InvitePage() {
           {t('invite.title')}
         </Heading>
 
-        {/* Spread the Word Section - Visible if not logged in with Hive */}
-        {!hiveAccount && !isAccountLoading && (
-          <Box p={6} bg="panel" border="1px solid" borderColor="border" borderRadius="md" textAlign="center">
-            <VStack spacing={4}>
-              <Heading size="md" color="secondary">
-                {t('invite.spreadTheWord')}
-              </Heading>
-              <Text color="text">
-                {t('invite.shareDescription')}
-              </Text>
-              <SocialShareButtons />
-            </VStack>
-          </Box>
-        )}
-
         {/* Invite Form Section - Conditionall visible */}
         <Box border="1px solid" borderColor="border" p={0.5} borderRadius="md" />
 
@@ -565,6 +550,24 @@ export default function InvitePage() {
           </VStack>
         )}
       </VStack>
+
+      {/* Spread the Word Section - Visible if not logged in with Hive */}
+      {!hiveAccount && !isAccountLoading && (
+        <Box p={6} bg="panel" border="1px solid" borderColor="border" borderRadius="md" textAlign="center">
+          <VStack spacing={4}>
+            <Heading size="md" color="secondary">
+              {t('invite.spreadTheWord')}
+            </Heading>
+            <Text color="text">
+              {t('invite.shareDescription')}
+            </Text>
+            <SocialShareButtons />
+          </VStack>
+        </Box>
+      )}
+
     </Box>
+
+
   );
 }
