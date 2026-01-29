@@ -412,7 +412,7 @@ export const en = {
     actsDescription: 'ACTs let you create new Hive accounts for free. You earn ACTs automatically by holding Hive Power (staked HIVE). Each ACT can be used to create one new account. If you have no ACTs, you\'ll need to pay a 3 HIVE fee to create an account.',
     moreInfoACTs: 'More info about earning ACTs',
     actsRuleOfThumb: 'Rule of thumb: You need at least 5000 HP to start generating ACTs, and each ACT requires 100 billion Resource Credits (RC). The more HP you have, the faster you\'ll earn ACTs.',
-    friendsUsername: 'Friend\'s desired Hive Wallet Name',
+    friendsUsername: 'Friend\'s desired Hive Wallet Name. Can\'t be changed later.',
     friendsEmail: 'Friend\'s Email',
     chooseLanguage: 'Choose Email Language',
     createButton: 'Looks Good, Let\'s Go For It!',

@@ -411,7 +411,7 @@ export const lg = {
     actsDescription: 'ACTs kitusobola okukola Hive accounts okutakola muwendo. Ofuna ACTs akakati okukakasa Hive Power (staked HIVE). Buri ACT esobola okukozesebwa okukola account emu. Singa tolina ACTs, kijja kukilizibwa 3 HIVE okukola account.',
     moreInfoACTs: 'Amawulire amangi okupulixla ACTs',
     actsRuleOfThumb: 'Rule of thumb: Kyetaagisa okukakasa okumala 5000 HP okutandisa okukola ACTs, ne buri ACT yeetekawo 100 billion Resource Credits (RC). Eyo HP yo ekakasa ekikira, ekigazi okukola ACTs kijja kukawuka.',
-    friendsUsername: 'Hive Wallet Name eyagala okuwingiza mukwano wo',
+    friendsUsername: 'Hive Wallet Name eyagala okuwingiza mukwano wo. Tekisobola kusibwa oluvannyuma.',
     friendsEmail: 'Email ya mukwano wo',
     chooseLanguage: 'Londa Email Language',
     createButton: 'Kitumaanyizza, Tugende Okumala!',
