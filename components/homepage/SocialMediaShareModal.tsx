@@ -73,7 +73,7 @@ const ShareMenuButtons = ({
 
   return (
     <>
-      <MenuItem onClick={() => handleShare("facebook")}>
+      <MenuItem onClick={() => handleShare("facebook")} color="#1877F2">
         <FaFacebook style={{ marginRight: '8px' }} />
         Share on Facebook
       </MenuItem>
