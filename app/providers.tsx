@@ -14,6 +14,7 @@ import { base, mainnet } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { UserProvider } from "@/contexts/UserContext";
 import { UserbaseAuthProvider } from "@/contexts/UserbaseAuthContext";
+import { LinkedIdentityProvider } from "@/contexts/LinkedIdentityContext";
 import { VoteWeightProvider } from "@/contexts/VoteWeightContext";
 import { WindowProvider } from "@/contexts/WindowContext";
 import { LocaleProvider } from "@/contexts/LocaleContext";
@@ -131,13 +132,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
                       >
                         <AuthKitProvider config={farcasterAuthConfig}>
                           <AiohaProvider aioha={aioha}>
-                            <VoteWeightProvider>
-                              <WindowProvider>
-                                <CSSReset />
-                                <UserbaseWalletBootstrapper />
-                                {children}
-                              </WindowProvider>
-                            </VoteWeightProvider>
+                            <LinkedIdentityProvider>
+                              <VoteWeightProvider>
+                                <WindowProvider>
+                                  <CSSReset />
+                                  <UserbaseWalletBootstrapper />
+                                  {children}
+                                </WindowProvider>
+                              </VoteWeightProvider>
+                            </LinkedIdentityProvider>
                           </AiohaProvider>
                         </AuthKitProvider>
                       </OnchainKitProvider>

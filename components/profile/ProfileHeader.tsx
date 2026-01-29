@@ -8,6 +8,7 @@ import SkateProfileHeader from "./SkateProfileHeader";
 import FarcasterProfileHeader from "./FarcasterProfileHeader";
 import { ProfileData } from "./ProfilePage";
 import ProfileDebugControl from "./ProfileDebugControl";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 
 interface UserbaseIdentity {
   id: string;
@@ -47,10 +48,8 @@ interface ProfileHeaderProps {
   onUserbaseEditModalOpen?: () => void;
   onActiveViewChange?: (view: ProfileView) => void;
   debugPayload?: Record<string, any> | null;
-  // New props for identity awareness
   hasHiveProfile?: boolean;
   hasUserbaseProfile?: boolean;
-  userbaseIdentities?: UserbaseIdentity[];
   farcasterProfile?: FarcasterProfileData | null;
 }
 
@@ -72,9 +71,12 @@ const ProfileHeader = function ProfileHeader({
   debugPayload,
   hasHiveProfile = true,
   hasUserbaseProfile = false,
-  userbaseIdentities = [],
   farcasterProfile = null,
 }: ProfileHeaderProps) {
+  const { connections } = useLinkedIdentities();
+  const hiveConnection = connections.hive;
+  const evmConnection = connections.evm;
+  const farcasterConnection = connections.farcaster;
   const hiveHeaderData = hiveProfileData || profileData;
   const skateHeaderData = skateProfileData || profileData;
 
@@ -85,9 +87,9 @@ const ProfileHeader = function ProfileHeader({
   const hasFarcaster = !!farcasterProfile?.fid;
 
   // Calculate linked identities
-  const hasHiveLinked = userbaseIdentities.some((i) => i.type === "hive");
-  const hasEvmLinked = userbaseIdentities.some((i) => i.type === "evm");
-  const hasFarcasterLinked = userbaseIdentities.some((i) => i.type === "farcaster");
+  const hasHiveLinked = hiveConnection.linked;
+  const hasEvmLinked = evmConnection.linked;
+  const hasFarcasterLinked = farcasterConnection.linked;
 
   // Determine default view:
   // - If user has Hive profile (native or linked), prefer Hive
@@ -384,7 +386,6 @@ export default memo(ProfileHeader, (prevProps, nextProps) => {
     prevProps.debugPayload === nextProps.debugPayload &&
     prevProps.hasHiveProfile === nextProps.hasHiveProfile &&
     prevProps.hasUserbaseProfile === nextProps.hasUserbaseProfile &&
-    prevProps.userbaseIdentities === nextProps.userbaseIdentities &&
     prevProps.farcasterProfile?.fid === nextProps.farcasterProfile?.fid &&
     prevProps.farcasterProfile?.displayName === nextProps.farcasterProfile?.displayName &&
     prevProps.farcasterProfile?.pfpUrl === nextProps.farcasterProfile?.pfpUrl &&

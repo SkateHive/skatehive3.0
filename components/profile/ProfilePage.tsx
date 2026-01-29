@@ -625,7 +625,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               debugPayload={debugPayload}
               hasHiveProfile={isHiveProfile || !!hiveIdentityHandle}
               hasUserbaseProfile={!!userbaseUser}
-              userbaseIdentities={userbaseIdentities}
               farcasterProfile={farcasterProfileData}
             />
 
