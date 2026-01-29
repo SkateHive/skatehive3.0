@@ -430,6 +430,7 @@ export const ptBR = {
     title: 'Convide um Skatista para o Skatehive',
     needLogin: 'Você precisa estar logado para convidar!',
     pleaseLoginRetry: 'Por favor, faça login e tente novamente.',
+    pleaseLoginHive: 'Por favor, faça login com sua conta Hive para acessar a ferramenta de convite.',
     chooseMethod: 'Escolha o Método de Criação de Conta',
     usingACT: 'Usando Token de Criação de Conta',
     paying3Hive: 'Pagando 3 HIVE',

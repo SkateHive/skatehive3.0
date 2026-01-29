@@ -120,7 +120,7 @@ export default function InvitePage() {
       } else {
         setAccountAvailable(false);
         setAreKeysDownloaded(false);
-        setAccountInvalid("Account is not available. Please choose another nickname.");
+        setAccountInvalid(t('invite.accountNotAvailable'));
       }
     };
 
@@ -154,11 +154,11 @@ export default function InvitePage() {
     setMasterPassword("");
 
     if (!desiredEmail) {
-      setBroadcastError("You forgot to fill in the email");
+      setBroadcastError(t('invite.forgotEmail'));
       return;
     }
     if (!desiredUsername) {
-      setBroadcastError("You forgot to fill in the username");
+      setBroadcastError(t('invite.forgotUsername'));
       return;
     }
     const isValidAccountName = validateAccountName(desiredUsername);
@@ -329,7 +329,7 @@ export default function InvitePage() {
               {t('invite.needHiveAccount')}
             </Heading>
             <Text color="gray.400" textAlign="center">
-              {!user ? t('invite.pleaseLoginRetry') : "Please log in with your Hive account to access the invite tool."}
+              {!user ? t('invite.pleaseLoginRetry') : t('invite.pleaseLoginHive')}
             </Text>
           </Flex>
         ) : (
