@@ -19,6 +19,7 @@ interface HiveProfileHeaderProps {
   profileData: ProfileData;
   username: string;
   isOwner: boolean;
+  canEdit?: boolean;
   user: string | null;
   isFollowing: boolean | null;
   isFollowLoading: boolean;
@@ -31,6 +32,7 @@ const HiveProfileHeader = function HiveProfileHeader({
   profileData,
   username,
   isOwner,
+  canEdit,
   user,
   isFollowing,
   isFollowLoading,
@@ -105,7 +107,7 @@ const HiveProfileHeader = function HiveProfileHeader({
                 <>@{username}</>
               )}
             </Text>
-            {isOwner && (
+            {(canEdit ?? isOwner) && (
               <IconButton
                 aria-label="Edit Profile"
                 icon={<FaEdit />}

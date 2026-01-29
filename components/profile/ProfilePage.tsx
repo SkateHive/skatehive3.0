@@ -172,6 +172,9 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const tCommon = useTranslations("common");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUserbaseEditModalOpen, setIsUserbaseEditModalOpen] = useState(false);
+  const [activeProfileView, setActiveProfileView] = useState<
+    "hive" | "skate" | "zora" | "farcaster" | null
+  >(null);
 
   // Custom hooks
   const { profileData, updateProfileData } = useProfileData(
@@ -224,22 +227,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     () => !!(currentUserbaseUser && userbaseUser && currentUserbaseUser.id === userbaseUser.id),
     [currentUserbaseUser, userbaseUser]
   );
-
-  // Debug logging for ownership (development only)
-  if (process.env.NODE_ENV === "development") {
-    console.log("[ProfilePage] Ownership debug:", {
-      username,
-      isHiveProfile,
-      isOwner,
-      isUserbaseOwner,
-      currentUserbaseUserId: currentUserbaseUser?.id,
-      userbaseUserId: userbaseUser?.id,
-      userbaseUserHandle: userbaseUser?.handle,
-      hiveIdentityHandle,
-      hiveLookupHandle,
-      user,
-    });
-  }
 
   const resolvedEthereumAddress =
     profileData.ethereum_address ||
@@ -327,6 +314,22 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
       ethereum_address: resolvedEthereumAddress,
     };
   }, [isHiveProfile, profileData, liteProfileData, resolvedEthereumAddress]);
+
+  const resolvedCoverImage = useMemo(() => {
+    const hiveCover = profileData.coverImage || "";
+    const skateCover = liteProfileData.coverImage || "";
+    switch (activeProfileView) {
+      case "hive":
+        return hiveCover || skateCover;
+      case "skate":
+        return skateCover || hiveCover;
+      case "zora":
+      case "farcaster":
+        return hiveCover || skateCover;
+      default:
+        return activeProfileData.coverImage;
+    }
+  }, [activeProfileView, profileData.coverImage, liteProfileData.coverImage, activeProfileData.coverImage]);
 
   // Build Farcaster profile data from userbase identity if available
   const farcasterProfileData = useMemo(() => {
@@ -539,17 +542,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const isProfileResolved =
     isHiveProfile || Boolean(userbaseUser) || isEvmAddress;
   
-  console.log("[ProfilePage] Profile resolution:", {
-    username,
-    isProfileResolved,
-    isHiveProfile,
-    hasUserbaseUser: Boolean(userbaseUser),
-    isEvmAddress,
-    isLoading,
-    userbaseLoading,
-    error,
-  });
-  
   if (!isProfileResolved && (isLoading || userbaseLoading)) {
     return (
       <Box
@@ -613,7 +605,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
           >
             {/* Cover Image - Now enabled for mobile too */}
             <ProfileCoverImage
-              coverImage={activeProfileData.coverImage}
+              coverImage={resolvedCoverImage}
               username={username}
             />
 
@@ -629,6 +621,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               {...followProps}
               onEditModalOpen={handleEditModalOpen}
               onUserbaseEditModalOpen={handleUserbaseEditModalOpen}
+              onActiveViewChange={setActiveProfileView}
               debugPayload={debugPayload}
               hasHiveProfile={isHiveProfile || !!hiveIdentityHandle}
               hasUserbaseProfile={!!userbaseUser}
@@ -665,7 +658,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
         <EditProfile
           isOpen={isEditModalOpen}
           onClose={handleEditModalClose}
-          profileData={activeProfileData}
+          profileData={profileData}
           onProfileUpdate={updateProfileData}
           username={hiveLookupHandle || username}
         />

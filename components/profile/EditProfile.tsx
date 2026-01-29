@@ -383,12 +383,12 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
       try {
         // Check if user is logged in
         if (!user) {
-          setError("Please log in to update your profile");
+          setError("Connect your Hive wallet (Keychain) to save changes");
           return;
         }
 
         if (user !== username) {
-          setError("You can only edit your own profile");
+          setError("Connect your Hive account to edit this profile");
           return;
         }
 

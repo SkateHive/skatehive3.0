@@ -38,6 +38,15 @@ export default function useUserbaseProfile(username: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const areProfilesEqual = useCallback(
+    (a: UserbaseProfileResponse | null, b: UserbaseProfileResponse | null) => {
+      if (a === b) return true;
+      if (!a || !b) return false;
+      return JSON.stringify(a) === JSON.stringify(b);
+    },
+    []
+  );
+
   const queryString = useMemo(() => {
     const value = username?.trim();
     if (!value) return "";
@@ -53,7 +62,6 @@ export default function useUserbaseProfile(username: string) {
 
   useEffect(() => {
     let mounted = true;
-    console.log("[useUserbaseProfile] Starting fetch:", { username, queryString });
     if (!queryString) {
       setProfile(null);
       setError(null);
@@ -69,23 +77,20 @@ export default function useUserbaseProfile(username: string) {
           cache: "no-store",
         });
         if (!mounted) return;
-        console.log("[useUserbaseProfile] Response:", { status: response.status, ok: response.ok });
         if (response.status === 404) {
-          console.log("[useUserbaseProfile] Profile not found (404)");
-          setProfile(null);
+          setProfile((prev) => (prev === null ? prev : null));
           setIsLoading(false);
           return;
         }
         const data = await response.json();
-        console.log("[useUserbaseProfile] Data received:", data);
         if (!response.ok) {
           throw new Error(data?.error || "Failed to load profile");
         }
-        setProfile(data);
+        setProfile((prev) => (areProfilesEqual(prev, data) ? prev : data));
       } catch (err: any) {
         if (!mounted) return;
         setError(err?.message || "Failed to load profile");
-        setProfile(null);
+        setProfile((prev) => (prev === null ? prev : null));
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -107,18 +112,18 @@ export default function useUserbaseProfile(username: string) {
     fetch(`/api/userbase/profile?${queryString}`, { cache: "no-store" })
       .then(async (response) => {
         if (response.status === 404) {
-          setProfile(null);
+          setProfile((prev) => (prev === null ? prev : null));
           return;
         }
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data?.error || "Failed to load profile");
         }
-        setProfile(data);
+        setProfile((prev) => (areProfilesEqual(prev, data) ? prev : data));
       })
       .catch((err: any) => {
         setError(err?.message || "Failed to load profile");
-        setProfile(null);
+        setProfile((prev) => (prev === null ? prev : null));
       })
       .finally(() => {
         setIsLoading(false);
