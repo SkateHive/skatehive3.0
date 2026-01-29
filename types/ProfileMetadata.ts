@@ -1,6 +1,7 @@
 import { VideoPart } from './VideoPart';
 
 export interface SkatehiveExtensions {
+  eth_address?: string; // Legacy field for backward compatibility (used for Zora profile)
   wallets?: {
     primary_wallet?: string;
     additional?: string[];

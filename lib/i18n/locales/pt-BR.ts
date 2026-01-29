@@ -114,7 +114,36 @@ export const ptBR = {
     open: 'Debug',
     title: 'Debug do perfil',
     empty: 'Nenhum dado de debug disponível.',
-  },
+    tabs: {
+      overview: 'Visão geral',
+      hive: 'Hive',
+      evm: 'Ethereum',
+      farcaster: 'Farcaster',
+      userbase: 'Userbase',
+      rawJson: 'Raw JSON',
+    },
+    sections: {
+      profileContext: 'Contexto do Perfil',
+      handleResolution: 'Resolução de Handle',
+      linkedIdentitiesSummary: 'Resumo de Identidades Vinculadas',
+      hiveAccountData: 'Dados da Conta Hive',
+      hiveAccountMetadata: 'Metadados da Conta Hive',
+      linkedHiveIdentity: 'Identidade Hive Vinculada',
+      linkedEvmIdentity: 'Identidade EVM Vinculada',
+      linkedFarcasterIdentity: 'Identidade Farcaster Vinculada',
+      warpcastLink: 'Link Warpcast',
+      resolvedEthereum: 'Ethereum Resolvido',
+      userbaseUser: 'Usuário Userbase',
+      allIdentities: 'Todas as Identidades',
+      liteProfileData: 'Dados de Perfil Lite',
+    },
+    emptyStates: {
+      noHiveIdentity: 'Nenhuma identidade Hive vinculada.',
+      noEvmIdentity: 'Nenhuma identidade EVM vinculada.',
+      noFarcasterIdentity: 'Nenhuma identidade Farcaster vinculada.',
+      noIdentities: 'Nenhuma identidade encontrada.',
+    },
+    },
   userbaseAuth: {
     title: 'Minha Conta',
     signedInAs: 'Conectado como',
@@ -974,4 +1003,4 @@ export const ptBR = {
   share: {
     pageTitle: 'Cast Compartilhado',
   },
-} as const;
+};

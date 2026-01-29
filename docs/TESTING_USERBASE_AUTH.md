@@ -1,14 +1,23 @@
 # Userbase Authentication Testing Guide
 
-**Branch:** `userbase`  
-**Date:** January 27, 2026  
+**Branch:** `userbase`
+**Date:** January 29, 2026 (Updated)
 **Testers:** Please report results in the testing spreadsheet or Discord thread
 
 ---
 
 ## Overview
 
-We've implemented a new "lite user" system called **Userbase** that allows users to sign up and use Skatehive without needing a Hive blockchain account. This testing guide covers all authentication methods and their combinations.
+We've implemented a **Multi-Identity Authentication System** called **Userbase** that allows users to sign up with any method (email, Hive, wallet, Farcaster) and link additional identities later. This creates a unified cross-platform profile. This testing guide covers all authentication methods and their combinations.
+
+**Key Features (January 2026):**
+- ✅ Email magic link authentication
+- ✅ Hive Keychain login with auto-account creation
+- ✅ EVM wallet connection (MetaMask, WalletConnect)
+- ✅ Farcaster integration (Neynar API)
+- ✅ One-click identity linking with automatic routing
+- ✅ Account merging for duplicate identities
+- ✅ Profile mode switching (Hive, Zora, Farcaster)
 
 ---
 
@@ -32,7 +41,7 @@ We've implemented a new "lite user" system called **Userbase** that allows users
 3. In the Connection Modal, find "App Account" section
 4. Click "Sign up here" link
 5. Enter a NEW email address (one you haven't used before)
-6. Enter a unique handle (e.g., `tester-yourname-1`)
+6. Enter a display name (e.g., "Skate Tester" - can have spaces and capitals)
 7. Click "Sign Up"
 8. Check your email for the magic link
 9. Click the magic link to complete sign up
@@ -41,10 +50,12 @@ We've implemented a new "lite user" system called **Userbase** that allows users
 **Expected Results:**
 - [ ] Magic link email received within 2 minutes
 - [ ] After clicking link, user is logged in
-- [ ] Sidebar shows your handle/display name
-- [ ] Can navigate to `/user/[your-handle]` and see your profile
-- [ ] Edit profile button (pencil icon) appears on your profile
-- [ ] Can edit display name, handle, bio, location, avatar, cover
+- [ ] Sidebar/connection button shows your chosen display name (e.g., "Skate Tester")
+- [ ] Your handle is the slugified version (e.g., "skate-tester")
+- [ ] Can navigate to `/user/skate-tester` and see your profile
+- [ ] Edit profile button (gear icon) appears on your profile
+- [ ] Can edit display name, bio, location, avatar, cover
+- [ ] Display name has priority over handle in UI
 
 **Report:**
 ```
@@ -131,20 +142,36 @@ Issues: [describe any issues]
 
 ---
 
-### 🔗 Test 5: Email + Link Hive Identity
+### 🔗 Test 5: Email + Link Hive Identity (ONE-CLICK FLOW)
 
 **Steps:**
 1. Login with email first (Test 1 or 2)
-2. Go to Settings page (`/settings`)
-3. Find "Link Hive Account" section
-4. Click "Link Hive Account"
-5. Approve in Hive Keychain
+2. Click user button (sidebar) → Opens Connection Modal OR go to Settings page
+3. Find "Hive" section with "LINK →" button
+4. Click "LINK →" button
+5. Sign message in Hive Keychain (Posting key)
+6. **Automatic verification happens in background (no extra clicks needed)**
 
 **Expected Results:**
-- [ ] Hive account successfully linked
-- [ ] Profile now shows Hive data merged with userbase data
+- [ ] Keychain popup appears immediately after clicking LINK
+- [ ] After signing, NO preview modal appears (invisible flow)
+- [ ] Success toast appears: "Hive account linked!"
+- [ ] Automatically routes to `/user/[hive-username]` (Hive profile mode)
+- [ ] Profile now shows Hive data (followers, HP, posts)
 - [ ] Can post snaps that appear on Hive blockchain
-- [ ] `/user/[hive-username]` shows your profile
+- [ ] EVM addresses from Hive profile metadata are automatically linked
+- [ ] Farcaster data from Hive profile (if present) is linked
+- [ ] Sidebar connection button shows Hive username when in Hive mode
+
+**Timing:**
+- [ ] Challenge generation: < 2 seconds
+- [ ] Signature verification: < 30 seconds
+- [ ] Total flow: < 1 minute from click to profile view
+
+**Edge Cases to Test:**
+- [ ] If Hive account is already linked to another app account → Shows merge confirmation
+- [ ] If Hive username doesn't exist → Shows error "Hive account not found"
+- [ ] If challenge expires (wait 16 minutes) → Shows "Challenge expired" error
 
 **Report:**
 ```
@@ -155,19 +182,38 @@ Issues: [describe any issues]
 
 ---
 
-### 🔗 Test 6: Email + Link Ethereum Wallet
+### 🔗 Test 6: Email + Link Ethereum Wallet (ONE-CLICK FLOW)
 
 **Steps:**
 1. Login with email first
-2. Go to Settings page
-3. Find "Link Ethereum Wallet" section
-4. Click to connect wallet
-5. Approve connection and sign message
+2. Open Connection Modal (click user button in sidebar) OR go to Settings
+3. Find "Ethereum" section with "LINK →" button
+4. Click "LINK →" button
+5. Approve wallet connection in MetaMask/WalletConnect
+6. Sign authentication message
+7. **Automatic verification happens in background**
 
 **Expected Results:**
-- [ ] Wallet successfully linked
-- [ ] Can view tokens tab on profile
-- [ ] Wallet address shown in settings
+- [ ] Wallet popup appears immediately
+- [ ] After signing, NO preview modal (invisible flow)
+- [ ] Success toast appears: "Wallet linked!"
+- [ ] Automatically routes to `/user/[your-handle]?mode=zora` (Zora profile mode)
+- [ ] Can view tokens/NFTs tab on profile
+- [ ] ENS name (if available) is displayed
+- [ ] ENS avatar (if available) is used
+- [ ] Wallet address shown in connection modal and settings
+- [ ] Profile mode can be switched between App Account and Zora
+
+**Timing:**
+- [ ] Challenge generation: < 2 seconds
+- [ ] Wallet signature: < 1 minute (depends on user)
+- [ ] Verification: < 30 seconds
+- [ ] Total flow: < 2 minutes from click to Zora profile
+
+**Edge Cases:**
+- [ ] If wallet is already linked to another account → Shows merge confirmation
+- [ ] If ENS name is set → Shows ENS name instead of 0x address
+- [ ] If challenge expires → Shows "Challenge expired" error
 
 **Report:**
 ```
@@ -175,6 +221,36 @@ Test 6 - Email + Link Ethereum
 Result: PASS / FAIL
 Issues: [describe any issues]
 ```
+
+---
+
+### 🔗 Test 6b: Email + Link Farcaster (ONE-CLICK FLOW)
+
+**Steps:**
+1. Login with email first
+2. Open Connection Modal OR go to Settings
+3. Find "Farcaster" section with "LINK →" button
+4. Click "LINK →" button
+5. Connect via Farcaster (WalletConnect custody address)
+6. **Automatic profile fetch from Neynar API + verification**
+
+**Expected Results:**
+- [ ] Farcaster connection popup appears
+- [ ] After connecting, NO preview modal
+- [ ] Success toast: "Farcaster account linked!"
+- [ ] Automatically routes to `/user/[your-handle]?mode=farcaster` (Farcaster profile mode)
+- [ ] Farcaster profile data displayed (username, FID, PFP, bio)
+- [ ] All verified EVM addresses from Farcaster are automatically linked
+- [ ] Can switch between App Account, Hive, Zora, and Farcaster modes
+
+**Timing:**
+- [ ] Neynar API fetch: < 5 seconds (with timeout)
+- [ ] Total flow: < 1 minute
+
+**Edge Cases:**
+- [ ] If Neynar API times out → Shows error, doesn't block linking
+- [ ] If FID is already linked → Shows merge confirmation
+- [ ] Multiple verified wallets from Farcaster → All linked with source priority
 
 ---
 
@@ -318,6 +394,77 @@ Issues: [describe any issues]
 
 ---
 
+### 🔄 Test 13: Profile Mode Switching (Multi-Identity)
+
+**Prerequisites:** Complete Tests 5, 6, and 6b (have Hive, EVM, and Farcaster all linked)
+
+**Steps:**
+1. Login with your multi-identity account
+2. Open Connection Modal (click user button in sidebar)
+3. Observe the identity logos (Hive, Ethereum, Farcaster)
+4. Click the Hive logo → Should route to `/user/[hive-username]`
+5. Open modal again, click Ethereum logo → Should route to `/user/[handle]?mode=zora`
+6. Open modal again, click Farcaster logo → Should route to `/user/[handle]?mode=farcaster`
+7. Open modal again, click App Account section → Should route to `/user/[handle]` (default mode)
+
+**Expected Results:**
+- [ ] Each logo click routes to the correct profile mode
+- [ ] Hive mode shows: Posts, followers, HP, Hive snaps
+- [ ] Zora mode shows: NFTs, tokens, collections
+- [ ] Farcaster mode shows: Casts, FID, social graph
+- [ ] App Account mode shows: Display name, bio, soft posts (email-only content)
+- [ ] Connection button in sidebar shows appropriate name for current mode:
+  - Hive mode → Shows Hive username
+  - Other modes → Shows display_name or handle
+- [ ] Profile header updates correctly for each mode
+- [ ] Switching is instant (no page reload)
+
+**Report:**
+```
+Test 13 - Profile Mode Switching
+Result: PASS / FAIL
+Issues: [describe any issues]
+```
+
+---
+
+### 🔀 Test 14: Account Merging
+
+**Prerequisites:** Need TWO separate accounts with different identities
+
+**Setup:**
+1. Create Account A: Email signup as "Test User A"
+2. Link @hiveuser1 to Account A
+3. Logout
+4. Create Account B: Email signup as "Test User B"
+5. Try to link @hiveuser1 to Account B (should trigger merge prompt)
+
+**Steps:**
+1. In Account B, try to link the same Hive account that's already linked to Account A
+2. Observe merge confirmation prompt
+3. Click "Yes, merge accounts"
+4. Verify merge completes
+
+**Expected Results:**
+- [ ] System detects existing link and shows merge prompt
+- [ ] Prompt explains: "@hiveuser1 is already linked to another account. Merge accounts?"
+- [ ] If confirmed, merge happens:
+  - All identities from Account A move to Account B
+  - All soft posts from Account A move to Account B
+  - Account A is deleted
+  - Session remains on Account B
+- [ ] After merge, can access all identities from Account B
+- [ ] Profile shows combined data from both accounts
+
+**Report:**
+```
+Test 14 - Account Merging
+Result: PASS / FAIL
+Issues: [describe any issues]
+```
+
+---
+
 ## Known Issues (Don't Report These)
 
 - WalletConnect initialization warnings in console (cosmetic)
@@ -362,28 +509,36 @@ Issues: [describe any issues]
 
 | Test | Description | Tester | Result |
 |------|-------------|--------|--------|
-| 1 | Email signup (new user) | | |
+| 1 | Email signup (new user) - Display name + handle | | |
 | 2 | Email login (returning) | | |
 | 3 | Hive Keychain only | | |
 | 4 | Ethereum only | | |
-| 5 | Email + link Hive | | |
-| 6 | Email + link Ethereum | | |
+| 5 | Email + link Hive (one-click, auto-route) | | |
+| 6 | Email + link Ethereum (one-click, Zora mode) | | |
+| 6b | Email + link Farcaster (one-click) | | |
 | 7 | Hive first + email | | |
 | 8 | Post snap (email user) | | |
 | 9 | Vote (email user) | | |
 | 10 | Edit profile | | |
 | 11 | Logout | | |
 | 12 | Mobile | | |
+| 13 | Profile mode switching (multi-identity) | | |
+| 14 | Account merging | | |
 
 ---
 
 ## Questions to Answer
 
-1. Is the login flow intuitive?
-2. Are error messages clear when something fails?
-3. Does the profile page correctly show your info?
-4. Can you find the edit profile button easily?
+1. Is the one-click identity linking flow intuitive?
+2. Are error messages clear when something fails (challenge expired, already linked, etc.)?
+3. Does automatic routing after linking feel smooth?
+4. Is it clear which profile mode you're currently viewing?
 5. Any confusion about handle vs display name?
+6. Is the merge confirmation prompt clear and understandable?
+7. Do timeouts feel appropriate (not too fast, not too slow)?
+8. Can you easily switch between profile modes?
+9. Does the connection button show the correct name for each mode?
+10. Is it clear which identities are linked in the Connection Modal?
 
 ---
 

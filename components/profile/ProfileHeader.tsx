@@ -1,5 +1,5 @@
 "use client";
-import React, { memo, useState, useMemo } from "react";
+import React, { memo, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Box, HStack, Image, Tooltip } from "@chakra-ui/react";
 import MobileProfileHeader from "./MobileProfileHeader";
 import HiveProfileHeader from "./HiveProfileHeader";
@@ -8,6 +8,7 @@ import SkateProfileHeader from "./SkateProfileHeader";
 import FarcasterProfileHeader from "./FarcasterProfileHeader";
 import { ProfileData } from "./ProfilePage";
 import ProfileDebugControl from "./ProfileDebugControl";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 
 interface UserbaseIdentity {
   id: string;
@@ -33,6 +34,8 @@ type ProfileView = "hive" | "zora" | "skate" | "farcaster";
 
 interface ProfileHeaderProps {
   profileData: ProfileData;
+  hiveProfileData?: ProfileData;
+  skateProfileData?: ProfileData;
   username: string;
   isOwner: boolean;
   isUserbaseOwner?: boolean;
@@ -43,16 +46,18 @@ interface ProfileHeaderProps {
   onLoadingChange: (loading: boolean) => void;
   onEditModalOpen: () => void;
   onUserbaseEditModalOpen?: () => void;
+  onActiveViewChange?: (view: ProfileView) => void;
+  onContentViewChange?: (view: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens") => void;
   debugPayload?: Record<string, any> | null;
-  // New props for identity awareness
   hasHiveProfile?: boolean;
   hasUserbaseProfile?: boolean;
-  userbaseIdentities?: UserbaseIdentity[];
   farcasterProfile?: FarcasterProfileData | null;
 }
 
 const ProfileHeader = function ProfileHeader({
   profileData,
+  hiveProfileData,
+  skateProfileData,
   username,
   isOwner,
   isUserbaseOwner,
@@ -63,12 +68,20 @@ const ProfileHeader = function ProfileHeader({
   onLoadingChange,
   onEditModalOpen,
   onUserbaseEditModalOpen,
+  onActiveViewChange,
+  onContentViewChange,
   debugPayload,
   hasHiveProfile = true,
   hasUserbaseProfile = false,
-  userbaseIdentities = [],
   farcasterProfile = null,
 }: ProfileHeaderProps) {
+  const { connections } = useLinkedIdentities();
+  const hiveConnection = connections.hive;
+  const evmConnection = connections.evm;
+  const farcasterConnection = connections.farcaster;
+  const hiveHeaderData = hiveProfileData || profileData;
+  const skateHeaderData = skateProfileData || profileData;
+
   // Determine available views and default view
   const hasZora = !!profileData.ethereum_address;
   const hasHive = hasHiveProfile;
@@ -76,9 +89,9 @@ const ProfileHeader = function ProfileHeader({
   const hasFarcaster = !!farcasterProfile?.fid;
 
   // Calculate linked identities
-  const hasHiveLinked = userbaseIdentities.some((i) => i.type === "hive");
-  const hasEvmLinked = userbaseIdentities.some((i) => i.type === "evm");
-  const hasFarcasterLinked = userbaseIdentities.some((i) => i.type === "farcaster");
+  const hasHiveLinked = hiveConnection.linked;
+  const hasEvmLinked = evmConnection.linked;
+  const hasFarcasterLinked = farcasterConnection.linked;
 
   // Determine default view:
   // - If user has Hive profile (native or linked), prefer Hive
@@ -94,6 +107,53 @@ const ProfileHeader = function ProfileHeader({
   }, [hasHive, hasSkate, hasFarcaster, hasZora]);
 
   const [activeView, setActiveView] = useState<ProfileView>(defaultView);
+  const manualViewRef = useRef(false);
+  const defaultViewRef = useRef(defaultView);
+
+  useEffect(() => {
+    defaultViewRef.current = defaultView;
+  }, [defaultView]);
+
+  const setView = useCallback((view: ProfileView) => {
+    manualViewRef.current = true;
+    setActiveView(view);
+  }, []);
+
+  useEffect(() => {
+    manualViewRef.current = false;
+    setActiveView(defaultViewRef.current);
+  }, [username]);
+
+  useEffect(() => {
+    const hasActive =
+      (activeView === "hive" && hasHive) ||
+      (activeView === "skate" && hasSkate) ||
+      (activeView === "zora" && hasZora) ||
+      (activeView === "farcaster" && hasFarcaster);
+    if (hasActive) {
+      return;
+    }
+    manualViewRef.current = false;
+    setActiveView(defaultView);
+  }, [activeView, hasHive, hasSkate, hasZora, hasFarcaster, defaultView]);
+
+  useEffect(() => {
+    if (manualViewRef.current) return;
+    if (activeView !== defaultView) {
+      setActiveView(defaultView);
+    }
+  }, [defaultView, activeView]);
+
+  useEffect(() => {
+    onActiveViewChange?.(activeView);
+  }, [activeView, onActiveViewChange]);
+
+  const activeHeaderData =
+    activeView === "skate"
+      ? skateHeaderData
+      : activeView === "hive"
+      ? hiveHeaderData
+      : profileData;
 
   // Determine which edit handler to use per profile type
   const userbaseEditHandler =
@@ -102,6 +162,8 @@ const ProfileHeader = function ProfileHeader({
       : onEditModalOpen;
   const hiveEditHandler = onEditModalOpen;
   const canEdit = isOwner || !!isUserbaseOwner;
+  const canEditHive = isOwner || (!!isUserbaseOwner && hasHiveLinked);
+  const canEditSkate = !!isUserbaseOwner;
   const activeEditHandler =
     activeView === "skate" ? userbaseEditHandler : hiveEditHandler;
 
@@ -109,9 +171,10 @@ const ProfileHeader = function ProfileHeader({
     <Box position="relative" w="100%">
       {/* Mobile Component */}
       <MobileProfileHeader
-        profileData={profileData}
+        profileData={activeHeaderData}
         username={username}
-        isOwner={canEdit}
+        isOwner={isOwner}
+        canEdit={activeView === "skate" ? canEditSkate : canEditHive}
         user={user}
         isFollowing={isFollowing}
         isFollowLoading={isFollowLoading}
@@ -119,7 +182,7 @@ const ProfileHeader = function ProfileHeader({
         onLoadingChange={onLoadingChange}
         onEditModalOpen={activeEditHandler}
         showZoraProfile={activeView === "zora"}
-        onToggleProfile={(show) => setActiveView(show ? "zora" : "hive")}
+        onToggleProfile={(show) => setView(show ? "zora" : "hive")}
         cachedZoraData={null}
         zoraLoading={false}
         zoraError={null}
@@ -134,9 +197,9 @@ const ProfileHeader = function ProfileHeader({
           {hasSkate && (
             <Box display={activeView === "skate" ? "block" : "none"} w="100%">
               <SkateProfileHeader
-                profileData={profileData}
+                profileData={skateHeaderData}
                 username={username}
-                isOwner={canEdit}
+                isOwner={canEditSkate}
                 onEditModalOpen={userbaseEditHandler}
               />
             </Box>
@@ -156,9 +219,10 @@ const ProfileHeader = function ProfileHeader({
           {hasHive && (
             <Box display={activeView === "hive" ? "block" : "none"} w="100%">
               <HiveProfileHeader
-                profileData={profileData}
+                profileData={hiveHeaderData}
                 username={username}
-                isOwner={canEdit}
+                isOwner={isOwner}
+                canEdit={canEditHive}
                 user={user}
                 isFollowing={isFollowing}
                 isFollowLoading={isFollowLoading}
@@ -188,7 +252,7 @@ const ProfileHeader = function ProfileHeader({
                 <Tooltip label="Skatehive Account" placement="top">
                   <Box
                     cursor="pointer"
-                    onClick={() => setActiveView("skate")}
+                    onClick={() => setView("skate")}
                     p={1.5}
                     borderRadius="none"
                     bg={activeView === "skate" ? "primary" : "whiteAlpha.200"}
@@ -217,7 +281,7 @@ const ProfileHeader = function ProfileHeader({
                 <Tooltip label="Hive Profile" placement="top">
                   <Box
                     cursor="pointer"
-                    onClick={() => setActiveView("hive")}
+                    onClick={() => setView("hive")}
                     p={1.5}
                     borderRadius="none"
                     bg={activeView === "hive" ? "primary" : "whiteAlpha.200"}
@@ -246,7 +310,10 @@ const ProfileHeader = function ProfileHeader({
                 <Tooltip label="Zora Profile" placement="top">
                   <Box
                     cursor="pointer"
-                    onClick={() => setActiveView("zora")}
+                    onClick={() => {
+                      setView("zora");
+                      onContentViewChange?.("tokens");
+                    }}
                     p={1.5}
                     borderRadius="none"
                     bg={activeView === "zora" ? "primary" : "whiteAlpha.200"}
@@ -275,7 +342,7 @@ const ProfileHeader = function ProfileHeader({
                 <Tooltip label="Farcaster Profile" placement="top">
                   <Box
                     cursor="pointer"
-                    onClick={() => setActiveView("farcaster")}
+                    onClick={() => setView("farcaster")}
                     p={1.5}
                     borderRadius="none"
                     bg={activeView === "farcaster" ? "purple.500" : "whiteAlpha.200"}
@@ -324,7 +391,6 @@ export default memo(ProfileHeader, (prevProps, nextProps) => {
     prevProps.debugPayload === nextProps.debugPayload &&
     prevProps.hasHiveProfile === nextProps.hasHiveProfile &&
     prevProps.hasUserbaseProfile === nextProps.hasUserbaseProfile &&
-    prevProps.userbaseIdentities === nextProps.userbaseIdentities &&
     prevProps.farcasterProfile?.fid === nextProps.farcasterProfile?.fid &&
     prevProps.farcasterProfile?.displayName === nextProps.farcasterProfile?.displayName &&
     prevProps.farcasterProfile?.pfpUrl === nextProps.farcasterProfile?.pfpUrl &&

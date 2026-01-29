@@ -17,7 +17,7 @@ import { VideoPart } from "@/types/VideoPart";
 import VideoPartsView from "./VideoPartsView";
 
 // Import modular components
-import ProfileCoverImage from "./ProfileCoverImage";
+// ProfileCoverImage removed - now integrated into ProfileHeaderWrapper
 import ProfileHeader from "./ProfileHeader";
 import ViewModeSelector from "./ViewModeSelector";
 import MagazineModal from "../shared/MagazineModal";
@@ -159,12 +159,55 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   );
   const userbaseMatch = userbaseProfile?.match ?? null;
   const hiveIdentity = userbaseIdentities.find((item) => item.type === "hive");
-  const evmIdentity = userbaseIdentities.find((item) => item.type === "evm");
   const farcasterIdentity = userbaseIdentities.find((item) => item.type === "farcaster");
   const hiveIdentityHandle = hiveIdentity?.handle || null;
-  const evmIdentityAddress = evmIdentity?.address || null;
   const farcasterIdentityFid = farcasterIdentity?.external_id || null;
   const farcasterIdentityHandle = farcasterIdentity?.handle || null;
+  const farcasterCustodyAddress = farcasterIdentity?.address?.toLowerCase() || null;
+
+  // Get all EVM identities and prioritize them
+  const allEvmIdentities = userbaseIdentities.filter((item) => item.type === "evm");
+
+  // EVM Address Priority:
+  // 1. Hive eth_address (metadata.is_eth_address = true)
+  // 2. Hive primary_wallet (metadata.is_primary_wallet = true)
+  // 3. Other Hive wallets (source: "hive", not custody)
+  // 4. Farcaster verified wallets (verified_via: "farcaster")
+  // 5. Custody address (last resort)
+  const evmIdentity = useMemo(() => {
+    if (allEvmIdentities.length === 0) return null;
+    if (allEvmIdentities.length === 1) return allEvmIdentities[0];
+
+    // Sort by priority
+    const sorted = [...allEvmIdentities].sort((a, b) => {
+      const aPriority = a.metadata?.display_priority || 99;
+      const bPriority = b.metadata?.display_priority || 99;
+
+      // If both have display_priority, use it
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
+
+      // Otherwise, use fallback logic
+      const aIsCustody = a.address?.toLowerCase() === farcasterCustodyAddress;
+      const bIsCustody = b.address?.toLowerCase() === farcasterCustodyAddress;
+
+      if (aIsCustody && !bIsCustody) return 1; // b wins (custody is last)
+      if (!aIsCustody && bIsCustody) return -1; // a wins
+
+      const aIsHive = a.metadata?.source === "hive";
+      const bIsHive = b.metadata?.source === "hive";
+
+      if (aIsHive && !bIsHive) return -1; // a wins (hive first)
+      if (!aIsHive && bIsHive) return 1; // b wins
+
+      return 0;
+    });
+
+    return sorted[0];
+  }, [allEvmIdentities, farcasterCustodyAddress]);
+
+  const evmIdentityAddress = evmIdentity?.address || null;
   const isEvmAddress = /^0x[a-fA-F0-9]{40}$/.test(username);
   const hiveLookupHandle = hiveIdentityHandle || (isEvmAddress ? "" : username);
   const { hiveAccount, isLoading, error } = useHiveAccount(hiveLookupHandle);
@@ -172,6 +215,9 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const tCommon = useTranslations("common");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUserbaseEditModalOpen, setIsUserbaseEditModalOpen] = useState(false);
+  const [activeProfileView, setActiveProfileView] = useState<
+    "hive" | "skate" | "zora" | "farcaster" | null
+  >(null);
 
   // Custom hooks
   const { profileData, updateProfileData } = useProfileData(
@@ -225,28 +271,16 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     [currentUserbaseUser, userbaseUser]
   );
 
-  // Debug logging for ownership (development only)
-  if (process.env.NODE_ENV === "development") {
-    console.log("[ProfilePage] Ownership debug:", {
-      username,
-      isHiveProfile,
-      isOwner,
-      isUserbaseOwner,
-      currentUserbaseUserId: currentUserbaseUser?.id,
-      userbaseUserId: userbaseUser?.id,
-      userbaseUserHandle: userbaseUser?.handle,
-      hiveIdentityHandle,
-      hiveLookupHandle,
-      user,
-    });
-  }
-
+  // EVM Address Priority:
+  // 1. Best linked EVM identity (Hive wallets > Farcaster verified > Custody)
+  // 2. Direct EVM address lookup (if username is an address)
+  // 3. Legacy Hive profile metadata ethereum_address (fallback)
   const resolvedEthereumAddress =
-    profileData.ethereum_address ||
     evmIdentityAddress ||
-    (isEvmAddress ? username : "");
+    (isEvmAddress ? username : "") ||
+    profileData.ethereum_address;
 
-  // When user has linked Hive account, prefer Hive avatar
+  // When user has linked Hive account, use Hive avatar only if app profile doesn't have one
   const hiveAvatarUrl = hiveIdentityHandle
     ? `https://images.hive.blog/u/${hiveIdentityHandle}/avatar`
     : null;
@@ -254,14 +288,14 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const liteProfileData = useMemo<ProfileData>(() => {
     if (userbaseUser) {
       return {
-        // Prefer Hive avatar when Hive account is linked, then userbase avatar
-        profileImage: hiveAvatarUrl || userbaseUser.avatar_url || "",
+        // Prefer app profile assets; fall back to Hive only if app assets are missing
+        profileImage: userbaseUser.avatar_url || hiveAvatarUrl || "",
         coverImage: userbaseUser.cover_url || "",
         website: "",
         name:
-          hiveIdentityHandle ||
           userbaseUser.display_name ||
           userbaseUser.handle ||
+          hiveIdentityHandle ||
           username ||
           "Skater",
         followers: 0,
@@ -328,16 +362,41 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     };
   }, [isHiveProfile, profileData, liteProfileData, resolvedEthereumAddress]);
 
+  const resolvedCoverImage = useMemo(() => {
+    const hiveCover = profileData.coverImage || "";
+    const skateCover = liteProfileData.coverImage || "";
+    switch (activeProfileView) {
+      case "hive":
+        return hiveCover || skateCover;
+      case "skate":
+        return skateCover || hiveCover;
+      case "zora":
+        return hiveCover || skateCover; // Zora uses Hive cover
+      case "farcaster":
+        // Farcaster protocol doesn't have cover images, use Hive cover as fallback
+        return hiveCover || skateCover;
+      default:
+        return activeProfileData.coverImage;
+    }
+  }, [activeProfileView, profileData.coverImage, liteProfileData.coverImage, activeProfileData.coverImage]);
+
   // Build Farcaster profile data from userbase identity if available
   const farcasterProfileData = useMemo(() => {
     if (!farcasterIdentityFid) return null;
+
+    // Extract metadata from the farcaster identity
+    const metadata = farcasterIdentity?.metadata || {};
+
     return {
       fid: parseInt(farcasterIdentityFid, 10),
       username: farcasterIdentityHandle || undefined,
-      // Note: We don't have pfp/bio from identity - these would need to be fetched from Farcaster API
-      // For now, the FarcasterProfileHeader will use profileData as fallback
+      pfpUrl: metadata.pfp_url || undefined,
+      displayName: metadata.display_name || undefined,
+      bio: metadata.bio || undefined,
+      custody: farcasterIdentity?.address || undefined,
+      verifications: metadata.verifications || [],
     };
-  }, [farcasterIdentityFid, farcasterIdentityHandle]);
+  }, [farcasterIdentityFid, farcasterIdentityHandle, farcasterIdentity]);
 
   // Throttled close handler to prevent rapid clicking
   const throttledCloseMagazine = useCallback(() => {
@@ -539,17 +598,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const isProfileResolved =
     isHiveProfile || Boolean(userbaseUser) || isEvmAddress;
   
-  console.log("[ProfilePage] Profile resolution:", {
-    username,
-    isProfileResolved,
-    isHiveProfile,
-    hasUserbaseUser: Boolean(userbaseUser),
-    isEvmAddress,
-    isLoading,
-    userbaseLoading,
-    error,
-  });
-  
   if (!isProfileResolved && (isLoading || userbaseLoading)) {
     return (
       <Box
@@ -611,15 +659,13 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               scrollbarWidth: "none",
             }}
           >
-            {/* Cover Image - Now enabled for mobile too */}
-            <ProfileCoverImage
-              coverImage={activeProfileData.coverImage}
-              username={username}
-            />
+            {/* Cover Image now integrated into individual profile headers via ProfileHeaderWrapper */}
 
             {/* Profile Header */}
             <ProfileHeader
               profileData={activeProfileData}
+              hiveProfileData={profileData}
+              skateProfileData={liteProfileData}
               username={headerUsername}
               isOwner={isOwner}
               isUserbaseOwner={isUserbaseOwner}
@@ -627,10 +673,11 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               {...followProps}
               onEditModalOpen={handleEditModalOpen}
               onUserbaseEditModalOpen={handleUserbaseEditModalOpen}
+              onActiveViewChange={setActiveProfileView}
+              onContentViewChange={memoizedViewModeChange}
               debugPayload={debugPayload}
               hasHiveProfile={isHiveProfile || !!hiveIdentityHandle}
               hasUserbaseProfile={!!userbaseUser}
-              userbaseIdentities={userbaseIdentities}
               farcasterProfile={farcasterProfileData}
             />
 
@@ -663,7 +710,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
         <EditProfile
           isOpen={isEditModalOpen}
           onClose={handleEditModalClose}
-          profileData={activeProfileData}
+          profileData={profileData}
           onProfileUpdate={updateProfileData}
           username={hiveLookupHandle || username}
         />

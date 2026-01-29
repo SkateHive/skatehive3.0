@@ -68,7 +68,7 @@ const LoadingComponent = () => {
 
   // Play loading sound on mount - preload and play when ready
   useEffect(() => {
-    const audio = new Audio('/loadingsfx.mp3');
+    const audio = new Audio('/loadindsfx.mp3');
     audio.volume = 0.3;
     audioRef.current = audio;
     

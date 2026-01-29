@@ -114,7 +114,36 @@ export const es = {
     open: 'Debug',
     title: 'Depuración del perfil',
     empty: 'No hay datos de depuración disponibles.',
-  },
+    tabs: {
+      overview: 'Resumen',
+      hive: 'Hive',
+      evm: 'Ethereum',
+      farcaster: 'Farcaster',
+      userbase: 'Userbase',
+      rawJson: 'Raw JSON',
+    },
+    sections: {
+      profileContext: 'Contexto del Perfil',
+      handleResolution: 'Resolución de Handle',
+      linkedIdentitiesSummary: 'Resumen de Identidades Vinculadas',
+      hiveAccountData: 'Datos de la Cuenta Hive',
+      hiveAccountMetadata: 'Metadatos de la Cuenta Hive',
+      linkedHiveIdentity: 'Identidad Hive Vinculada',
+      linkedEvmIdentity: 'Identidad EVM Vinculada',
+      linkedFarcasterIdentity: 'Identidad Farcaster Vinculada',
+      warpcastLink: 'Enlace Warpcast',
+      resolvedEthereum: 'Ethereum Resuelto',
+      userbaseUser: 'Usuario Userbase',
+      allIdentities: 'Todas las Identidades',
+      liteProfileData: 'Datos de Perfil Lite',
+    },
+    emptyStates: {
+      noHiveIdentity: 'No hay identidad Hive vinculada.',
+      noEvmIdentity: 'No hay identidad EVM vinculada.',
+      noFarcasterIdentity: 'No hay identidad Farcaster vinculada.',
+      noIdentities: 'No se encontraron identidades.',
+    },
+    },
   userbaseAuth: {
     title: 'Cuenta de app',
     signedInAs: 'Conectado como',
@@ -973,4 +1002,4 @@ export const es = {
   share: {
     pageTitle: 'Cast Compartido',
   },
-} as const;
+};

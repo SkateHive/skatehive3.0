@@ -4,14 +4,9 @@ import {
   Box,
   Text,
   Flex,
-  Avatar,
   Spinner,
-  VStack,
   HStack,
   Link,
-  Tooltip,
-  Grid,
-  GridItem,
 } from "@chakra-ui/react";
 import { ProfileData } from "./ProfilePage";
 import {
@@ -19,6 +14,8 @@ import {
   ZoraProfileData,
 } from "@/hooks/useZoraProfileCoin";
 import TradeProfileCoinButton from "./TradeProfileCoinButton";
+import ProfileHeaderWrapper from "./ProfileHeaderWrapper";
+import IdentityBlock from "./IdentityBlock";
 
 interface ZoraProfileHeaderProps {
   profileData: ProfileData;
@@ -32,7 +29,6 @@ const ZoraProfileHeader = function ZoraProfileHeader({
   const [cachedZoraData, setCachedZoraData] = useState<ZoraProfileData | null>(
     null
   );
-  const [zoraDataFetched, setZoraDataFetched] = useState(false);
   const [avatarLoaded, setAvatarLoaded] = useState(false);
 
   // Fetch Zora data when ethereum address is available
@@ -129,7 +125,6 @@ const ZoraProfileHeader = function ZoraProfileHeader({
   // Reset Zora cache when identity changes
   useEffect(() => {
     setCachedZoraData(null);
-    setZoraDataFetched(false);
     setAvatarLoaded(false);
   }, [username, profileData.ethereum_address]);
 
@@ -137,7 +132,6 @@ const ZoraProfileHeader = function ZoraProfileHeader({
   useEffect(() => {
     if (zoraProfileData && !zoraLoading && !zoraError) {
       setCachedZoraData(zoraProfileData);
-      setZoraDataFetched(true);
     }
   }, [zoraProfileData, zoraLoading, zoraError]);
 
@@ -178,130 +172,80 @@ const ZoraProfileHeader = function ZoraProfileHeader({
     );
   }
 
-  return (
-    <Box w="100%">
-      <Grid
-        templateColumns="100px 1fr auto"
-        templateRows="auto auto auto"
-        gap={4}
-        minH="100px"
-        w="100%"
-        alignItems="start"
-      >
-        {/* Avatar - spans all rows in first column */}
-        <GridItem rowSpan={3} colStart={1}>
-          <Avatar
-            src={cachedZoraData.avatar}
-            name={
-              cachedZoraData.displayName || cachedZoraData.handle || username
-            }
-            borderRadius="lg"
-            boxSize="100px"
-            border="2px solid"
-            borderColor="primary"
-          />
-        </GridItem>
-
-        {/* Display Name - top row, middle column */}
-        <GridItem colStart={2} rowStart={1}>
-          {cachedZoraData.displayName && (
-            <Text fontSize="xl" fontWeight="bold" color="white" lineHeight={1}>
-              {cachedZoraData.displayName}
+  // Market cap stats row - positioned like Hive's follower stats
+  const statsRow = cachedZoraData.coinData && (
+    <Box>
+      <HStack spacing={6} fontSize="sm" mb={3}>
+        {zoraProfileUrl ? (
+          <Link href={zoraProfileUrl} isExternal _hover={{ opacity: 0.8 }}>
+            <Text color="white" whiteSpace="nowrap" textShadow="0 2px 4px rgba(0,0,0,0.9)">
+              <Text as="span" fontWeight="bold" color="primary" fontSize="2xl">
+                {formattedMarketCap}
+              </Text>{" "}
+              Market Cap
             </Text>
-          )}
-          <Text
-            fontSize="sm"
-            color="gray.400"
-            fontWeight="medium"
-            isTruncated
-            w="100%"
-          >
-            {cachedZoraData.bio ? (
-              <Tooltip
-                label={cachedZoraData.bio}
-                placement="top"
-                bg="gray.800"
-                color="white"
-                fontSize="sm"
-                borderRadius="none"
-                px={3}
-                py={2}
-                maxW="300px"
-                textAlign="center"
-              >
-                <Text as="span" cursor="help" _hover={{ color: "primary" }}>
-                  @{cachedZoraData.handle || username}
-                </Text>
-              </Tooltip>
-            ) : (
-              <>@{cachedZoraData.handle || username}</>
-            )}
+          </Link>
+        ) : (
+          <Text color="white" whiteSpace="nowrap" textShadow="0 2px 4px rgba(0,0,0,0.9)">
+            <Text as="span" fontWeight="bold" color="primary" fontSize="2xl">
+              {formattedMarketCap}
+            </Text>{" "}
+            Market Cap
           </Text>
-        </GridItem>
+        )}
 
-        {/* Market Cap - top row, right column */}
-        <GridItem colStart={3} rowStart={1}>
-          {cachedZoraData.coinData && (
-            <VStack align="flex-end" spacing={1}>
-              {zoraProfileUrl ? (
-                <Link
-                  href={zoraProfileUrl}
-                  isExternal
-                  _hover={{ textDecoration: "underline", opacity: 0.8 }}
-                >
-                  <Text
-                    fontSize="32px"
-                    fontWeight="bold"
-                    color="primary"
-                    lineHeight={1}
-                    textAlign="right"
-                  >
-                    {formattedMarketCap}
-                  </Text>
-                </Link>
-              ) : (
-                <Text
-                  fontSize="32px"
-                  fontWeight="bold"
-                  color="primary"
-                  lineHeight={1}
-                  textAlign="right"
-                >
-                  {formattedMarketCap}
-                </Text>
-              )}
+        {marketCapChange.display !== "0.00%" && (
+          <Text
+            color={marketCapChange.isPositive ? "green.400" : "red.400"}
+            whiteSpace="nowrap"
+            textShadow="0 2px 4px rgba(0,0,0,0.9)"
+            fontWeight="medium"
+          >
+            <Text as="span" fontWeight="bold" fontSize="lg">
+              {marketCapChange.display}
+            </Text>{" "}
+            (24h)
+          </Text>
+        )}
+      </HStack>
 
-              {/* 24h Percentage Change */}
-              {marketCapChange.display !== "0.00%" && (
-                <Text
-                  fontSize="sm"
-                  fontWeight="medium"
-                  color={marketCapChange.isPositive ? "green.400" : "red.400"}
-                  textAlign="right"
-                  lineHeight={1}
-                >
-                  {marketCapChange.display} (24h)
-                </Text>
-              )}
-            </VStack>
-          )}
-        </GridItem>
-
-        {/* Trade Profile Coin button */}
-        <GridItem colStart={2} rowStart={2}>
-          <TradeProfileCoinButton
-            coinAddress={cachedZoraData?.coinData?.address}
-            coinData={{
-              name: cachedZoraData?.coinData?.name,
-              symbol: cachedZoraData?.coinData?.symbol,
-              image: cachedZoraData?.coinData?.image,
-              marketCap: cachedZoraData?.coinData?.marketCap,
-              uniqueHolders: cachedZoraData?.coinData?.holderCount,
-            }}
-          />
-        </GridItem>
-      </Grid>
+      {/* Trade button positioned like power bars */}
+      <Box>
+        <TradeProfileCoinButton
+          coinAddress={cachedZoraData.coinData.address}
+          coinData={{
+            name: cachedZoraData.coinData.name,
+            symbol: cachedZoraData.coinData.symbol,
+            image: cachedZoraData.coinData.image,
+            marketCap: cachedZoraData.coinData.marketCap,
+            uniqueHolders: cachedZoraData.coinData.holderCount,
+          }}
+        />
+      </Box>
     </Box>
+  );
+
+  return (
+    <ProfileHeaderWrapper
+      coverImage={profileData.coverImage}
+      username={username}
+      identity={
+        <IdentityBlock
+          avatar={cachedZoraData.avatar || profileData.profileImage}
+          displayName={cachedZoraData.displayName || cachedZoraData.handle || username}
+          handle={`@${cachedZoraData.handle || username}`}
+          externalLink={
+            zoraProfileUrl
+              ? {
+                  url: zoraProfileUrl,
+                  label: `View ${cachedZoraData.handle || username} on Zora`,
+                }
+              : undefined
+          }
+        />
+      }
+      stats={statsRow}
+    />
   );
 };
 

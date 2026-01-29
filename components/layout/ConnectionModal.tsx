@@ -29,6 +29,7 @@ import { useTranslations } from "@/contexts/LocaleContext";
 import UserbaseEmailLoginForm from "@/components/userbase/UserbaseEmailLoginForm";
 import AccountLinkingModal from "@/components/layout/AccountLinkingModal";
 import { useAccountLinkingOpportunities } from "@/hooks/useAccountLinkingOpportunities";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 
 // Blinking cursor animation
 const blink = keyframes`
@@ -204,10 +205,8 @@ export default function ConnectionModal({
     hasUnlinkedOpportunities,
     isLoading,
     refresh,
-    identities,
-  } =
-    useAccountLinkingOpportunities(isOpen);
-  
+  } = useAccountLinkingOpportunities(isOpen);
+  const { identities, connections } = useLinkedIdentities();
   // Get connection states
   const { isConnected: isEthereumConnected } = useAccount();
   const {
@@ -230,39 +229,32 @@ export default function ConnectionModal({
 
   // Determine if user is logged in (any method)
   const isLoggedIn = !!user || !!userbaseUser;
-  const displayName = user || userbaseUser?.display_name || userbaseUser?.handle || "";
-  const avatarUrl = user 
+
+  // Priority: Hive username > Userbase display_name > Userbase handle
+  const displayName = user
+    ? user
+    : (userbaseUser?.display_name || userbaseUser?.handle || "");
+
+  const avatarUrl = user
     ? `https://images.hive.blog/u/${user}/avatar/small`
     : userbaseUser?.avatar_url || "/skatehive_square_green.png";
 
-  const hiveIdentity = identities.find((identity) => identity.type === "hive");
-  const evmIdentities = identities.filter((identity) => identity.type === "evm");
-  const farcasterIdentity = identities.find(
-    (identity) => identity.type === "farcaster"
-  );
+  const hiveConnection = connections.hive;
+  const evmConnection = connections.evm;
+  const farcasterConnection = connections.farcaster;
 
-  const hiveState = user
-    ? "active"
-    : hiveIdentity
-    ? "linked"
-    : "not-linked";
-  const evmState = isEthereumConnected
-    ? "active"
-    : evmIdentities.length > 0
-    ? "linked"
-    : "not-linked";
+  const getState = (connection: typeof hiveConnection) =>
+    connection.active ? "active" : connection.linked ? "linked" : "not-linked";
+
+  const hiveState = user ? "active" : getState(hiveConnection);
+  const evmState = isEthereumConnected ? "active" : getState(evmConnection);
   const farcasterState = finalFarcasterConnection
     ? "active"
-    : farcasterIdentity
-    ? "linked"
-    : "not-linked";
+    : getState(farcasterConnection);
 
-  const evmLinkedLabel =
-    evmIdentities.length === 1 && evmIdentities[0].address
-      ? shortenAddress(evmIdentities[0].address)
-      : evmIdentities.length > 1
-      ? `${evmIdentities.length} wallets`
-      : null;
+  const hiveLabel = hiveConnection.label;
+  const evmLabel = evmConnection.label;
+  const farcasterLabel = farcasterConnection.label;
 
   // Connection handlers
   const handleHiveLogout = async () => {
@@ -387,8 +379,8 @@ export default function ConnectionModal({
                     subState={
                       hiveState === "active"
                         ? "posting enabled"
-                        : hiveIdentity?.handle
-                        ? `linked: @${hiveIdentity.handle}`
+                        : hiveLabel
+                        ? `linked: ${hiveLabel}`
                         : undefined
                     }
                     onClick={() =>
@@ -409,8 +401,8 @@ export default function ConnectionModal({
                           subState={
                             connected
                               ? undefined
-                              : evmLinkedLabel
-                              ? `linked: ${evmLinkedLabel}`
+                              : evmLabel
+                              ? `linked: ${evmLabel}`
                               : undefined
                           }
                           onClick={() => {
@@ -431,10 +423,8 @@ export default function ConnectionModal({
                     subState={
                       farcasterState === "active"
                         ? undefined
-                        : farcasterIdentity?.handle
-                        ? `linked: @${farcasterIdentity.handle}`
-                        : farcasterIdentity?.external_id
-                        ? `linked: fid ${farcasterIdentity.external_id}`
+                        : farcasterLabel
+                        ? `linked: ${farcasterLabel}`
                         : undefined
                     }
                     onClick={() =>

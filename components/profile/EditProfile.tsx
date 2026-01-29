@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Modal,
   ModalOverlay,
@@ -73,6 +73,8 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
     const [tempImageForCrop, setTempImageForCrop] = useState<string | null>(
       null
     );
+    const profileInputRef = useRef<HTMLInputElement | null>(null);
+    const coverInputRef = useRef<HTMLInputElement | null>(null);
 
     // Always call hooks at the top level
     const account = useAccount();
@@ -383,12 +385,12 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
       try {
         // Check if user is logged in
         if (!user) {
-          setError("Please log in to update your profile");
+          setError("Connect your Hive wallet (Keychain) to save changes");
           return;
         }
 
         if (user !== username) {
-          setError("You can only edit your own profile");
+          setError("Connect your Hive account to edit this profile");
           return;
         }
 
@@ -652,9 +654,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
             cursor="pointer"
             _hover={{ opacity: 0.8 }}
             transition="opacity 0.2s"
-            onClick={() =>
-              document.getElementById("profilePictureInput")?.click()
-            }
+            onClick={() => profileInputRef.current?.click()}
           >
             {formData.profileImage ? (
               <Image
@@ -713,9 +713,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
                   <Flex gap={2}>
                     <Button
                       size="sm"
-                      onClick={() =>
-                        document.getElementById("profilePictureInput")?.click()
-                      }
+                      onClick={() => profileInputRef.current?.click()}
                     >
                       Upload
                     </Button>
@@ -727,7 +725,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
                       flex={1}
                     />
                     <Input
-                      id="profilePictureInput"
+                      ref={profileInputRef}
                       type="file"
                       accept="image/*"
                       onChange={handleProfileImageChange}
@@ -741,9 +739,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
                   <Flex gap={2}>
                     <Button
                       size="sm"
-                      onClick={() =>
-                        document.getElementById("backgroundImageInput")?.click()
-                      }
+                      onClick={() => coverInputRef.current?.click()}
                     >
                       Upload
                     </Button>
@@ -755,7 +751,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
                       flex={1}
                     />
                     <Input
-                      id="backgroundImageInput"
+                      ref={coverInputRef}
                       type="file"
                       accept="image/*"
                       onChange={handleCoverImageChange}

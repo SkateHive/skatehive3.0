@@ -114,6 +114,35 @@ export const en = {
     open: 'Debug',
     title: 'Profile debug',
     empty: 'No debug data available.',
+    tabs: {
+      overview: 'Overview',
+      hive: 'Hive',
+      evm: 'EVM',
+      farcaster: 'Farcaster',
+      userbase: 'Userbase',
+      rawJson: 'Raw JSON',
+    },
+    sections: {
+      profileContext: 'Profile Context',
+      handleResolution: 'Handle Resolution',
+      linkedIdentitiesSummary: 'Linked Identities Summary',
+    },
+    fields: {
+      username: 'Username',
+      viewMode: 'View Mode',
+      isHiveProfile: 'Is Hive Profile',
+      isOwner: 'Is Owner',
+      isUserbaseOwner: 'Is Userbase Owner',
+      canShowHiveViews: 'Can Show Hive Views',
+      hiveLookupHandle: 'Hive Lookup Handle',
+      hiveIdentityHandle: 'Hive Identity Handle',
+      hivePostsHandle: 'Hive Posts Handle',
+      userbaseMatch: 'Userbase Match',
+    },
+    values: {
+      true: 'TRUE',
+      false: 'FALSE',
+    },
   },
   userbaseAuth: {
     title: 'App account',
@@ -972,5 +1001,7 @@ export const en = {
   },
   share: {
     pageTitle: 'Shared Cast',
-  },
-} as const;
+  }
+};
+
+

@@ -4,6 +4,7 @@ import ProfilePage from "@/components/profile/ProfilePage";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
 import HiveClient from "@/lib/hive/hiveclient";
 import { APP_CONFIG } from "@/config/app.config";
+import { validateHiveUsernameFormat, cleanHiveUsername } from "@/lib/utils/hiveAccountUtils";
 
 // Constants
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
@@ -26,14 +27,12 @@ async function getBaseUrl() {
 
 async function getUserData(username: string, baseUrl: string) {
   try {
-    const [profileInfo, hiveAccount] = await Promise.all([
-      HiveClient.call("bridge", "get_profile", { account: username }),
-      HiveClient.database.call("get_accounts", [[username]]),
-    ]);
+    const normalized = cleanHiveUsername(username);
+    const isHiveValid = validateHiveUsernameFormat(normalized).isValid;
 
-    if (!hiveAccount || hiveAccount.length === 0) {
+    const fetchUserbaseProfile = async () => {
       const userbaseResponse = await fetch(
-        new URL(`/api/userbase/profile?handle=${encodeURIComponent(username)}`, baseUrl).toString(),
+        new URL(`/api/userbase/profile?handle=${encodeURIComponent(normalized)}`, baseUrl).toString(),
         { cache: "no-store" }
       ).catch(() => null);
       if (userbaseResponse?.ok) {
@@ -52,13 +51,34 @@ async function getUserData(username: string, baseUrl: string) {
         }
       }
       return null;
+    };
+
+    if (!isHiveValid) {
+      return await fetchUserbaseProfile();
+    }
+
+    const hiveAccount = await HiveClient.database.call("get_accounts", [
+      [normalized],
+    ]);
+    if (!hiveAccount || hiveAccount.length === 0) {
+      return await fetchUserbaseProfile();
+    }
+
+    let profileInfo: any = null;
+    try {
+      profileInfo = await HiveClient.call("bridge", "get_profile", {
+        account: normalized,
+      });
+    } catch (profileError) {
+      console.warn("Failed to fetch Hive profile info:", profileError);
+      profileInfo = null;
     }
 
     const account = hiveAccount[0];
-    let profileImage = `https://images.ecency.com/webp/u/${username}/avatar/small`;
+    let profileImage = `https://images.ecency.com/webp/u/${normalized}/avatar/small`;
     let coverImage = FALLBACK_BANNER;
     let about = "";
-    let name = username;
+    let name = normalized;
 
     // Parse posting_json_metadata for profile info
     if (account?.posting_json_metadata) {
@@ -75,7 +95,7 @@ async function getUserData(username: string, baseUrl: string) {
     }
 
     return {
-      username,
+      username: normalized,
       name,
       about,
       profileImage,
@@ -85,7 +105,33 @@ async function getUserData(username: string, baseUrl: string) {
     };
   } catch (error) {
     console.error("Failed to fetch user data:", error);
-    return null;
+    // Fallback to userbase profile if Hive RPC fails
+    try {
+      return await fetch(
+        new URL(`/api/userbase/profile?handle=${encodeURIComponent(username)}`, baseUrl).toString(),
+        { cache: "no-store" }
+      )
+        .then(async (resp) => {
+          if (!resp.ok) return null;
+          const userbaseData = await resp.json().catch(() => null);
+          if (userbaseData?.user) {
+            const user = userbaseData.user;
+            return {
+              username,
+              name: user.display_name || user.handle || username,
+              about: user.bio || "",
+              profileImage: user.avatar_url || FALLBACK_AVATAR,
+              coverImage: user.cover_url || FALLBACK_BANNER,
+              followers: 0,
+              following: 0,
+            };
+          }
+          return null;
+        })
+        .catch(() => null);
+    } catch {
+      return null;
+    }
   }
 }
 
