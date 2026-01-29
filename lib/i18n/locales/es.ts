@@ -440,7 +440,7 @@ export const es = {
     actsDescription: 'Los ACTs te permiten crear nuevas cuentas Hive gratis. Ganas ACTs automáticamente al mantener Hive Power (HIVE en stake). Cada ACT puede usarse para crear una nueva cuenta. Si no tienes ACTs, necesitarás pagar una tarifa de 3 HIVE para crear una cuenta.',
     moreInfoACTs: 'Más información sobre cómo ganar ACTs',
     actsRuleOfThumb: 'Regla general: Necesitas al menos 5000 HP para comenzar a generar ACTs, y cada ACT requiere 100 mil millones de Créditos de Recursos (RC). Cuanto más HP tengas, más rápido ganarás ACTs.',
-    friendsUsername: 'Nombre de Billetera Hive deseado del amigo',
+    friendsUsername: 'Nombre de Billetera Hive deseado del amigo. No podrá ser alterado después.',
     friendsEmail: 'Email del Amigo',
     chooseLanguage: 'Elige el Idioma del Email',
     createButton: '¡Se ve Bien, Vamos!',
