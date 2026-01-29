@@ -401,6 +401,7 @@ export const en = {
     title: 'Invite a Shredder to Skatehive',
     needLogin: 'You need to be logged in to invite!',
     pleaseLoginRetry: 'Please log in and try again.',
+    pleaseLoginHive: 'Please log in with your Hive account to access the invite tool.',
     chooseMethod: 'Choose Account Creation Method',
     usingACT: 'Using Account Creation Token',
     paying3Hive: 'Paying 3 HIVE',
