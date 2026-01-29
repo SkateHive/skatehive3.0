@@ -1,7 +1,7 @@
 "use client";
-import React, { memo, useState, useEffect } from "react";
-import { IconButton, Box, Text } from "@chakra-ui/react";
-import { FaEdit } from "react-icons/fa";
+import React, { memo } from "react";
+import { IconButton, Box, Text, HStack } from "@chakra-ui/react";
+import { FaEdit, FaMapMarkerAlt } from "react-icons/fa";
 import { ProfileData } from "./ProfilePage";
 import ProfileHeaderWrapper from "./ProfileHeaderWrapper";
 import IdentityBlock from "./IdentityBlock";
@@ -20,29 +20,20 @@ const SkateProfileHeader = function SkateProfileHeader({
   isOwner,
   onEditModalOpen,
 }: SkateProfileHeaderProps) {
-  const [avatarLoaded, setAvatarLoaded] = useState(false);
-
-  // Preload avatar image to prevent flickering
-  useEffect(() => {
-    if (profileData.profileImage && !avatarLoaded) {
-      const img = new Image();
-      img.onload = () => setAvatarLoaded(true);
-      img.onerror = () => setAvatarLoaded(true);
-      img.src = profileData.profileImage;
-    }
-  }, [profileData.profileImage, avatarLoaded]);
-
-  // Stats row for location (positioned like other profile stats)
+  // Stats row styled like Hive/Zora for consistency
   const statsRow = profileData.location && (
     <Box>
-      <Text
-        color="whiteAlpha.900"
-        fontSize="sm"
-        textShadow="0 2px 4px rgba(0,0,0,0.9)"
-        fontWeight="medium"
-      >
-        📍 {profileData.location}
-      </Text>
+      <HStack spacing={2} fontSize="sm">
+        <FaMapMarkerAlt color="var(--chakra-colors-primary-400)" />
+        <Text
+          color="white"
+          whiteSpace="nowrap"
+          textShadow="0 2px 4px rgba(0,0,0,0.9)"
+          fontWeight="medium"
+        >
+          {profileData.location}
+        </Text>
+      </HStack>
     </Box>
   );
 
