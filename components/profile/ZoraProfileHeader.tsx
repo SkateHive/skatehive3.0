@@ -29,7 +29,6 @@ const ZoraProfileHeader = function ZoraProfileHeader({
   const [cachedZoraData, setCachedZoraData] = useState<ZoraProfileData | null>(
     null
   );
-  const [zoraDataFetched, setZoraDataFetched] = useState(false);
   const [avatarLoaded, setAvatarLoaded] = useState(false);
 
   // Fetch Zora data when ethereum address is available
@@ -126,7 +125,6 @@ const ZoraProfileHeader = function ZoraProfileHeader({
   // Reset Zora cache when identity changes
   useEffect(() => {
     setCachedZoraData(null);
-    setZoraDataFetched(false);
     setAvatarLoaded(false);
   }, [username, profileData.ethereum_address]);
 
@@ -134,7 +132,6 @@ const ZoraProfileHeader = function ZoraProfileHeader({
   useEffect(() => {
     if (zoraProfileData && !zoraLoading && !zoraError) {
       setCachedZoraData(zoraProfileData);
-      setZoraDataFetched(true);
     }
   }, [zoraProfileData, zoraLoading, zoraError]);
 
@@ -234,7 +231,7 @@ const ZoraProfileHeader = function ZoraProfileHeader({
       username={username}
       identity={
         <IdentityBlock
-          avatar={cachedZoraData.avatar}
+          avatar={cachedZoraData.avatar || profileData.profileImage}
           displayName={cachedZoraData.displayName || cachedZoraData.handle || username}
           handle={`@${cachedZoraData.handle || username}`}
           externalLink={

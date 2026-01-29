@@ -1,5 +1,5 @@
 "use client";
-import React, { ReactElement } from "react";
+import React from "react";
 import { HStack, IconButton, Tooltip, Icon } from "@chakra-ui/react";
 import { IconType } from "react-icons";
 
@@ -101,9 +101,6 @@ export default function IntegrationsRow({
               borderWidth={style.borderWidth}
               borderColor={style.borderColor}
               onClick={integration.onClick}
-              as={integration.href ? "a" : "button"}
-              href={integration.href}
-              target={integration.href ? "_blank" : undefined}
               boxShadow="0 2px 4px rgba(0,0,0,0.2)"
               _hover={{
                 opacity: 1,

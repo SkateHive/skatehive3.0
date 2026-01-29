@@ -5,7 +5,6 @@ import { VStack, HStack } from "@chakra-ui/react";
 interface ActionsClusterProps {
   primaryActions?: ReactNode[];
   secondaryActions?: ReactNode[];
-  orientation?: "vertical" | "horizontal";
 }
 
 /**
@@ -20,7 +19,6 @@ interface ActionsClusterProps {
 export default function ActionsCluster({
   primaryActions = [],
   secondaryActions = [],
-  orientation = "vertical",
 }: ActionsClusterProps) {
   if (primaryActions.length === 0 && secondaryActions.length === 0) {
     return null;
