@@ -23,6 +23,7 @@ interface MobileProfileHeaderProps {
   profileData: ProfileData;
   username: string;
   isOwner: boolean;
+  canEdit?: boolean;
   user: string | null;
   isFollowing: boolean | null;
   isFollowLoading: boolean;
@@ -40,6 +41,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
   profileData,
   username,
   isOwner,
+  canEdit,
   user,
   isFollowing,
   isFollowLoading,
@@ -129,14 +131,14 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
             bg="white"
             shadow="lg"
             loading="lazy"
-            cursor={isOwner ? "pointer" : "default"}
-            _hover={isOwner ? { opacity: 0.8 } : {}}
+            cursor={(canEdit ?? isOwner) ? "pointer" : "default"}
+            _hover={(canEdit ?? isOwner) ? { opacity: 0.8 } : {}}
             transition="opacity 0.2s"
-            onClick={isOwner ? onEditModalOpen : undefined}
+            onClick={(canEdit ?? isOwner) ? onEditModalOpen : undefined}
           />
 
           {/* Top-right settings (only for owner) */}
-          {isOwner && (
+          {(canEdit ?? isOwner) && (
             <IconButton
               aria-label={t('settings')}
               icon={<FaCog />}

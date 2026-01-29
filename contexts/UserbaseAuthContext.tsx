@@ -40,9 +40,35 @@ export function UserbaseAuthProvider({ children }: { children: React.ReactNode }
   const [error, setError] = useState<string | null>(null);
   const [identitiesVersion, setIdentitiesVersion] = useState(0);
   const lastRefreshRef = useRef(0);
+  const userRef = useRef<UserbaseUser | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const expiresAtRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
+  useEffect(() => {
+    expiresAtRef.current = expiresAt;
+  }, [expiresAt]);
+
+  const areUsersEqual = useCallback((a: UserbaseUser | null, b: UserbaseUser | null) => {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    return (
+      a.id === b.id &&
+      a.handle === b.handle &&
+      a.display_name === b.display_name &&
+      a.avatar_url === b.avatar_url &&
+      a.status === b.status &&
+      a.onboarding_step === b.onboarding_step
+    );
+  }, []);
 
   const refresh = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoading((prev) => (prev ? prev : true));
     setError(null);
     try {
       const response = await fetch("/api/userbase/auth/session", {
@@ -50,13 +76,22 @@ export function UserbaseAuthProvider({ children }: { children: React.ReactNode }
       });
       if (response.ok) {
         const data = await response.json();
-        setUser(data?.user ?? null);
-        setSessionId(data?.session_id ?? null);
-        setExpiresAt(data?.expires_at ?? null);
+        const nextUser = data?.user ?? null;
+        const nextSessionId = data?.session_id ?? null;
+        const nextExpiresAt = data?.expires_at ?? null;
+        if (!areUsersEqual(userRef.current, nextUser)) {
+          setUser(nextUser);
+        }
+        if (sessionIdRef.current !== nextSessionId) {
+          setSessionId(nextSessionId);
+        }
+        if (expiresAtRef.current !== nextExpiresAt) {
+          setExpiresAt(nextExpiresAt);
+        }
       } else if (response.status === 401) {
-        setUser(null);
-        setSessionId(null);
-        setExpiresAt(null);
+        if (userRef.current !== null) setUser(null);
+        if (sessionIdRef.current !== null) setSessionId(null);
+        if (expiresAtRef.current !== null) setExpiresAt(null);
       } else {
         const data = await response.json().catch(() => null);
         setError(data?.error || "Failed to load session");

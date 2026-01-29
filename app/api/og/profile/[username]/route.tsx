@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
+import { cleanHiveUsername, validateHiveUsernameFormat } from "@/lib/utils/hiveAccountUtils";
 import { Image } from "@chakra-ui/react";
 
 export const runtime = "edge";
@@ -33,49 +34,62 @@ interface UserData {
 
 async function getUserData(username: string): Promise<UserData> {
   try {
-    const [profileResponse, accountResponse] = await Promise.all([
-      fetch("https://api.hive.blog", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          method: "bridge.get_profile",
-          params: { account: username },
-          id: 1,
-        }),
-      }),
-      fetch("https://api.hive.blog", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          method: "condenser_api.get_accounts",
-          params: [[username]],
-          id: 2,
-        }),
-      }),
-    ]);
+    const normalized = cleanHiveUsername(username);
+    const isHiveValid = validateHiveUsernameFormat(normalized).isValid;
 
-    if (!profileResponse.ok || !accountResponse.ok) {
+    if (!isHiveValid) {
+      return {
+        username,
+        name: username,
+        about: "",
+        profileImage: `https://images.hive.blog/u/${username}/avatar/small`,
+        coverImage: null,
+        followers: 0,
+        following: 0,
+        posts: 0,
+      };
+    }
+
+    const accountResponse = await fetch("https://api.hive.blog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "condenser_api.get_accounts",
+        params: [[normalized]],
+        id: 2,
+      }),
+    });
+
+    if (!accountResponse.ok) {
       throw new Error("Failed to fetch user data from Hive API");
     }
 
-    const [profileData, accountData] = await Promise.all([
-      profileResponse.json(),
-      accountResponse.json(),
-    ]);
-
-    const profileInfo = profileData.result;
+    const accountData = await accountResponse.json();
     const account = accountData.result?.[0];
 
     if (!account) {
       throw new Error("User not found");
     }
 
-    let profileImage = `https://images.hive.blog/u/${username}/avatar/small`;
+    const profileResponse = await fetch("https://api.hive.blog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "bridge.get_profile",
+        params: { account: normalized },
+        id: 1,
+      }),
+    });
+
+    const profileData = profileResponse.ok ? await profileResponse.json() : null;
+    const profileInfo = profileData?.result;
+
+    let profileImage = `https://images.hive.blog/u/${normalized}/avatar/small`;
     let coverImage = null;
     let about = "";
-    let name = username;
+    let name = normalized;
 
     // Parse posting_json_metadata for profile info
     if (account.posting_json_metadata) {
@@ -92,7 +106,7 @@ async function getUserData(username: string): Promise<UserData> {
     }
 
     return {
-      username,
+      username: normalized,
       name,
       about: about.slice(0, 120),
       profileImage,

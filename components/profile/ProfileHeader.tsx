@@ -1,5 +1,5 @@
 "use client";
-import React, { memo, useState, useMemo } from "react";
+import React, { memo, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Box, HStack, Image, Tooltip } from "@chakra-ui/react";
 import MobileProfileHeader from "./MobileProfileHeader";
 import HiveProfileHeader from "./HiveProfileHeader";
@@ -45,6 +45,7 @@ interface ProfileHeaderProps {
   onLoadingChange: (loading: boolean) => void;
   onEditModalOpen: () => void;
   onUserbaseEditModalOpen?: () => void;
+  onActiveViewChange?: (view: ProfileView) => void;
   debugPayload?: Record<string, any> | null;
   // New props for identity awareness
   hasHiveProfile?: boolean;
@@ -67,6 +68,7 @@ const ProfileHeader = function ProfileHeader({
   onLoadingChange,
   onEditModalOpen,
   onUserbaseEditModalOpen,
+  onActiveViewChange,
   debugPayload,
   hasHiveProfile = true,
   hasUserbaseProfile = false,
@@ -101,6 +103,46 @@ const ProfileHeader = function ProfileHeader({
   }, [hasHive, hasSkate, hasFarcaster, hasZora]);
 
   const [activeView, setActiveView] = useState<ProfileView>(defaultView);
+  const manualViewRef = useRef(false);
+  const defaultViewRef = useRef(defaultView);
+
+  useEffect(() => {
+    defaultViewRef.current = defaultView;
+  }, [defaultView]);
+
+  const setView = useCallback((view: ProfileView) => {
+    manualViewRef.current = true;
+    setActiveView(view);
+  }, []);
+
+  useEffect(() => {
+    manualViewRef.current = false;
+    setActiveView(defaultViewRef.current);
+  }, [username]);
+
+  useEffect(() => {
+    const hasActive =
+      (activeView === "hive" && hasHive) ||
+      (activeView === "skate" && hasSkate) ||
+      (activeView === "zora" && hasZora) ||
+      (activeView === "farcaster" && hasFarcaster);
+    if (hasActive) {
+      return;
+    }
+    manualViewRef.current = false;
+    setActiveView(defaultView);
+  }, [activeView, hasHive, hasSkate, hasZora, hasFarcaster, defaultView]);
+
+  useEffect(() => {
+    if (manualViewRef.current) return;
+    if (activeView !== defaultView) {
+      setActiveView(defaultView);
+    }
+  }, [defaultView, activeView]);
+
+  useEffect(() => {
+    onActiveViewChange?.(activeView);
+  }, [activeView, onActiveViewChange]);
 
   const activeHeaderData =
     activeView === "skate"
@@ -116,6 +158,8 @@ const ProfileHeader = function ProfileHeader({
       : onEditModalOpen;
   const hiveEditHandler = onEditModalOpen;
   const canEdit = isOwner || !!isUserbaseOwner;
+  const canEditHive = isOwner || (!!isUserbaseOwner && hasHiveLinked);
+  const canEditSkate = !!isUserbaseOwner;
   const activeEditHandler =
     activeView === "skate" ? userbaseEditHandler : hiveEditHandler;
 
@@ -125,7 +169,8 @@ const ProfileHeader = function ProfileHeader({
       <MobileProfileHeader
         profileData={activeHeaderData}
         username={username}
-        isOwner={canEdit}
+        isOwner={isOwner}
+        canEdit={activeView === "skate" ? canEditSkate : canEditHive}
         user={user}
         isFollowing={isFollowing}
         isFollowLoading={isFollowLoading}
@@ -133,7 +178,7 @@ const ProfileHeader = function ProfileHeader({
         onLoadingChange={onLoadingChange}
         onEditModalOpen={activeEditHandler}
         showZoraProfile={activeView === "zora"}
-        onToggleProfile={(show) => setActiveView(show ? "zora" : "hive")}
+        onToggleProfile={(show) => setView(show ? "zora" : "hive")}
         cachedZoraData={null}
         zoraLoading={false}
         zoraError={null}
@@ -150,7 +195,7 @@ const ProfileHeader = function ProfileHeader({
               <SkateProfileHeader
                 profileData={skateHeaderData}
                 username={username}
-                isOwner={canEdit}
+                isOwner={canEditSkate}
                 onEditModalOpen={userbaseEditHandler}
               />
             </Box>
@@ -172,7 +217,8 @@ const ProfileHeader = function ProfileHeader({
               <HiveProfileHeader
                 profileData={hiveHeaderData}
                 username={username}
-                isOwner={canEdit}
+                isOwner={isOwner}
+                canEdit={canEditHive}
                 user={user}
                 isFollowing={isFollowing}
                 isFollowLoading={isFollowLoading}
@@ -202,7 +248,7 @@ const ProfileHeader = function ProfileHeader({
                 <Tooltip label="Skatehive Account" placement="top">
                   <Box
                     cursor="pointer"
-                    onClick={() => setActiveView("skate")}
+                    onClick={() => setView("skate")}
                     p={1.5}
                     borderRadius="none"
                     bg={activeView === "skate" ? "primary" : "whiteAlpha.200"}
@@ -231,7 +277,7 @@ const ProfileHeader = function ProfileHeader({
                 <Tooltip label="Hive Profile" placement="top">
                   <Box
                     cursor="pointer"
-                    onClick={() => setActiveView("hive")}
+                    onClick={() => setView("hive")}
                     p={1.5}
                     borderRadius="none"
                     bg={activeView === "hive" ? "primary" : "whiteAlpha.200"}
@@ -260,7 +306,7 @@ const ProfileHeader = function ProfileHeader({
                 <Tooltip label="Zora Profile" placement="top">
                   <Box
                     cursor="pointer"
-                    onClick={() => setActiveView("zora")}
+                    onClick={() => setView("zora")}
                     p={1.5}
                     borderRadius="none"
                     bg={activeView === "zora" ? "primary" : "whiteAlpha.200"}
@@ -289,7 +335,7 @@ const ProfileHeader = function ProfileHeader({
                 <Tooltip label="Farcaster Profile" placement="top">
                   <Box
                     cursor="pointer"
-                    onClick={() => setActiveView("farcaster")}
+                    onClick={() => setView("farcaster")}
                     p={1.5}
                     borderRadius="none"
                     bg={activeView === "farcaster" ? "purple.500" : "whiteAlpha.200"}
