@@ -428,6 +428,9 @@ export const en = {
     inviteSentSuccess: 'Invite sent successfully!',
     inviteFailedRetry: 'Failed to send invite. Try again or contact support.',
     unknownError: 'Unknown error occurred.',
+    needHiveAccount: 'You need a Hive account to invite users to Hive',
+    spreadTheWord: 'Spread the Skatehive Word',
+    shareDescription: 'Share the love for skateboarding and Web3 with your friends!',
   },
   blog: {
     scanningGoat: 'Scanning for GOAT posts...',
