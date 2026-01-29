@@ -457,6 +457,9 @@ export const ptBR = {
     inviteSentSuccess: 'Convite enviado com sucesso!',
     inviteFailedRetry: 'Falha ao enviar convite. Tente novamente ou entre em contato com o suporte.',
     unknownError: 'Ocorreu um erro desconhecido.',
+    needHiveAccount: 'Você precisa de uma conta Hive para convidar usuários para o Hive',
+    spreadTheWord: 'Espalhe a Palavra do Skatehive',
+    shareDescription: 'Compartilhe o amor pelo skate e pela Web3 com seus amigos!',
   },
   blog: {
     scanningGoat: 'Procurando posts GOAT...',

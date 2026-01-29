@@ -33,6 +33,7 @@ import * as dhive from "@hiveio/dhive";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import { useKeychainSDK } from "@/hooks/useKeychainSDK";
 import { useTranslations } from "@/contexts/LocaleContext";
+import SocialShareButtons from "@/components/invite/SocialShareButtons";
 
 const randomLanguages = [
   { code: "EN", label: "English" },
@@ -297,16 +298,7 @@ export default function InvitePage() {
     }
   };
 
-  if (!user) {
-    return (
-      <Flex align="center" justify="center" h="100vh" direction="column">
-        <Heading color="red.400" mb={4}>
-          {t('invite.needLogin')}
-        </Heading>
-        <Text color="gray.400">{t('invite.pleaseLoginRetry')}</Text>
-      </Flex>
-    );
-  }
+  // No early return for !user anymore. We want to show the share section even if not logged in.
 
   return (
     <Box p={8} maxW="container.md" mx="auto" bg="background">
@@ -315,231 +307,260 @@ export default function InvitePage() {
           {t('invite.title')}
         </Heading>
 
-        {/* Account Creation Method Toggle - MOVED UP */}
-        <Box p={4} bg="panel" border="1px solid" borderColor="border">
-          <Text fontWeight="bold" color="text" mb={3}>
-            {t('invite.chooseMethod')}
-          </Text>
-          <Flex align="center" gap={3}>
-            <Switch
-              isChecked={useAccountToken}
-              onChange={() => setUseAccountToken(!useAccountToken)}
-              colorScheme="green"
-            />
-            <Text fontSize="md" color="primary" fontWeight="bold">
-              {useAccountToken ? t('invite.usingACT') : t('invite.paying3Hive')}
+        {/* Spread the Word Section - Always visible */}
+        <Box p={6} bg="panel" border="1px solid" borderColor="border" borderRadius="md" textAlign="center">
+          <VStack spacing={4}>
+            <Heading size="md" color="secondary">
+              {t('invite.spreadTheWord')}
+            </Heading>
+            <Text color="text">
+              {t('invite.shareDescription')}
             </Text>
-          </Flex>
-        </Box>
-
-        {/* ACT Balance Display - Only shown when using ACT */}
-        {useAccountToken && (
-          <>
-            {isAccountLoading ? (
-              <Flex align="center" p={4} bg="panel" border="1px solid" borderColor="border">
-                <Spinner size="sm" mr={2} color="primary" /> 
-                <Text color="text">{t('invite.loadingACT')}</Text>
-              </Flex>
-            ) : (
-              <Box p={4} bg="panel" border="1px solid" borderColor="border">
-                <Text fontWeight="bold" color="primary" fontSize="lg">
-                  {t('invite.actBalance')}:{" "}
-                  {hiveAccount?.pending_claimed_accounts ?? 0}
-                </Text>
-                {Number(hiveAccount?.pending_claimed_accounts ?? 0) === 0 && (
-                  <Text color="error" fontSize="sm" mt={2}>
-                    {t('invite.noACTs')}
-                  </Text>
-                )}
-              </Box>
-            )}
-
-            {/* Info Box */}
-            <Box bg="panel" p={4} border="1px solid" borderColor="border">
-              <Text fontSize="sm" color="text" mb={3}>
-                <b>{t('invite.whatAreACTs')}</b>
-                <br />
-                {t('invite.actsDescription')}
-              </Text>
-              <Accordion allowToggle>
-                <AccordionItem border="none">
-                  <AccordionButton px={0} _hover={{ bg: "panelHover" }}>
-                    <Box
-                      as="span"
-                      flex="1"
-                      textAlign="left"
-                      color="secondary"
-                      fontSize="sm"
-                      fontWeight="bold"
-                    >
-                      {t('invite.moreInfoACTs')}
-                    </Box>
-                    <AccordionIcon color="secondary" />
-                  </AccordionButton>
-                  <AccordionPanel pb={2} color="text" fontSize="sm">
-                    {t('invite.actsRuleOfThumb')}
-                  </AccordionPanel>
-                </AccordionItem>
-              </Accordion>
-            </Box>
-          </>
-        )}
-
-
-        {/* Form Inputs */}
-        <Box p={4} bg="panel" border="1px solid" borderColor="border">
-          <VStack spacing={4} align="stretch">
-            <FormControl>
-              <Text fontWeight="bold" color="text" mb={2}>
-                {t('invite.friendsUsername')}
-              </Text>
-              <InputGroup>
-                <Input
-                  type="text"
-                  placeholder={t('invite.friendsUsername')}
-                  value={desiredUsername}
-                  onChange={(e) => setDesiredUsername(e.target.value)}
-                  bg="inputBg"
-                  color="inputText"
-                  borderColor={isCheckedOnce ? (accountAvailable ? "success" : "error") : "inputBorder"}
-                  _placeholder={{ color: "inputPlaceholder" }}
-                  _hover={{ borderColor: "primary" }}
-                  _focus={{ borderColor: "primary", boxShadow: "none" }}
-                />
-                <InputRightElement>
-                  {isCheckingUsername ? (
-                    <Spinner size="sm" color="primary" />
-                  ) : isCheckedOnce && desiredUsername ? (
-                    accountAvailable ? (
-                      <Icon as={FaCheck} color="success" boxSize={5} />
-                    ) : (
-                      <Icon as={FaTimes} color="error" boxSize={5} />
-                    )
-                  ) : null}
-                </InputRightElement>
-              </InputGroup>
-              {isCheckedOnce && !accountAvailable && accountInvalid && (
-                <Text color="error" fontSize="sm" mt={1}>
-                  {accountInvalid}
-                </Text>
-              )}
-              {isCheckedOnce && accountAvailable && (
-                <Text color="success" fontSize="sm" mt={1}>
-                  {t('invite.usernameAvailable')}
-                </Text>
-              )}
-            </FormControl>
-
-            <FormControl isInvalid={emailError !== null && desiredEmail !== ""}>
-              <Text fontWeight="bold" color="text" mb={2}>
-                {t('invite.friendsEmail')}
-              </Text>
-              <InputGroup>
-                <Input
-                  type="email"
-                  placeholder={t('invite.friendsEmail')}
-                  value={desiredEmail}
-                  onChange={(e) => setDesiredEmail(e.target.value)}
-                  bg="inputBg"
-                  color="inputText"
-                  borderColor={emailError && desiredEmail ? "error" : "inputBorder"}
-                  _placeholder={{ color: "inputPlaceholder" }}
-                  _hover={{ borderColor: "primary" }}
-                  _focus={{ borderColor: "primary", boxShadow: "none" }}
-                />
-                <InputRightElement>
-                  {desiredEmail && !emailError && (
-                    <Icon as={FaCheck} color="success" boxSize={5} />
-                  )}
-                  {desiredEmail && emailError && (
-                    <Icon as={FaTimes} color="error" boxSize={5} />
-                  )}
-                </InputRightElement>
-              </InputGroup>
-              {emailError && desiredEmail && (
-                <Text color="error" fontSize="sm" mt={1}>
-                  {emailError}
-                </Text>
-              )}
-              {desiredEmail && !emailError && (
-                <Text color="success" fontSize="sm" mt={1}>
-                  {t('invite.validEmail')}
-                </Text>
-              )}
-            </FormControl>
-
-            <FormControl>
-              <Text fontWeight="bold" color="text" mb={2}>
-                {t('invite.chooseLanguage')}
-              </Text>
-              <Select
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
-                bg="inputBg"
-                color="inputText"
-                borderColor="inputBorder"
-                _hover={{ borderColor: "primary" }}
-                _focus={{ borderColor: "primary", boxShadow: "none" }}
-              >
-                {randomLanguages.map((lang) => (
-                  <option key={lang.code} value={lang.code}>
-                    {lang.label}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
+            <SocialShareButtons />
           </VStack>
         </Box>
 
-        {/* Create Account Button */}
-        <Button
-          bg="success"
-          color="background"
-          _hover={{ bg: "primary" }}
-          onClick={handleCreateAccount}
-          isLoading={loading}
-          isDisabled={!areKeysDownloaded || !desiredEmail || emailError !== null || !accountAvailable}
-          size="lg"
-        >
-          {t('invite.createButton')}
-        </Button>
+        {/* Invite Form Section - Conditionall visible */}
+        <Box border="1px solid" borderColor="border" p={0.5} borderRadius="md" />
 
-        {/* Success Message */}
-        {broadcastSuccess && (
-          <Box
-            border="2px solid"
-            borderColor="success"
-            p={5}
-            bg="panel"
-          >
-            <Text
-              fontSize="14px"
-              whiteSpace="pre"
-              color="success"
-              textAlign="center"
-            >
-              {broadcastMessage}
+        {!user || (!hiveAccount && !isAccountLoading) ? (
+          <Flex align="center" justify="center" p={8} direction="column" bg="panel" border="1px solid" borderColor="border" borderRadius="md">
+            <Heading size="md" color="error" mb={4} textAlign="center">
+              {t('invite.needHiveAccount')}
+            </Heading>
+            <Text color="gray.400" textAlign="center">
+              {!user ? t('invite.pleaseLoginRetry') : "Please log in with your Hive account to access the invite tool."}
             </Text>
-          </Box>
-        )}
+          </Flex>
+        ) : (
+          <VStack spacing={6} align="stretch">
+            {/* Account Creation Method Toggle */}
+            <Box p={4} bg="panel" border="1px solid" borderColor="border">
+              <Text fontWeight="bold" color="text" mb={3}>
+                {t('invite.chooseMethod')}
+              </Text>
+              <Flex align="center" gap={3}>
+                <Switch
+                  isChecked={useAccountToken}
+                  onChange={() => setUseAccountToken(!useAccountToken)}
+                  colorScheme="green"
+                />
+                <Text fontSize="md" color="primary" fontWeight="bold">
+                  {useAccountToken ? t('invite.usingACT') : t('invite.paying3Hive')}
+                </Text>
+              </Flex>
+            </Box>
 
-        {/* Error Message */}
-        {broadcastError && (
-          <Box
-            border="2px solid"
-            borderColor="error"
-            p={5}
-            bg="panel"
-          >
-            <Text
-              fontSize="14px"
-              whiteSpace="pre"
-              color="error"
-              textAlign="center"
+            {/* ACT Balance Display - Only shown when using ACT */}
+            {useAccountToken && (
+              <>
+                {isAccountLoading ? (
+                  <Flex align="center" p={4} bg="panel" border="1px solid" borderColor="border">
+                    <Spinner size="sm" mr={2} color="primary" />
+                    <Text color="text">{t('invite.loadingACT')}</Text>
+                  </Flex>
+                ) : (
+                  <Box p={4} bg="panel" border="1px solid" borderColor="border">
+                    <Text fontWeight="bold" color="primary" fontSize="lg">
+                      {t('invite.actBalance')}:{" "}
+                      {hiveAccount?.pending_claimed_accounts ?? 0}
+                    </Text>
+                    {Number(hiveAccount?.pending_claimed_accounts ?? 0) === 0 && (
+                      <Text color="error" fontSize="sm" mt={2}>
+                        {t('invite.noACTs')}
+                      </Text>
+                    )}
+                  </Box>
+                )}
+
+                {/* Info Box */}
+                <Box bg="panel" p={4} border="1px solid" borderColor="border">
+                  <Text fontSize="sm" color="text" mb={3}>
+                    <b>{t('invite.whatAreACTs')}</b>
+                    <br />
+                    {t('invite.actsDescription')}
+                  </Text>
+                  <Accordion allowToggle>
+                    <AccordionItem border="none">
+                      <AccordionButton px={0} _hover={{ bg: "panelHover" }}>
+                        <Box
+                          as="span"
+                          flex="1"
+                          textAlign="left"
+                          color="secondary"
+                          fontSize="sm"
+                          fontWeight="bold"
+                        >
+                          {t('invite.moreInfoACTs')}
+                        </Box>
+                        <AccordionIcon color="secondary" />
+                      </AccordionButton>
+                      <AccordionPanel pb={2} color="text" fontSize="sm">
+                        {t('invite.actsRuleOfThumb')}
+                      </AccordionPanel>
+                    </AccordionItem>
+                  </Accordion>
+                </Box>
+              </>
+            )}
+
+
+            {/* Form Inputs */}
+            <Box p={4} bg="panel" border="1px solid" borderColor="border">
+              <VStack spacing={4} align="stretch">
+                <FormControl>
+                  <Text fontWeight="bold" color="text" mb={2}>
+                    {t('invite.friendsUsername')}
+                  </Text>
+                  <InputGroup>
+                    <Input
+                      type="text"
+                      placeholder={t('invite.friendsUsername')}
+                      value={desiredUsername}
+                      onChange={(e) => setDesiredUsername(e.target.value)}
+                      bg="inputBg"
+                      color="inputText"
+                      borderColor={isCheckedOnce ? (accountAvailable ? "success" : "error") : "inputBorder"}
+                      _placeholder={{ color: "inputPlaceholder" }}
+                      _hover={{ borderColor: "primary" }}
+                      _focus={{ borderColor: "primary", boxShadow: "none" }}
+                    />
+                    <InputRightElement>
+                      {isCheckingUsername ? (
+                        <Spinner size="sm" color="primary" />
+                      ) : isCheckedOnce && desiredUsername ? (
+                        accountAvailable ? (
+                          <Icon as={FaCheck} color="success" boxSize={5} />
+                        ) : (
+                          <Icon as={FaTimes} color="error" boxSize={5} />
+                        )
+                      ) : null}
+                    </InputRightElement>
+                  </InputGroup>
+                  {isCheckedOnce && !accountAvailable && accountInvalid && (
+                    <Text color="error" fontSize="sm" mt={1}>
+                      {accountInvalid}
+                    </Text>
+                  )}
+                  {isCheckedOnce && accountAvailable && (
+                    <Text color="success" fontSize="sm" mt={1}>
+                      {t('invite.usernameAvailable')}
+                    </Text>
+                  )}
+                </FormControl>
+
+                <FormControl isInvalid={emailError !== null && desiredEmail !== ""}>
+                  <Text fontWeight="bold" color="text" mb={2}>
+                    {t('invite.friendsEmail')}
+                  </Text>
+                  <InputGroup>
+                    <Input
+                      type="email"
+                      placeholder={t('invite.friendsEmail')}
+                      value={desiredEmail}
+                      onChange={(e) => setDesiredEmail(e.target.value)}
+                      bg="inputBg"
+                      color="inputText"
+                      borderColor={emailError && desiredEmail ? "error" : "inputBorder"}
+                      _placeholder={{ color: "inputPlaceholder" }}
+                      _hover={{ borderColor: "primary" }}
+                      _focus={{ borderColor: "primary", boxShadow: "none" }}
+                    />
+                    <InputRightElement>
+                      {desiredEmail && !emailError && (
+                        <Icon as={FaCheck} color="success" boxSize={5} />
+                      )}
+                      {desiredEmail && emailError && (
+                        <Icon as={FaTimes} color="error" boxSize={5} />
+                      )}
+                    </InputRightElement>
+                  </InputGroup>
+                  {emailError && desiredEmail && (
+                    <Text color="error" fontSize="sm" mt={1}>
+                      {emailError}
+                    </Text>
+                  )}
+                  {desiredEmail && !emailError && (
+                    <Text color="success" fontSize="sm" mt={1}>
+                      {t('invite.validEmail')}
+                    </Text>
+                  )}
+                </FormControl>
+
+                <FormControl>
+                  <Text fontWeight="bold" color="text" mb={2}>
+                    {t('invite.chooseLanguage')}
+                  </Text>
+                  <Select
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                    bg="inputBg"
+                    color="inputText"
+                    borderColor="inputBorder"
+                    _hover={{ borderColor: "primary" }}
+                    _focus={{ borderColor: "primary", boxShadow: "none" }}
+                  >
+                    {randomLanguages.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.label}
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
+              </VStack>
+            </Box>
+
+            {/* Create Account Button */}
+            <Button
+              bg="success"
+              color="background"
+              _hover={{ bg: "primary" }}
+              onClick={handleCreateAccount}
+              isLoading={loading}
+              isDisabled={!areKeysDownloaded || !desiredEmail || emailError !== null || !accountAvailable}
+              size="lg"
             >
-              {broadcastError}
-            </Text>
-          </Box>
+              {t('invite.createButton')}
+            </Button>
+
+            {/* Success Message */}
+            {broadcastSuccess && (
+              <Box
+                border="2px solid"
+                borderColor="success"
+                p={5}
+                bg="panel"
+              >
+                <Text
+                  fontSize="14px"
+                  whiteSpace="pre"
+                  color="success"
+                  textAlign="center"
+                >
+                  {broadcastMessage}
+                </Text>
+              </Box>
+            )}
+
+            {/* Error Message */}
+            {broadcastError && (
+              <Box
+                border="2px solid"
+                borderColor="error"
+                p={5}
+                bg="panel"
+              >
+                <Text
+                  fontSize="14px"
+                  whiteSpace="pre"
+                  color="error"
+                  textAlign="center"
+                >
+                  {broadcastError}
+                </Text>
+              </Box>
+            )}
+          </VStack>
         )}
       </VStack>
     </Box>
