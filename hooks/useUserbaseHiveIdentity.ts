@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 
 interface UserbaseIdentity {
@@ -18,6 +18,8 @@ export default function useUserbaseHiveIdentity() {
   const { user, identitiesVersion } = useUserbaseAuth();
   const [identity, setIdentity] = useState<UserbaseIdentity | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const lastVersionRef = useRef<number>(identitiesVersion);
+  const pendingRef = useRef<Promise<void> | null>(null);
 
   const refresh = useCallback(async () => {
     if (!user) {
@@ -44,10 +46,23 @@ export default function useUserbaseHiveIdentity() {
       setIsLoading(false);
     }
   }, [user]);
-
   useEffect(() => {
-    refresh();
-  }, [refresh, identitiesVersion]);
+    if (!user) {
+      setIdentity(null);
+      return;
+    }
+    if (identitiesVersion === lastVersionRef.current && pendingRef.current) {
+      return;
+    }
+    lastVersionRef.current = identitiesVersion;
+    const promise = refresh();
+    pendingRef.current = promise;
+    promise.finally(() => {
+      if (pendingRef.current === promise) {
+        pendingRef.current = null;
+      }
+    });
+  }, [refresh, identitiesVersion, user]);
 
   return { identity, isLoading, refresh };
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import HiveClient from "@/lib/hive/hiveclient";
 import { ExtendedAccount } from "@hiveio/dhive";
 
@@ -12,15 +12,23 @@ export default function useHivePower(username: string) {
   const [account, setAccount] = useState<ExtendedAccount | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const normalizedUsername = useMemo(
+    () => (username?.trim().toLowerCase() ?? ""),
+    [username]
+  );
+  const lastUsernameRef = useRef<string | null>(null);
+  const pendingFetchRef = useRef<Promise<void> | null>(null);
 
-    useEffect(() => {
+  useEffect(() => {
     async function fetchAccountAndHP() {
-      if (!username) return;
+      if (!normalizedUsername) return;
       
       setIsLoading(true);
       setError(null);
       try {
-        const accounts = await HiveClient.database.getAccounts([username]);
+        const accounts = await HiveClient.database.getAccounts([
+          normalizedUsername,
+        ]);
         
         if (!accounts || !accounts[0]) {
           throw new Error("Account not found");
@@ -43,17 +51,41 @@ export default function useHivePower(username: string) {
         const delegatedVestingShares = parseFloat(String(acc.delegated_vesting_shares).split(" ")[0]);
         const userVests = vestingShares + receivedVestingShares - delegatedVestingShares;
         const hp = (totalVestingFund * userVests) / totalVestingShares;
-        setHivePower(hp);
+        if (lastUsernameRef.current === normalizedUsername) {
+          setHivePower(hp);
+        }
       } catch (e: any) {
         console.error("❌ useHivePower: Error fetching account/HP:", e);
         setError(e.message || "Error fetching Hive Power");
-        setHivePower(null);
+        if (lastUsernameRef.current === normalizedUsername) {
+          setHivePower(null);
+        }
       } finally {
         setIsLoading(false);
       }
     }
-    
-    fetchAccountAndHP();
+    if (!normalizedUsername) {
+      setAccount(null);
+      setHivePower(null);
+      lastUsernameRef.current = null;
+      return;
+    }
+
+    if (
+      lastUsernameRef.current === normalizedUsername &&
+      !pendingFetchRef.current
+    ) {
+      return;
+    }
+
+    lastUsernameRef.current = normalizedUsername;
+    const fetchPromise = fetchAccountAndHP();
+    pendingFetchRef.current = fetchPromise;
+    fetchPromise.finally(() => {
+      if (pendingFetchRef.current === fetchPromise) {
+        pendingFetchRef.current = null;
+      }
+    });
   }, [username]);
 
   /**
@@ -118,7 +150,7 @@ export default function useHivePower(username: string) {
         return 0;
       }
     },
-    [account, username]
+    [account, normalizedUsername]
   );
 
   return { hivePower, isLoading, error, estimateVoteValue };
