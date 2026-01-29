@@ -1,19 +1,13 @@
 "use client";
 import React, { memo, useState, useEffect } from "react";
-import {
-  Box,
-  Text,
-  Flex,
-  Avatar,
-  IconButton,
-  VStack,
-  HStack,
-  Tooltip,
-} from "@chakra-ui/react";
+import { IconButton, HStack, Text, Box } from "@chakra-ui/react";
 import { FaEdit } from "react-icons/fa";
 import FollowButton from "./FollowButton";
 import PowerBars from "./PowerBars";
 import { ProfileData } from "./ProfilePage";
+import ProfileHeaderWrapper from "./ProfileHeaderWrapper";
+import IdentityBlock from "./IdentityBlock";
+import ActionsCluster from "./ActionsCluster";
 
 interface HiveProfileHeaderProps {
   profileData: ProfileData;
@@ -47,126 +41,84 @@ const HiveProfileHeader = function HiveProfileHeader({
     if (profileData.profileImage && !avatarLoaded) {
       const img = new Image();
       img.onload = () => setAvatarLoaded(true);
-      img.onerror = () => setAvatarLoaded(true); // Still set to true to prevent infinite loading
+      img.onerror = () => setAvatarLoaded(true);
       img.src = profileData.profileImage;
     }
   }, [profileData.profileImage, avatarLoaded]);
-  return (
-    <Flex
-      direction="row"
-      align="center"
-      justify="space-between"
-      w="100%"
-      gap={6}
-      minH="100px"
-    >
-      {/* Left Section: Avatar + Basic Info */}
-      <Flex
-        direction="row"
-        align="flex-start"
-        gap={4}
-        flexBasis="60%"
-        maxW="60%"
-      >
-        <Avatar
-          src={profileData.profileImage}
-          name={username}
-          borderRadius="lg"
-          boxSize="100px"
-          border="2px solid"
-          borderColor="primary"
-        />
 
-        <VStack align="flex-start" spacing={0} flex="1">
-          <HStack>
-            <Text
-              fontSize="sm"
-              color="gray.400"
-              fontWeight="medium"
-              isTruncated
-              w="100%"
-            >
-              {profileData.about ? (
-                <Tooltip
-                  label={profileData.about}
-                  placement="top"
-                  bg="gray.800"
-                  color="white"
-                  fontSize="sm"
-                  borderRadius="none"
-                  px={3}
-                  py={2}
-                  maxW="300px"
-                  textAlign="center"
-                >
-                  <Text as="span" cursor="help" _hover={{ color: "primary" }}>
-                    @{username}
-                  </Text>
-                </Tooltip>
-              ) : (
-                <>@{username}</>
-              )}
-            </Text>
-            {(canEdit ?? isOwner) && (
+  // Stats row for follower counts and power bars
+  const statsRow = (
+    <Box>
+      <HStack spacing={6} fontSize="sm" mb={3}>
+        <Text color="white" whiteSpace="nowrap" textShadow="0 2px 4px rgba(0,0,0,0.9)">
+          <Text as="span" fontWeight="bold" color="primary" fontSize="lg">
+            {profileData.following}
+          </Text>{" "}
+          Following
+        </Text>
+        <Text color="white" whiteSpace="nowrap" textShadow="0 2px 4px rgba(0,0,0,0.9)">
+          <Text as="span" fontWeight="bold" color="primary" fontSize="lg">
+            {profileData.followers}
+          </Text>{" "}
+          Followers
+        </Text>
+      </HStack>
+
+      {profileData.vp_percent && profileData.rc_percent && (
+        <PowerBars
+          vpPercent={profileData.vp_percent}
+          rcPercent={profileData.rc_percent}
+          username={username}
+          height={200}
+          width={12}
+        />
+      )}
+    </Box>
+  );
+
+  return (
+    <ProfileHeaderWrapper
+      coverImage={profileData.coverImage}
+      username={username}
+      identity={
+        <IdentityBlock
+          avatar={profileData.profileImage}
+          displayName={profileData.name || username}
+          handle={`@${username}`}
+          bio={profileData.about}
+        />
+      }
+      actions={
+        <ActionsCluster
+          primaryActions={[
+            (canEdit ?? isOwner) && (
               <IconButton
+                key="edit"
                 aria-label="Edit Profile"
                 icon={<FaEdit />}
                 size="md"
-                variant="ghost"
+                variant="solid"
                 colorScheme="primary"
                 onClick={onEditModalOpen}
+                boxShadow="0 2px 8px rgba(0,0,0,0.3)"
               />
-            )}
-          </HStack>
-
-          {/* Compact Stats */}
-          <HStack spacing={3} fontSize="sm">
-            <Text color="text" whiteSpace="nowrap">
-              <Text as="span" fontWeight="bold" color="primary">
-                {profileData.following}
-              </Text>{" "}
-              Following
-            </Text>
-            <Text color="text" whiteSpace="nowrap">
-              <Text as="span" fontWeight="bold" color="primary">
-                {profileData.followers}
-              </Text>{" "}
-              Followers
-            </Text>
-          </HStack>
-
-          {/* Vote Power Bar - Left Aligned */}
-          {profileData.vp_percent && profileData.rc_percent && (
-            <Box w="100%" mt={2}>
-              <PowerBars
-                vpPercent={profileData.vp_percent}
-                rcPercent={profileData.rc_percent}
+            ),
+            !isOwner && user && (
+              <FollowButton
+                key="follow"
+                user={user}
                 username={username}
-                height={250}
-                width={18}
+                isFollowing={isFollowing}
+                isFollowLoading={isFollowLoading}
+                onFollowingChange={onFollowingChange}
+                onLoadingChange={onLoadingChange}
               />
-            </Box>
-          )}
-        </VStack>
-      </Flex>
-
-      {/* Right Section: Actions + Market Cap */}
-      <VStack align="flex-end" spacing={3} flexBasis="40%" maxW="40%">
-        {/* Action Buttons */}
-        <HStack spacing={2}>
-          {!isOwner && user && (
-            <FollowButton
-              user={user}
-              username={username}
-              isFollowing={isFollowing}
-              isFollowLoading={isFollowLoading}
-              onFollowingChange={onFollowingChange}
-              onLoadingChange={onLoadingChange}
-            />
-          )}
-        </HStack>
-      </VStack>
-    </Flex>
+            ),
+          ].filter(Boolean)}
+        />
+      }
+      stats={statsRow}
+    />
   );
 };
 

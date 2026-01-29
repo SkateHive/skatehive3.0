@@ -17,7 +17,7 @@ export default function AccountLinkingDetector() {
   const { user: hiveUser } = useAioha();
   const { address: evmAddress, isConnected: isEvmConnected } = useAccount();
   const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } = useFarcasterSession();
-  const { hasUnlinkedOpportunities, opportunities, refresh } = useAccountLinkingOpportunities();
+  const { hasUnlinkedOpportunities, opportunities, refresh, isLoading } = useAccountLinkingOpportunities();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hasShownForSession, setHasShownForSession] = useState(false);
@@ -153,6 +153,9 @@ export default function AccountLinkingDetector() {
     <AccountLinkingModal
       isOpen={isModalOpen}
       onClose={handleClose}
+      opportunities={opportunities}
+      isLoading={isLoading}
+      onRefresh={refresh}
     />
   );
 }

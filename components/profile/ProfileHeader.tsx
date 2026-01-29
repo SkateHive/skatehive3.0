@@ -47,6 +47,7 @@ interface ProfileHeaderProps {
   onEditModalOpen: () => void;
   onUserbaseEditModalOpen?: () => void;
   onActiveViewChange?: (view: ProfileView) => void;
+  onContentViewChange?: (view: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens") => void;
   debugPayload?: Record<string, any> | null;
   hasHiveProfile?: boolean;
   hasUserbaseProfile?: boolean;
@@ -68,6 +69,7 @@ const ProfileHeader = function ProfileHeader({
   onEditModalOpen,
   onUserbaseEditModalOpen,
   onActiveViewChange,
+  onContentViewChange,
   debugPayload,
   hasHiveProfile = true,
   hasUserbaseProfile = false,
@@ -308,7 +310,10 @@ const ProfileHeader = function ProfileHeader({
                 <Tooltip label="Zora Profile" placement="top">
                   <Box
                     cursor="pointer"
-                    onClick={() => setView("zora")}
+                    onClick={() => {
+                      setView("zora");
+                      onContentViewChange?.("tokens");
+                    }}
                     p={1.5}
                     borderRadius="none"
                     bg={activeView === "zora" ? "primary" : "whiteAlpha.200"}
