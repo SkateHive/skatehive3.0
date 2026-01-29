@@ -59,7 +59,17 @@ export default function ProfileHeaderWrapper({
               left={0}
               w="100%"
               h="100%"
-              bg="linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)"
+              bgGradient="linear(135deg, #0a0a0a 0%, #1a1a1a 25%, #2d2d2d 50%, #1a1a1a 75%, #0a0a0a 100%)"
+              _before={{
+                content: '""',
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                bgGradient: "radial(circle at 30% 50%, rgba(138, 180, 248, 0.1) 0%, transparent 50%)",
+                pointerEvents: "none",
+              }}
             />
           }
         />
