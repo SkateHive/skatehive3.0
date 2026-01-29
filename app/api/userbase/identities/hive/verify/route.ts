@@ -5,6 +5,7 @@ import { PublicKey, Signature, cryptoUtils } from "@hiveio/dhive";
 import { isAddress } from "ethers";
 import fetchAccount from "@/lib/hive/fetchAccount";
 import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
+import { fetchFarcasterProfileByFid } from "@/lib/farcaster/neynar";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -360,9 +361,18 @@ export async function POST(request: NextRequest) {
   const farcaster = extensions.farcaster || {};
 
   const addresses = new Set<string>();
+
+  // Add eth_address (legacy, highest priority for display)
+  if (extensions.eth_address && isAddress(extensions.eth_address)) {
+    addresses.add(extensions.eth_address.toLowerCase());
+  }
+
+  // Add primary_wallet (if different from eth_address)
   if (wallets.primary_wallet && isAddress(wallets.primary_wallet)) {
     addresses.add(wallets.primary_wallet.toLowerCase());
   }
+
+  // Add additional wallets
   if (Array.isArray(wallets.additional)) {
     wallets.additional.forEach((addr: string) => {
       if (isAddress(addr)) {
@@ -382,28 +392,66 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  for (const address of addresses) {
+  // Save EVM identities with proper metadata
+  const addressArray = Array.from(addresses);
+  const ethAddress = extensions.eth_address?.toLowerCase();
+
+  for (const address of addressArray) {
+    const metadata: Record<string, any> = { source: "hive" };
+
+    // Mark the eth_address as primary display wallet
+    if (address === ethAddress) {
+      metadata.is_eth_address = true;
+      metadata.display_priority = 1;
+    } else if (address === wallets.primary_wallet?.toLowerCase()) {
+      metadata.is_primary_wallet = true;
+      metadata.display_priority = 2;
+    } else {
+      metadata.display_priority = 3;
+    }
+
     await upsertIdentity({
       userId: session.userId,
       type: "evm",
       handle: null,
       address,
       externalId: null,
-      metadata: { source: "hive" },
+      metadata,
     });
   }
 
   if (farcaster.fid) {
+    // Fetch full Farcaster profile data from Neynar API to enrich metadata
+    const farcasterProfile = await fetchFarcasterProfileByFid(farcaster.fid);
+
+    const metadata: Record<string, any> = {
+      source: "hive",
+      verified_wallets: farcaster.verified_wallets || [],
+    };
+
+    // Add profile data if successfully fetched from Neynar
+    if (farcasterProfile) {
+      if (farcasterProfile.pfpUrl) {
+        metadata.pfp_url = farcasterProfile.pfpUrl;
+      }
+      if (farcasterProfile.displayName) {
+        metadata.display_name = farcasterProfile.displayName;
+      }
+      if (farcasterProfile.bio) {
+        metadata.bio = farcasterProfile.bio;
+      }
+      if (farcasterProfile.verifications && farcasterProfile.verifications.length > 0) {
+        metadata.verifications = farcasterProfile.verifications;
+      }
+    }
+
     await upsertIdentity({
       userId: session.userId,
       type: "farcaster",
-      handle: farcaster.username || null,
-      address: farcaster.custody_address || null,
+      handle: farcasterProfile?.username || farcaster.username || null,
+      address: farcasterProfile?.custodyAddress || farcaster.custody_address || null,
       externalId: String(farcaster.fid),
-      metadata: {
-        verified_wallets: farcaster.verified_wallets || [],
-        source: "hive",
-      },
+      metadata,
     });
   }
 

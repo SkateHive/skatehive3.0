@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
 
   const nonce = crypto.randomBytes(16).toString("hex");
   const issuedAt = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes
 
   const message = buildMessage({
     userId: session.userId,

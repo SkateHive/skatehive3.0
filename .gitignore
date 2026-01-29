@@ -46,3 +46,6 @@ node_modules/.cache
 # OS-specific files
 Thumbs.db
 
+# MCP config with API keys
+.vscode/mcp.json
+

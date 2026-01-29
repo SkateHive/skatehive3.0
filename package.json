@@ -18,8 +18,12 @@
     "db:inspect": "node scripts/database/inspect-schema.js",
     "db:smoke-userbase": "node scripts/database/smoke-userbase.js",
     "db:snapshot-userbase": "node scripts/database/snapshot-userbase.js",
+    "db:snapshot-username": "node scripts/database/snapshot-username.js",
+    "db:backfill-farcaster": "node scripts/database/backfill-farcaster-profiles.js",
+    "db:diagnose-evm": "node scripts/database/diagnose-evm-priorities.js",
+    "db:test-linking": "node scripts/database/test-linking-flow.js",
     "scripts": "node scripts/index.js",
-    "scripts:help": "echo 'Available scripts: db:inspect, db:smoke-userbase, db:snapshot-userbase, scripts'"
+    "scripts:help": "echo 'Available scripts: db:inspect, db:smoke-userbase, db:snapshot-userbase, db:snapshot-username, db:backfill-farcaster, scripts'"
   },
   "dependencies": {
     "@aioha/aioha": "^1.6.0",

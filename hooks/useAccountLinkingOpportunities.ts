@@ -53,14 +53,23 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
   const fetchIdentities = useCallback(async () => {
     if (!userbaseUser || !enabled) {
       setIdentities([]);
+      setIsLoading(false);
       return;
     }
-    
+
     setIsLoading(true);
     try {
+      // Add timeout to prevent infinite loading
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
       const response = await fetch("/api/userbase/identities", {
         cache: "no-store",
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+
       const data = await response.json();
       if (response.ok) {
         setIdentities(data?.identities || []);
@@ -68,13 +77,17 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
         console.error("Failed to fetch identities:", data);
         setIdentities([]);
       }
-    } catch (error) {
-      console.error("Failed to fetch identities", error);
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        console.warn('[AccountLinking] Identity fetch timed out after 10s');
+      } else {
+        console.error("Failed to fetch identities", error);
+      }
       setIdentities([]);
     } finally {
       setIsLoading(false);
     }
-  }, [userbaseUser]);
+  }, [userbaseUser, enabled]);
 
   useEffect(() => {
     if (!enabled || !userbaseUser) {

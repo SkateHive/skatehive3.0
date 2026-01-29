@@ -254,6 +254,7 @@ export default function UserbaseIdentityLinker({
             verifications: farcasterProfile?.verifications || [],
             pfp_url: farcasterProfile?.pfpUrl || null,
             display_name: farcasterProfile?.displayName || null,
+            bio: farcasterProfile?.bio || null,
           },
         }),
       });

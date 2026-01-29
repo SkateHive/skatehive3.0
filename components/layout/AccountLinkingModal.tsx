@@ -13,6 +13,7 @@ import {
   Badge,
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
+import { useRouter } from "next/navigation";
 import SkateModal from "@/components/shared/SkateModal";
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
@@ -122,6 +123,7 @@ interface AccountLinkingModalProps {
   opportunities?: LinkingOpportunity[];
   isLoading?: boolean;
   onRefresh?: () => Promise<void> | void;
+  skipPreview?: boolean; // Set true for faster linking without preview modal
 }
 
 export default function AccountLinkingModal({
@@ -132,26 +134,59 @@ export default function AccountLinkingModal({
   onRefresh,
 }: AccountLinkingModalProps) {
   const toast = useToast();
+  const router = useRouter();
   const { aioha, user: hiveUser } = useAioha();
   const { signMessageAsync } = useSignMessage();
   const { profile: farcasterProfile } = useFarcasterSession();
-  const { bumpIdentitiesVersion, refresh: refreshUserbase } = useUserbaseAuth();
+  const { bumpIdentitiesVersion, refresh: refreshUserbase, user: userbaseUser } = useUserbaseAuth();
   const refresh = useCallback(async () => {
     if (onRefresh) {
       await onRefresh();
     }
   }, [onRefresh]);
-  
+
   const [linkingType, setLinkingType] = useState<string | null>(null);
+  const [justLinked, setJustLinked] = useState(false);
 
   // Filter to only show unlinked opportunities
   const unlinkedOpportunities = opportunities.filter((o) => !o.alreadyLinked);
   const linkedOpportunities = opportunities.filter((o) => o.alreadyLinked);
 
+  // Auto-close modal when all opportunities are linked after a successful link operation
+  useEffect(() => {
+    if (justLinked && !isLoading && unlinkedOpportunities.length === 0) {
+      const timer = setTimeout(() => {
+        toast({
+          status: "success",
+          title: "all accounts linked",
+          description: "your identities have been successfully connected",
+          duration: 3000,
+        });
+        onClose();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [justLinked, isLoading, unlinkedOpportunities.length, onClose, toast]);
+
+  // Reset justLinked flag when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setJustLinked(false);
+    }
+  }, [isOpen]);
+
+  const routeAfterLink = useCallback((type: "hive" | "evm" | "farcaster", handle?: string) => {
+    const username = handle || userbaseUser?.handle || hiveUser;
+    if (!username) return;
+
+    const viewMode = type === "hive" ? "" : type === "evm" ? "?view=zora" : "?view=farcaster";
+    router.push(`/profile/${username}${viewMode}`);
+  }, [router, userbaseUser, hiveUser]);
+
   const linkHive = useCallback(async (handle: string) => {
     setLinkingType("hive");
     try {
-      // Get challenge
+      // Step 1: Get challenge and sign
       const challengeRes = await fetch("/api/userbase/identities/hive/challenge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -160,11 +195,13 @@ export default function AccountLinkingModal({
       const challengeData = await challengeRes.json();
       if (!challengeRes.ok) throw new Error(challengeData?.error || "Challenge failed");
 
-      // Sign with Aioha
       const signResult = await aioha.signMessage(challengeData.message, KeyTypes.Posting);
       if (!signResult?.success) throw new Error(signResult?.error || "Signing failed");
 
-      // Verify
+      // Step 2: Verify immediately (no preview modal)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const verifyRes = await fetch("/api/userbase/identities/hive/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,53 +210,91 @@ export default function AccountLinkingModal({
           signature: signResult.result,
           public_key: signResult.publicKey,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+
       const verifyData = await verifyRes.json();
 
+      // Step 3: Handle merge if needed
       if (!verifyRes.ok) {
-        // Check for merge required
         if (verifyRes.status === 409 && verifyData?.merge_required) {
+          // Show merge confirmation
           const shouldMerge = window.confirm(
-            `This Hive account is already linked to another user. Merge accounts?`
+            `@${handle} is already linked to another account. Merge accounts?\n\nThis will combine all identities into your current account.`
           );
-          if (shouldMerge) {
-            const mergeRes = await fetch("/api/userbase/merge", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                type: "hive",
-                identifier: handle,
-                source_user_id: verifyData.existing_user_id,
-                signature: signResult.result,
-                public_key: signResult.publicKey,
-              }),
-            });
-            if (!mergeRes.ok) {
-              const mergeData = await mergeRes.json();
-              throw new Error(mergeData?.error || "Merge failed");
-            }
-            toast({ status: "success", title: "accounts merged" });
-            await refreshUserbase();
+
+          if (!shouldMerge) {
+            throw new Error("Merge cancelled");
           }
+
+          const mergeRes = await fetch("/api/userbase/merge", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "hive",
+              identifier: handle,
+              source_user_id: verifyData.existing_user_id,
+              signature: signResult.result,
+              public_key: signResult.publicKey,
+            }),
+          });
+          if (!mergeRes.ok) {
+            const mergeData = await mergeRes.json();
+            throw new Error(mergeData?.error || "Merge failed");
+          }
+
+          toast({
+            status: "success",
+            title: "Accounts merged successfully!",
+            description: `@${handle} is now linked to your account`,
+            duration: 4000,
+          });
+          await refreshUserbase();
         } else {
           throw new Error(verifyData?.error || "Verification failed");
         }
       } else {
-        toast({ status: "success", title: `linked: @${handle}` });
+        // Success - show what was linked
+        const linkedCount = 1; // Hive account
+        const extraInfo = [];
+
+        if (verifyData.identity) {
+          extraInfo.push(`@${handle}`);
+        }
+
+        toast({
+          status: "success",
+          title: "Hive account linked!",
+          description: `@${handle} and related identities are now connected`,
+          duration: 4000,
+        });
       }
 
       bumpIdentitiesVersion();
       await refresh();
+      setJustLinked(true);
+
+      // Route to Hive profile
+      setTimeout(() => {
+        routeAfterLink("hive", handle);
+      }, 1000);
+
     } catch (error: any) {
+      const errorMessage = error?.name === 'AbortError'
+        ? 'Request timed out. Please try again.'
+        : error?.message || 'Unknown error';
+
       toast({
         status: "error",
         title: "linking failed",
-        description: error?.message,
+        description: errorMessage,
+        duration: 5000,
       });
     } finally {
       setLinkingType(null);
     }
-  }, [aioha, toast, bumpIdentitiesVersion, refresh, refreshUserbase]);
+  }, [aioha, toast, bumpIdentitiesVersion, refresh, refreshUserbase, routeAfterLink, router, userbaseUser, hiveUser]);
 
   const linkEvm = useCallback(async (address: string) => {
     setLinkingType("evm");
@@ -236,32 +311,55 @@ export default function AccountLinkingModal({
       // Sign with wallet
       const signature = await signMessageAsync({ message: challengeData.message });
 
-      // Verify
+      // Verify immediately
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const verifyRes = await fetch("/api/userbase/identities/evm/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address, signature }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+
       const verifyData = await verifyRes.json();
 
       if (!verifyRes.ok) {
         throw new Error(verifyData?.error || "Verification failed");
       }
 
-      toast({ status: "success", title: `linked: ${shortenAddress(address)}` });
+      toast({
+        status: "success",
+        title: "Wallet linked!",
+        description: `${shortenAddress(address)} is now connected`,
+        duration: 4000,
+      });
 
       bumpIdentitiesVersion();
       await refresh();
+      setJustLinked(true);
+
+      // Route to Zora profile
+      setTimeout(() => {
+        routeAfterLink("evm");
+      }, 1000);
+
     } catch (error: any) {
+      const errorMessage = error?.name === 'AbortError'
+        ? 'Request timed out. Please try again.'
+        : error?.message || 'Unknown error';
+
       toast({
         status: "error",
         title: "linking failed",
-        description: error?.message,
+        description: errorMessage,
+        duration: 5000,
       });
     } finally {
       setLinkingType(null);
     }
-  }, [signMessageAsync, toast, bumpIdentitiesVersion, refresh]);
+  }, [signMessageAsync, toast, bumpIdentitiesVersion, refresh, routeAfterLink]);
 
   const linkFarcaster = useCallback(async (
     handle: string | undefined,
@@ -270,6 +368,9 @@ export default function AccountLinkingModal({
     if (!externalId || !farcasterProfile) return;
     setLinkingType("farcaster");
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const res = await fetch("/api/userbase/identities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -282,29 +383,53 @@ export default function AccountLinkingModal({
             verifications: farcasterProfile.verifications || [],
             pfp_url: farcasterProfile.pfpUrl,
             display_name: farcasterProfile.displayName,
+            bio: farcasterProfile.bio,
           },
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+
       const data = await res.json();
 
       if (!res.ok) {
         throw new Error(data?.error || "Linking failed");
       }
 
-      toast({ status: "success", title: `linked: @${handle}` });
+      const displayHandle = handle || farcasterProfile.username;
+      const verifiedCount = farcasterProfile.verifications?.length || 0;
+
+      toast({
+        status: "success",
+        title: "Farcaster linked!",
+        description: `@${displayHandle}${verifiedCount > 0 ? ` with ${verifiedCount} verified wallet${verifiedCount !== 1 ? 's' : ''}` : ''} is now connected`,
+        duration: 4000,
+      });
 
       bumpIdentitiesVersion();
       await refresh();
+      setJustLinked(true);
+
+      // Route to Farcaster profile
+      setTimeout(() => {
+        routeAfterLink("farcaster", displayHandle);
+      }, 1000);
+
     } catch (error: any) {
+      const errorMessage = error?.name === 'AbortError'
+        ? 'Request timed out. Please try again.'
+        : error?.message || 'Unknown error';
+
       toast({
         status: "error",
         title: "linking failed",
-        description: error?.message,
+        description: errorMessage,
+        duration: 5000,
       });
     } finally {
       setLinkingType(null);
     }
-  }, [farcasterProfile, toast, bumpIdentitiesVersion, refresh, refreshUserbase]);
+  }, [farcasterProfile, toast, bumpIdentitiesVersion, refresh, routeAfterLink]);
 
   const handleLink = useCallback((opportunity: LinkingOpportunity) => {
     if (opportunity.type === "hive" && opportunity.handle) {

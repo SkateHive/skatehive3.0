@@ -229,8 +229,13 @@ export default function ConnectionModal({
 
   // Determine if user is logged in (any method)
   const isLoggedIn = !!user || !!userbaseUser;
-  const displayName = user || userbaseUser?.display_name || userbaseUser?.handle || "";
-  const avatarUrl = user 
+
+  // Priority: Hive username > Userbase display_name > Userbase handle
+  const displayName = user
+    ? user
+    : (userbaseUser?.display_name || userbaseUser?.handle || "");
+
+  const avatarUrl = user
     ? `https://images.hive.blog/u/${user}/avatar/small`
     : userbaseUser?.avatar_url || "/skatehive_square_green.png";
 
