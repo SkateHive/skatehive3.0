@@ -383,8 +383,8 @@ export default function AuthButton() {
           )
         ) : userbaseUser ? (
           <Text fontSize="sm" noOfLines={1}>
-            {userbaseUser.handle ||
-              userbaseUser.display_name ||
+            {userbaseUser.display_name||
+              userbaseUser.handle  ||
               "App account"}
           </Text>
         ) : (
