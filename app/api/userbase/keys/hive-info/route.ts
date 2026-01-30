@@ -94,9 +94,17 @@ export async function GET(request: NextRequest) {
       .from("userbase_hive_keys")
       .select("hive_username, created_at, last_used_at, source")
       .eq("user_id", session.userId)
-      .single();
+      .maybeSingle();
 
-    if (keyError || !keyData) {
+    if (keyError) {
+      console.error("Error querying Hive key:", keyError);
+      return NextResponse.json(
+        { error: "Failed to fetch Hive key info" },
+        { status: 500 }
+      );
+    }
+
+    if (!keyData) {
       return NextResponse.json({
         has_key: false,
       });

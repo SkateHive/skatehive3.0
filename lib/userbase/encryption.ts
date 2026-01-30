@@ -112,10 +112,26 @@ export function decryptHivePostingKey(
   },
   userId: string
 ): string {
+  if (!encryptedData || typeof encryptedData !== "object") {
+    throw new Error("Invalid encrypted data: expected an object");
+  }
+
+  const { encryptedKey, iv: ivStr, authTag: authTagStr } = encryptedData;
+
+  if (!encryptedKey || typeof encryptedKey !== "string") {
+    throw new Error("Invalid encrypted data: missing or invalid encryptedKey");
+  }
+  if (!ivStr || typeof ivStr !== "string") {
+    throw new Error("Invalid encrypted data: missing or invalid iv");
+  }
+  if (!authTagStr || typeof authTagStr !== "string") {
+    throw new Error("Invalid encrypted data: missing or invalid authTag");
+  }
+
   const key = deriveHiveKeyEncryptionKey(userId);
-  const iv = Buffer.from(encryptedData.iv, "base64");
-  const authTag = Buffer.from(encryptedData.authTag, "base64");
-  const encrypted = Buffer.from(encryptedData.encryptedKey, "base64");
+  const iv = Buffer.from(ivStr, "base64");
+  const authTag = Buffer.from(authTagStr, "base64");
+  const encrypted = Buffer.from(encryptedKey, "base64");
 
   const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
   decipher.setAuthTag(authTag);

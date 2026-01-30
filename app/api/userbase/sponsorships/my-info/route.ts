@@ -96,9 +96,17 @@ export async function GET(request: NextRequest) {
       .eq("user_id", session.userId)
       .eq("type", "hive")
       .eq("is_sponsored", true)
-      .single();
+      .maybeSingle();
 
-    if (identityError || !identity) {
+    if (identityError) {
+      console.error("Error querying sponsored identity:", identityError);
+      return NextResponse.json(
+        { error: "Failed to fetch sponsorship info" },
+        { status: 500 }
+      );
+    }
+
+    if (!identity) {
       return NextResponse.json({
         sponsored: false,
       });

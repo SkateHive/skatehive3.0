@@ -14,6 +14,14 @@ import {
   Avatar,
 } from "@chakra-ui/react";
 
+// Utility to convert hex color to rgba
+function hexToRgba(hex: string, alpha: number): string {
+  let c = hex.replace('#', '');
+  if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+  const num = parseInt(c, 16);
+  return `rgba(${(num >> 16) & 255},${(num >> 8) & 255},${num & 255},${alpha})`;
+}
+
 interface FarcasterCast {
   hash: string;
   text: string;
@@ -56,13 +64,6 @@ export default function FarcasterCastsView({
   // Compute shadow using theme's primary color and 0.2 opacity
   const primary = theme.colors.primary;
   const primaryColor = typeof primary === "string" ? primary : (primary[500] || primary.DEFAULT || Object.values(primary)[0]);
-
-  function hexToRgba(hex: string, alpha: number) {
-    let c = hex.replace('#', '');
-    if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
-    const num = parseInt(c, 16);
-    return `rgba(${(num >> 16) & 255},${(num >> 8) & 255},${num & 255},${alpha})`;
-  }
 
   const boxShadowColor = primaryColor.startsWith('#') ? hexToRgba(primaryColor, 0.2) : primaryColor;
   const hoverBoxShadow = `0 0 10px ${boxShadowColor}`;
@@ -198,7 +199,7 @@ export default function FarcasterCastsView({
           {/* Cast Embeds/Images */}
           {cast.embeds && cast.embeds.length > 0 && (
             <VStack spacing={2} align="stretch" mb={3}>
-              {cast.embeds.map((embed: any, idx: number) => {
+              {cast.embeds.map((embed, idx) => {
                 // Try multiple sources for image URL
                 const imageUrl = embed.metadata?.image?.url || embed.url;
                 // Check if it's an image URL (by extension or content type)

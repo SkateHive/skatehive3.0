@@ -139,6 +139,7 @@ export default function HiveSponsorshipInfo() {
           <AlertIcon />
           <Box>
             <AlertTitle fontSize="sm">Lite Account</AlertTitle>
+            {/* eslint-disable-next-line react/no-unescaped-entities */}
             <AlertDescription fontSize="sm">
               You're currently using a lite account. Ask a community member with a Hive account to sponsor you, or link an existing Hive account.
             </AlertDescription>

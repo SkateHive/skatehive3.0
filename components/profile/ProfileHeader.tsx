@@ -110,10 +110,9 @@ const ProfileHeader = function ProfileHeader({
   }, [defaultView]);
 
   const setView = useCallback((view: ProfileView) => {
-    console.log("[ProfileHeader] setView called:", { view, currentActiveView: activeView });
     manualViewRef.current = true;
     setActiveView(view);
-  }, [activeView]);
+  }, []);
 
   useEffect(() => {
     manualViewRef.current = false;

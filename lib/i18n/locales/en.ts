@@ -171,6 +171,12 @@ export const en = {
     evmLabel: 'Ethereum',
     farcasterLabel: 'Farcaster',
   },
+  userbase: {
+    sponsorButton: {
+      tooltip: 'Sponsor this user to create their Hive account',
+      label: 'Sponsor',
+    },
+  },
   wallet: {
     sendHive: 'Send HIVE',
     sendHBD: 'Send HBD',

@@ -2,12 +2,19 @@
 
 import { Button, Icon, Tooltip } from "@chakra-ui/react";
 import { FaGift } from "react-icons/fa";
+import { useTranslations } from "@/lib/i18n/hooks";
+
+export interface SponsorshipUserData {
+  liteUserId: string;
+  displayName: string;
+  handle: string;
+}
 
 interface SponsorButtonProps {
   liteUserId: string;
   displayName: string;
   handle: string;
-  onSponsorshipInitiated?: () => void;
+  onSponsorshipInitiated?: (userData: SponsorshipUserData) => void;
   size?: "xs" | "sm" | "md" | "lg";
   variant?: "outline" | "solid" | "ghost";
 }
@@ -25,14 +32,16 @@ export default function SponsorButton({
   size = "sm",
   variant = "outline",
 }: SponsorButtonProps) {
+  const t = useTranslations("userbase");
+
   const handleClick = () => {
     if (onSponsorshipInitiated) {
-      onSponsorshipInitiated();
+      onSponsorshipInitiated({ liteUserId, displayName, handle });
     }
   };
 
   return (
-    <Tooltip label="Sponsor this user to create their Hive account">
+    <Tooltip label={t("sponsorButton.tooltip")}>
       <Button
         onClick={handleClick}
         leftIcon={<Icon as={FaGift} boxSize={size === "xs" ? 3 : 4} />}
@@ -40,7 +49,7 @@ export default function SponsorButton({
         size={size}
         variant={variant}
       >
-        Sponsor
+        {t("sponsorButton.label")}
       </Button>
     </Tooltip>
   );
