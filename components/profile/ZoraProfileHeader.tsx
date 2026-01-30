@@ -175,9 +175,9 @@ const ZoraProfileHeader = function ZoraProfileHeader({
     );
   }
 
-  // Stats row: Compact horizontal terminal-style stats
+  // Stats row: Compact horizontal terminal-style stats with trade button
   const statsRow = cachedZoraData.coinData && (
-    <HStack spacing={6} fontSize="xs" fontFamily="mono" flexWrap="wrap">
+    <HStack spacing={6} fontSize="xs" fontFamily="mono" flexWrap="wrap" align="flex-end">
       <Box>
         <Text color="dim" textTransform="uppercase" fontSize="2xs" mb={0.5}>
           MARKET CAP
@@ -220,50 +220,45 @@ const ZoraProfileHeader = function ZoraProfileHeader({
           </Text>
         </Box>
       )}
+
+      {/* Trade button inline with stats */}
+      <Box>
+        <TradeProfileCoinButton
+          coinAddress={cachedZoraData.coinData.address}
+          coinData={{
+            name: cachedZoraData.coinData.name,
+            symbol: cachedZoraData.coinData.symbol,
+            image: cachedZoraData.coinData.image,
+            marketCap: cachedZoraData.coinData.marketCap,
+            uniqueHolders: cachedZoraData.coinData.holderCount,
+          }}
+        />
+      </Box>
     </HStack>
   );
 
   return (
-    <Box>
-      {/* Profile Header */}
-      <ProfileHeaderWrapper
-        coverImage={profileData.coverImage}
-        username={username}
-        identity={
-          <IdentityBlock
-            avatar={cachedZoraData.avatar || profileData.profileImage}
-            displayName={cachedZoraData.displayName || cachedZoraData.handle || username}
-            handle={`@${cachedZoraData.handle || username}`}
-            externalLink={
-              zoraProfileUrl
-                ? {
-                    url: zoraProfileUrl,
-                    label: `View ${cachedZoraData.handle || username} on Zora`,
-                  }
-                : undefined
-            }
-            statsRow={statsRow}
-            integrations={integrations}
-          />
-        }
-      />
-
-      {/* Trade Button - Below the terminal box */}
-      {cachedZoraData.coinData && (
-        <Box mt={4} w="100%">
-          <TradeProfileCoinButton
-            coinAddress={cachedZoraData.coinData.address}
-            coinData={{
-              name: cachedZoraData.coinData.name,
-              symbol: cachedZoraData.coinData.symbol,
-              image: cachedZoraData.coinData.image,
-              marketCap: cachedZoraData.coinData.marketCap,
-              uniqueHolders: cachedZoraData.coinData.holderCount,
-            }}
-          />
-        </Box>
-      )}
-    </Box>
+    <ProfileHeaderWrapper
+      coverImage={profileData.coverImage}
+      username={username}
+      identity={
+        <IdentityBlock
+          avatar={cachedZoraData.avatar || profileData.profileImage}
+          displayName={cachedZoraData.displayName || cachedZoraData.handle || username}
+          handle={`@${cachedZoraData.handle || username}`}
+          externalLink={
+            zoraProfileUrl
+              ? {
+                  url: zoraProfileUrl,
+                  label: `View ${cachedZoraData.handle || username} on Zora`,
+                }
+              : undefined
+          }
+          statsRow={statsRow}
+          integrations={integrations}
+        />
+      }
+    />
   );
 };
 

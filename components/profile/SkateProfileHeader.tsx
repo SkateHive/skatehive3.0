@@ -35,26 +35,24 @@ const SkateProfileHeader = function SkateProfileHeader({
     </HStack>
   );
 
-  // Primary actions: Terminal-style Edit button
-  const primaryActions = isOwner && (
+  // Edit icon button next to username
+  const editIcon = isOwner ? (
     <IconButton
       aria-label="Edit Profile"
       icon={<FaEdit />}
-      size="sm"
-      variant="solid"
-      colorScheme="primary"
+      size="xs"
+      variant="ghost"
+      color="text"
       onClick={onEditModalOpen}
       borderRadius="none"
-      fontFamily="mono"
-      boxShadow="0 0 5px rgba(168, 255, 96, 0.3)"
-      _hover={{
-        boxShadow: "0 0 10px rgba(168, 255, 96, 0.5)",
-      }}
+      opacity={0.7}
+      _hover={{ opacity: 1, color: "primary" }}
+      transition="all 0.2s"
     />
-  );
+  ) : null;
 
   return (
-    <Box position="relative" pb={12}>
+    <Box position="relative">
       {/* Profile Header */}
       <ProfileHeaderWrapper
         coverImage={profileData.coverImage}
@@ -67,20 +65,10 @@ const SkateProfileHeader = function SkateProfileHeader({
             bio={profileData.about}
             statsRow={statsRow}
             integrations={integrations}
+            editButton={editIcon}
           />
         }
       />
-
-      {/* Edit Button - Bottom-left outside terminal box */}
-      {primaryActions && (
-        <Box
-          position="absolute"
-          bottom={0}
-          left={0}
-        >
-          {primaryActions}
-        </Box>
-      )}
     </Box>
   );
 };

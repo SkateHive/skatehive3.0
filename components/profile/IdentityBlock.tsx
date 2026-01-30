@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
-import { Box, Flex, Avatar, VStack, HStack, Text, Link } from "@chakra-ui/react";
-import { FaExternalLinkAlt } from "react-icons/fa";
+import { Box, Flex, Avatar, VStack, HStack, Text, Link, IconButton } from "@chakra-ui/react";
+import { FaExternalLinkAlt, FaEdit } from "react-icons/fa";
 
 interface IdentityBlockProps {
   avatar: string;
@@ -19,6 +19,7 @@ interface IdentityBlockProps {
   };
   statsRow?: React.ReactNode;
   integrations?: React.ReactNode;
+  editButton?: React.ReactNode;
 }
 
 /**
@@ -41,6 +42,7 @@ export default function IdentityBlock({
   externalLink,
   statsRow,
   integrations,
+  editButton,
 }: IdentityBlockProps) {
   return (
     <Box position="relative" w="100%">
@@ -141,6 +143,7 @@ export default function IdentityBlock({
                   <FaExternalLinkAlt size={12} />
                 </Link>
               )}
+              {editButton}
             </HStack>
 
             {/* Handle row + badges - terminal style */}

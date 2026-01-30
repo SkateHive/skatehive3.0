@@ -120,11 +120,32 @@ const ContentViews = memo(function ContentViews({
       </Box>
 
       <Box display={viewMode === "casts" ? "block" : "none"}>
-        {viewMode === "casts" && farcasterFid && (
-          <FarcasterCastsView
-            fid={farcasterFid}
-            username={farcasterUsername || undefined}
-          />
+        {viewMode === "casts" && (
+          farcasterFid ? (
+            <FarcasterCastsView
+              fid={farcasterFid}
+              username={farcasterUsername || undefined}
+            />
+          ) : (
+            <Box
+              minH="400px"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Box
+                p={6}
+                border="1px solid"
+                borderColor="dim"
+                borderRadius="none"
+                bg="muted"
+              >
+                <Text color="dim" fontFamily="mono" fontSize="sm">
+                  NO_FARCASTER_ACCOUNT_LINKED
+                </Text>
+              </Box>
+            </Box>
+          )
         )}
       </Box>
 
