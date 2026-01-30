@@ -22,7 +22,7 @@ const supabase =
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { user_id: string } }
+  { params }: { params: Promise<{ user_id: string }> }
 ) {
   if (!supabase) {
     return NextResponse.json(
@@ -31,7 +31,7 @@ export async function GET(
     );
   }
 
-  const userId = params.user_id;
+  const { user_id: userId } = await params;
 
   if (!userId) {
     return NextResponse.json({ error: "Missing user_id" }, { status: 400 });
