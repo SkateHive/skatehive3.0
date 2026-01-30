@@ -40,7 +40,6 @@ export default function TradeProfileCoinButton({
         size="sm"
         onClick={onOpen}
         isDisabled={isDisabled}
-        borderRadius="lg"
         fontWeight="medium"
         _hover={{
           transform: "translateY(-1px)",
