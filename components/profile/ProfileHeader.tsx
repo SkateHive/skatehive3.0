@@ -39,7 +39,7 @@ interface ProfileHeaderProps {
   onEditModalOpen: () => void;
   onUserbaseEditModalOpen?: () => void;
   onActiveViewChange?: (view: ProfileView) => void;
-  onContentViewChange?: (view: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens") => void;
+  onContentViewChange?: (view: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts") => void;
   debugPayload?: Record<string, any> | null;
   hasHiveProfile?: boolean;
   hasUserbaseProfile?: boolean;
