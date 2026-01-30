@@ -132,14 +132,13 @@ export default function FarcasterCastsView({
   }
 
   return (
-    <VStack spacing={4} align="stretch" px={{ base: 2, md: 4 }} py={4}>
+    <VStack spacing={4} align="stretch">
       {casts.map((cast) => (
         <Box
           key={cast.hash}
           p={4}
           border="1px solid"
           borderColor="dim"
-          borderRadius="none"
           bg="muted"
           _hover={{
             borderColor: "primary",
