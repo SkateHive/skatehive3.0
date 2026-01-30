@@ -91,71 +91,59 @@ const ContentViews = memo(function ContentViews({
   farcasterFid?: number | null;
   farcasterUsername?: string | null;
 }) {
-  // Use conditional rendering with style display to avoid unmounting/remounting
+  // Keep all views mounted but hidden to prevent re-fetching when switching tabs
   return (
     <>
       {hasHiveProfile && (
         <>
           <Box display={viewMode === "videoparts" ? "block" : "none"}>
-            {viewMode === "videoparts" && <VideoPartsView {...videoPartsProps} />}
+            <VideoPartsView {...videoPartsProps} />
           </Box>
 
           <Box display={viewMode === "snaps" ? "block" : "none"}>
-            {viewMode === "snaps" && (
-              <>
-                {snapsUsername && (
-                  <MemoizedSnapsGrid username={snapsUsername} />
-                )}
-                <SoftSnapsGrid snaps={softSnaps || []} />
-              </>
-            )}
+            {snapsUsername && <MemoizedSnapsGrid username={snapsUsername} />}
+            <SoftSnapsGrid snaps={softSnaps || []} />
           </Box>
         </>
       )}
 
       <Box display={viewMode === "tokens" ? "block" : "none"}>
-        {viewMode === "tokens" && (
-          <ZoraTokensView ethereumAddress={ethereumAddress} />
-        )}
+        <ZoraTokensView ethereumAddress={ethereumAddress} />
       </Box>
 
       <Box display={viewMode === "casts" ? "block" : "none"}>
-        {viewMode === "casts" && (
-          farcasterFid ? (
-            <FarcasterCastsView
-              fid={farcasterFid}
-              username={farcasterUsername || undefined}
-            />
-          ) : (
+        {farcasterFid ? (
+          <FarcasterCastsView
+            fid={farcasterFid}
+            username={farcasterUsername || undefined}
+          />
+        ) : (
+          <Box
+            minH="400px"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+          >
             <Box
-              minH="400px"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
+              p={6}
+              border="1px solid"
+              borderColor="dim"
+              borderRadius="none"
+              bg="muted"
             >
-              <Box
-                p={6}
-                border="1px solid"
-                borderColor="dim"
-                borderRadius="none"
-                bg="muted"
-              >
-                <Text color="dim" fontFamily="mono" fontSize="sm">
-                  NO_FARCASTER_ACCOUNT_LINKED
-                </Text>
-              </Box>
+              <Text color="dim" fontFamily="mono" fontSize="sm">
+                NO_FARCASTER_ACCOUNT_LINKED
+              </Text>
             </Box>
-          )
+          </Box>
         )}
       </Box>
 
       <Box display={["grid", "list"].includes(viewMode) ? "block" : "none"}>
-        {["grid", "list"].includes(viewMode) && (
-          <MemoizedPostInfiniteScroll
-            key={`posts-${viewMode}`}
-            {...postProps}
-          />
-        )}
+        <MemoizedPostInfiniteScroll
+          key={`posts-${viewMode}`}
+          {...postProps}
+        />
       </Box>
     </>
   );
@@ -693,9 +681,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
             id="scrollableDiv"
             color="text"
             maxW="container.lg"
-            mx="auto"
-            p={0}
-            m={0}
             maxH="100vh"
             overflowY="auto"
             sx={{

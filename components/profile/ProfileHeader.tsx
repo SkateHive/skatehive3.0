@@ -353,7 +353,7 @@ const ProfileHeader = function ProfileHeader({
 
       {/* Desktop Layout */}
       <Box display={{ base: "none", md: "block" }} position="relative">
-        <Box w="100%" maxW="container.xl" mx="auto" px={6} py={4}>
+        <Box w="100%" maxW="container.xl" mx="auto">
           {/* Profile Layouts - visibility controlled by activeView */}
 
           {/* Skatehive Profile Layout */}

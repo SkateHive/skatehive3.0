@@ -12,7 +12,6 @@ import {
   Alert,
   AlertIcon,
   Flex,
-  useColorModeValue,
   Center,
 } from "@chakra-ui/react";
 import { FaCoins, FaWallet } from "react-icons/fa";
@@ -30,8 +29,6 @@ const ZoraTokensView: React.FC<ZoraTokensViewProps> = ({ ethereumAddress }) => {
     ethereumAddress,
     enabled: Boolean(ethereumAddress),
   });
-
-  const borderColor = useColorModeValue("gray.200", "gray.700");
 
   const handleTabChange = useCallback((index: number) => {
     setActiveTab(index);
@@ -54,30 +51,61 @@ const ZoraTokensView: React.FC<ZoraTokensViewProps> = ({ ethereumAddress }) => {
   }
 
   return (
-    <Box w="100%" p={4}>
-      <Tabs
-        index={activeTab}
-        onChange={handleTabChange}
-        variant="enclosed"
-        bg={"background"}
-        borderRadius="xl"
-        border="1px"
-        borderColor={borderColor}
+    <Box w="100%">
+      {/* Terminal-style tabs container */}
+      <Box
+        border="2px solid"
+        borderColor="border"
+        borderTop="none"
+        bg="background"
       >
-        <TabList>
-          <Tab>
-            <Flex align="center" gap={2}>
-              <FaCoins />
-              Created ({createdCoins?.length || 0})
-            </Flex>
-          </Tab>
-          <Tab>
-            <Flex align="center" gap={2}>
-              <FaWallet />
-              Holdings ({heldTokens?.length || 0})
-            </Flex>
-          </Tab>
-        </TabList>
+        <Tabs
+          index={activeTab}
+          onChange={handleTabChange}
+          variant="unstyled"
+        >
+          <TabList>
+            <Tab
+              color={activeTab === 0 ? "primary" : "text"}
+              bg={activeTab === 0 ? "muted" : "transparent"}
+              borderRight="1px solid"
+              borderColor="border"
+              _hover={{
+                bg: "muted",
+                color: "primary",
+              }}
+              transition="all 0.2s"
+              px={4}
+              py={3}
+              fontFamily="mono"
+              fontSize="sm"
+              borderRadius="none"
+            >
+              <Flex align="center" gap={2}>
+                <FaCoins />
+                Created ({createdCoins?.length || 0})
+              </Flex>
+            </Tab>
+            <Tab
+              color={activeTab === 1 ? "primary" : "text"}
+              bg={activeTab === 1 ? "muted" : "transparent"}
+              _hover={{
+                bg: "muted",
+                color: "primary",
+              }}
+              transition="all 0.2s"
+              px={4}
+              py={3}
+              fontFamily="mono"
+              fontSize="sm"
+              borderRadius="none"
+            >
+              <Flex align="center" gap={2}>
+                <FaWallet />
+                Holdings ({heldTokens?.length || 0})
+              </Flex>
+            </Tab>
+          </TabList>
 
         <TabPanels>
           <TabPanel p={6}>
@@ -198,7 +226,8 @@ const ZoraTokensView: React.FC<ZoraTokensViewProps> = ({ ethereumAddress }) => {
             )}
           </TabPanel>
         </TabPanels>
-      </Tabs>
+        </Tabs>
+      </Box>
     </Box>
   );
 };

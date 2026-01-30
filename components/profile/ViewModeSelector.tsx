@@ -134,47 +134,68 @@ const ViewModeSelector = memo(function ViewModeSelector({
   );
 
   return (
-    <Box my={4}>
-      <Tabs
-        index={currentMainTabIndex}
-        onChange={handleMainTabChange}
-        variant="enclosed"
-        colorScheme="green"
-        size="sm"
-        isFitted={true}
+    <Box>
+      {/* Main tabs with terminal-style border */}
+      <Box
+        border="2px solid"
+        borderColor="border"
+        borderTop="none"
+        bg="background"
       >
-        <TabList>
-          {mainTabs.map((tab) => {
-            const IconComponent = tab.icon;
-            return (
-              <Tab
-                key={tab.key}
-                _selected={{
-                  color: "primary",
-                  bg: "muted",
-                }}
-                _hover={{
-                  bg: "muted.100",
-                  transform: "translateY(-1px)",
-                }}
-                transition="all 0.2s"
-                display="flex"
-                alignItems="center"
-                gap={2}
-                px={isMobile ? 2 : 4}
-                minW={isMobile ? "auto" : "80px"}
-              >
-                <IconComponent size={14} />
-                {tab.label}
-              </Tab>
-            );
-          })}
-        </TabList>
-      </Tabs>
+        <Tabs
+          index={currentMainTabIndex}
+          onChange={handleMainTabChange}
+          variant="unstyled"
+          size="sm"
+          isFitted={true}
+        >
+          <TabList>
+            {mainTabs.map((tab, index) => {
+              const IconComponent = tab.icon;
+              const isSelected = currentMainTabIndex === index;
+              return (
+                <Tab
+                  key={tab.key}
+                  color={isSelected ? "primary" : "text"}
+                  bg={isSelected ? "muted" : "transparent"}
+                  borderRight={index < mainTabs.length - 1 ? "1px solid" : "none"}
+                  borderColor="border"
+                  _hover={{
+                    bg: "muted",
+                    color: "primary",
+                  }}
+                  _selected={{
+                    color: "primary",
+                    bg: "muted",
+                  }}
+                  transition="all 0.2s"
+                  display="flex"
+                  alignItems="center"
+                  gap={2}
+                  px={isMobile ? 2 : 4}
+                  py={3}
+                  minW={isMobile ? "auto" : "80px"}
+                  fontFamily="mono"
+                  fontSize="sm"
+                  borderRadius="none"
+                >
+                  <IconComponent size={14} />
+                  {tab.label}
+                </Tab>
+              );
+            })}
+          </TabList>
+        </Tabs>
+      </Box>
 
       {/* Sub-selector for Posts view modes */}
       {currentMainTab === "posts" && (
-        <Box mt={2} mb={2}>
+        <Box
+          border="2px solid"
+          borderColor="border"
+          borderTop="none"
+          bg="background"
+        >
           <Tabs
             index={availablePostViewModes.findIndex(
               (mode) => mode.key === currentPostViewMode
@@ -182,38 +203,41 @@ const ViewModeSelector = memo(function ViewModeSelector({
             onChange={(index) =>
               handlePostViewModeChange(availablePostViewModes[index].key)
             }
-            variant="enclosed"
-            colorScheme="green"
+            variant="unstyled"
             size="sm"
             isFitted={true}
           >
-            <TabList
-              bg="transparent"
-              border="1px solid"
-              borderColor="gray.600"
-              borderRadius="none"
-            >
-              {availablePostViewModes.map((mode) => {
+            <TabList>
+              {availablePostViewModes.map((mode, index) => {
                 const IconComponent = mode.icon;
+                const isSelected = availablePostViewModes.findIndex(
+                  (m) => m.key === currentPostViewMode
+                ) === index;
                 return (
                   <Tab
                     key={mode.key}
+                    color={isSelected ? "primary" : "dim"}
+                    bg={isSelected ? "muted" : "transparent"}
+                    borderRight={index < availablePostViewModes.length - 1 ? "1px solid" : "none"}
+                    borderColor="border"
+                    _hover={{
+                      bg: "muted",
+                      color: "primary",
+                    }}
                     _selected={{
                       color: "primary",
                       bg: "muted",
-                    }}
-                    _hover={{
-                      bg: "muted.100",
-                      transform: "translateY(-1px)",
                     }}
                     transition="all 0.2s"
                     display="flex"
                     alignItems="center"
                     gap={2}
                     px={isMobile ? 2 : 4}
+                    py={2}
                     minW={isMobile ? "auto" : "60px"}
                     fontSize="xs"
-                    border="none"
+                    fontFamily="mono"
+                    borderRadius="none"
                   >
                     <IconComponent size={12} />
                     {mode.label}
