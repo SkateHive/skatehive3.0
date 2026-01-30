@@ -175,7 +175,7 @@ export async function GET(
                 <div style={{ width: "12px", height: "12px", background: "#27c93f", borderRadius: "6px" }} />
               </div>
               <div style={{ color: C.green, fontSize: "20px", display: "flex" }}>
-                🛹 SKATEHIVE > user/{username}
+                🛹 SKATEHIVE {'>'} user/{username}
               </div>
             </div>
 
@@ -218,14 +218,14 @@ export async function GET(
                 {/* User Info */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   <div style={{ color: C.green, fontSize: "14px", display: "flex" }}>
-                    &gt; NAME:
+                    {'>'} NAME:
                   </div>
                   <div style={{ color: C.text, fontSize: "24px", fontWeight: "bold", display: "flex" }}>
                     {userData.name}
                   </div>
 
                   <div style={{ color: C.green, fontSize: "14px", display: "flex", marginTop: "10px" }}>
-                    &gt; USERNAME:
+                    {'>'} USERNAME:
                   </div>
                   <div style={{ color: C.text, fontSize: "18px", display: "flex" }}>
                     @{username}
@@ -234,7 +234,7 @@ export async function GET(
                   {userData.about && (
                     <>
                       <div style={{ color: C.green, fontSize: "14px", display: "flex", marginTop: "10px" }}>
-                        &gt; BIO:
+                        {'>'} BIO:
                       </div>
                       <div style={{ color: C.dim, fontSize: "14px", display: "flex", lineHeight: "1.4" }}>
                         {userData.about}
@@ -267,7 +267,7 @@ export async function GET(
                   >
                     <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
                       <div style={{ color: C.green, fontSize: "14px", display: "flex" }}>
-                        &gt; FOLLOWERS
+                        {'>'} FOLLOWERS
                       </div>
                       <div style={{ color: C.text, fontSize: "42px", fontWeight: "bold", display: "flex" }}>
                         {userData.followers.toLocaleString()}
@@ -286,7 +286,7 @@ export async function GET(
                   >
                     <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
                       <div style={{ color: C.green, fontSize: "14px", display: "flex" }}>
-                        &gt; FOLLOWING
+                        {'>'} FOLLOWING
                       </div>
                       <div style={{ color: C.text, fontSize: "42px", fontWeight: "bold", display: "flex" }}>
                         {userData.following.toLocaleString()}
@@ -305,7 +305,7 @@ export async function GET(
                   >
                     <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
                       <div style={{ color: C.green, fontSize: "14px", display: "flex" }}>
-                        &gt; POSTS
+                        {'>'} POSTS
                       </div>
                       <div style={{ color: C.text, fontSize: "42px", fontWeight: "bold", display: "flex" }}>
                         {userData.posts.toLocaleString()}
@@ -325,7 +325,7 @@ export async function GET(
                   }}
                 >
                   <div style={{ color: C.green, fontSize: "16px", display: "flex" }}>
-                    &gt;_
+                    {'>_'}
                   </div>
                   <div style={{ color: C.dim, fontSize: "16px", display: "flex" }}>
                     skatehive.app
@@ -362,7 +362,7 @@ export async function GET(
             🛹 SKATEHIVE
           </div>
           <div style={{ color: C.dim, fontSize: "24px", display: "flex", marginTop: "20px" }}>
-            &gt; Profile not found
+            {'>'} Profile not found
           </div>
         </div>
       ),
