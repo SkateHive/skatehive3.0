@@ -128,27 +128,6 @@ export default function HiveSponsorshipInfo() {
     );
   }
 
-  // Not sponsored and no key stored
-  if (!sponsorshipInfo?.sponsored && !keyInfo?.has_key) {
-    return (
-      <Box>
-        <Heading size="sm" color="primary" mb={2}>
-          Hive Account Status
-        </Heading>
-        <Alert status="info" borderRadius="md">
-          <AlertIcon />
-          <Box>
-            <AlertTitle fontSize="sm">Lite Account</AlertTitle>
-            {/* eslint-disable-next-line react/no-unescaped-entities */}
-            <AlertDescription fontSize="sm">
-              You're currently using a lite account. Ask a community member with a Hive account to sponsor you, or link an existing Hive account.
-            </AlertDescription>
-          </Box>
-        </Alert>
-      </Box>
-    );
-  }
-
   return (
     <Box>
       <Heading size="sm" color="primary" mb={4}>
