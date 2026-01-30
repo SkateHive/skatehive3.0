@@ -1,6 +1,6 @@
 "use client";
 import React, { ReactNode } from "react";
-import { Box, Flex } from "@chakra-ui/react";
+import { Box, Flex, useTheme } from "@chakra-ui/react";
 
 interface ProfileHeaderWrapperProps {
   coverImage?: string; // Not used in terminal style, kept for API compatibility
@@ -26,6 +26,22 @@ export default function ProfileHeaderWrapper({
   primaryActions,
   integrations,
 }: ProfileHeaderWrapperProps) {
+  const theme = useTheme();
+
+  // Compute glow shadow using theme's primary color with 0.2 opacity
+  const primary = theme.colors.primary;
+  const primaryColor = typeof primary === "string" ? primary : (primary[500] || primary.DEFAULT || Object.values(primary)[0]);
+
+  function hexToRgba(hex: string, alpha: number) {
+    let c = hex.replace('#', '');
+    if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    const num = parseInt(c, 16);
+    return `rgba(${(num >> 16) & 255},${(num >> 8) & 255},${num & 255},${alpha})`;
+  }
+
+  const glowColor = primaryColor.startsWith('#') ? hexToRgba(primaryColor, 0.2) : primaryColor;
+  const glowShadow = `0 0 10px ${glowColor}`;
+
   return (
     <Box
       position="relative"
@@ -42,7 +58,7 @@ export default function ProfileHeaderWrapper({
         border="2px solid"
         borderColor="border"
         borderRadius="none"
-        boxShadow="0 0 10px rgba(168, 255, 96, 0.2)"
+        boxShadow={glowShadow}
         p={{ base: 4, md: 6 }}
       >
         {/* Identity block */}

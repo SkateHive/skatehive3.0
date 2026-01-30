@@ -35,6 +35,7 @@ import useViewMode from "@/hooks/useViewMode";
 import useIsMobile from "@/hooks/useIsMobile";
 import useUserbaseProfile from "@/hooks/useUserbaseProfile";
 import useUserbaseSoftPosts from "@/hooks/useUserbaseSoftPosts";
+import { useViewerHiveIdentity } from "@/hooks/useViewerHiveIdentity";
 import { useTranslations } from "@/lib/i18n/hooks";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { Discussion } from "@hiveio/dhive";
@@ -91,6 +92,10 @@ const ContentViews = memo(function ContentViews({
   farcasterFid?: number | null;
   farcasterUsername?: string | null;
 }) {
+  function t(arg0: string): React.ReactNode {
+    throw new Error("Function not implemented.");
+  }
+
   // Keep all views mounted but hidden to prevent re-fetching when switching tabs
   return (
     <>
@@ -132,7 +137,7 @@ const ContentViews = memo(function ContentViews({
               bg="muted"
             >
               <Text color="dim" fontFamily="mono" fontSize="sm">
-                NO_FARCASTER_ACCOUNT_LINKED
+                {t("noFarcasterAccountLinked")}
               </Text>
             </Box>
           </Box>
@@ -175,6 +180,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const { profile: userbaseProfile, isLoading: userbaseLoading, refresh: refreshUserbaseProfile } =
     useUserbaseProfile(username);
   const { user: currentUserbaseUser } = useUserbaseAuth();
+  const viewerHiveUsername = useViewerHiveIdentity();
   const userbaseUser = userbaseProfile?.user ?? null;
   const userbaseIdentities = useMemo(
     () => userbaseProfile?.identities ?? [],
@@ -187,7 +193,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const farcasterIdentityFid = farcasterIdentity?.external_id || null;
   const farcasterIdentityHandle = farcasterIdentity?.handle || null;
   const farcasterCustodyAddress = farcasterIdentity?.address?.toLowerCase() || null;
-
+  const t = useTranslations();
   // Get all EVM identities and prioritize them
   const allEvmIdentities = userbaseIdentities.filter((item) => item.type === "evm");
 
@@ -708,6 +714,8 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               hasHiveProfile={isHiveProfile || !!hiveIdentityHandle}
               hasUserbaseProfile={!!userbaseUser}
               farcasterProfile={farcasterProfileData}
+              userbaseUserId={userbaseUser?.id}
+              viewerHiveUsername={viewerHiveUsername}
             />
 
             {/* View Mode Selector */}

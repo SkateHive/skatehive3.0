@@ -369,18 +369,41 @@ export default function useUserSnaps(username: string) {
         }
     }, [isLoading, hasMore, fetchUserSnaps]);
 
-    // Reset when username changes
+    // Reset and load initial snaps when username changes
     useEffect(() => {
-        resetSnaps();
-    }, [username]);
+        // Skip if no username
+        if (!username) return;
 
-    // Load initial snaps - only once per username
-    useEffect(() => {
-        if (username && !isLoading && !initialLoadDoneRef.current) {
-            initialLoadDoneRef.current = true;
-            loadMoreSnaps();
-        }
-    }, [username, isLoading, loadMoreSnaps]);
+        // Reset state for new username
+        resetSnaps();
+
+        // Use a flag to prevent double-fetch in StrictMode
+        let cancelled = false;
+
+        const loadInitial = async () => {
+            if (cancelled) return;
+
+            setIsLoading(true);
+            try {
+                const newSnaps = await fetchUserSnaps();
+                if (cancelled) return;
+
+                if (newSnaps.length > 0) {
+                    setSnaps(newSnaps);
+                }
+            } catch {
+                if (!cancelled) setHasMore(false);
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        };
+
+        loadInitial();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [username]); // Only depend on username - resetSnaps and fetchUserSnaps are stable via useCallback
 
     return {
         snaps: snaps.map(snap => ({

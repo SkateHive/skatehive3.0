@@ -44,6 +44,8 @@ interface ProfileHeaderProps {
   hasHiveProfile?: boolean;
   hasUserbaseProfile?: boolean;
   farcasterProfile?: FarcasterProfileData | null;
+  userbaseUserId?: string | null;
+  viewerHiveUsername?: string | null;
 }
 
 const ProfileHeader = function ProfileHeader({
@@ -66,6 +68,8 @@ const ProfileHeader = function ProfileHeader({
   hasHiveProfile = true,
   hasUserbaseProfile = false,
   farcasterProfile = null,
+  userbaseUserId = null,
+  viewerHiveUsername = null,
 }: ProfileHeaderProps) {
   const { connections } = useLinkedIdentities();
   const hiveConnection = connections.hive;
@@ -365,6 +369,8 @@ const ProfileHeader = function ProfileHeader({
                 isOwner={canEditSkate}
                 onEditModalOpen={userbaseEditHandler}
                 integrations={networkButtons}
+                userbaseUserId={userbaseUserId}
+                sponsorHiveUsername={viewerHiveUsername}
               />
             </Box>
           )}

@@ -1,28 +1,13 @@
-import { cookieStorage, createConfig, createStorage, http } from 'wagmi';
-import { base } from 'wagmi/chains';
-import { injected, walletConnect } from 'wagmi/connectors';
-import { WC_PROJECT_ID } from './constants';
+// Re-export the singleton wagmi config from providers to avoid duplicate WalletConnect initialization
+// All contract operations should use this single config
+import { wagmiConfig } from '@/app/providers';
 
 export function getConfig() {
-  return createConfig({
-    chains: [base],
-    connectors: [
-      injected(),
-      // coinbaseWallet(),
-      walletConnect({ projectId: WC_PROJECT_ID }),
-    ],
-    storage: createStorage({
-      storage: cookieStorage,
-    }),
-    ssr: true,
-    transports: {
-      [base.id]: http(),
-    },
-  });
+  return wagmiConfig;
 }
 
 declare module 'wagmi' {
   interface WagmiRegister {
-    config: ReturnType<typeof getConfig>;
+    config: typeof wagmiConfig;
   }
-} 
+}

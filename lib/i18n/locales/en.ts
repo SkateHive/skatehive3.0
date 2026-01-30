@@ -47,6 +47,8 @@ export const en = {
     magazineTotalRewards: 'Magazine Total Rewards',
     profileNotFound: 'Profile not found',
     noSnaps: 'No snaps yet.',
+    noFarcasterAccountLinked: 'No Farcaster account linked',
+    socialShareDefault: 'Join Skatehive - The Web3 Skateboard Community!',
   },
   auth: {
     connectWallet: 'Connect Wallet',
