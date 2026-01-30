@@ -27,7 +27,7 @@ interface EligibilityResponse {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { user_id: string } }
+  { params }: { params: Promise<{ user_id: string }> }
 ): Promise<NextResponse<EligibilityResponse>> {
   if (!supabase) {
     return NextResponse.json(
@@ -36,7 +36,7 @@ export async function GET(
     );
   }
 
-  const userId = params.user_id;
+  const { user_id: userId } = await params;
 
   try {
     // 1. Check if user exists and is active
