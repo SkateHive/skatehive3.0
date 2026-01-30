@@ -228,9 +228,9 @@ export async function canUserSponsor(
     // Calculate Hive Power (VESTS to HP conversion)
     // HP = VESTS * total_vesting_fund_hive / total_vesting_shares
     const props = await client.database.getDynamicGlobalProperties();
-    const vestingShares = parseFloat(account.vesting_shares);
-    const totalVestingFund = parseFloat(props.total_vesting_fund_hive);
-    const totalVestingShares = parseFloat(props.total_vesting_shares);
+    const vestingShares = parseFloat(String(account.vesting_shares));
+    const totalVestingFund = parseFloat(String(props.total_vesting_fund_hive));
+    const totalVestingShares = parseFloat(String(props.total_vesting_shares));
 
     const hp = (vestingShares * totalVestingFund) / totalVestingShares;
 
@@ -253,7 +253,7 @@ export async function estimateAccountCreationFee(): Promise<number> {
     const fee = props.account_creation_fee;
 
     // Parse fee string like "3.000 HIVE"
-    const amount = parseFloat(fee.split(' ')[0]);
+    const amount = parseFloat(String(fee).split(' ')[0]);
     return amount;
   } catch (error) {
     console.error('Error estimating account creation fee:', error);

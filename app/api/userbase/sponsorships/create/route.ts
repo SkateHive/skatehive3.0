@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { SPONSORSHIP_CONFIG } from '@/config/app.config';
+import { validateHiveUsernameFormat, checkHiveAccountExists } from '@/lib/utils/hiveAccountUtils';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -135,18 +136,20 @@ export async function POST(
       );
     }
 
-    // 3. Verify lite user is eligible
-    const eligibilityResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/userbase/sponsorships/eligible/${lite_user_id}`
-    );
-    const eligibilityData = await eligibilityResponse.json();
-
-    if (!eligibilityData.eligible) {
+    // 3. Validate Hive username format
+    const usernameValidation = validateHiveUsernameFormat(hive_username);
+    if (!usernameValidation.isValid) {
       return NextResponse.json(
-        {
-          success: false,
-          error: `User is not eligible for sponsorship: ${eligibilityData.reason}`,
-        },
+        { success: false, error: usernameValidation.error || 'Invalid Hive username format' },
+        { status: 400 }
+      );
+    }
+
+    // 4. Check that Hive username is not already taken
+    const accountExists = await checkHiveAccountExists(hive_username);
+    if (accountExists) {
+      return NextResponse.json(
+        { success: false, error: 'This Hive username is already taken' },
         { status: 400 }
       );
     }

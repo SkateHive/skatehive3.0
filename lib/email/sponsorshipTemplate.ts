@@ -6,7 +6,8 @@ import { HiveAccountKeys } from '@/lib/hive/keyGeneration';
  *
  * @param username - The new Hive username
  * @param sponsorUsername - Username of the sponsor
- * @param keys - Complete set of Hive keys
+ * @param keys - Complete set of Hive keys (attached separately as a file for security,
+ *               not embedded in the HTML body to prevent caching/forwarding risks)
  * @param isBackup - If true, this is a backup/resend email
  * @param isPartialBackup - If true, only posting key is available
  * @returns HTML email template
@@ -14,7 +15,7 @@ import { HiveAccountKeys } from '@/lib/hive/keyGeneration';
 export function getSponsorshipEmailTemplate(
   username: string,
   sponsorUsername: string,
-  keys: HiveAccountKeys,
+  _keys: HiveAccountKeys,
   isBackup = false,
   isPartialBackup = false
 ): string {
@@ -240,11 +241,13 @@ export function getSponsorshipEmailTemplate(
 /**
  * Generates plain text version of the sponsorship email
  * For email clients that don't support HTML
+ *
+ * @param keys - Keys are attached as a separate file, not embedded in text for security
  */
 export function getSponsorshipEmailText(
   username: string,
   sponsorUsername: string,
-  keys: HiveAccountKeys,
+  _keys: HiveAccountKeys,
   isBackup = false,
   isPartialBackup = false
 ): string {
