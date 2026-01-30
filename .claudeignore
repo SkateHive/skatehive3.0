@@ -1,0 +1,77 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+.next/
+out/
+build/
+dist/
+
+# Testing
+coverage/
+.nyc_output/
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Documentation
+LICENSE
+
+# Asset files (we know the paths, don't need content)
+public/images/
+public/logos/
+public/fonts/
+public/folder-icons/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.webp
+*.mp4
+*.webm
+
+# Database & Scripts (not touching these)
+scripts/database/
+prisma/
+*.sql
+
+# Config files (rarely need these)
+
+.env.production
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+jest.config.js
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+
+
+# Other unrelated files
+*.lock
+.npmrc
+.yarnrc
+vercel.json
