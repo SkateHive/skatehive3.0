@@ -29,8 +29,8 @@ const getMainTabs = (
   hasHiveProfile: boolean,
   hasFarcasterProfile: boolean
 ) => {
-  const baseTabs = hasHiveProfile
-    ? ([
+  const baseTabs: Array<{ key: string; label: string; icon: any }> = hasHiveProfile
+    ? [
         { key: "snaps", label: "Snaps", icon: FaCamera },
         { key: "posts", label: "Pages", icon: FaFileAlt },
         {
@@ -38,19 +38,19 @@ const getMainTabs = (
           label: isMobile ? "Parts" : "VideoParts",
           icon: FaVideo,
         },
-      ] as const)
-    : ([{ key: "posts", label: "Pages", icon: FaFileAlt }] as const);
+      ]
+    : [{ key: "posts", label: "Pages", icon: FaFileAlt }];
 
   const tabsWithExtras = [...baseTabs];
 
   // Add tokens tab if user has an Ethereum address
   if (hasEthereumAddress) {
-    tabsWithExtras.push({ key: "tokens", label: "Tokens", icon: FaCoins } as const);
+    tabsWithExtras.push({ key: "tokens", label: "Tokens", icon: FaCoins });
   }
 
   // Add casts tab if user has a Farcaster profile
   if (hasFarcasterProfile) {
-    tabsWithExtras.push({ key: "casts", label: "Casts", icon: FaComment } as const);
+    tabsWithExtras.push({ key: "casts", label: "Casts", icon: FaComment });
   }
 
   return tabsWithExtras;
