@@ -59,7 +59,7 @@ const HiveProfileHeader = function HiveProfileHeader({
 
   // Stats row: Single horizontal line with followers + voting power bar + dollar value
   const statsRow = (
-    <HStack spacing={6} fontSize="xs" fontFamily="mono" flexWrap="wrap" align="center">
+    <HStack spacing={6} fontSize="xs" fontFamily="mono" flexWrap="wrap" align="center" justifyContent="center" w="100%">
       {/* Follower counts */}
       <Text color="text" whiteSpace="nowrap" textTransform="uppercase">
         <Text as="span" fontWeight="bold" color="primary">
