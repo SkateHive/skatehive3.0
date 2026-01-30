@@ -12,7 +12,54 @@ import {
   Box,
   Circle,
   Badge,
+  IconButton,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  useDisclosure,
+  Fade,
 } from "@chakra-ui/react";
+import { InfoOutlineIcon, ArrowBackIcon } from '@chakra-ui/icons';
+
+// Info content for onboarding and identity linking (for modal back)
+function InfoContent({ onBack }: { onBack: () => void }) {
+  return (
+    <VStack align="stretch" spacing={4} p={2} minH="340px">
+      <HStack>
+        <IconButton
+          aria-label="Back"
+          icon={<ArrowBackIcon />}
+          size="sm"
+          variant="ghost"
+          colorScheme="primary"
+          onClick={onBack}
+        />
+        <Text fontWeight="bold" fontSize="md">How Sign Up & Identity Linking Works</Text>
+      </HStack>
+      <Text>
+        <b>New to Skatehive?</b> You can sign up with just an email, a Hive account, or an Ethereum wallet. No wallet is required to get started!
+      </Text>
+      <Text>
+        <b>Why link more identities?</b> Linking Hive, Ethereum, and Farcaster lets you:
+        <ul style={{ marginLeft: 18 }}>
+          <li>• Earn rewards and post on Hive</li>
+          <li>• Collect and mint NFTs on Ethereum</li>
+          <li>• Use your Farcaster social identity</li>
+          <li>• Secure your account and recover access</li>
+        </ul>
+      </Text>
+      <Text>
+        <b>OG Users:</b> Linking multiple identities gives you more ways to log in, post, and recover your account. You can start with one and add more anytime.
+      </Text>
+      <Text>
+        <b>Best Practice:</b> Connect as many identities as possible for the best experience and security!
+      </Text>
+    </VStack>
+  );
+}
 import { keyframes } from "@emotion/react";
 import SkateModal from "@/components/shared/SkateModal";
 import { useRouter } from "next/navigation";
@@ -200,6 +247,7 @@ export default function ConnectionModal({
   
   // Account linking state
   const [isLinkingModalOpen, setIsLinkingModalOpen] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const {
     opportunities,
     hasUnlinkedOpportunities,
@@ -299,277 +347,295 @@ export default function ConnectionModal({
         pointerEvents="none"
         bgImage="url('data:image/svg+xml,%3Csvg viewBox=%220 0 256 256%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noise%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noise)%22/%3E%3C/svg%3E')"
       />
-      
-      <Box p={4} position="relative">
-        <VStack spacing={3} align="stretch">
-          
-          {/* === LOGGED IN STATE === */}
-          {isLoggedIn ? (
-            <>
-              {/* Session Info */}
-              <HStack spacing={3} py={2}>
-                <Image
-                  src={avatarUrl}
-                  boxSize={10}
-                  borderRadius="sm"
-                  alt=""
-                />
-                <VStack align="start" spacing={0} flex={1}>
-                  <Text fontFamily="mono" fontSize="sm" color="primary">
-                    {displayName}
+      <Box p={4} position="relative" minHeight="420px">
+        <Fade in={!showInfo} unmountOnExit>
+          <VStack spacing={3} align="stretch">
+            {/* === LOGGED IN STATE === */}
+            {isLoggedIn ? (
+              <>
+                {/* Session Info */}
+                <HStack spacing={3} py={2}>
+                  <Image
+                    src={avatarUrl}
+                    boxSize={10}
+                    borderRadius="sm"
+                    alt=""
+                  />
+                  <VStack align="start" spacing={0} flex={1}>
+                    <Text fontFamily="mono" fontSize="sm" color="primary">
+                      {displayName}
+                    </Text>
+                    <Text fontFamily="mono" fontSize="xs" color="gray.500">
+                      {user ? "hive" : "email"} session active
+                    </Text>
+                  </VStack>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    fontFamily="mono"
+                    color="gray.500"
+                    onClick={handleProfileClick}
+                    _hover={{ color: "primary" }}
+                  >
+                    profile →
+                  </Button>
+                </HStack>
+
+                {/* Linking prompt - show when there are unlinked opportunities */}
+                {hasUnlinkedOpportunities && !isLoading && (
+                  <HStack
+                    py={2}
+                    px={3}
+                    bg="whiteAlpha.50"
+                    borderRadius="sm"
+                    border="1px solid"
+                    borderColor="primary"
+                    cursor="pointer"
+                    onClick={() => setIsLinkingModalOpen(true)}
+                    _hover={{ bg: "whiteAlpha.100" }}
+                  >
+                    <Icon as={FaLink} boxSize={3} color="primary" />
+                    <Text fontFamily="mono" fontSize="xs" color="text" flex={1}>
+                      link detected accounts
+                    </Text>
+                    <Badge
+                      bg="primary"
+                      color="background"
+                      fontFamily="mono"
+                      fontSize="2xs"
+                      borderRadius="sm"
+                    >
+                      {opportunities.filter(o => !o.alreadyLinked).length}
+                    </Badge>
+                    <Text fontFamily="mono" fontSize="xs" color="primary">→</Text>
+                  </HStack>
+                )}
+
+                {/* Connections - explicit states */}
+                <Box pt={2}>
+                  <Text fontFamily="mono" fontSize="xs" color="gray.500" mb={3} textTransform="lowercase">
+                    available connections
                   </Text>
-                  <Text fontFamily="mono" fontSize="xs" color="gray.500">
-                    {user ? "hive" : "email"} session active
+                  <VStack spacing={0} align="stretch">
+                    {/* Hive Connection */}
+                    <ConnectionStatus
+                      name="hive"
+                      icon={FaHive}
+                      color="red.400"
+                      state={hiveState}
+                      subState={
+                        hiveState === "active"
+                          ? "posting enabled"
+                          : hiveLabel
+                          ? `linked: ${hiveLabel}`
+                          : undefined
+                      }
+                      onClick={() =>
+                        hiveState === "active" ? handleHiveLogout() : onHiveLogin()
+                      }
+                    />
+
+                    {/* Ethereum Connection */}
+                    <ConnectButton.Custom>
+                      {({ account, chain, openAccountModal, openConnectModal, mounted }) => {
+                        const connected = mounted && account && chain;
+                        return (
+                          <ConnectionStatus
+                            name="eth"
+                            icon={FaEthereum}
+                            color="blue.300"
+                            state={connected ? "active" : evmState}
+                            subState={
+                              connected
+                                ? undefined
+                                : evmLabel
+                                ? `linked: ${evmLabel}`
+                                : undefined
+                            }
+                            onClick={() => {
+                              onClose();
+                              connected ? openAccountModal() : openConnectModal();
+                            }}
+                          />
+                        );
+                      }}
+                    </ConnectButton.Custom>
+
+                    {/* Farcaster Connection */}
+                    <ConnectionStatus
+                      name="farcaster"
+                      icon={SiFarcaster}
+                      color="purple.400"
+                      state={farcasterState}
+                      subState={
+                        farcasterState === "active"
+                          ? undefined
+                          : farcasterLabel
+                          ? `linked: ${farcasterLabel}`
+                          : undefined
+                      }
+                      onClick={() =>
+                        finalFarcasterConnection
+                          ? handleFarcasterDisconnect()
+                          : onFarcasterConnect()
+                      }
+                      isLoading={isFarcasterAuthInProgress}
+                    />
+                  </VStack>
+                </Box>
+
+                {/* Sign Out */}
+                <Box pt={3} borderTop="1px solid" borderColor="whiteAlpha.100">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    fontFamily="mono"
+                    color="gray.600"
+                    onClick={() => {
+                      if (userbaseUser) signOutUserbase();
+                      if (user) handleHiveLogout();
+                      onClose();
+                    }}
+                    _hover={{ color: "red.400" }}
+                  >
+                    end session
+                  </Button>
+                </Box>
+              </>
+            ) : (
+              <>
+                {/* === NOT LOGGED IN STATE === */}
+
+                {/* Welcome - tighter */}
+                <VStack spacing={0} pb={2}>
+                  <Text fontFamily="mono" fontSize="lg" color="primary" letterSpacing="tight">
+                    skatehive
+                  </Text>
+                  <Text fontFamily="mono" fontSize="xs" color="gray.400">
+                    join the community
                   </Text>
                 </VStack>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  fontFamily="mono"
-                  color="gray.500"
-                  onClick={handleProfileClick}
-                  _hover={{ color: "primary" }}
-                >
-                  profile →
-                </Button>
-              </HStack>
 
-              {/* Linking prompt - show when there are unlinked opportunities */}
-              {hasUnlinkedOpportunities && !isLoading && (
-                <HStack
-                  py={2}
-                  px={3}
-                  bg="whiteAlpha.50"
-                  borderRadius="sm"
-                  border="1px solid"
-                  borderColor="primary"
-                  cursor="pointer"
-                  onClick={() => setIsLinkingModalOpen(true)}
-                  _hover={{ bg: "whiteAlpha.100" }}
-                >
-                  <Icon as={FaLink} boxSize={3} color="primary" />
-                  <Text fontFamily="mono" fontSize="xs" color="text" flex={1}>
-                    link detected accounts
+                {/* Email Login - Primary Action - EMPHASIZED */}
+                <Box>
+                  <UserbaseEmailLoginForm variant="compact" />
+                  <Text fontFamily="mono" fontSize="2xs" color="gray.500" mt={1.5} textAlign="center">
+                    no wallet required · best for new skaters
                   </Text>
-                  <Badge
-                    bg="primary"
-                    color="background"
-                    fontFamily="mono"
-                    fontSize="2xs"
-                    borderRadius="sm"
-                  >
-                    {opportunities.filter(o => !o.alreadyLinked).length}
-                  </Badge>
-                  <Text fontFamily="mono" fontSize="xs" color="primary">→</Text>
-                </HStack>
-              )}
+                </Box>
 
-              {/* Connections - explicit states */}
-              <Box pt={2}>
-                <Text fontFamily="mono" fontSize="xs" color="gray.500" mb={3} textTransform="lowercase">
-                  available connections
-                </Text>
-                <VStack spacing={0} align="stretch">
-                  {/* Hive Connection */}
-                  <ConnectionStatus
-                    name="hive"
-                    icon={FaHive}
-                    color="red.400"
-                    state={hiveState}
-                    subState={
-                      hiveState === "active"
-                        ? "posting enabled"
-                        : hiveLabel
-                        ? `linked: ${hiveLabel}`
-                        : undefined
-                    }
-                    onClick={() =>
-                      hiveState === "active" ? handleHiveLogout() : onHiveLogin()
-                    }
-                  />
-                  
-                  {/* Ethereum Connection */}
-                  <ConnectButton.Custom>
-                    {({ account, chain, openAccountModal, openConnectModal, mounted }) => {
-                      const connected = mounted && account && chain;
-                      return (
+                {/* Divider - cleaner separation */}
+                <Box position="relative" py={3}>
+                  <Box position="absolute" left={0} right={0} top="50%" h="1px" bg="whiteAlpha.100" />
+                  <Text 
+                    fontFamily="mono" 
+                    fontSize="2xs" 
+                    color="gray.500" 
+                    bg="background"
+                    px={3}
+                    position="relative"
+                    w="fit-content"
+                    mx="auto"
+                    textTransform="uppercase"
+                    letterSpacing="wider"
+                  >
+                    or link existing
+                  </Text>
+                </Box>
+
+                {/* Connection options - reordered: Farcaster, Hive, Ethereum */}
+                <VStack spacing={1.5} align="stretch">
+                  <Text fontFamily="mono" fontSize="xs" color="gray.500" mb={1} textTransform="lowercase">
+                    available connections
+                  </Text>
+                  <VStack spacing={0} align="stretch">
+                    {/* Farcaster */}
+                    <ConnectionStatus
+                      name="farcaster"
+                      icon={SiFarcaster}
+                      color="purple.400"
+                      state="not-linked"
+                      hint="social identity"
+                      onClick={onFarcasterConnect}
+                      isLoading={isFarcasterAuthInProgress}
+                    />
+
+                    {/* Hive */}
+                    <ConnectionStatus
+                      name="hive"
+                      icon={FaHive}
+                      color="red.400"
+                      state="not-linked"
+                      hint="rewards & posting"
+                      onClick={onHiveLogin}
+                    />
+
+                    {/* Ethereum */}
+                    <ConnectButton.Custom>
+                      {({ openConnectModal }) => (
                         <ConnectionStatus
                           name="eth"
                           icon={FaEthereum}
                           color="blue.300"
-                          state={connected ? "active" : evmState}
-                          subState={
-                            connected
-                              ? undefined
-                              : evmLabel
-                              ? `linked: ${evmLabel}`
-                              : undefined
-                          }
+                          state="not-linked"
+                          hint="nfts & tokens"
                           onClick={() => {
                             onClose();
-                            connected ? openAccountModal() : openConnectModal();
+                            openConnectModal();
                           }}
                         />
-                      );
-                    }}
-                  </ConnectButton.Custom>
-                  
-                  {/* Farcaster Connection */}
-                  <ConnectionStatus
-                    name="farcaster"
-                    icon={SiFarcaster}
-                    color="purple.400"
-                    state={farcasterState}
-                    subState={
-                      farcasterState === "active"
-                        ? undefined
-                        : farcasterLabel
-                        ? `linked: ${farcasterLabel}`
-                        : undefined
-                    }
-                    onClick={() =>
-                      finalFarcasterConnection
-                        ? handleFarcasterDisconnect()
-                        : onFarcasterConnect()
-                    }
-                    isLoading={isFarcasterAuthInProgress}
-                  />
-                </VStack>
-              </Box>
-
-              {/* Sign Out */}
-              <Box pt={3} borderTop="1px solid" borderColor="whiteAlpha.100">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  fontFamily="mono"
-                  color="gray.600"
-                  onClick={() => {
-                    if (userbaseUser) signOutUserbase();
-                    if (user) handleHiveLogout();
-                    onClose();
-                  }}
-                  _hover={{ color: "red.400" }}
-                >
-                  end session
-                </Button>
-              </Box>
-            </>
-          ) : (
-            <>
-              {/* === NOT LOGGED IN STATE === */}
-              
-              {/* Welcome - tighter */}
-              <VStack spacing={0} pb={2}>
-                <Text fontFamily="mono" fontSize="lg" color="primary" letterSpacing="tight">
-                  skatehive
-                </Text>
-                <Text fontFamily="mono" fontSize="xs" color="gray.400">
-                  join the community
-                </Text>
-              </VStack>
-
-              {/* Email Login - Primary Action - EMPHASIZED */}
-              <Box>
-                <UserbaseEmailLoginForm variant="compact" />
-                <Text fontFamily="mono" fontSize="2xs" color="gray.500" mt={1.5} textAlign="center">
-                  no wallet required · best for new skaters
-                </Text>
-              </Box>
-
-              {/* Divider - cleaner separation */}
-              <Box position="relative" py={3}>
-                <Box position="absolute" left={0} right={0} top="50%" h="1px" bg="whiteAlpha.100" />
-                <Text 
-                  fontFamily="mono" 
-                  fontSize="2xs" 
-                  color="gray.500" 
-                  bg="background"
-                  px={3}
-                  position="relative"
-                  w="fit-content"
-                  mx="auto"
-                  textTransform="uppercase"
-                  letterSpacing="wider"
-                >
-                  or link existing
-                </Text>
-              </Box>
-
-              {/* Connection options - reordered: Farcaster, Hive, Ethereum */}
-              <VStack spacing={1.5} align="stretch">
-                <Text fontFamily="mono" fontSize="xs" color="gray.500" mb={1} textTransform="lowercase">
-                  available connections
-                </Text>
-                <VStack spacing={0} align="stretch">
-                  {/* Farcaster */}
-                  <ConnectionStatus
-                    name="farcaster"
-                    icon={SiFarcaster}
-                    color="purple.400"
-                    state="not-linked"
-                    hint="social identity"
-                    onClick={onFarcasterConnect}
-                    isLoading={isFarcasterAuthInProgress}
-                  />
-                  
-                  {/* Hive */}
-                  <ConnectionStatus
-                    name="hive"
-                    icon={FaHive}
-                    color="red.400"
-                    state="not-linked"
-                    hint="rewards & posting"
-                    onClick={onHiveLogin}
-                  />
-                  
-                  {/* Ethereum */}
-                  <ConnectButton.Custom>
-                    {({ openConnectModal }) => (
-                      <ConnectionStatus
-                        name="eth"
-                        icon={FaEthereum}
-                        color="blue.300"
-                        state="not-linked"
-                        hint="nfts & tokens"
-                        onClick={() => {
-                          onClose();
-                          openConnectModal();
-                        }}
-                      />
-                    )}
-                  </ConnectButton.Custom>
-                </VStack>
-                <Text fontFamily="mono" fontSize="2xs" color="gray.500" textAlign="center" mt={2}>
-                  already part of the ecosystem
-                </Text>
-              </VStack>
-
-              {/* Help - terminal style with emphasis */}
-              <Box pt={3} borderTop="1px solid" borderColor="whiteAlpha.100">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  fontFamily="mono"
-                  color="gray.500"
-                  onClick={() =>
-                    window.open("https://docs.skatehive.app/docs/create-account", "_blank")
-                  }
-                  _hover={{ color: "primary", bg: "whiteAlpha.50" }}
-                  w="full"
-                  justifyContent="center"
-                >
-                  <Text as="span" color="primary" animation={`${blink} 1.2s step-end infinite`} mr={1.5}>?</Text>
-                  <Text as="span" textTransform="uppercase" fontSize="2xs" letterSpacing="wider">
-                    type help
+                      )}
+                    </ConnectButton.Custom>
+                  </VStack>
+                  <Text fontFamily="mono" fontSize="2xs" color="gray.500" textAlign="center" mt={2}>
+                    already part of the ecosystem
                   </Text>
-                </Button>
-              </Box>
-            </>
-          )}
-        </VStack>
+                </VStack>
+
+                {/* Help - terminal style with emphasis */}
+                <Box pt={3} borderTop="1px solid" borderColor="whiteAlpha.100">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    fontFamily="mono"
+                    color="gray.500"
+                    onClick={() =>
+                      window.open("https://docs.skatehive.app/docs/create-account", "_blank")
+                    }
+                    _hover={{ color: "primary", bg: "whiteAlpha.50" }}
+                    w="full"
+                    justifyContent="center"
+                  >
+                    <Text as="span" color="primary" animation={`${blink} 1.2s step-end infinite`} mr={1.5}>?</Text>
+                    <Text as="span" textTransform="uppercase" fontSize="2xs" letterSpacing="wider">
+                      type help
+                    </Text>
+                  </Button>
+                </Box>
+              </>
+            )}
+          </VStack>
+        </Fade>
+        <Fade in={showInfo} unmountOnExit>
+          <InfoContent onBack={() => setShowInfo(false)} />
+        </Fade>
+
+        {/* Info Icon - bottom right */}
+        <Box position="absolute" bottom={3} right={3} zIndex={10}>
+          <Tooltip label="How sign up & identity linking works" placement="top">
+            <IconButton
+              aria-label="Info"
+              icon={<InfoOutlineIcon />}
+              size="sm"
+              variant="ghost"
+              colorScheme="primary"
+              onClick={() => setShowInfo(true)}
+              bg="background"
+              _hover={{ bg: "muted" }}
+            />
+          </Tooltip>
+        </Box>
       </Box>
-      
       {/* Account Linking Modal */}
       <AccountLinkingModal
         isOpen={isLinkingModalOpen}

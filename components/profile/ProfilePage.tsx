@@ -25,6 +25,7 @@ import SnapsGrid from "./SnapsGrid";
 import ZoraTokensView from "./ZoraTokensView";
 import SoftSnapsGrid from "./SoftSnapsGrid";
 import EditUserbaseProfile from "./EditUserbaseProfile";
+import FarcasterCastsView from "./FarcasterCastsView";
 
 // Import custom hooks
 import useProfileData from "@/hooks/useProfileData";
@@ -64,6 +65,8 @@ const ContentViews = memo(function ContentViews({
   softSnaps,
   ethereumAddress,
   hasHiveProfile,
+  farcasterFid,
+  farcasterUsername,
 }: {
   viewMode: string;
   postProps: {
@@ -85,6 +88,8 @@ const ContentViews = memo(function ContentViews({
   softSnaps?: Discussion[];
   ethereumAddress?: string;
   hasHiveProfile: boolean;
+  farcasterFid?: number | null;
+  farcasterUsername?: string | null;
 }) {
   // Use conditional rendering with style display to avoid unmounting/remounting
   return (
@@ -111,6 +116,15 @@ const ContentViews = memo(function ContentViews({
       <Box display={viewMode === "tokens" ? "block" : "none"}>
         {viewMode === "tokens" && (
           <ZoraTokensView ethereumAddress={ethereumAddress} />
+        )}
+      </Box>
+
+      <Box display={viewMode === "casts" ? "block" : "none"}>
+        {viewMode === "casts" && farcasterFid && (
+          <FarcasterCastsView
+            fid={farcasterFid}
+            username={farcasterUsername || undefined}
+          />
         )}
       </Box>
 
@@ -412,7 +426,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   // Optimized view mode change handler with debouncing to prevent rapid switches
   const memoizedViewModeChange = useCallback(
     (
-      mode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens"
+      mode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts"
     ) => {
       // Prevent rapid changes
       if (isTransitioning.current) return;
@@ -583,9 +597,17 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   }, []);
 
   useEffect(() => {
+    // Redirect from Hive-only views if user doesn't have Hive
     if (canShowHiveViews || hasSoftSnaps) return;
     if (["snaps", "videoparts", "magazine"].includes(viewMode)) {
-      handleViewModeChange(resolvedEthereumAddress ? "tokens" : "grid");
+      // Prefer casts if Farcaster available, tokens if Ethereum available, otherwise grid
+      if (farcasterIdentityFid) {
+        handleViewModeChange("casts");
+      } else if (resolvedEthereumAddress) {
+        handleViewModeChange("tokens");
+      } else {
+        handleViewModeChange("grid");
+      }
     }
   }, [
     canShowHiveViews,
@@ -593,6 +615,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     viewMode,
     handleViewModeChange,
     resolvedEthereumAddress,
+    farcasterIdentityFid,
   ]);
 
   const isProfileResolved =
@@ -688,6 +711,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               isMobile={isMobile}
               hasEthereumAddress={!!resolvedEthereumAddress}
               hasHiveProfile={canShowHiveViews || hasSoftSnaps}
+              hasFarcasterProfile={!!farcasterIdentityFid}
             />
 
             {/* Content Views - Optimized conditional rendering */}
@@ -700,6 +724,8 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               softSnaps={softSnaps}
               ethereumAddress={resolvedEthereumAddress}
               hasHiveProfile={canShowHiveViews || hasSoftSnaps}
+              farcasterFid={farcasterIdentityFid ? parseInt(farcasterIdentityFid, 10) : null}
+              farcasterUsername={farcasterIdentityHandle}
             />
           </Box>
         </Container>

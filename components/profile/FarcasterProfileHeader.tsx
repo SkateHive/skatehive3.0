@@ -1,6 +1,6 @@
 "use client";
 import React, { memo } from "react";
-import { Box, Text } from "@chakra-ui/react";
+import { HStack, Text } from "@chakra-ui/react";
 import { ProfileData } from "./ProfilePage";
 import ProfileHeaderWrapper from "./ProfileHeaderWrapper";
 import IdentityBlock from "./IdentityBlock";
@@ -21,12 +21,14 @@ interface FarcasterProfileHeaderProps {
   profileData: ProfileData;
   username: string;
   farcasterProfile?: FarcasterProfileData | null;
+  integrations?: React.ReactNode;
 }
 
 const FarcasterProfileHeader = function FarcasterProfileHeader({
   profileData,
   username,
   farcasterProfile,
+  integrations,
 }: FarcasterProfileHeaderProps) {
   // Smart fallback: prefer Farcaster data, fallback to profileData
   const displayName = farcasterProfile?.displayName || farcasterProfile?.username || profileData.name || username;
@@ -34,19 +36,29 @@ const FarcasterProfileHeader = function FarcasterProfileHeader({
   const bio = farcasterProfile?.bio || profileData.about;
   const farcasterUsername = farcasterProfile?.username;
   const fid = farcasterProfile?.fid;
+  const followerCount = farcasterProfile?.followerCount;
+  const followingCount = farcasterProfile?.followingCount;
 
-  // Stats row similar to Hive (if Farcaster has follower data in the future)
-  const statsRow = fid && (
-    <Box>
-      <Text
-        color="purple.300"
-        fontSize="sm"
-        textShadow="0 2px 4px rgba(0,0,0,0.9)"
-        fontWeight="medium"
-      >
-        Farcaster ID: <Text as="span" fontWeight="bold" color="purple.400">{fid}</Text>
-      </Text>
-    </Box>
+  // Terminal-style stats row for Farcaster
+  const statsRow = (followerCount !== undefined || followingCount !== undefined) && (
+    <HStack spacing={6} fontSize="xs" fontFamily="mono">
+      {followingCount !== undefined && (
+        <Text color="text" whiteSpace="nowrap" textTransform="uppercase">
+          <Text as="span" fontWeight="bold" color="primary">
+            {followingCount}
+          </Text>{" "}
+          Following
+        </Text>
+      )}
+      {followerCount !== undefined && (
+        <Text color="text" whiteSpace="nowrap" textTransform="uppercase">
+          <Text as="span" fontWeight="bold" color="primary">
+            {followerCount}
+          </Text>{" "}
+          Followers
+        </Text>
+      )}
+    </HStack>
   );
 
   return (
@@ -78,9 +90,10 @@ const FarcasterProfileHeader = function FarcasterProfileHeader({
                 }
               : undefined
           }
+          statsRow={statsRow}
+          integrations={integrations}
         />
       }
-      stats={statsRow}
     />
   );
 };

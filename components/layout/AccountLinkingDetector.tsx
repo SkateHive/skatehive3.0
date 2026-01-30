@@ -129,6 +129,7 @@ export default function AccountLinkingDetector() {
     farcasterProfile,
     opportunities,
     hasShownForSession,
+    hasUnlinkedOpportunities,
   ]);
 
   // Reset session flag when user logs out

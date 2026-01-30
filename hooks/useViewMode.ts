@@ -11,16 +11,16 @@ export default function useViewMode() {
         if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
             const viewParam = params.get("view") ?? '';
-            if (["grid", "list", "magazine", "videoparts", "snaps", "tokens"].includes(viewParam)) {
-                return viewParam as "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens";
+            if (["grid", "list", "magazine", "videoparts", "snaps", "tokens", "casts"].includes(viewParam)) {
+                return viewParam as "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts";
             }
         }
         return "snaps";
     };
 
-    const [viewMode, setViewMode] = useState<"grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens">(getInitialViewMode);
+    const [viewMode, setViewMode] = useState<"grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts">(getInitialViewMode);
 
-    const handleViewModeChange = useCallback((mode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens") => {
+    const handleViewModeChange = useCallback((mode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts") => {
         setViewMode(mode);
         if (typeof window !== "undefined") {
             localStorage.setItem("profileViewMode", mode);

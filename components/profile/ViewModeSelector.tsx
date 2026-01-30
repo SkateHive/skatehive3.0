@@ -9,22 +9,25 @@ import {
   FaCamera,
   FaFileAlt,
   FaCoins,
+  FaComment,
 } from "react-icons/fa";
 
 interface ViewModeSelectorProps {
-  viewMode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens";
+  viewMode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts";
   onViewModeChange: (
-    mode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens"
+    mode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts"
   ) => void;
   isMobile: boolean;
   hasEthereumAddress?: boolean;
   hasHiveProfile?: boolean;
+  hasFarcasterProfile?: boolean;
 }
 
 const getMainTabs = (
   isMobile: boolean,
   hasEthereumAddress: boolean,
-  hasHiveProfile: boolean
+  hasHiveProfile: boolean,
+  hasFarcasterProfile: boolean
 ) => {
   const baseTabs = hasHiveProfile
     ? ([
@@ -38,15 +41,19 @@ const getMainTabs = (
       ] as const)
     : ([{ key: "posts", label: "Pages", icon: FaFileAlt }] as const);
 
-  // Add tokens tab only if user has an Ethereum address
+  const tabsWithExtras = [...baseTabs];
+
+  // Add tokens tab if user has an Ethereum address
   if (hasEthereumAddress) {
-    return [
-      ...baseTabs,
-      { key: "tokens", label: "Tokens", icon: FaCoins },
-    ] as const;
+    tabsWithExtras.push({ key: "tokens", label: "Tokens", icon: FaCoins } as const);
   }
 
-  return baseTabs;
+  // Add casts tab if user has a Farcaster profile
+  if (hasFarcasterProfile) {
+    tabsWithExtras.push({ key: "casts", label: "Casts", icon: FaComment } as const);
+  }
+
+  return tabsWithExtras;
 };
 
 const postViewModes = [
@@ -61,11 +68,12 @@ const ViewModeSelector = memo(function ViewModeSelector({
   isMobile,
   hasEthereumAddress = false,
   hasHiveProfile = true,
+  hasFarcasterProfile = false,
 }: ViewModeSelectorProps) {
   // Get main tabs based on mobile state and ethereum address
   const mainTabs = useMemo(
-    () => getMainTabs(isMobile, hasEthereumAddress, hasHiveProfile),
-    [isMobile, hasEthereumAddress, hasHiveProfile]
+    () => getMainTabs(isMobile, hasEthereumAddress, hasHiveProfile, hasFarcasterProfile),
+    [isMobile, hasEthereumAddress, hasHiveProfile, hasFarcasterProfile]
   );
 
   // Determine which main tab is currently active
@@ -112,7 +120,7 @@ const ViewModeSelector = memo(function ViewModeSelector({
           : "grid";
         onViewModeChange(postMode as "grid" | "list" | "magazine");
       } else {
-        onViewModeChange(selectedTab.key as "snaps" | "videoparts" | "tokens");
+        onViewModeChange(selectedTab.key as "snaps" | "videoparts" | "tokens" | "casts");
       }
     },
     [viewMode, onViewModeChange, mainTabs]

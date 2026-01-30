@@ -102,7 +102,7 @@ export default function MergePreviewModal({
               borderRadius="sm"
             >
               <Text fontFamily="mono" fontSize="xs" color="yellow.300">
-                ⚠️ This account is already linked to user "{data.existingUserHandle}".
+                ⚠️ This account is already linked to user &quot;{data.existingUserHandle}&quot;.
                 Confirming will merge the accounts together.
               </Text>
             </Box>
@@ -173,7 +173,7 @@ export default function MergePreviewModal({
           >
             <HStack spacing={2} justify="center">
               <Text fontFamily="mono" fontSize="xs" color="blue.300">
-                After linking, you'll be taken to your
+                After linking, you&apos;ll be taken to your
               </Text>
               <HStack spacing={1}>
                 <Icon as={FaArrowRight} boxSize={3} color="blue.400" />
