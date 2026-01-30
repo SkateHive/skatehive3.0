@@ -95,41 +95,36 @@ const HiveProfileHeader = function HiveProfileHeader({
     </HStack>
   );
 
-  // Primary actions: Terminal-style Edit + Follow buttons
-  const primaryActions = (
-    <HStack spacing={2}>
-      {(canEdit ?? isOwner) && (
-        <IconButton
-          aria-label="Edit Profile"
-          icon={<FaEdit />}
-          size="sm"
-          variant="solid"
-          colorScheme="primary"
-          onClick={onEditModalOpen}
-          borderRadius="none"
-          fontFamily="mono"
-          textTransform="uppercase"
-          boxShadow="0 0 5px rgba(168, 255, 96, 0.3)"
-          _hover={{
-            boxShadow: "0 0 10px rgba(168, 255, 96, 0.5)",
-          }}
-        />
-      )}
-      {!isOwner && user && (
-        <FollowButton
-          user={user}
-          username={username}
-          isFollowing={isFollowing}
-          isFollowLoading={isFollowLoading}
-          onFollowingChange={onFollowingChange}
-          onLoadingChange={onLoadingChange}
-        />
-      )}
-    </HStack>
-  );
+  // Edit icon button next to username
+  const editIcon = (canEdit ?? isOwner) ? (
+    <IconButton
+      aria-label="Edit Profile"
+      icon={<FaEdit />}
+      size="xs"
+      variant="ghost"
+      color="text"
+      onClick={onEditModalOpen}
+      borderRadius="none"
+      opacity={0.7}
+      _hover={{ opacity: 1, color: "primary" }}
+      transition="all 0.2s"
+    />
+  ) : null;
+
+  // Follow button at bottom-left (for non-owners)
+  const followAction = !isOwner && user ? (
+    <FollowButton
+      user={user}
+      username={username}
+      isFollowing={isFollowing}
+      isFollowLoading={isFollowLoading}
+      onFollowingChange={onFollowingChange}
+      onLoadingChange={onLoadingChange}
+    />
+  ) : null;
 
   return (
-    <Box position="relative" pb={12}>
+    <Box position="relative" pb={followAction ? 12 : 0}>
       {/* Profile Header */}
       <ProfileHeaderWrapper
         coverImage={profileData.coverImage}
@@ -142,18 +137,19 @@ const HiveProfileHeader = function HiveProfileHeader({
             bio={profileData.about}
             statsRow={statsRow}
             integrations={integrations}
+            editButton={editIcon}
           />
         }
       />
 
-      {/* Action Buttons - Bottom-left outside terminal box */}
-      {primaryActions && (
+      {/* Follow Button - Bottom-left outside terminal box (only for non-owners) */}
+      {followAction && (
         <Box
           position="absolute"
           bottom={0}
           left={0}
         >
-          {primaryActions}
+          {followAction}
         </Box>
       )}
     </Box>

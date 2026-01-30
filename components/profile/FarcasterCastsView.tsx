@@ -51,8 +51,9 @@ export default function FarcasterCastsView({
 
   useEffect(() => {
     async function fetchCasts() {
-      if (!fid) {
+      if (!fid || fid === 0) {
         setIsLoading(false);
+        setError("No Farcaster profile found");
         return;
       }
 
@@ -61,7 +62,7 @@ export default function FarcasterCastsView({
         setError(null);
 
         const response = await fetch(
-          `/api/farcaster/casts?fid=${fid}&limit=25`
+          `/api/farcaster/casts?fid=${fid}&limit=10` // Reduced to 10 to save API quota
         );
 
         if (!response.ok) {
@@ -187,8 +188,17 @@ export default function FarcasterCastsView({
           {cast.embeds && cast.embeds.length > 0 && (
             <VStack spacing={2} align="stretch" mb={3}>
               {cast.embeds.map((embed, idx) => {
+                // Try multiple sources for image URL
                 const imageUrl = embed.metadata?.image?.url || embed.url;
-                if (imageUrl && imageUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+
+                // Check if it's an image URL (by extension or content type)
+                const isImageUrl = imageUrl && (
+                  imageUrl.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ||
+                  imageUrl.includes('/image/') ||
+                  embed.metadata?.image
+                );
+
+                if (isImageUrl && imageUrl) {
                   return (
                     <Image
                       key={idx}
@@ -199,9 +209,23 @@ export default function FarcasterCastsView({
                       borderRadius="none"
                       border="1px solid"
                       borderColor="dim"
+                      fallback={
+                        <Box
+                          p={2}
+                          border="1px solid"
+                          borderColor="dim"
+                          borderRadius="none"
+                        >
+                          <Text color="dim" fontSize="xs" fontFamily="mono">
+                            Failed to load image
+                          </Text>
+                        </Box>
+                      }
                     />
                   );
                 }
+
+                // Show URL link for non-image embeds
                 if (embed.url) {
                   return (
                     <Link
@@ -212,8 +236,9 @@ export default function FarcasterCastsView({
                       fontSize="xs"
                       fontFamily="mono"
                       _hover={{ textDecoration: "underline" }}
+                      noOfLines={1}
                     >
-                      {embed.url}
+                      🔗 {embed.url}
                     </Link>
                   );
                 }
