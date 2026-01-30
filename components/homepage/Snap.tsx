@@ -99,6 +99,11 @@ const Snap = ({
     softPost?.user.avatar_url ||
     `https://images.hive.blog/u/${discussion.author}/avatar/sm`;
 
+  // Use lite user's handle for profile link if it's a soft post
+  const profileLink = softPost?.user.handle
+    ? `/user/${softPost.user.handle}`
+    : `/user/${discussion.author}`;
+
   const {
     isEditing,
     editedContent,
@@ -294,7 +299,7 @@ const Snap = ({
       <Box mt={1} mb={1} borderRadius="base" width="100%">
         <HStack mb={2}>
           <Link
-            href={`/user/${discussion.author}`}
+            href={profileLink}
             _hover={{ textDecoration: "none" }}
             display="flex"
             alignItems="center"
