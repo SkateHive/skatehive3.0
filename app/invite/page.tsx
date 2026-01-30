@@ -129,7 +129,7 @@ export default function InvitePage() {
     }, 500);
 
     return () => clearTimeout(debounceTimer);
-  }, [desiredUsername, isMounted]);
+  }, [desiredUsername, isMounted, t]);
 
   // Validate email on change
   useEffect(() => {
