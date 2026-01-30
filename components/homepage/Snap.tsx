@@ -617,7 +617,7 @@ const Snap = ({
         )}
 
         {/* Sponsorship Modal */}
-        {showSponsorCTA && softPost?.user && viewerHiveUsername && (
+        {showSponsorCTA && softPost?.user && softPost.user.handle && viewerHiveUsername && (
           <SponsorshipModal
             isOpen={isSponsorModalOpen}
             onClose={() => setIsSponsorModalOpen(false)}

@@ -61,7 +61,7 @@ export async function postToHive(
   content: PostContent
 ): Promise<PostResult> {
   // 1. Determine posting method
-  const method = await getPostingMethod(userId);
+  const method = await getPostingMethod(supabase, userId);
 
   // 2. Generate permlink
   const permlink = generatePermlink(content.title || 'post');

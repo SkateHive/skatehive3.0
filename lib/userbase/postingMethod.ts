@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Posting method types
@@ -27,14 +27,15 @@ export type PostingMethod =
  * Determines the posting method for a user
  * Priority: Encrypted key > Keychain > Soft post
  *
+ * @param supabase - Supabase client instance
  * @param userId - The user's ID
  * @returns Posting method configuration
  *
  * @example
- * const method = await getPostingMethod(userId);
+ * const method = await getPostingMethod(supabase, userId);
  * if (method.type === 'hive_account') {
  *   // Post with encrypted key (no popup needed)
- *   const key = await getDecryptedKey(userId);
+ *   const key = await getDecryptedKey(supabase, userId);
  *   // ... broadcast to Hive
  * } else if (method.type === 'keychain_signing') {
  *   // Request Keychain to sign
@@ -42,8 +43,10 @@ export type PostingMethod =
  *   // Create soft post
  * }
  */
-export async function getPostingMethod(userId: string): Promise<PostingMethod> {
-  const supabase = createClient();
+export async function getPostingMethod(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<PostingMethod> {
 
   // Priority 1: Check for stored encrypted posting key (sponsored or manually set)
   const { data: keyData, error: keyError } = await supabase
@@ -101,11 +104,15 @@ export async function getPostingMethod(userId: string): Promise<PostingMethod> {
  * Checks if a user can post directly to Hive (without Keychain popup)
  * Returns true if user has encrypted posting key stored
  *
+ * @param supabase - Supabase client instance
  * @param userId - The user's ID
  * @returns true if user can post directly
  */
-export async function canPostDirectlyToHive(userId: string): Promise<boolean> {
-  const method = await getPostingMethod(userId);
+export async function canPostDirectlyToHive(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<boolean> {
+  const method = await getPostingMethod(supabase, userId);
   return method.type === 'hive_account';
 }
 
@@ -113,21 +120,29 @@ export async function canPostDirectlyToHive(userId: string): Promise<boolean> {
  * Gets the Hive username for posting (if available)
  * Returns null if user is a lite account
  *
+ * @param supabase - Supabase client instance
  * @param userId - The user's ID
  * @returns Hive username or null
  */
-export async function getHiveUsernameForPosting(userId: string): Promise<string | null> {
-  const method = await getPostingMethod(userId);
+export async function getHiveUsernameForPosting(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<string | null> {
+  const method = await getPostingMethod(supabase, userId);
   return method.type !== 'soft_post' ? method.username : null;
 }
 
 /**
  * Determines if a user needs Keychain for posting
  *
+ * @param supabase - Supabase client instance
  * @param userId - The user's ID
  * @returns true if Keychain popup is required
  */
-export async function requiresKeychain(userId: string): Promise<boolean> {
-  const method = await getPostingMethod(userId);
+export async function requiresKeychain(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<boolean> {
+  const method = await getPostingMethod(supabase, userId);
   return method.type === 'keychain_signing';
 }
