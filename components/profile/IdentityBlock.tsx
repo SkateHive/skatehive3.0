@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Box, Flex, Avatar, VStack, HStack, Text, Badge, Link } from "@chakra-ui/react";
+import { Box, Flex, Avatar, VStack, HStack, Text, Link } from "@chakra-ui/react";
 import { FaExternalLinkAlt } from "react-icons/fa";
 
 interface IdentityBlockProps {
@@ -17,19 +17,20 @@ interface IdentityBlockProps {
     url: string;
     label: string;
   };
-  size?: "md" | "lg";
+  statsRow?: React.ReactNode;
+  integrations?: React.ReactNode;
 }
 
 /**
- * Identity Block Component
+ * Terminal-Style Identity Block
  *
- * Hierarchy:
- * 1. Display name (largest, highest contrast)
- * 2. Handle (smaller, medium contrast)
- * 3. Badges (same baseline as handle, low-medium contrast)
- * 4. Bio/status (tertiary, clamped to 2 lines)
- *
- * Features localized scrim for readability over cover images
+ * CLI/Hacker Aesthetic:
+ * - Monospace fonts (Fira Code)
+ * - Sharp edges (no rounded corners)
+ * - Terminal colors (green on dark)
+ * - ASCII brackets and separators
+ * - Uppercase labels
+ * - Status indicators
  */
 export default function IdentityBlock({
   avatar,
@@ -38,124 +39,162 @@ export default function IdentityBlock({
   bio,
   badges,
   externalLink,
-  size = "lg",
+  statsRow,
+  integrations,
 }: IdentityBlockProps) {
-  const avatarSize = size === "lg" ? "120px" : "64px";
-  const nameSize = size === "lg" ? "2xl" : "lg";
-  const handleSize = size === "lg" ? "md" : "sm";
-  const bioSize = size === "lg" ? "sm" : "xs";
-
   return (
-    <Flex
-      direction="row"
-      align="flex-start"
-      gap={{ base: 3, md: 4 }}
-      position="relative"
-    >
-      {/* Localized scrim behind identity block for readability */}
+    <Box position="relative" w="100%">
+      {/* Terminal-style info panel */}
       <Box
-        position="absolute"
-        top="-8px"
-        left="-8px"
-        right="-8px"
-        bottom="-8px"
-        bgGradient="linear(to-r, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 70%, transparent 100%)"
-        borderRadius="lg"
-        zIndex={0}
-        pointerEvents="none"
-      />
-
-      {/* Avatar - vertically centered to text block */}
-      <Avatar
-        src={avatar}
-        name={displayName}
-        borderRadius="lg"
-        boxSize={avatarSize}
-        border="3px solid"
-        borderColor="whiteAlpha.900"
-        boxShadow="0 4px 12px rgba(0,0,0,0.4)"
         position="relative"
-        zIndex={1}
-      />
-
-      {/* Text block with clear hierarchy */}
-      <VStack
-        align="flex-start"
-        spacing={{ base: 1, md: 2 }}
-        flex="1"
-        minW={0}
-        position="relative"
-        zIndex={1}
+        border="1px solid"
+        borderColor="dim"
+        borderRadius="none"
+        p={{ base: 3, md: 4 }}
+        bg="muted"
+        boxShadow="0 0 5px rgba(168, 255, 96, 0.1)"
       >
-        {/* Display name - primary */}
-        <Flex direction="row" align="center" gap={2}>
-          <Text
-            fontSize={nameSize}
-            fontWeight="bold"
-            color="white"
-            textShadow="0 2px 6px rgba(0,0,0,0.9)"
-            lineHeight={1.2}
-            noOfLines={1}
+        {/* Network folder icons - Bottom right of gray box */}
+        {integrations && (
+          <Flex
+            position="absolute"
+            bottom={4}
+            right={4}
+            gap={2}
+            align="center"
+            zIndex={10}
           >
-            {displayName}
-          </Text>
-          {externalLink && (
-            <Link
-              href={externalLink.url}
-              isExternal
+            {integrations}
+          </Flex>
+        )}
+        <Flex direction="row" align="flex-start" gap={{ base: 3, md: 4 }}>
+          {/* Avatar - square, sharp edges */}
+          <Box position="relative" flexShrink={0}>
+            <Avatar
+              src={avatar}
+              name={displayName}
+              borderRadius="none"
+              boxSize={{ base: "80px", md: "100px" }}
+              border="2px solid"
+              borderColor="border"
+              boxShadow="0 0 8px rgba(168, 255, 96, 0.3)"
+            />
+            {/* Status indicator */}
+            <Box
+              position="absolute"
+              bottom={-1}
+              right={-1}
+              w={4}
+              h={4}
+              bg="success"
+              border="2px solid"
+              borderColor="background"
+              borderRadius="none"
               display="flex"
               alignItems="center"
-              aria-label={externalLink.label}
-              opacity={0.8}
-              _hover={{ opacity: 1 }}
+              justifyContent="center"
             >
-              <FaExternalLinkAlt size={14} color="white" />
-            </Link>
-          )}
+              <Text fontSize="2xs" color="background">●</Text>
+            </Box>
+          </Box>
+
+          {/* Text content - monospace terminal style */}
+          <VStack
+            align="flex-start"
+            spacing={{ base: 2, md: 3 }}
+            flex="1"
+            minW={0}
+            fontFamily="mono"
+          >
+            {/* Name row - terminal style */}
+            <HStack spacing={2} align="center" flexWrap="wrap">
+              <Text
+                fontSize={{ base: "xs", md: "sm" }}
+                color="dim"
+                fontFamily="mono"
+              >
+                &gt;
+              </Text>
+              <Text
+                fontSize={{ base: "md", md: "lg" }}
+                fontWeight="bold"
+                color="primary"
+                fontFamily="mono"
+                textTransform="uppercase"
+                letterSpacing="wide"
+                noOfLines={1}
+              >
+                {displayName}
+              </Text>
+              {externalLink && (
+                <Link
+                  href={externalLink.url}
+                  isExternal
+                  display="flex"
+                  alignItems="center"
+                  aria-label={externalLink.label}
+                  color="text"
+                  opacity={0.7}
+                  _hover={{ opacity: 1, color: "primary" }}
+                  transition="all 0.2s"
+                >
+                  <FaExternalLinkAlt size={12} />
+                </Link>
+              )}
+            </HStack>
+
+            {/* Handle row + badges - terminal style */}
+            <HStack spacing={2} align="center" flexWrap="wrap">
+              <Text
+                fontSize={{ base: "xs", md: "sm" }}
+                color="text"
+                fontFamily="mono"
+                noOfLines={1}
+              >
+                [{handle}]
+              </Text>
+              {badges?.map((badge, idx) => (
+                <Text
+                  key={idx}
+                  fontSize="xs"
+                  color="warning"
+                  fontFamily="mono"
+                  px={2}
+                  py={0.5}
+                  border="1px solid"
+                  borderColor="warning"
+                  borderRadius="none"
+                  textTransform="uppercase"
+                  bg="rgba(255, 189, 74, 0.1)"
+                >
+                  {badge.label}:{badge.value}
+                </Text>
+              ))}
+            </HStack>
+
+            {/* Bio row - terminal style */}
+            {bio && (
+              <Text
+                fontSize={{ base: "xs", md: "xs" }}
+                color="dim"
+                fontFamily="mono"
+                noOfLines={3}
+                lineHeight={1.6}
+                maxW="100%"
+              >
+                {bio}
+              </Text>
+            )}
+          </VStack>
         </Flex>
+      </Box>
 
-        {/* Handle + Badges row - secondary hierarchy, same baseline */}
-        <HStack spacing={3} align="center">
-          <Text
-            fontSize={handleSize}
-            color="whiteAlpha.800"
-            fontWeight="medium"
-            textShadow="0 2px 4px rgba(0,0,0,0.9)"
-            noOfLines={1}
-          >
-            {handle}
-          </Text>
-          {badges?.map((badge, idx) => (
-            <Badge
-              key={idx}
-              colorScheme={badge.colorScheme || "gray"}
-              variant="solid"
-              fontSize="2xs"
-              px={2}
-              py={0.5}
-              borderRadius="full"
-              boxShadow="0 2px 4px rgba(0,0,0,0.3)"
-              textTransform="uppercase"
-            >
-              {badge.label}: {badge.value}
-            </Badge>
-          ))}
-        </HStack>
-
-        {/* Bio - tertiary, clamped */}
-        {bio && (
-          <Text
-            fontSize={bioSize}
-            color="whiteAlpha.700"
-            textShadow="0 2px 4px rgba(0,0,0,0.9)"
-            noOfLines={2}
-            maxW={{ base: "100%", md: "500px" }}
-            lineHeight={1.4}
-          >
-            {bio}
-          </Text>
-        )}
-      </VStack>
-    </Flex>
+      {/* Stats row - rendered below identity panel */}
+      {statsRow && (
+        <Box mt={{ base: 3, md: 4 }}>
+          {statsRow}
+        </Box>
+      )}
+    </Box>
   );
 }

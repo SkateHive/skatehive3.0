@@ -120,7 +120,6 @@ const ZoraTokenCard = memo(function ZoraTokenCard({
       {/* TCG Card Container */}
       <Box
         bg="linear-gradient(145deg, #2a2a2a 0%, #1a1a1a 100%)"
-        borderRadius="20px"
         border="3px solid"
         borderColor={hoverBorderColor}
         boxShadow="0 8px 32px rgba(0,0,0,0.3)"

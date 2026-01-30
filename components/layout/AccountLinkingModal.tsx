@@ -294,7 +294,7 @@ export default function AccountLinkingModal({
     } finally {
       setLinkingType(null);
     }
-  }, [aioha, toast, bumpIdentitiesVersion, refresh, refreshUserbase, routeAfterLink, router, userbaseUser, hiveUser]);
+  }, [aioha, toast, bumpIdentitiesVersion, refresh, refreshUserbase, routeAfterLink]);
 
   const linkEvm = useCallback(async (address: string) => {
     setLinkingType("evm");

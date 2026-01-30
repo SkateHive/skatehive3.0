@@ -528,7 +528,7 @@ export default function ProfileDebugControl({
                         <Text>• <Text as="span" color="red.300">Hive User:</Text> Posts, voting power, followers from Hive blockchain</Text>
                         <Text>• <Text as="span" color="purple.300">Farcaster:</Text> Social profile from linked Farcaster identity metadata</Text>
                         <Text fontWeight="bold" mt={1}>• <Text as="span" color="blue.400">EVM Address Priority:</Text></Text>
-                        <Text pl={3}>1. Hive metadata wallets (user's actual wallets)</Text>
+                        <Text pl={3}>1. Hive metadata wallets (user&apos;s actual wallets)</Text>
                         <Text pl={3}>2. Farcaster verified wallets</Text>
                         <Text pl={3}>3. Farcaster custody address (registration only)</Text>
                         <Text pl={3}>4. Legacy Hive profile ethereum_address</Text>

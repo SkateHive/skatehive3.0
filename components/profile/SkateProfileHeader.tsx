@@ -1,17 +1,17 @@
 "use client";
 import React, { memo } from "react";
-import { IconButton, Box, Text, HStack } from "@chakra-ui/react";
+import { IconButton, HStack, Text, Box } from "@chakra-ui/react";
 import { FaEdit, FaMapMarkerAlt } from "react-icons/fa";
 import { ProfileData } from "./ProfilePage";
 import ProfileHeaderWrapper from "./ProfileHeaderWrapper";
 import IdentityBlock from "./IdentityBlock";
-import ActionsCluster from "./ActionsCluster";
 
 interface SkateProfileHeaderProps {
   profileData: ProfileData;
   username: string;
   isOwner: boolean;
   onEditModalOpen: () => void;
+  integrations?: React.ReactNode;
 }
 
 const SkateProfileHeader = function SkateProfileHeader({
@@ -19,56 +19,69 @@ const SkateProfileHeader = function SkateProfileHeader({
   username,
   isOwner,
   onEditModalOpen,
+  integrations,
 }: SkateProfileHeaderProps) {
-  // Stats row styled like Hive/Zora for consistency
+  // Stats row: Terminal-style location display
   const statsRow = profileData.location && (
-    <Box>
-      <HStack spacing={2} fontSize="sm">
-        <FaMapMarkerAlt color="var(--chakra-colors-primary-400)" />
-        <Text
-          color="white"
-          whiteSpace="nowrap"
-          textShadow="0 2px 4px rgba(0,0,0,0.9)"
-          fontWeight="medium"
-        >
-          {profileData.location}
-        </Text>
-      </HStack>
-    </Box>
+    <HStack spacing={2} fontSize="xs" fontFamily="mono">
+      <FaMapMarkerAlt color="var(--chakra-colors-primary)" />
+      <Text
+        color="text"
+        whiteSpace="nowrap"
+        textTransform="uppercase"
+      >
+        {profileData.location}
+      </Text>
+    </HStack>
+  );
+
+  // Primary actions: Terminal-style Edit button
+  const primaryActions = isOwner && (
+    <IconButton
+      aria-label="Edit Profile"
+      icon={<FaEdit />}
+      size="sm"
+      variant="solid"
+      colorScheme="primary"
+      onClick={onEditModalOpen}
+      borderRadius="none"
+      fontFamily="mono"
+      boxShadow="0 0 5px rgba(168, 255, 96, 0.3)"
+      _hover={{
+        boxShadow: "0 0 10px rgba(168, 255, 96, 0.5)",
+      }}
+    />
   );
 
   return (
-    <ProfileHeaderWrapper
-      coverImage={profileData.coverImage}
-      username={username}
-      identity={
-        <IdentityBlock
-          avatar={profileData.profileImage}
-          displayName={profileData.name || username}
-          handle={`@${username}`}
-          bio={profileData.about}
-        />
-      }
-      actions={
-        isOwner ? (
-          <ActionsCluster
-            primaryActions={[
-              <IconButton
-                key="edit"
-                aria-label="Edit Profile"
-                icon={<FaEdit />}
-                size="md"
-                variant="solid"
-                colorScheme="primary"
-                onClick={onEditModalOpen}
-                boxShadow="0 2px 8px rgba(0,0,0,0.3)"
-              />,
-            ]}
+    <Box position="relative" pb={12}>
+      {/* Profile Header */}
+      <ProfileHeaderWrapper
+        coverImage={profileData.coverImage}
+        username={username}
+        identity={
+          <IdentityBlock
+            avatar={profileData.profileImage}
+            displayName={profileData.name || username}
+            handle={`@${username}`}
+            bio={profileData.about}
+            statsRow={statsRow}
+            integrations={integrations}
           />
-        ) : undefined
-      }
-      stats={statsRow}
-    />
+        }
+      />
+
+      {/* Edit Button - Bottom-left outside terminal box */}
+      {primaryActions && (
+        <Box
+          position="absolute"
+          bottom={0}
+          left={0}
+        >
+          {primaryActions}
+        </Box>
+      )}
+    </Box>
   );
 };
 

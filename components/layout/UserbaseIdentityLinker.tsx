@@ -286,7 +286,6 @@ export default function UserbaseIdentityLinker({
     farcasterCustody,
     farcasterProfile,
     fetchIdentities,
-    refresh,
     bumpIdentitiesVersion,
     onLinked,
     toast,
@@ -346,7 +345,7 @@ export default function UserbaseIdentityLinker({
     } finally {
       setLinkingType(null);
     }
-  }, [evmAddress, signMessageAsync, fetchIdentities, refresh, bumpIdentitiesVersion, onLinked, toast, t]);
+  }, [evmAddress, signMessageAsync, fetchIdentities, bumpIdentitiesVersion, onLinked, toast, t]);
 
   if (!user || pending.length === 0) {
     return null;

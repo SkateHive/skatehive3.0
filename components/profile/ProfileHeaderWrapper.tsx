@@ -1,31 +1,30 @@
 "use client";
 import React, { ReactNode } from "react";
-import { Box, Grid, GridItem, Image } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 
 interface ProfileHeaderWrapperProps {
-  coverImage: string;
-  username: string;
+  coverImage?: string; // Not used in terminal style, kept for API compatibility
+  username?: string; // Not used in terminal style, kept for API compatibility
   identity: ReactNode;
-  actions?: ReactNode;
-  stats?: ReactNode; // Optional stats row (e.g., token values, follower counts)
+  primaryActions?: ReactNode;
+  integrations?: ReactNode;
 }
 
 /**
- * Unified profile header wrapper with 2-column grid layout
+ * Terminal-Style Profile Header
  *
- * Layout:
- * - Desktop: 2-column grid (identity left, actions right)
- * - Mobile: stacked vertically (identity, actions, stats)
- *
- * Spacing: Uses consistent 8/12/16/24/32px scale
- * Grid alignment: Left content aligns left, right content aligns right
+ * Implements CLI/hacker aesthetic:
+ * - No rounded corners (sharp edges only)
+ * - Monospace fonts
+ * - Terminal color scheme
+ * - Glowing borders
+ * - ASCII-style layout
+ * - No gradients, flat design
  */
 export default function ProfileHeaderWrapper({
-  coverImage,
-  username,
   identity,
-  actions,
-  stats,
+  primaryActions,
+  integrations,
 }: ProfileHeaderWrapperProps) {
   return (
     <Box
@@ -33,90 +32,22 @@ export default function ProfileHeaderWrapper({
       w="100%"
       maxW="container.xl"
       mx="auto"
-      overflow="hidden"
       borderRadius="none"
     >
-      {/* Cover Image Background with fixed aspect ratio */}
+      {/* Terminal-style container */}
       <Box
         position="relative"
         w="100%"
-        paddingTop={{ base: "50%", md: "31.25%" }} // 2:1 mobile, 16:5 desktop
-        overflow="hidden"
+        bg="background"
+        border="2px solid"
+        borderColor="border"
+        borderRadius="none"
+        boxShadow="0 0 10px rgba(168, 255, 96, 0.2)"
+        p={{ base: 4, md: 6 }}
       >
-        <Image
-          src={coverImage}
-          alt={`${username} cover`}
-          position="absolute"
-          top={0}
-          left={0}
-          w="100%"
-          h="100%"
-          objectFit="cover"
-          fallback={
-            <Box
-              position="absolute"
-              top={0}
-              left={0}
-              w="100%"
-              h="100%"
-              bgGradient="linear(135deg, #0a0a0a 0%, #1a1a1a 25%, #2d2d2d 50%, #1a1a1a 75%, #0a0a0a 100%)"
-              _before={{
-                content: '""',
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                bgGradient: "radial(circle at 30% 50%, rgba(138, 180, 248, 0.1) 0%, transparent 50%)",
-                pointerEvents: "none",
-              }}
-            />
-          }
-        />
-
-        {/* Gradient overlay for text readability */}
-        <Box
-          position="absolute"
-          top={0}
-          left={0}
-          w="100%"
-          h="100%"
-          bgGradient="linear(to-b, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
-        />
-
-        {/* Content overlay - 2-column grid layout */}
-        <Box
-          position="absolute"
-          bottom={0}
-          left={0}
-          w="100%"
-          px={{ base: 4, md: 8 }}
-          py={{ base: 4, md: 6 }}
-        >
-          <Grid
-            templateColumns={{ base: "1fr", md: "1fr auto" }}
-            gap={{ base: 4, md: 6 }}
-            alignItems="flex-end"
-          >
-            {/* Left column: Identity block */}
-            <GridItem>
-              {identity}
-            </GridItem>
-
-            {/* Right column: Actions */}
-            {actions && (
-              <GridItem>
-                {actions}
-              </GridItem>
-            )}
-          </Grid>
-
-          {/* Optional stats row below main grid */}
-          {stats && (
-            <Box mt={{ base: 3, md: 4 }}>
-              {stats}
-            </Box>
-          )}
+        {/* Identity block */}
+        <Box w="100%">
+          {identity}
         </Box>
       </Box>
     </Box>

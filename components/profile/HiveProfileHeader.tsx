@@ -1,13 +1,12 @@
 "use client";
 import React, { memo, useState, useEffect } from "react";
-import { IconButton, HStack, Text, Box } from "@chakra-ui/react";
+import { IconButton, HStack, VStack, Text, Box, Flex } from "@chakra-ui/react";
 import { FaEdit } from "react-icons/fa";
 import FollowButton from "./FollowButton";
-import PowerBars from "./PowerBars";
 import { ProfileData } from "./ProfilePage";
 import ProfileHeaderWrapper from "./ProfileHeaderWrapper";
 import IdentityBlock from "./IdentityBlock";
-import ActionsCluster from "./ActionsCluster";
+import useHivePower from "@/hooks/useHivePower";
 
 interface HiveProfileHeaderProps {
   profileData: ProfileData;
@@ -20,6 +19,7 @@ interface HiveProfileHeaderProps {
   onFollowingChange: (following: boolean | null) => void;
   onLoadingChange: (loading: boolean) => void;
   onEditModalOpen: () => void;
+  integrations?: React.ReactNode;
 }
 
 const HiveProfileHeader = function HiveProfileHeader({
@@ -33,92 +33,130 @@ const HiveProfileHeader = function HiveProfileHeader({
   onFollowingChange,
   onLoadingChange,
   onEditModalOpen,
+  integrations,
 }: HiveProfileHeaderProps) {
-  const [avatarLoaded, setAvatarLoaded] = useState(false);
+  // Fetch voting power value in dollars
+  const [voteValue, setVoteValue] = useState<number | null>(null);
+  const { estimateVoteValue, isLoading: isHivePowerLoading } = useHivePower(username || "");
 
-  // Preload avatar image to prevent flickering
   useEffect(() => {
-    if (profileData.profileImage && !avatarLoaded) {
-      const img = new Image();
-      img.onload = () => setAvatarLoaded(true);
-      img.onerror = () => setAvatarLoaded(true);
-      img.src = profileData.profileImage;
+    if (username && estimateVoteValue && !isHivePowerLoading) {
+      estimateVoteValue(100)
+        .then((value) => setVoteValue(value))
+        .catch(() => setVoteValue(null));
     }
-  }, [profileData.profileImage, avatarLoaded]);
+  }, [username, estimateVoteValue, isHivePowerLoading]);
 
-  // Stats row for follower counts and power bars
+  // Parse VP percentage safely
+  const parsePercentage = (percentStr: string | number | undefined): number => {
+    if (typeof percentStr === 'number') return percentStr;
+    const cleaned = String(percentStr || "0").replace("%", "");
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : Math.min(100, Math.max(0, parsed));
+  };
+
+  const vpValue = parsePercentage(profileData.vp_percent);
+
+  // Stats row: Single horizontal line with followers + voting power bar + dollar value
   const statsRow = (
-    <Box>
-      <HStack spacing={6} fontSize="sm" mb={3}>
-        <Text color="white" whiteSpace="nowrap" textShadow="0 2px 4px rgba(0,0,0,0.9)">
-          <Text as="span" fontWeight="bold" color="primary" fontSize="lg">
-            {profileData.following}
-          </Text>{" "}
-          Following
-        </Text>
-        <Text color="white" whiteSpace="nowrap" textShadow="0 2px 4px rgba(0,0,0,0.9)">
-          <Text as="span" fontWeight="bold" color="primary" fontSize="lg">
-            {profileData.followers}
-          </Text>{" "}
-          Followers
-        </Text>
-      </HStack>
+    <HStack spacing={6} fontSize="xs" fontFamily="mono" flexWrap="wrap" align="center">
+      {/* Follower counts */}
+      <Text color="text" whiteSpace="nowrap" textTransform="uppercase">
+        <Text as="span" fontWeight="bold" color="primary">
+          {profileData.following}
+        </Text>{" "}
+        Following
+      </Text>
+      <Text color="text" whiteSpace="nowrap" textTransform="uppercase">
+        <Text as="span" fontWeight="bold" color="primary">
+          {profileData.followers}
+        </Text>{" "}
+        Followers
+      </Text>
 
-      {profileData.vp_percent && profileData.rc_percent && (
-        <PowerBars
-          vpPercent={profileData.vp_percent}
-          rcPercent={profileData.rc_percent}
-          username={username}
-          height={200}
-          width={12}
+      {/* Voting Power bar */}
+      {profileData.vp_percent && (
+        <>
+          <HStack spacing={1} align="center">
+            <Text color="dim">[</Text>
+            <Text color="success" letterSpacing="tight">
+              {'█'.repeat(Math.floor((vpValue / 100) * 20))}
+              {'░'.repeat(20 - Math.floor((vpValue / 100) * 20))}
+            </Text>
+            <Text color="dim">]</Text>
+          </HStack>
+          {voteValue !== null && (
+            <Text color="warning" fontWeight="bold" whiteSpace="nowrap">
+              ${voteValue.toFixed(3)}
+            </Text>
+          )}
+        </>
+      )}
+    </HStack>
+  );
+
+  // Primary actions: Terminal-style Edit + Follow buttons
+  const primaryActions = (
+    <HStack spacing={2}>
+      {(canEdit ?? isOwner) && (
+        <IconButton
+          aria-label="Edit Profile"
+          icon={<FaEdit />}
+          size="sm"
+          variant="solid"
+          colorScheme="primary"
+          onClick={onEditModalOpen}
+          borderRadius="none"
+          fontFamily="mono"
+          textTransform="uppercase"
+          boxShadow="0 0 5px rgba(168, 255, 96, 0.3)"
+          _hover={{
+            boxShadow: "0 0 10px rgba(168, 255, 96, 0.5)",
+          }}
         />
       )}
-    </Box>
+      {!isOwner && user && (
+        <FollowButton
+          user={user}
+          username={username}
+          isFollowing={isFollowing}
+          isFollowLoading={isFollowLoading}
+          onFollowingChange={onFollowingChange}
+          onLoadingChange={onLoadingChange}
+        />
+      )}
+    </HStack>
   );
 
   return (
-    <ProfileHeaderWrapper
-      coverImage={profileData.coverImage}
-      username={username}
-      identity={
-        <IdentityBlock
-          avatar={profileData.profileImage}
-          displayName={profileData.name || username}
-          handle={`@${username}`}
-          bio={profileData.about}
-        />
-      }
-      actions={
-        <ActionsCluster
-          primaryActions={[
-            (canEdit ?? isOwner) && (
-              <IconButton
-                key="edit"
-                aria-label="Edit Profile"
-                icon={<FaEdit />}
-                size="md"
-                variant="solid"
-                colorScheme="primary"
-                onClick={onEditModalOpen}
-                boxShadow="0 2px 8px rgba(0,0,0,0.3)"
-              />
-            ),
-            !isOwner && user && (
-              <FollowButton
-                key="follow"
-                user={user}
-                username={username}
-                isFollowing={isFollowing}
-                isFollowLoading={isFollowLoading}
-                onFollowingChange={onFollowingChange}
-                onLoadingChange={onLoadingChange}
-              />
-            ),
-          ].filter(Boolean)}
-        />
-      }
-      stats={statsRow}
-    />
+    <Box position="relative" pb={12}>
+      {/* Profile Header */}
+      <ProfileHeaderWrapper
+        coverImage={profileData.coverImage}
+        username={username}
+        identity={
+          <IdentityBlock
+            avatar={profileData.profileImage}
+            displayName={profileData.name || username}
+            handle={`@${username}`}
+            bio={profileData.about}
+            statsRow={statsRow}
+            integrations={integrations}
+          />
+        }
+      />
+
+      {/* Action Buttons - Bottom-left outside terminal box */}
+      {primaryActions && (
+        <Box
+          position="absolute"
+          bottom={0}
+          left={0}
+        >
+          {primaryActions}
+        </Box>
+      )}
+    </Box>
   );
 };
 
