@@ -44,6 +44,37 @@ Keep provider logic modular. New providers should live in their own modules unde
 When adding a dependency, verify the package and maintainer to avoid typosquatted packages. Check with `pnpm info <pkg>` and inspect its repository. Run `pnpm audit` after install and review subdependencies using `pnpm list <pkg>`.
 
 For coding rules, file structure, and patterns, see `RULES.md`.
+
+## Code style guidelines
+
+### React/JSX best practices
+
+**CRITICAL - Apostrophes in JSX:**
+- **NEVER use apostrophes (`'`) in JSX text content** - this causes `react/no-unescaped-entities` linting errors
+- Instead, reword to avoid contractions or use HTML entities (`&apos;`)
+- This is a very common and recurring mistake that breaks builds
+
+**Examples:**
+
+❌ **WRONG:**
+```jsx
+<Text>User's profile</Text>
+<Alert>They'll receive an email</Alert>
+<Text>Don't use apostrophes</Text>
+```
+
+✅ **CORRECT:**
+```jsx
+<Text>User profile</Text>
+<Alert>An email will be sent</Alert>
+<Text>Do not use apostrophes</Text>
+```
+
+**Other JSX escape rules:**
+- Use `&quot;` for quotes in text content
+- Use `&amp;` for ampersands in text content
+- Use `&lt;` and `&gt;` for angle brackets in text content
+
 ## Theme strategy
 
 The application uses a centralized theming system via Chakra UI with multiple pre-defined themes.

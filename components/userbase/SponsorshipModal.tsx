@@ -146,7 +146,7 @@ export default function SponsorshipModal({
 
               toast({
                 title: "Sponsorship Successful! 🎉",
-                description: `@${liteUserHandle} now has a Hive account and will receive their keys via email.`,
+                description: `@${liteUserHandle} now has a Hive account and will receive all keys via email.`,
                 status: "success",
                 duration: 8000,
                 isClosable: true,
@@ -317,8 +317,8 @@ export default function SponsorshipModal({
               <Box>
                 <AlertTitle>Sponsorship Successful! 🎉</AlertTitle>
                 <AlertDescription fontSize="sm">
-                  @{liteUserHandle} now has a Hive account! They'll receive an email
-                  with their keys and can start earning rewards.
+                  @{liteUserHandle} now has a Hive account! An email with all keys
+                  has been sent and they can start earning rewards.
                 </AlertDescription>
               </Box>
             </Alert>
