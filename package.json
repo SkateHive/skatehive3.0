@@ -117,7 +117,7 @@
     "@types/react-dom": "^18.3.7",
     "@types/react-select-country-list": "^2.2.3",
     "autoprefixer": "^10.4.20",
-    "baseline-browser-mapping": "^2.8.32",
+    "baseline-browser-mapping": "^2.9.19",
     "eslint": "^9.27.0",
     "eslint-config-next": "15.3.6",
     "pino-pretty": "^13.0.0",
