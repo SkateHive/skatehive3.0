@@ -92,10 +92,6 @@ const ContentViews = memo(function ContentViews({
   farcasterFid?: number | null;
   farcasterUsername?: string | null;
 }) {
-  function t(arg0: string): React.ReactNode {
-    throw new Error("Function not implemented.");
-  }
-
   // Keep all views mounted but hidden to prevent re-fetching when switching tabs
   return (
     <>
@@ -137,7 +133,7 @@ const ContentViews = memo(function ContentViews({
               bg="muted"
             >
               <Text color="dim" fontFamily="mono" fontSize="sm">
-                {t("noFarcasterAccountLinked")}
+                No Farcaster account linked
               </Text>
             </Box>
           </Box>
