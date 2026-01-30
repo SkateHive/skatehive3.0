@@ -177,7 +177,7 @@ const ZoraProfileHeader = function ZoraProfileHeader({
 
   // Stats row: Compact horizontal terminal-style stats with trade button
   const statsRow = cachedZoraData.coinData && (
-    <HStack spacing={6} fontSize="xs" fontFamily="mono" flexWrap="wrap" align="flex-end">
+    <HStack spacing={6} fontSize="xs" fontFamily="mono" flexWrap="wrap" align="flex-end" justifyContent="center" w="100%">
       <Box>
         <Text color="dim" textTransform="uppercase" fontSize="2xs" mb={0.5}>
           MARKET CAP
