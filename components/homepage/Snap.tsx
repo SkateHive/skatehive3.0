@@ -45,6 +45,11 @@ import useHiveVote from "@/hooks/useHiveVote";
 import useSoftPostOverlay from "@/hooks/useSoftPostOverlay";
 import useSoftVoteOverlay from "@/hooks/useSoftVoteOverlay";
 import { extractSafeUser } from "@/lib/userbase/safeUserMetadata";
+import SponsorButton from "@/components/userbase/SponsorButton";
+import SponsorshipModal from "@/components/userbase/SponsorshipModal";
+import { useSponsorshipStatus } from "@/hooks/useSponsorshipStatus";
+import { useViewerHiveIdentity } from "@/hooks/useViewerHiveIdentity";
+import { FaGift } from "react-icons/fa";
 
 interface SnapProps {
   discussion: Discussion;
@@ -131,6 +136,13 @@ const Snap = ({
     Record<string, boolean>
   >({});
   const [isVoting, setIsVoting] = useState(false);
+
+  // Sponsorship state
+  const [isSponsorModalOpen, setIsSponsorModalOpen] = useState(false);
+  const viewerHiveUsername = useViewerHiveIdentity();
+  const { isLite, loading: sponsorStatusLoading } = useSponsorshipStatus(
+    softPost?.user?.id || null
+  );
 
   const [commentCount, setCommentCount] = useState(discussion.children ?? 0);
   const effectiveDepth = discussion.depth || 0;
@@ -256,6 +268,14 @@ const Snap = ({
   const authorPayout = parsePayout(discussion.total_payout_value);
   const curatorPayout = parsePayout(discussion.curator_payout_value);
   const { daysRemaining, isPending } = calculatePayoutDays(discussion.created);
+
+  // Show sponsor CTA if: lite account, viewer has Hive, not own post
+  const showSponsorCTA =
+    !sponsorStatusLoading &&
+    isLite &&
+    softPost?.user?.id &&
+    viewerHiveUsername &&
+    effectiveUser !== discussion.author;
 
   const handleDeleteClick = () => {
     if (hasRepliesOrVotes) {
@@ -447,6 +467,40 @@ const Snap = ({
               </HStack>
             </HStack>
 
+            {showSponsorCTA && (
+              <Tooltip
+                label="Sponsor this user to create their Hive account"
+                hasArrow
+                placement="top"
+              >
+                <HStack
+                  minW="72px"
+                  justify="center"
+                  px={2}
+                  py={1}
+                  borderRadius="md"
+                  cursor="pointer"
+                  onClick={() => setIsSponsorModalOpen(true)}
+                  opacity={0.9}
+                  _hover={{ opacity: 0.7 }}
+                  transition="opacity 0.2s"
+                >
+                  <HStack spacing={1.5}>
+                    <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
+                      <FaGift size={18} color="var(--chakra-colors-green-500)" />
+                    </Box>
+                    <Text
+                      fontSize="sm"
+                      fontWeight="medium"
+                      color="green.500"
+                    >
+                      Sponsor
+                    </Text>
+                  </HStack>
+                </HStack>
+              </Tooltip>
+            )}
+
             <Tooltip
               label={
                 isPending
@@ -555,6 +609,18 @@ const Snap = ({
                 </VStack>
               )}
           </Box>
+        )}
+
+        {/* Sponsorship Modal */}
+        {showSponsorCTA && softPost?.user && viewerHiveUsername && (
+          <SponsorshipModal
+            isOpen={isSponsorModalOpen}
+            onClose={() => setIsSponsorModalOpen(false)}
+            liteUserId={softPost.user.id}
+            liteUserHandle={softPost.user.handle}
+            liteUserDisplayName={softPost.user.display_name || softPost.user.handle}
+            sponsorHiveUsername={viewerHiveUsername}
+          />
         )}
       </Box>
     </Box>

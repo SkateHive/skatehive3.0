@@ -14,6 +14,7 @@ import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import UserbaseIdentitiesSection from "@/components/userbase/UserbaseIdentitiesSection";
 import UserbasePostingKeyPanel from "@/components/userbase/UserbasePostingKeyPanel";
 import UserbaseMergePanel from "@/components/userbase/UserbaseMergePanel";
+import HiveSponsorshipInfo from "@/components/userbase/HiveSponsorshipInfo";
 
 export default function UserbaseAccountSettings() {
   const t = useTranslations();
@@ -48,6 +49,10 @@ export default function UserbaseAccountSettings() {
           variant="settings"
           showSignOut={false}
         />
+      </Box>
+
+      <Box border="1px solid" borderColor="muted" p={4}>
+        <HiveSponsorshipInfo />
       </Box>
 
       <Box border="1px solid" borderColor="muted" p={4}>

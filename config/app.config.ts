@@ -188,6 +188,51 @@ export const EMAIL_DEFAULTS = {
 } as const;
 
 // ============================================================================
+// SPONSORSHIP SYSTEM CONFIGURATION
+// ============================================================================
+
+export const SPONSORSHIP_CONFIG = {
+  /** Cost in HIVE to sponsor an account via direct transfer */
+  COST_HIVE: 3.0,
+
+  /** Minimum posts required before a lite account is eligible for sponsorship */
+  MIN_POSTS_FOR_ELIGIBILITY: 5,
+
+  /** Minimum account age in days before eligible for sponsorship */
+  MIN_ACCOUNT_AGE_DAYS: 7,
+
+  /** Minimum unique voters required (prevents spam/self-voting) */
+  MIN_UNIQUE_VOTERS: 3,
+
+  /** Minimum Hive Power required for a user to sponsor others */
+  SPONSOR_MIN_HP: 50,
+
+  /** Maximum sponsorships a user can create per day */
+  SPONSOR_DAILY_LIMIT: 5,
+
+  /** Cooldown period between sponsorships (in hours) */
+  SPONSOR_COOLDOWN_HOURS: 24,
+
+  /** Default recovery account for newly created Hive accounts */
+  get DEFAULT_RECOVERY_ACCOUNT() {
+    return process.env.HIVE_DEFAULT_RECOVERY_ACCOUNT || 'skatehive';
+  },
+
+  /** Hive API nodes for account creation and verification */
+  get HIVE_API_NODES() {
+    const envNodes = process.env.HIVE_API_NODES;
+    if (envNodes) {
+      return envNodes.split(',').map(n => n.trim());
+    }
+    return [
+      'https://api.hive.blog',
+      'https://api.deathwing.me',
+      'https://rpc.ecency.com',
+    ];
+  },
+} as const;
+
+// ============================================================================
 // EXTERNAL SERVICES
 // ============================================================================
 

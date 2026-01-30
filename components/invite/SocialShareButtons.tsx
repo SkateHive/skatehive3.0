@@ -31,26 +31,21 @@ interface SocialShareButtonsProps {
 
 const SocialShareButtons = ({
     url = "https://skatehive.app",
-    text = "Join Skatehive - The Web3 Skateboard Community!",
+    text,
 }: SocialShareButtonsProps) => {
     const t = useTranslations();
+    const shareText = text || t("invite.socialShareDefault");
     const { onCopy } = useClipboard(url);
     const toast = useToast();
 
     const handleShare = (platform: string) => {
         let shareUrl = "";
         if (platform === "facebook") {
-            shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-                url
-            )}`;
+            shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(shareText)}`;
         } else if (platform === "x") {
-            shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(
-                url
-            )}&text=${encodeURIComponent(text)}`;
+            shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareText)}`;
         } else if (platform === "farcaster") {
-            shareUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(
-                text + "\n" + url
-            )}`;
+            shareUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText + "\n" + url)}`;
         }
 
         if (platform === "copy") {

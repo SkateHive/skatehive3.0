@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useTheme } from "@chakra-ui/react";
+import { useTranslations } from "@/lib/i18n/hooks";
 import {
   Box,
   VStack,
@@ -45,9 +47,25 @@ export default function FarcasterCastsView({
   fid,
   username,
 }: FarcasterCastsViewProps) {
+  const t = useTranslations("profile");
+  const theme = useTheme();
   const [casts, setCasts] = useState<FarcasterCast[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Compute shadow using theme's primary color and 0.2 opacity
+  const primary = theme.colors.primary;
+  const primaryColor = typeof primary === "string" ? primary : (primary[500] || primary.DEFAULT || Object.values(primary)[0]);
+
+  function hexToRgba(hex: string, alpha: number) {
+    let c = hex.replace('#', '');
+    if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    const num = parseInt(c, 16);
+    return `rgba(${(num >> 16) & 255},${(num >> 8) & 255},${num & 255},${alpha})`;
+  }
+
+  const boxShadowColor = primaryColor.startsWith('#') ? hexToRgba(primaryColor, 0.2) : primaryColor;
+  const hoverBoxShadow = `0 0 10px ${boxShadowColor}`;
 
   useEffect(() => {
     async function fetchCasts() {
@@ -56,19 +74,15 @@ export default function FarcasterCastsView({
         setError("No Farcaster profile found");
         return;
       }
-
       try {
         setIsLoading(true);
         setError(null);
-
         const response = await fetch(
-          `/api/farcaster/casts?fid=${fid}&limit=10` // Reduced to 10 to save API quota
+          `/api/farcaster/casts?fid=${fid}&limit=10`
         );
-
         if (!response.ok) {
           throw new Error(`Failed to fetch casts: ${response.statusText}`);
         }
-
         const data = await response.json();
         setCasts(data.casts || []);
       } catch (err) {
@@ -78,17 +92,15 @@ export default function FarcasterCastsView({
         setIsLoading(false);
       }
     }
-
     fetchCasts();
   }, [fid]);
-
   if (isLoading) {
     return (
       <Center minH="400px">
         <VStack spacing={4}>
           <Spinner size="xl" color="primary" thickness="3px" />
           <Text color="dim" fontFamily="mono" fontSize="sm">
-            LOADING_CASTS...
+            {t("loadingCasts")}
           </Text>
         </VStack>
       </Center>
@@ -106,7 +118,7 @@ export default function FarcasterCastsView({
           bg="muted"
         >
           <Text color="error" fontFamily="mono" fontSize="sm">
-            ERROR: {error}
+            {t("error")}: {error}
           </Text>
         </Box>
       </Center>
@@ -124,7 +136,7 @@ export default function FarcasterCastsView({
           bg="muted"
         >
           <Text color="dim" fontFamily="mono" fontSize="sm">
-            NO_CASTS_FOUND
+            {t("noCastsFound")}
           </Text>
         </Box>
       </Center>
@@ -142,7 +154,7 @@ export default function FarcasterCastsView({
           bg="muted"
           _hover={{
             borderColor: "primary",
-            boxShadow: "0 0 10px rgba(168, 255, 96, 0.2)",
+            boxShadow: hoverBoxShadow,
           }}
           transition="all 0.2s"
         >
@@ -186,17 +198,15 @@ export default function FarcasterCastsView({
           {/* Cast Embeds/Images */}
           {cast.embeds && cast.embeds.length > 0 && (
             <VStack spacing={2} align="stretch" mb={3}>
-              {cast.embeds.map((embed, idx) => {
+              {cast.embeds.map((embed: any, idx: number) => {
                 // Try multiple sources for image URL
                 const imageUrl = embed.metadata?.image?.url || embed.url;
-
                 // Check if it's an image URL (by extension or content type)
                 const isImageUrl = imageUrl && (
                   imageUrl.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ||
                   imageUrl.includes('/image/') ||
                   embed.metadata?.image
                 );
-
                 if (isImageUrl && imageUrl) {
                   return (
                     <Image
@@ -223,7 +233,6 @@ export default function FarcasterCastsView({
                     />
                   );
                 }
-
                 // Show URL link for non-image embeds
                 if (embed.url) {
                   return (
