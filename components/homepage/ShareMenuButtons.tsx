@@ -5,7 +5,7 @@ import {
   useToast,
   useDisclosure,
 } from "@chakra-ui/react";
-import { FaTwitter, FaLink, FaThumbsDown, FaCode } from "react-icons/fa";
+import { FaTwitter, FaLink, FaThumbsDown, FaCode, FaFacebook } from "react-icons/fa";
 import React, { useMemo, useCallback } from "react";
 import { useFarcasterContext } from "@/hooks/useFarcasterContext";
 import useHiveVote from "@/hooks/useHiveVote";
@@ -335,6 +335,10 @@ const ShareMenuButtons = ({ comment }: ShareMenuButtonsProps) => {
         shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(
           postLink
         )}`;
+      } else if (platform === "facebook") {
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+          postLink
+        )}`;
       } else if (platform === "farcaster") {
         // For web fallback, include both text and URL
         const castText = `Check out this post from @${comment.author}! ${postLink}`;
@@ -428,6 +432,14 @@ const ShareMenuButtons = ({ comment }: ShareMenuButtonsProps) => {
       >
         <FaTwitter style={{ marginRight: "8px" }} />
         Share on X
+      </MenuItem>
+      <MenuItem
+        onClick={() => handleShare("facebook")}
+        bg={"background"}
+        color={"#1877F2"}
+      >
+        <FaFacebook style={{ marginRight: "8px" }} />
+        Share on Facebook
       </MenuItem>
       <MenuItem
         onClick={() => handleShare("copy")}
