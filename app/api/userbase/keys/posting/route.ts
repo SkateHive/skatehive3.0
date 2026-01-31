@@ -116,30 +116,7 @@ export async function GET(request: NextRequest) {
 
   console.log("[GET /keys/posting] Found Hive identity:", hiveIdentity.handle);
 
-  // Check old system (userbase_user_keys)
-  const { data: keyRow } = await supabase!
-    .from("userbase_user_keys")
-    .select("id, custody, status, created_at, last_used_at, rotation_count")
-    .eq("identity_id", hiveIdentity.id)
-    .eq("key_type", "posting")
-    .limit(1);
-
-  const key = keyRow?.[0];
-  console.log("[GET /keys/posting] Old system (userbase_user_keys):", key ? "FOUND" : "NOT FOUND");
-
-  if (key && key.custody === "stored") {
-    console.log("[GET /keys/posting] Returning old system key");
-    return NextResponse.json({
-      stored: true,
-      custody: key.custody,
-      status: key.status,
-      created_at: key.created_at,
-      last_used_at: key.last_used_at,
-      rotation_count: key.rotation_count,
-    });
-  }
-
-  // Check new system (userbase_hive_keys - sponsorship)
+  // Check userbase_hive_keys for encrypted posting key
   const { data: hiveKeyRow } = await supabase!
     .from("userbase_hive_keys")
     .select("id, created_at, last_used_at, key_type")
@@ -147,10 +124,9 @@ export async function GET(request: NextRequest) {
     .limit(1);
 
   const hiveKey = hiveKeyRow?.[0];
-  console.log("[GET /keys/posting] New system (userbase_hive_keys):", hiveKey ? "FOUND (sponsored)" : "NOT FOUND");
+  console.log("[GET /keys/posting] userbase_hive_keys:", hiveKey ? "FOUND" : "NOT FOUND");
 
   if (hiveKey) {
-    console.log("[GET /keys/posting] Returning sponsored key");
     return NextResponse.json({
       stored: true,
       custody: "stored",
@@ -158,7 +134,7 @@ export async function GET(request: NextRequest) {
       created_at: hiveKey.created_at,
       last_used_at: hiveKey.last_used_at || null,
       rotation_count: 0,
-      source: "sponsored", // Indicate this is from sponsorship system
+      key_type: hiveKey.key_type,
     });
   }
 
@@ -246,8 +222,10 @@ export async function POST(request: NextRequest) {
   }
 
   let encrypted: string;
+  let encryptedData: { v: number; iv: string; tag: string; data: string };
   try {
     encrypted = encryptSecret(postingKey);
+    encryptedData = JSON.parse(encrypted);
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || "Encryption failed" },
@@ -255,118 +233,64 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Check if key already exists
   const { data: existingKey } = await supabase!
-    .from("userbase_user_keys")
-    .select("id, rotation_count")
-    .eq("identity_id", hiveIdentity.id)
-    .eq("key_type", "posting")
+    .from("userbase_hive_keys")
+    .select("id")
+    .eq("user_id", session.userId)
     .limit(1);
 
   const now = new Date().toISOString();
-  let userKeyId = existingKey?.[0]?.id;
-  let rotationCount = existingKey?.[0]?.rotation_count || 0;
 
-  if (!userKeyId) {
-    const { data: createdKey, error: createError } = await supabase!
-      .from("userbase_user_keys")
+  if (existingKey?.[0]) {
+    // Update existing key
+    const { error: updateError } = await supabase!
+      .from("userbase_hive_keys")
+      .update({
+        encrypted_posting_key: encryptedData.data,
+        encryption_iv: encryptedData.iv,
+        encryption_auth_tag: encryptedData.tag,
+        key_type: "user_provided",
+        updated_at: now,
+      })
+      .eq("id", existingKey[0].id);
+
+    if (updateError) {
+      console.error("Failed to update posting key:", updateError);
+      return NextResponse.json(
+        {
+          error: "Failed to store posting key",
+          details:
+            process.env.NODE_ENV !== "production"
+              ? updateError?.message || updateError
+              : undefined,
+        },
+        { status: 500 }
+      );
+    }
+  } else {
+    // Insert new key
+    const { error: insertError } = await supabase!
+      .from("userbase_hive_keys")
       .insert({
         user_id: session.userId,
-        identity_id: hiveIdentity.id,
-        chain: "hive",
-        key_type: "posting",
-        custody: "stored",
-        status: "enabled",
+        hive_username: hiveIdentity.handle,
+        encrypted_posting_key: encryptedData.data,
+        encryption_iv: encryptedData.iv,
+        encryption_auth_tag: encryptedData.tag,
+        key_type: "user_provided",
         created_at: now,
-        rotation_count: 0,
-      })
-      .select("id")
-      .single();
-
-    if (createError || !createdKey) {
-      console.error("Failed to create user key:", createError);
-      return NextResponse.json(
-        {
-          error: "Failed to store posting key",
-          details:
-            process.env.NODE_ENV !== "production"
-              ? createError?.message || createError
-              : undefined,
-        },
-        { status: 500 }
-      );
-    }
-
-    userKeyId = createdKey.id;
-  } else {
-    rotationCount += 1;
-    const { error: updateKeyError } = await supabase!
-      .from("userbase_user_keys")
-      .update({
-        custody: "stored",
-        status: "enabled",
-        rotation_count: rotationCount,
-      })
-      .eq("id", userKeyId);
-
-    if (updateKeyError) {
-      console.error("Failed to update user key:", updateKeyError);
-      return NextResponse.json(
-        {
-          error: "Failed to store posting key",
-          details:
-            process.env.NODE_ENV !== "production"
-              ? updateKeyError?.message || updateKeyError
-              : undefined,
-        },
-        { status: 500 }
-      );
-    }
-  }
-
-  const { data: secretRow } = await supabase!
-    .from("userbase_secrets")
-    .select("id")
-    .eq("user_key_id", userKeyId)
-    .limit(1);
-
-  if (secretRow?.[0]) {
-    const { error: secretError } = await supabase!
-      .from("userbase_secrets")
-      .update({
-        ciphertext: encrypted,
-        rotated_at: now,
-      })
-      .eq("user_key_id", userKeyId);
-    if (secretError) {
-      console.error("Failed to update secret:", secretError);
-      return NextResponse.json(
-        {
-          error: "Failed to store posting key",
-          details:
-            process.env.NODE_ENV !== "production"
-              ? secretError?.message || secretError
-              : undefined,
-        },
-        { status: 500 }
-      );
-    }
-  } else {
-    const { error: insertSecretError } = await supabase!
-      .from("userbase_secrets")
-      .insert({
-        user_key_id: userKeyId,
-        ciphertext: encrypted,
-        key_version: 1,
-        created_at: now,
+        updated_at: now,
       });
-    if (insertSecretError) {
-      console.error("Failed to store secret:", insertSecretError);
+
+    if (insertError) {
+      console.error("Failed to insert posting key:", insertError);
       return NextResponse.json(
         {
           error: "Failed to store posting key",
           details:
             process.env.NODE_ENV !== "production"
-              ? insertSecretError?.message || insertSecretError
+              ? insertError?.message || insertError
               : undefined,
         },
         { status: 500 }
@@ -391,111 +315,20 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  const { data: keyRows } = await supabase!
-    .from("userbase_user_keys")
-    .select("id")
-    .eq("identity_id", hiveIdentity.id)
-    .eq("key_type", "posting")
-    .limit(1);
-
-  const key = keyRows?.[0];
-  if (!key) {
-    return NextResponse.json({ success: true });
-  }
-
-  // Fetch the existing secret before deletion for potential rollback
-  const { data: existingSecrets } = await supabase!
-    .from("userbase_secrets")
-    .select("ciphertext, dek_wrapped, key_version")
-    .eq("user_key_id", key.id)
-    .limit(1);
-
-  const existingSecret = existingSecrets?.[0] || null;
-
-  // Delete the secret
+  // Delete posting key from userbase_hive_keys
   const { error: deleteError } = await supabase!
-    .from("userbase_secrets")
+    .from("userbase_hive_keys")
     .delete()
-    .eq("user_key_id", key.id);
+    .eq("user_id", session.userId);
 
   if (deleteError) {
-    console.error("Failed to delete secret:", {
-      keyId: key.id,
-      error: deleteError.message || deleteError,
-    });
+    console.error("Failed to delete posting key:", deleteError);
     return NextResponse.json(
       {
         error: "Failed to remove posting key",
         details:
           process.env.NODE_ENV !== "production"
             ? deleteError.message || deleteError
-            : undefined,
-      },
-      { status: 500 }
-    );
-  }
-
-  // Update the key status
-  const { error: updateError } = await supabase!
-    .from("userbase_user_keys")
-    .update({ custody: "none", status: "disabled" })
-    .eq("id", key.id);
-
-  if (updateError) {
-    console.error("Failed to update key status after secret deletion:", {
-      keyId: key.id,
-      error: updateError.message || updateError,
-    });
-
-    // Attempt to restore the secret for atomicity
-    if (existingSecret) {
-      const { error: restoreError } = await supabase!
-        .from("userbase_secrets")
-        .insert({
-          user_key_id: key.id,
-          ciphertext: existingSecret.ciphertext,
-          dek_wrapped: existingSecret.dek_wrapped,
-          key_version: existingSecret.key_version,
-        });
-
-      if (restoreError) {
-        console.error("CRITICAL: Failed to restore secret after update failure:", {
-          keyId: key.id,
-          restoreError: restoreError.message || restoreError,
-        });
-        // Secret deleted but update failed and restore failed - inconsistent state
-        return NextResponse.json(
-          {
-            error: "Failed to remove posting key - inconsistent state, please contact support",
-            details:
-              process.env.NODE_ENV !== "production"
-                ? `Update failed: ${updateError.message}; Restore failed: ${restoreError.message}`
-                : undefined,
-          },
-          { status: 500 }
-        );
-      }
-
-      // Restore succeeded - return error to caller so they can retry
-      return NextResponse.json(
-        {
-          error: "Failed to remove posting key, please try again",
-          details:
-            process.env.NODE_ENV !== "production"
-              ? updateError.message || updateError
-              : undefined,
-        },
-        { status: 500 }
-      );
-    }
-
-    // No secret to restore but update still failed
-    return NextResponse.json(
-      {
-        error: "Failed to update key status",
-        details:
-          process.env.NODE_ENV !== "production"
-            ? updateError.message || updateError
             : undefined,
       },
       { status: 500 }
