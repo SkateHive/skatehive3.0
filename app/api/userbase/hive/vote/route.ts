@@ -107,37 +107,10 @@ async function getHiveIdentity(userId: string) {
   return data?.[0] || null;
 }
 
-async function getPostingKey(identityId: string, userId: string) {
-  console.log("[getPostingKey] Looking for key - identityId:", identityId, "userId:", userId);
+async function getPostingKey(userId: string) {
+  console.log("[getPostingKey] Looking for key - userId:", userId);
 
-  // First check userbase_user_keys (old system)
-  const { data: keyRows } = await supabase!
-    .from("userbase_user_keys")
-    .select("id, custody, status")
-    .eq("identity_id", identityId)
-    .eq("key_type", "posting")
-    .limit(1);
-
-  const key = keyRows?.[0];
-  console.log("[getPostingKey] userbase_user_keys result:", key);
-
-  if (key && key.custody === "stored" && key.status === "enabled") {
-    const { data: secretRows } = await supabase!
-      .from("userbase_secrets")
-      .select("ciphertext")
-      .eq("user_key_id", key.id)
-      .limit(1);
-
-    const secret = secretRows?.[0]?.ciphertext || null;
-    console.log("[getPostingKey] Found secret in userbase_secrets:", !!secret);
-
-    if (secret) {
-      return { error: null, userKeyId: key.id, secret };
-    }
-  }
-
-  // Check userbase_hive_keys (sponsorship system)
-  console.log("[getPostingKey] Checking userbase_hive_keys for userId:", userId);
+  // Check userbase_hive_keys for encrypted posting key
   const { data: hiveKeyRows } = await supabase!
     .from("userbase_hive_keys")
     .select("id, encrypted_posting_key, encryption_iv, encryption_auth_tag")
@@ -154,11 +127,11 @@ async function getPostingKey(identityId: string, userId: string) {
       iv: hiveKey.encryption_iv,
       authTag: hiveKey.encryption_auth_tag,
     });
-    console.log("[getPostingKey] Returning sponsored key");
+    console.log("[getPostingKey] Returning encrypted posting key");
     return { error: null, userKeyId: hiveKey.id, secret };
   }
 
-  console.log("[getPostingKey] No key found in either table");
+  console.log("[getPostingKey] No posting key found");
   return { error: "Posting key not stored", userKeyId: null, secret: null };
 }
 
@@ -231,22 +204,7 @@ async function updateSoftVoteStatus(
   await supabase!.from("userbase_soft_votes").update(payload).eq("id", id);
 }
 
-async function auditUsage(
-  userKeyId: string | null,
-  success: boolean,
-  metadata: Record<string, any>
-) {
-  if (!userKeyId) return;
-  await supabase!
-    .from("userbase_key_usage_audit")
-    .insert({
-      user_key_id: userKeyId,
-      action: "sign_broadcast",
-      success,
-      metadata,
-      created_at: new Date().toISOString(),
-    });
-}
+// Audit function removed - userbase_key_usage_audit table dropped
 
 export async function POST(request: NextRequest) {
   const session = await getSessionUserId(request);
@@ -291,7 +249,6 @@ export async function POST(request: NextRequest) {
   if (voter && hiveIdentity) {
     console.log("[POST /vote] Found Hive identity for user:", session.userId, "handle:", voter);
     const { error: keyError, userKeyId: keyId, secret } = await getPostingKey(
-      hiveIdentity.id,
       session.userId
     );
     if (keyError || !secret) {
@@ -382,19 +339,13 @@ export async function POST(request: NextRequest) {
     const privateKey = PrivateKey.fromString(postingKey as string);
     await HiveClient.broadcast.sendOperations([voteOp], privateKey);
 
+    // Update last used timestamp
     if (userKeyId) {
       await supabase!
-        .from("userbase_user_keys")
+        .from("userbase_hive_keys")
         .update({ last_used_at: new Date().toISOString() })
         .eq("id", userKeyId);
     }
-
-    await auditUsage(userKeyId, true, {
-      author,
-      permlink,
-      weight,
-      voter,
-    });
 
     if (usingDefaultAccount) {
       await updateSoftVoteStatus(softVoteId, "broadcasted");
@@ -405,9 +356,6 @@ export async function POST(request: NextRequest) {
       voter,
     });
   } catch (error: any) {
-    await auditUsage(userKeyId, false, {
-      error: error?.message || String(error),
-    });
     if (usingDefaultAccount) {
       await updateSoftVoteStatus(
         softVoteId,

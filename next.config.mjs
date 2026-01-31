@@ -1,5 +1,32 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    // Production optimizations
+    compress: true,
+    poweredByHeader: false,
+    reactStrictMode: true,
+
+    // Image optimization domains
+    images: {
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: 'images.hive.blog',
+            },
+            {
+                protocol: 'https',
+                hostname: 'ipfs.skatehive.app',
+            },
+            {
+                protocol: 'https',
+                hostname: '**.supabase.co',
+            },
+            {
+                protocol: 'https',
+                hostname: 'i.ibb.co',
+            },
+        ],
+    },
+
     experimental: {
         serverActions: {
             bodySizeLimit: '200mb', // Increase the body size limit for large video uploads
@@ -24,12 +51,33 @@ const nextConfig = {
             };
         }
         
-        // Remove console.log statements in production
+        // Remove console statements in production
         if (!dev) {
             config.optimization = {
                 ...config.optimization,
                 usedExports: true,
                 sideEffects: false,
+                minimize: true,
+                minimizer: [
+                    ...(config.optimization.minimizer || []),
+                ].map((minimizer) => {
+                    if (minimizer.constructor.name === 'TerserPlugin') {
+                        return Object.assign({}, minimizer, {
+                            options: {
+                                ...minimizer.options,
+                                terserOptions: {
+                                    ...minimizer.options?.terserOptions,
+                                    compress: {
+                                        ...minimizer.options?.terserOptions?.compress,
+                                        drop_console: true,
+                                        drop_debugger: true,
+                                    },
+                                },
+                            },
+                        });
+                    }
+                    return minimizer;
+                }),
             };
         }
         
@@ -97,7 +145,7 @@ const nextConfig = {
                 source: '/(.*)',
                 headers: [
                     {
-                        // Allow embedding in any iframe (removes X-Frame-Options restrictions)
+                        // Allow embedding in any iframe (for Farcaster frames and embeds)
                         key: 'X-Frame-Options',
                         value: 'ALLOWALL',
                     },
@@ -107,9 +155,24 @@ const nextConfig = {
                         value: "frame-ancestors *;",
                     },
                     {
-                        // Ensure the site can be embedded in frames
+                        // Prevent MIME type sniffing
                         key: 'X-Content-Type-Options',
                         value: 'nosniff',
+                    },
+                    {
+                        // Enable XSS protection
+                        key: 'X-XSS-Protection',
+                        value: '1; mode=block',
+                    },
+                    {
+                        // Referrer policy for privacy
+                        key: 'Referrer-Policy',
+                        value: 'strict-origin-when-cross-origin',
+                    },
+                    {
+                        // Permissions policy
+                        key: 'Permissions-Policy',
+                        value: 'camera=(), microphone=(), geolocation=(self)',
                     },
                 ],
             },
