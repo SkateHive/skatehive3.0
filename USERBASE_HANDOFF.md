@@ -22,17 +22,19 @@ All account types can post, vote, and comment on Hive blockchain.
 
 ## Core Architecture
 
-### Database Tables (8 total)
+### Database Tables (10 total)
 
 ```
-userbase_users          - Core user records
-userbase_sessions       - Login sessions with refresh tokens
-userbase_auth_methods   - Email/password/OAuth credentials
-userbase_identities     - Linked identities (Hive, Farcaster, EVM)
-userbase_hive_keys      - Encrypted Hive posting keys (sponsored + manual)
-userbase_soft_posts     - Attribution tracking for posts made via shared account
-userbase_soft_votes     - Attribution tracking for votes made via shared account
-userbase_sponsorships   - Hive account sponsorship requests/records
+userbase_users               - Core user records
+userbase_sessions            - Login sessions with refresh tokens
+userbase_auth_methods        - Email/password/OAuth credentials
+userbase_identities          - Linked identities (Hive, Farcaster, EVM)
+userbase_identity_challenges - Challenge-response nonces (15min TTL)
+userbase_magic_links         - Magic link tokens for email auth
+userbase_hive_keys           - Encrypted Hive posting keys (sponsored + manual)
+userbase_soft_posts          - Attribution tracking for posts made via shared account
+userbase_soft_votes          - Attribution tracking for votes made via shared account
+userbase_sponsorships        - Hive account sponsorship requests/records
 ```
 
 **Key Points:**
@@ -51,7 +53,7 @@ userbase_sponsorships   - Hive account sponsorship requests/records
 
 - User has NO personal Hive key
 - Uses `DEFAULT_HIVE_POSTING_KEY` from environment variable
-- Posts immediately to Hive via @skatehive account
+- Posts immediately to Hive via @skateuser account
 - `userbase_soft_posts` records attribution (NOT a queue)
 - Post appears instantly on Hive blockchain
 
@@ -92,7 +94,7 @@ userbase_sponsorships   - Hive account sponsorship requests/records
 3. getPostingKey(userId) → returns null
 4. Falls back to DEFAULT_HIVE_POSTING_KEY
 5. Record created in userbase_soft_posts (status='queued', then 'broadcasted')
-6. Broadcast to Hive IMMEDIATELY via @skatehive account
+6. Broadcast to Hive IMMEDIATELY via @skateuser account
 7. Update soft_post status='broadcasted'
 ```
 
@@ -156,7 +158,7 @@ userbase_sponsorships   - Hive account sponsorship requests/records
 CREATE TABLE userbase_soft_posts (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES userbase_users(id),
-  author TEXT,              -- Always @skatehive for lite accounts
+  author TEXT,              -- Always @skateuser for lite accounts
   permlink TEXT,            -- The post's permlink on Hive
   type TEXT,                -- 'snap' | 'magazine' | 'comment'
   status TEXT,              -- 'queued' | 'broadcasted' | 'failed'
@@ -249,7 +251,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx...
 SUPABASE_SERVICE_ROLE_KEY=eyJxxx...
 
 # Shared Lite Account Key
-DEFAULT_HIVE_POSTING_ACCOUNT=skatehive
+DEFAULT_HIVE_POSTING_ACCOUNT=skateuser
 DEFAULT_HIVE_POSTING_KEY=5xxx...
 
 # Userbase Encryption
@@ -411,8 +413,8 @@ WHERE sponsor_user_id = $user_id AND status = 'completed';
 ```bash
 # 1. Lite Account Flow
 ✓ Sign up with email
-✓ Create comment (should use @skatehive account)
-✓ Vote on content (should use @skatehive account)
+✓ Create comment (should use @skateuser account)
+✓ Vote on content (should use @skateuser account)
 ✓ Check userbase_soft_posts has record
 ✓ Check userbase_soft_votes has record
 
@@ -442,7 +444,7 @@ WHERE sponsor_user_id = $user_id AND status = 'completed';
 **Cause:** `DEFAULT_HIVE_POSTING_KEY` is invalid or account has no RC
 **Fix:**
 1. Verify key is correct in environment
-2. Check @skatehive account has sufficient RC
+2. Check @skateuser account has sufficient RC
 3. Test key manually with Hive API
 
 ### Issue: Sponsorship fails after Keychain

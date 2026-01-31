@@ -392,19 +392,53 @@ export default function AccountLinkingModal({
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data?.error || "Linking failed");
-      }
-
       const displayHandle = handle || farcasterProfile.username;
-      const verifiedCount = farcasterProfile.verifications?.length || 0;
 
-      toast({
-        status: "success",
-        title: "Farcaster linked!",
-        description: `@${displayHandle}${verifiedCount > 0 ? ` with ${verifiedCount} verified wallet${verifiedCount !== 1 ? 's' : ''}` : ''} is now connected`,
-        duration: 4000,
-      });
+      // Handle merge if needed (same pattern as Hive)
+      if (!res.ok) {
+        if (res.status === 409 && data?.merge_required) {
+          const shouldMerge = window.confirm(
+            `@${displayHandle} (FID: ${externalId}) is already linked to another account. Merge accounts?\n\nThis will combine all identities into your current account.`
+          );
+
+          if (!shouldMerge) {
+            throw new Error("Merge cancelled");
+          }
+
+          const mergeRes = await fetch("/api/userbase/merge", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "farcaster",
+              identifier: externalId,
+              source_user_id: data.existing_user_id,
+            }),
+          });
+          if (!mergeRes.ok) {
+            const mergeData = await mergeRes.json();
+            throw new Error(mergeData?.error || "Merge failed");
+          }
+
+          toast({
+            status: "success",
+            title: "Accounts merged successfully!",
+            description: `@${displayHandle} is now linked to your account`,
+            duration: 4000,
+          });
+          await refreshUserbase();
+        } else {
+          throw new Error(data?.error || "Linking failed");
+        }
+      } else {
+        const verifiedCount = farcasterProfile.verifications?.length || 0;
+
+        toast({
+          status: "success",
+          title: "Farcaster linked!",
+          description: `@${displayHandle}${verifiedCount > 0 ? ` with ${verifiedCount} verified wallet${verifiedCount !== 1 ? 's' : ''}` : ''} is now connected`,
+          duration: 4000,
+        });
+      }
 
       bumpIdentitiesVersion();
       await refresh();
@@ -429,7 +463,7 @@ export default function AccountLinkingModal({
     } finally {
       setLinkingType(null);
     }
-  }, [farcasterProfile, toast, bumpIdentitiesVersion, refresh, routeAfterLink]);
+  }, [farcasterProfile, toast, bumpIdentitiesVersion, refresh, refreshUserbase, routeAfterLink]);
 
   const handleLink = useCallback((opportunity: LinkingOpportunity) => {
     if (opportunity.type === "hive" && opportunity.handle) {
