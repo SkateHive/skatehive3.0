@@ -41,7 +41,7 @@ async function getUserData(username: string, baseUrl: string) {
           const user = userbaseData.user;
           return {
             username,
-            name: user.display_name || user.handle || username,
+            name: user.handle || user.display_name || username,
             about: user.bio || "",
             profileImage: user.avatar_url || FALLBACK_AVATAR,
             coverImage: user.cover_url || FALLBACK_BANNER,
@@ -118,7 +118,7 @@ async function getUserData(username: string, baseUrl: string) {
             const user = userbaseData.user;
             return {
               username,
-              name: user.display_name || user.handle || username,
+              name: user.handle || user.display_name || username,
               about: user.bio || "",
               profileImage: user.avatar_url || FALLBACK_AVATAR,
               coverImage: user.cover_url || FALLBACK_BANNER,

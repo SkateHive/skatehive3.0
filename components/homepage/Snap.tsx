@@ -92,8 +92,8 @@ const Snap = ({
   const softVote = useSoftVoteOverlay(discussion.author, discussion.permlink);
 
   const displayAuthor =
+  softPost?.user.handle ||
     softPost?.user.display_name ||
-    softPost?.user.handle ||
     discussion.author;
   const displayAvatar =
     softPost?.user.avatar_url ||
@@ -623,7 +623,7 @@ const Snap = ({
             onClose={() => setIsSponsorModalOpen(false)}
             liteUserId={softPost.user.id}
             liteUserHandle={softPost.user.handle}
-            liteUserDisplayName={softPost.user.display_name || softPost.user.handle}
+            liteUserDisplayName={softPost.user.handle || softPost.user.display_name || 'User'}
             sponsorHiveUsername={viewerHiveUsername}
           />
         )}

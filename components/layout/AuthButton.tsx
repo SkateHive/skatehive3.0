@@ -17,7 +17,7 @@ import { useAccount } from "wagmi";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { SignInButton } from "@farcaster/auth-kit";
 import HiveLoginModal from "./HiveLoginModal";
-import { FaEthereum, FaHive } from "react-icons/fa";
+import { FaEthereum, FaHive, FaEnvelope } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
 import { Name, Avatar } from "@coinbase/onchainkit/identity";
 import ConnectionModal from "./ConnectionModal";
@@ -176,7 +176,14 @@ export default function AuthButton() {
       color: "purple",
       priority: 3,
     },
-  ], [user, isEthereumConnected, isFarcasterConnected]);
+    {
+      name: "Userbase",
+      connected: !!userbaseUser,
+      icon: FaEnvelope,
+      color: "green",
+      priority: 4,
+    },
+  ], [user, isEthereumConnected, isFarcasterConnected, userbaseUser]);
 
   // Memoize metadata parsing to avoid JSON.parse on every render
   const parsedMetadata = useMemo(() => {
@@ -257,9 +264,19 @@ export default function AuthButton() {
           };
         }
         break;
+      case "Userbase":
+        if (userbaseUser) {
+          return {
+            displayName: userbaseUser.handle || userbaseUser.display_name || "User",
+            avatar:
+              userbaseUser.avatar_url ||
+              `https://api.dicebear.com/7.x/identicon/svg?seed=${userbaseUser.id}`,
+          };
+        }
+        break;
     }
     return null;
-  }, [primaryConnection, user, ethereumAddress, farcasterProfile]);
+  }, [primaryConnection, user, ethereumAddress, farcasterProfile, userbaseUser]);
 
   // Connection handlers - Memoized with useCallback
   const handleHiveLogin = useCallback(async () => {
@@ -341,8 +358,8 @@ export default function AuthButton() {
               size="sm"
               src={userbaseUser.avatar_url}
               name={
-                userbaseUser.handle ||
                 userbaseUser.display_name ||
+                userbaseUser.handle ||
                 undefined
               }
             />
