@@ -79,7 +79,7 @@ export default function PostCard({
   const softVote = useSoftVoteOverlay(post.author, post.permlink);
 
   const displayAuthor =
-    softPost?.user?.display_name || softPost?.user?.handle || author;
+    softPost?.user?.handle || softPost?.user?.display_name || author;
   const displayAvatar =
     softPost?.user?.avatar_url ||
     `https://images.hive.blog/u/${author}/avatar/sm`;

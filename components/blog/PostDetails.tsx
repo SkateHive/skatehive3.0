@@ -70,8 +70,7 @@ export default function PostDetails({
 
   const softPost = useSoftPostOverlay(post.author, post.permlink, safeUser);
   const softVote = useSoftVoteOverlay(post.author, post.permlink);
-  const displayAuthor =
-    softPost?.user.display_name || softPost?.user.handle || author;
+  const displayAuthor =  softPost?.user.display_name || softPost?.user.handle ||author;
   const displayAvatar =
     softPost?.user.avatar_url ||
     `https://images.hive.blog/u/${author}/avatar/sm`;

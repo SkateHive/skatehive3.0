@@ -106,11 +106,17 @@ export async function GET(request: NextRequest) {
     return session.error;
   }
 
+  console.log("[GET /keys/posting] Checking key storage for userId:", session.userId);
+
   const hiveIdentity = await getHiveIdentity(session.userId, null);
   if (!hiveIdentity) {
+    console.log("[GET /keys/posting] No Hive identity found");
     return NextResponse.json({ stored: false, custody: "none" });
   }
 
+  console.log("[GET /keys/posting] Found Hive identity:", hiveIdentity.handle);
+
+  // Check old system (userbase_user_keys)
   const { data: keyRow } = await supabase!
     .from("userbase_user_keys")
     .select("id, custody, status, created_at, last_used_at, rotation_count")
@@ -119,18 +125,45 @@ export async function GET(request: NextRequest) {
     .limit(1);
 
   const key = keyRow?.[0];
-  if (!key || key.custody !== "stored") {
-    return NextResponse.json({ stored: false, custody: key?.custody || "none" });
+  console.log("[GET /keys/posting] Old system (userbase_user_keys):", key ? "FOUND" : "NOT FOUND");
+
+  if (key && key.custody === "stored") {
+    console.log("[GET /keys/posting] Returning old system key");
+    return NextResponse.json({
+      stored: true,
+      custody: key.custody,
+      status: key.status,
+      created_at: key.created_at,
+      last_used_at: key.last_used_at,
+      rotation_count: key.rotation_count,
+    });
   }
 
-  return NextResponse.json({
-    stored: true,
-    custody: key.custody,
-    status: key.status,
-    created_at: key.created_at,
-    last_used_at: key.last_used_at,
-    rotation_count: key.rotation_count,
-  });
+  // Check new system (userbase_hive_keys - sponsorship)
+  const { data: hiveKeyRow } = await supabase!
+    .from("userbase_hive_keys")
+    .select("id, created_at, last_used_at, key_type")
+    .eq("user_id", session.userId)
+    .limit(1);
+
+  const hiveKey = hiveKeyRow?.[0];
+  console.log("[GET /keys/posting] New system (userbase_hive_keys):", hiveKey ? "FOUND (sponsored)" : "NOT FOUND");
+
+  if (hiveKey) {
+    console.log("[GET /keys/posting] Returning sponsored key");
+    return NextResponse.json({
+      stored: true,
+      custody: "stored",
+      status: "enabled",
+      created_at: hiveKey.created_at,
+      last_used_at: hiveKey.last_used_at || null,
+      rotation_count: 0,
+      source: "sponsored", // Indicate this is from sponsorship system
+    });
+  }
+
+  console.log("[GET /keys/posting] No key found in either system");
+  return NextResponse.json({ stored: false, custody: "none" });
 }
 
 export async function POST(request: NextRequest) {

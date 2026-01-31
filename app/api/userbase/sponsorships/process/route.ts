@@ -184,6 +184,58 @@ export async function POST(
       sponsor_user_id: sponsorship.sponsor_user_id,
     });
 
+    // 6.5. Update Hive profile metadata with lite account info
+    console.log(`Updating Hive profile metadata for ${sponsorship.hive_username}...`);
+    try {
+      // Get user's display name and avatar
+      const { data: userData } = await supabase
+        .from('userbase_users')
+        .select('display_name, avatar_url, handle')
+        .eq('id', sponsorship.lite_user_id)
+        .single();
+
+      if (userData) {
+        const { Client, PrivateKey } = await import('@hiveio/dhive');
+        const hiveClient = new Client([
+          'https://api.hive.blog',
+          'https://api.deathwing.me',
+          'https://hive-api.arcange.eu',
+        ]);
+
+        // Build profile metadata
+        const profileMetadata = {
+          profile: {
+            name: userData.handle || userData.display_name || sponsorship.hive_username,
+            profile_image: userData.avatar_url || '',
+            about: `Skatehive member • Sponsored account`,
+            website: 'https://skatehive.app',
+          },
+        };
+
+        // Create account_update2 operation
+        const accountUpdateOp: ['account_update2', {
+          account: string;
+          posting_json_metadata: string;
+          extensions: never[];
+        }] = [
+          'account_update2',
+          {
+            account: sponsorship.hive_username,
+            posting_json_metadata: JSON.stringify(profileMetadata),
+            extensions: [],
+          },
+        ];
+
+        const privateKey = PrivateKey.fromString(keys.posting);
+        await hiveClient.broadcast.sendOperations([accountUpdateOp], privateKey);
+
+        console.log(`✓ Profile metadata updated for ${sponsorship.hive_username}`);
+      }
+    } catch (error: any) {
+      console.error('Failed to update Hive profile metadata:', error);
+      // Don't fail the sponsorship if profile update fails
+    }
+
     // 7. Send email with all keys
     console.log(`Sending sponsorship email to ${userEmail}`);
 

@@ -278,10 +278,10 @@ export default function ConnectionModal({
   // Determine if user is logged in (any method)
   const isLoggedIn = !!user || !!userbaseUser;
 
-  // Priority: Hive username > Userbase display_name > Userbase handle
+  // Priority: Hive username > Userbase handle > Userbase display_name
   const displayName = user
     ? user
-    : (userbaseUser?.display_name || userbaseUser?.handle || "");
+    : (userbaseUser?.handle || userbaseUser?.display_name || "");
 
   const avatarUrl = user
     ? `https://images.hive.blog/u/${user}/avatar/small`
