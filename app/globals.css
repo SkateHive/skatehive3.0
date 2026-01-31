@@ -541,3 +541,103 @@ div[class*="aioha"],
     transform: translateX(100%);
   }
 }
+
+/* --- Farcaster Auth Kit Modal Customization --- */
+/* Override Auth Kit modal to match Skatehive dark green theme */
+
+/* Modal overlay - darker backdrop */
+[class*="nao3n42"] {
+  background: rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* Modal container - dark background with green border */
+[class*="_1sj0tk80"] {
+  background-color: #0a0a0a !important;
+  border: 2px solid #7fff00 !important;
+  border-radius: 0 !important;
+  color: #7fff00 !important;
+  font-family: 'VT323', monospace !important;
+}
+
+/* Modal title */
+[class*="_1sj0tk81"] {
+  color: #7fff00 !important;
+  font-family: 'VT323', monospace !important;
+  font-size: 1.8rem !important;
+}
+
+/* Modal description text */
+[class*="_1sj0tk82"],
+[class*="_1sj0tk84"] {
+  color: #b0ffb0 !important;
+  font-family: 'VT323', monospace !important;
+}
+
+/* Links in modal */
+[class*="_1sj0tk83"] {
+  color: #7fff00 !important;
+  text-decoration: underline !important;
+}
+
+/* QR code container */
+[class*="_1sj0tk85"] {
+  background-color: #fff !important;
+  border: 2px solid #333 !important;
+  border-radius: 0 !important;
+}
+
+/* Primary button (purple -> green) */
+[class*="_1n3pr301"] {
+  background-color: #7fff00 !important;
+  color: #000 !important;
+  border-radius: 0 !important;
+  font-family: 'VT323', monospace !important;
+  font-size: 1.2rem !important;
+}
+
+[class*="_1n3pr301"]:hover {
+  background-color: #9fff40 !important;
+  opacity: 0.9 !important;
+}
+
+/* Secondary/outline button */
+[class*="_1n3pr302"] {
+  background-color: #111 !important;
+  color: #7fff00 !important;
+  border: 1px solid #7fff00 !important;
+  border-radius: 0 !important;
+  font-family: 'VT323', monospace !important;
+}
+
+[class*="_1n3pr302"]:hover {
+  background-color: #222 !important;
+}
+
+/* Text button */
+[class*="_1n3pr303"] {
+  color: #7fff00 !important;
+  font-family: 'VT323', monospace !important;
+}
+
+/* Profile card in dropdown */
+[class*="_1rbg3ua0"] {
+  background-color: #111 !important;
+  border: 1px solid #333 !important;
+  box-shadow: 0 4px 12px rgba(127, 255, 0, 0.1) !important;
+}
+
+/* Sign out dropdown */
+[class*="_16wbil70"] {
+  background-color: #111 !important;
+  border: 1px solid #333 !important;
+  color: #7fff00 !important;
+  font-family: 'VT323', monospace !important;
+}
+
+/* Debug panel (if shown) */
+[class*="_8rz8bk0"] {
+  background-color: #0a0a0a !important;
+  border: 2px solid #7fff00 !important;
+  color: #7fff00 !important;
+}

@@ -20,7 +20,24 @@ export default function AccountLinkingDetector() {
   const { hasUnlinkedOpportunities, opportunities, refresh, isLoading } = useAccountLinkingOpportunities();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [hasShownForSession, setHasShownForSession] = useState(false);
+  // Use sessionStorage to persist across page refreshes within the same session
+  const [hasShownForSession, setHasShownForSession] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("accountLinkingModalShown") === "true";
+    }
+    return false;
+  });
+
+  // Sync hasShownForSession to sessionStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (hasShownForSession) {
+        sessionStorage.setItem("accountLinkingModalShown", "true");
+      } else {
+        sessionStorage.removeItem("accountLinkingModalShown");
+      }
+    }
+  }, [hasShownForSession]);
   
   // Track previous wallet states to detect new connections
   const prevHiveRef = useRef<string | null>(null);
@@ -33,10 +50,13 @@ export default function AccountLinkingDetector() {
 
   useEffect(() => {
     // Only trigger for userbase users (email login)
-    if (!userbaseUser) {
-      prevHiveRef.current = null;
-      prevEvmRef.current = null;
-      prevFarcasterRef.current = null;
+    // Also wait for identities to finish loading to avoid race conditions
+    if (!userbaseUser || isLoading) {
+      if (!userbaseUser) {
+        prevHiveRef.current = null;
+        prevEvmRef.current = null;
+        prevFarcasterRef.current = null;
+      }
       return;
     }
 
@@ -130,6 +150,7 @@ export default function AccountLinkingDetector() {
     opportunities,
     hasShownForSession,
     hasUnlinkedOpportunities,
+    isLoading,
   ]);
 
   // Reset session flag when user logs out
