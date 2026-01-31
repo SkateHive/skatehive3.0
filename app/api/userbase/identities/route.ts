@@ -172,7 +172,8 @@ export async function POST(request: NextRequest) {
   const identifierField = "external_id";
   const identifierValue = externalId;
 
-  const { data: existing } = await supabase!
+  // First check if identity already exists for current user
+  const { data: existingForUser } = await supabase!
     .from("userbase_identities")
     .select("id, user_id, type, handle, address, external_id, is_primary")
     .eq("type", type)
@@ -180,8 +181,29 @@ export async function POST(request: NextRequest) {
     .eq("user_id", session.userId)
     .limit(1);
 
-  if (existing?.[0]) {
-    return NextResponse.json({ identity: existing[0] });
+  if (existingForUser?.[0]) {
+    return NextResponse.json({ identity: existingForUser[0] });
+  }
+
+  // Check if identity exists for a DIFFERENT user (requires merge)
+  const { data: existingForOther } = await supabase!
+    .from("userbase_identities")
+    .select("id, user_id, type, handle, address, external_id, is_primary")
+    .eq("type", type)
+    .eq(identifierField, identifierValue)
+    .neq("user_id", session.userId)
+    .limit(1);
+
+  if (existingForOther?.[0]) {
+    return NextResponse.json(
+      {
+        error: "Farcaster identity already linked elsewhere",
+        merge_required: true,
+        existing_user_id: existingForOther[0].user_id,
+        existing_identity: existingForOther[0],
+      },
+      { status: 409 }
+    );
   }
 
   const { data: existingType } = await supabase!

@@ -53,6 +53,44 @@ How email-only users can post to Hive without managing keys.
 
 ---
 
+## Lite-to-Hive Sponsorship System
+
+How OG users can sponsor lite accounts to get real Hive accounts.
+
+**[USERBASE_LITE_TO_HIVE_SPONSORSHIP.md](./USERBASE_LITE_TO_HIVE_SPONSORSHIP.md)** 🎁
+- **Main sponsorship documentation** - overview of the sponsorship system
+- Account lifecycle from lite to sponsored
+- Key encryption and storage
+- Email backup system
+
+**[SPONSORSHIP_ARCHITECTURE.md](./SPONSORSHIP_ARCHITECTURE.md)** 🏗️
+- System flow diagrams
+- Component relationships
+- Database schema for sponsorships
+
+**[SPONSORSHIP_TESTING.md](./SPONSORSHIP_TESTING.md)** ✅
+- Testing scenarios for sponsorship flows
+- Expected results and edge cases
+
+**[SPONSORSHIP_SECURITY_AUDIT.md](./SPONSORSHIP_SECURITY_AUDIT.md)** 🔒
+- Security analysis and recommendations
+- Threat model
+- Key management security
+
+**[SPONSORSHIP_COMMUNITY_GUIDE.md](./SPONSORSHIP_COMMUNITY_GUIDE.md)** 👥
+- Community guide for sponsors
+- How to sponsor new users
+
+**[SPONSORSHIP_PROGRESS_REVIEW.md](./SPONSORSHIP_PROGRESS_REVIEW.md)** 📊
+- Implementation status
+- Completed components
+
+**[IMPLEMENTATION_PLAN_SPONSORSHIP.md](./IMPLEMENTATION_PLAN_SPONSORSHIP.md)** 📋
+- Original implementation plan
+- Task breakdown and milestones
+
+---
+
 ## Portuguese Documentation
 
 **[TESTING_USERBASE_AUTH_PT-BR.md](./TESTING_USERBASE_AUTH_PT-BR.md)** 🇧🇷
@@ -77,6 +115,15 @@ How email-only users can post to Hive without managing keys.
 **...understand soft posts**
 → Read [USERBASE_SOFT_POSTS.md](./USERBASE_SOFT_POSTS.md)
 
+**...understand the sponsorship system**
+→ Start with [USERBASE_LITE_TO_HIVE_SPONSORSHIP.md](./USERBASE_LITE_TO_HIVE_SPONSORSHIP.md), then [SPONSORSHIP_ARCHITECTURE.md](./SPONSORSHIP_ARCHITECTURE.md)
+
+**...test the sponsorship flow**
+→ Follow [SPONSORSHIP_TESTING.md](./SPONSORSHIP_TESTING.md)
+
+**...review sponsorship security**
+→ Read [SPONSORSHIP_SECURITY_AUDIT.md](./SPONSORSHIP_SECURITY_AUDIT.md)
+
 **...deploy to production**
 → Check [USERBASE_STATUS_JAN2026.md](./USERBASE_STATUS_JAN2026.md) § Deployment Checklist
 
@@ -97,9 +144,18 @@ docs/
 │   ├── TESTING_USERBASE_AUTH.md            ← Testing guide (EN)
 │   └── TESTING_USERBASE_AUTH_PT-BR.md      ← Testing guide (PT-BR)
 │
-└── Soft Posts System
-    ├── USERBASE_SOFT_POSTS.md              ← Soft posts architecture
-    └── HANDOFF_SOFT_POSTS_JAN2026.md       ← Development handoff
+├── Soft Posts System
+│   ├── USERBASE_SOFT_POSTS.md              ← Soft posts architecture
+│   └── HANDOFF_SOFT_POSTS_JAN2026.md       ← Development handoff
+│
+└── Sponsorship System
+    ├── USERBASE_LITE_TO_HIVE_SPONSORSHIP.md ← Main sponsorship docs
+    ├── SPONSORSHIP_ARCHITECTURE.md          ← System architecture
+    ├── SPONSORSHIP_TESTING.md               ← Testing scenarios
+    ├── SPONSORSHIP_SECURITY_AUDIT.md        ← Security analysis
+    ├── SPONSORSHIP_COMMUNITY_GUIDE.md       ← User guide
+    ├── SPONSORSHIP_PROGRESS_REVIEW.md       ← Implementation status
+    └── IMPLEMENTATION_PLAN_SPONSORSHIP.md   ← Original plan
 ```
 
 ---
@@ -144,5 +200,5 @@ When updating documentation:
 
 ---
 
-**Last updated:** January 29, 2026
+**Last updated:** January 31, 2026
 🛹 Happy coding!

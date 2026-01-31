@@ -43,10 +43,12 @@ COMMENT ON SCHEMA public IS 'Dropped legacy key system tables. Using userbase_hi
 --   AND tablename LIKE 'userbase_%'
 -- ORDER BY tablename;
 
--- Expected remaining tables:
+-- Expected remaining tables (10 total):
 -- - userbase_auth_methods
 -- - userbase_hive_keys (NEW key system)
 -- - userbase_identities
+-- - userbase_identity_challenges
+-- - userbase_magic_links
 -- - userbase_sessions
 -- - userbase_soft_posts
 -- - userbase_soft_votes
