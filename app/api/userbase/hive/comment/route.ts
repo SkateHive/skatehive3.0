@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { PrivateKey } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
 import { validateHiveUsernameFormat } from "@/lib/utils/hiveAccountUtils";
-import { decryptSecret } from "@/lib/userbase/encryption";
+import { decryptSecret, decryptHivePostingKey } from "@/lib/userbase/encryption";
 import { getSafeUserIdentifier } from "@/lib/userbase/safeUser";
 
 const supabaseUrl =
@@ -111,10 +111,14 @@ async function getHiveIdentity(userId: string) {
   return data?.[0] || null;
 }
 
-async function getPostingKey(identityId: string) {
+async function getPostingKey(identityId: string, userId: string) {
   if (!supabase) {
     throw new Error("Supabase client not initialized");
   }
+
+  console.log("[getPostingKey] Looking for key - identityId:", identityId, "userId:", userId);
+
+  // First check userbase_user_keys (old system)
   const { data: keyRows } = await supabase
     .from("userbase_user_keys")
     .select("id, custody, status")
@@ -123,22 +127,47 @@ async function getPostingKey(identityId: string) {
     .limit(1);
 
   const key = keyRows?.[0];
-  if (!key || key.custody !== "stored" || key.status !== "enabled") {
-    return { error: "Posting key not stored", userKeyId: null, secret: null };
+  console.log("[getPostingKey] userbase_user_keys result:", key);
+
+  if (key && key.custody === "stored" && key.status === "enabled") {
+    const { data: secretRows } = await supabase
+      .from("userbase_secrets")
+      .select("ciphertext")
+      .eq("user_key_id", key.id)
+      .limit(1);
+
+    const secret = secretRows?.[0]?.ciphertext || null;
+    console.log("[getPostingKey] Found secret in userbase_secrets:", !!secret);
+
+    if (secret) {
+      return { error: null, userKeyId: key.id, secret };
+    }
   }
 
-  const { data: secretRows } = await supabase
-    .from("userbase_secrets")
-    .select("ciphertext")
-    .eq("user_key_id", key.id)
+  // Check userbase_hive_keys (sponsorship system)
+  console.log("[getPostingKey] Checking userbase_hive_keys for userId:", userId);
+  const { data: hiveKeyRows } = await supabase
+    .from("userbase_hive_keys")
+    .select("id, encrypted_posting_key, encryption_iv, encryption_auth_tag")
+    .eq("user_id", userId)
     .limit(1);
 
-  const secret = secretRows?.[0]?.ciphertext || null;
-  if (!secret) {
-    return { error: "Posting key not stored", userKeyId: key.id, secret: null };
+  const hiveKey = hiveKeyRows?.[0];
+  console.log("[getPostingKey] userbase_hive_keys result:", hiveKey ? "FOUND" : "NOT FOUND");
+
+  if (hiveKey && hiveKey.encrypted_posting_key) {
+    // Format as encrypted secret for decryption
+    const secret = JSON.stringify({
+      encryptedKey: hiveKey.encrypted_posting_key,
+      iv: hiveKey.encryption_iv,
+      authTag: hiveKey.encryption_auth_tag,
+    });
+    console.log("[getPostingKey] Returning sponsored key");
+    return { error: null, userKeyId: hiveKey.id, secret };
   }
 
-  return { error: null, userKeyId: key.id, secret };
+  console.log("[getPostingKey] No key found in either table");
+  return { error: "Posting key not stored", userKeyId: null, secret: null };
 }
 
 async function auditUsage(
@@ -275,10 +304,13 @@ export async function POST(request: NextRequest) {
   let usingDefaultAccount = false;
 
   if (author && hiveIdentity) {
+    console.log("[POST /comment] Found Hive identity for user:", session.userId, "handle:", author);
     const { error: keyError, userKeyId: keyId, secret } = await getPostingKey(
-      hiveIdentity.id
+      hiveIdentity.id,
+      session.userId
     );
     if (keyError || !secret) {
+      console.error("[POST /comment] No posting key found:", keyError);
       return NextResponse.json(
         {
           error: keyError || "Posting key not available",
@@ -288,11 +320,24 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    console.log("[POST /comment] Found posting key, proceeding with broadcast");
 
     try {
-      postingKey = decryptSecret(secret);
+      console.log("[POST /comment] Attempting to decrypt posting key");
+      // Check if this is a sponsored key (JSON format)
+      if (secret.startsWith('{')) {
+        const encryptedData = JSON.parse(secret);
+        console.log("[POST /comment] Decrypting sponsored key with data:", Object.keys(encryptedData));
+        postingKey = decryptHivePostingKey(encryptedData, session.userId);
+        console.log("[POST /comment] Decrypted sponsored key successfully");
+      } else {
+        // Old system decryption
+        postingKey = decryptSecret(secret);
+        console.log("[POST /comment] Decrypted old system key successfully");
+      }
       userKeyId = keyId;
     } catch (error: any) {
+      console.error("[POST /comment] Decryption failed:", error);
       return NextResponse.json(
         { error: error?.message || "Failed to decrypt posting key" },
         { status: 500 }
