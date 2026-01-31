@@ -255,7 +255,65 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ identity: inserted });
+  // Auto-link Farcaster-verified wallets (no signature needed - Farcaster already verified them)
+  const verifiedWallets: string[] = Array.isArray(metadata?.verifications)
+    ? metadata.verifications.filter(
+        (v: unknown) => typeof v === "string" && v.startsWith("0x")
+      )
+    : [];
+
+  const autoLinkedWallets: string[] = [];
+
+  for (const walletAddress of verifiedWallets) {
+    const normalizedWallet = walletAddress.toLowerCase();
+
+    // Check if this wallet is already linked to any user
+    const { data: existingWallet } = await supabase!
+      .from("userbase_identities")
+      .select("id, user_id")
+      .eq("type", "evm")
+      .eq("address", normalizedWallet)
+      .limit(1);
+
+    // Skip if already linked (to this user or another)
+    if (existingWallet && existingWallet.length > 0) {
+      continue;
+    }
+
+    // Auto-create EVM identity for this verified wallet
+    const { error: walletInsertError } = await supabase!
+      .from("userbase_identities")
+      .insert({
+        user_id: session.userId,
+        type: "evm",
+        handle: null,
+        address: normalizedWallet,
+        external_id: null,
+        is_primary: false, // Farcaster-verified wallets are not primary
+        verified_at: new Date().toISOString(),
+        metadata: {
+          verified_via: "farcaster",
+          farcaster_fid: externalId,
+          farcaster_username: handle,
+          auto_linked: true,
+        },
+      });
+
+    if (!walletInsertError) {
+      autoLinkedWallets.push(normalizedWallet);
+    } else {
+      console.warn(
+        `Failed to auto-link Farcaster wallet ${normalizedWallet}:`,
+        walletInsertError
+      );
+    }
+  }
+
+  return NextResponse.json({
+    identity: inserted,
+    auto_linked_wallets: autoLinkedWallets,
+    auto_linked_count: autoLinkedWallets.length,
+  });
 }
 
 export async function DELETE(request: NextRequest) {

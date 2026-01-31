@@ -15,7 +15,7 @@ import {
 import { useAioha } from "@aioha/react-ui";
 import { useAccount } from "wagmi";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
-import { SignInButton } from "@farcaster/auth-kit";
+import { SignInButton, useSignIn } from "@farcaster/auth-kit";
 import HiveLoginModal from "./HiveLoginModal";
 import { FaEthereum, FaHive, FaEnvelope } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
@@ -152,6 +152,9 @@ export default function AuthButton() {
   const hiddenSignInRef = React.useRef<HTMLDivElement>(null);
   const [isFarcasterAuthInProgress, setIsFarcasterAuthInProgress] =
     useState(false);
+
+  // Get signOut function to reset Auth Kit state and prevent modal flash
+  const { signOut: farcasterSignOut } = useSignIn({});
 
   // Connection status data with priority (Hive > Ethereum > Farcaster) - Memoized
   const connections: ConnectionStatus[] = useMemo(() => [
@@ -438,13 +441,21 @@ export default function AuthButton() {
           onSuccess={({ fid, username }) => {
             setIsFarcasterAuthInProgress(false);
             setIsConnectionModalOpen(false);
+
+            // Reset Auth Kit state immediately to prevent modal from reopening (flash fix)
+            setTimeout(() => {
+              farcasterSignOut();
+            }, 100);
+
             const displayName = username ? `@${username}` : fid ? `#${fid}` : "user";
-            toast({
-              status: "success",
-              title: "Connected to Farcaster!",
-              description: `Welcome, ${displayName}!`,
-              duration: 3000,
-            });
+            setTimeout(() => {
+              toast({
+                status: "success",
+                title: "Connected to Farcaster!",
+                description: `Welcome, ${displayName}!`,
+                duration: 3000,
+              });
+            }, 200);
           }}
           onError={(error) => {
             console.error("❌ Farcaster Sign In Error:", error);

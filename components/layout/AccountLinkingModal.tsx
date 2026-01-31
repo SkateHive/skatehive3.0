@@ -18,7 +18,7 @@ import SkateModal from "@/components/shared/SkateModal";
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
 import { useSignMessage } from "wagmi";
-import { FaEthereum, FaHive, FaLink, FaCheck } from "react-icons/fa";
+import { FaEthereum, FaHive, FaLink, FaCheck, FaSync } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
@@ -148,6 +148,16 @@ export default function AccountLinkingModal({
   const [linkingType, setLinkingType] = useState<string | null>(null);
   const [justLinked, setJustLinked] = useState(false);
 
+  // Profile sync prompt state
+  const [showSyncPrompt, setShowSyncPrompt] = useState(false);
+  const [syncHiveProfile, setSyncHiveProfile] = useState<{
+    handle: string;
+    displayName?: string;
+    avatar?: string;
+    bio?: string;
+  } | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
   // Filter to only show unlinked opportunities
   const unlinkedOpportunities = opportunities.filter((o) => !o.alreadyLinked);
   const linkedOpportunities = opportunities.filter((o) => o.alreadyLinked);
@@ -168,19 +178,134 @@ export default function AccountLinkingModal({
     }
   }, [justLinked, isLoading, unlinkedOpportunities.length, onClose, toast]);
 
-  // Reset justLinked flag when modal closes
+  // Reset justLinked flag and sync prompt when modal closes
   useEffect(() => {
     if (!isOpen) {
       setJustLinked(false);
+      setShowSyncPrompt(false);
+      setSyncHiveProfile(null);
     }
   }, [isOpen]);
+
+  // Check if Hive profile differs from userbase profile
+  const checkProfileMismatch = useCallback(async (hiveHandle: string) => {
+    try {
+      // Fetch Hive profile
+      const response = await fetch(
+        `https://api.hive.blog`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            method: "condenser_api.get_accounts",
+            params: [[hiveHandle]],
+            id: 1,
+          }),
+        }
+      );
+      const data = await response.json();
+      const hiveAccount = data.result?.[0];
+      if (!hiveAccount) return;
+
+      // Parse Hive profile metadata
+      let hiveProfile: { name?: string; about?: string; profile_image?: string } = {};
+      try {
+        const metadata = JSON.parse(hiveAccount.posting_json_metadata || hiveAccount.json_metadata || "{}");
+        hiveProfile = metadata.profile || {};
+      } catch {
+        return;
+      }
+
+      const hiveDisplayName = hiveProfile.name || hiveHandle;
+      const hiveAvatar = hiveProfile.profile_image || `https://images.hive.blog/u/${hiveHandle}/avatar`;
+      const hiveBio = hiveProfile.about;
+
+      // Compare with userbase profile
+      const currentDisplayName = userbaseUser?.display_name || "";
+      const currentAvatar = userbaseUser?.avatar_url || "";
+
+      // Check if profiles differ (ignoring placeholder avatars)
+      const avatarsDiffer = hiveAvatar &&
+        !currentAvatar.includes("dicebear") &&
+        currentAvatar !== hiveAvatar;
+      const namesDiffer = hiveDisplayName &&
+        currentDisplayName !== hiveDisplayName &&
+        !currentDisplayName.toLowerCase().includes("wallet");
+
+      if (avatarsDiffer || namesDiffer || hiveBio) {
+        setSyncHiveProfile({
+          handle: hiveHandle,
+          displayName: hiveDisplayName,
+          avatar: hiveAvatar,
+          bio: hiveBio,
+        });
+        setShowSyncPrompt(true);
+      }
+    } catch (error) {
+      console.error("Failed to check Hive profile:", error);
+    }
+  }, [userbaseUser]);
+
+  // Sync profile from Hive
+  const handleSyncProfile = useCallback(async () => {
+    if (!syncHiveProfile) return;
+
+    setIsSyncing(true);
+    try {
+      const updateData: Record<string, string> = {};
+      if (syncHiveProfile.displayName) {
+        updateData.display_name = syncHiveProfile.displayName;
+      }
+      if (syncHiveProfile.avatar) {
+        updateData.avatar_url = syncHiveProfile.avatar;
+      }
+      if (syncHiveProfile.bio) {
+        updateData.bio = syncHiveProfile.bio;
+      }
+
+      const response = await fetch("/api/userbase/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        toast({
+          status: "success",
+          title: "Profile synced!",
+          description: `Updated from @${syncHiveProfile.handle}`,
+          duration: 3000,
+        });
+        await refreshUserbase();
+      } else {
+        throw new Error("Failed to update profile");
+      }
+    } catch (error) {
+      toast({
+        status: "error",
+        title: "Sync failed",
+        description: "Could not update profile",
+        duration: 3000,
+      });
+    } finally {
+      setIsSyncing(false);
+      setShowSyncPrompt(false);
+      setSyncHiveProfile(null);
+    }
+  }, [syncHiveProfile, toast, refreshUserbase]);
+
+  const handleSkipSync = useCallback(() => {
+    setShowSyncPrompt(false);
+    setSyncHiveProfile(null);
+  }, []);
 
   const routeAfterLink = useCallback((type: "hive" | "evm" | "farcaster", handle?: string) => {
     const username = handle || userbaseUser?.handle || hiveUser;
     if (!username) return;
 
     const viewMode = type === "hive" ? "" : type === "evm" ? "?view=zora" : "?view=farcaster";
-    router.push(`/profile/${username}${viewMode}`);
+    router.push(`/user/${username}${viewMode}`);
   }, [router, userbaseUser, hiveUser]);
 
   const linkHive = useCallback(async (handle: string) => {
@@ -269,16 +394,21 @@ export default function AccountLinkingModal({
           description: `@${handle} and related identities are now connected`,
           duration: 4000,
         });
+
+        // Check if Hive profile differs from app profile
+        await checkProfileMismatch(handle);
       }
 
       bumpIdentitiesVersion();
       await refresh();
       setJustLinked(true);
 
-      // Route to Hive profile
-      setTimeout(() => {
-        routeAfterLink("hive", handle);
-      }, 1000);
+      // Only route if not showing sync prompt
+      if (!showSyncPrompt) {
+        setTimeout(() => {
+          routeAfterLink("hive", handle);
+        }, 1000);
+      }
 
     } catch (error: any) {
       const errorMessage = error?.name === 'AbortError'
@@ -294,7 +424,7 @@ export default function AccountLinkingModal({
     } finally {
       setLinkingType(null);
     }
-  }, [aioha, toast, bumpIdentitiesVersion, refresh, refreshUserbase, routeAfterLink]);
+  }, [aioha, toast, bumpIdentitiesVersion, refresh, refreshUserbase, routeAfterLink, checkProfileMismatch, showSyncPrompt]);
 
   const linkEvm = useCallback(async (address: string) => {
     setLinkingType("evm");
@@ -430,12 +560,12 @@ export default function AccountLinkingModal({
           throw new Error(data?.error || "Linking failed");
         }
       } else {
-        const verifiedCount = farcasterProfile.verifications?.length || 0;
+        const autoLinkedCount = data?.auto_linked_count || 0;
 
         toast({
           status: "success",
           title: "Farcaster linked!",
-          description: `@${displayHandle}${verifiedCount > 0 ? ` with ${verifiedCount} verified wallet${verifiedCount !== 1 ? 's' : ''}` : ''} is now connected`,
+          description: `@${displayHandle} is now connected${autoLinkedCount > 0 ? ` + ${autoLinkedCount} verified wallet${autoLinkedCount !== 1 ? 's' : ''} auto-linked` : ''}`,
           duration: 4000,
         });
       }
@@ -527,6 +657,22 @@ export default function AccountLinkingModal({
               {/* Unlinked opportunities */}
               {unlinkedOpportunities.length > 0 && (
                 <VStack spacing={2} align="stretch">
+                  {/* LINK ALL button at top for better UX */}
+                  {unlinkedOpportunities.length > 1 && (
+                    <Button
+                      w="full"
+                      size="sm"
+                      bg="primary"
+                      color="background"
+                      fontFamily="mono"
+                      fontSize="xs"
+                      onClick={handleLinkAll}
+                      isLoading={!!linkingType}
+                      _hover={{ opacity: 0.9 }}
+                    >
+                      link all ({unlinkedOpportunities.length})
+                    </Button>
+                  )}
                   <HStack>
                     <Text fontFamily="mono" fontSize="xs" color="gray.500">
                       ready to link
@@ -569,37 +715,20 @@ export default function AccountLinkingModal({
                 </VStack>
               )}
 
-              {/* Actions */}
+              {/* Skip button */}
               {unlinkedOpportunities.length > 0 && (
-                <VStack spacing={2} pt={2}>
-                  {unlinkedOpportunities.length > 1 && (
-                    <Button
-                      w="full"
-                      size="sm"
-                      bg="primary"
-                      color="background"
-                      fontFamily="mono"
-                      fontSize="xs"
-                      onClick={handleLinkAll}
-                      isLoading={!!linkingType}
-                      _hover={{ opacity: 0.9 }}
-                    >
-                      link all ({unlinkedOpportunities.length})
-                    </Button>
-                  )}
-                  <Button
-                    w="full"
-                    size="sm"
-                    variant="ghost"
-                    fontFamily="mono"
-                    fontSize="xs"
-                    color="gray.500"
-                    onClick={onClose}
-                    _hover={{ color: "text" }}
-                  >
-                    skip for now
-                  </Button>
-                </VStack>
+                <Button
+                  w="full"
+                  size="sm"
+                  variant="ghost"
+                  fontFamily="mono"
+                  fontSize="xs"
+                  color="gray.500"
+                  onClick={onClose}
+                  _hover={{ color: "text" }}
+                >
+                  skip for now
+                </Button>
               )}
 
               {unlinkedOpportunities.length === 0 && (
@@ -626,6 +755,100 @@ export default function AccountLinkingModal({
           )}
         </VStack>
       </Box>
+
+      {/* Profile Sync Prompt */}
+      {showSyncPrompt && syncHiveProfile && (
+        <Box
+          position="absolute"
+          inset={0}
+          bg="background"
+          p={4}
+          display="flex"
+          flexDirection="column"
+          justifyContent="center"
+        >
+          <VStack spacing={4} align="stretch">
+            <VStack spacing={1}>
+              <HStack spacing={2}>
+                <Icon as={FaSync} boxSize={4} color="primary" />
+                <Text fontFamily="mono" fontSize="sm" color="primary">
+                  sync profile?
+                </Text>
+              </HStack>
+              <Text fontFamily="mono" fontSize="xs" color="gray.400" textAlign="center">
+                your hive account has different profile info
+              </Text>
+            </VStack>
+
+            <VStack
+              spacing={2}
+              p={3}
+              bg="whiteAlpha.50"
+              border="1px solid"
+              borderColor="primary"
+              borderRadius="sm"
+            >
+              <HStack spacing={3} w="full">
+                <Box
+                  w="40px"
+                  h="40px"
+                  borderRadius="sm"
+                  bgImage={`url(${syncHiveProfile.avatar})`}
+                  bgSize="cover"
+                  bgPosition="center"
+                  border="1px solid"
+                  borderColor="primary"
+                />
+                <VStack spacing={0} align="start" flex={1}>
+                  <Text fontFamily="mono" fontSize="sm" color="primary" fontWeight="bold">
+                    @{syncHiveProfile.handle}
+                  </Text>
+                  {syncHiveProfile.displayName && (
+                    <Text fontFamily="mono" fontSize="xs" color="gray.400">
+                      {syncHiveProfile.displayName}
+                    </Text>
+                  )}
+                </VStack>
+              </HStack>
+              {syncHiveProfile.bio && (
+                <Text fontFamily="mono" fontSize="xs" color="gray.500" noOfLines={2}>
+                  {syncHiveProfile.bio}
+                </Text>
+              )}
+            </VStack>
+
+            <VStack spacing={2}>
+              <Button
+                w="full"
+                size="sm"
+                bg="primary"
+                color="background"
+                fontFamily="mono"
+                fontSize="xs"
+                leftIcon={<Icon as={FaSync} boxSize={3} />}
+                onClick={handleSyncProfile}
+                isLoading={isSyncing}
+                _hover={{ opacity: 0.9 }}
+              >
+                sync from hive
+              </Button>
+              <Button
+                w="full"
+                size="sm"
+                variant="ghost"
+                fontFamily="mono"
+                fontSize="xs"
+                color="gray.500"
+                onClick={handleSkipSync}
+                isDisabled={isSyncing}
+                _hover={{ color: "text" }}
+              >
+                keep separate
+              </Button>
+            </VStack>
+          </VStack>
+        </Box>
+      )}
     </SkateModal>
   );
 }
