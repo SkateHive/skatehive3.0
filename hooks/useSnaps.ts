@@ -2,6 +2,7 @@ import HiveClient from '@/lib/hive/hiveclient';
 import { Discussion } from '@hiveio/dhive';
 import { useState, useEffect, useRef } from 'react';
 import { HIVE_CONFIG } from '@/config/app.config';
+import { filterSoftDeletedPosts } from '@/lib/utils/softDelete';
 
 interface lastContainerInfo {
   permlink: string;
@@ -199,6 +200,8 @@ export const useSnaps = () => {
             }
           }
         }
+
+        newSnaps = await filterSoftDeletedPosts(newSnaps);
 
         // console.dir(newSnaps)
         if (newSnaps.length < pageMinSize) {

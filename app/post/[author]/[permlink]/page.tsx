@@ -3,6 +3,7 @@ import HiveClient from "@/lib/hive/hiveclient";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
 import { Metadata } from "next";
 import { APP_CONFIG } from "@/config/app.config";
+import { isPostSoftDeleted } from "@/lib/supabase/userPosts";
 
 // Constants
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
@@ -106,6 +107,19 @@ async function getData(user: string, permlink: string) {
   validatePermlink(permlink, "getData");
   try {
     const cleanUser = user.startsWith("@") ? user.slice(1) : user;
+
+    try {
+      const deleted = await isPostSoftDeleted(cleanUser, permlink);
+      if (deleted) {
+        throw new Error("Post not found");
+      }
+    } catch (error: any) {
+      if (error?.message === "Post not found") {
+        throw error;
+      }
+      console.warn("Soft-delete check failed, continuing without DB filter:", error);
+    }
+
     const postContent = await HiveClient.database.call("get_content", [
       cleanUser,
       permlink,

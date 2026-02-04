@@ -28,6 +28,7 @@ import {
 } from "@/config/blog.config";
 import { HIVE_CONFIG } from "@/config/app.config";
 import { fetchHighestPaidPosts, convertToDiscussionFormat } from "@/services/skatehiveApiService";
+import { filterSoftDeletedPosts } from "@/lib/utils/softDelete";
 
 function BlogContent() {
   const t = useTranslations();
@@ -100,8 +101,8 @@ function BlogContent() {
       const posts = response.posts.map(post =>
         convertToDiscussionFormat(post) as unknown as Discussion
       );
-
-      setAllPosts(posts);
+      const visiblePosts = await filterSoftDeletedPosts(posts);
+      setAllPosts(visiblePosts);
       setHasMoreState(false); // GOAT posts don't paginate infinitely
     } catch (error) {
       console.error("Failed to fetch GOAT posts:", error);
@@ -131,8 +132,8 @@ function BlogContent() {
       const posts = response.posts.map(post =>
         convertToDiscussionFormat(post) as unknown as Discussion
       );
-
-      setAllPosts(posts);
+      const visiblePosts = await filterSoftDeletedPosts(posts);
+      setAllPosts(visiblePosts);
       setHasMoreState(false); // Don't paginate infinitely
     } catch (error) {
       console.error("Failed to fetch highest paid posts:", error);

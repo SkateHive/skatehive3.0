@@ -3,6 +3,7 @@ import HiveClient from "@/lib/hive/hiveclient"
 import { useCallback, useEffect, useState } from "react"
 import { Discussion } from "@hiveio/dhive"
 import { filterAutoComments } from '@/lib/utils/postUtils'
+import { filterSoftDeletedPosts } from '@/lib/utils/softDelete'
 
 
 export interface ListCommentsParams {
@@ -25,6 +26,7 @@ async function fetchComments(
 
         // Apply quality filtering to all comments
         const filteredComments = filterAutoComments(comments);
+        const visibleComments = await filterSoftDeletedPosts(filteredComments);
 
         if (recursive) {
             const fetchReplies = async (discussion: Discussion): Promise<Discussion> => {
@@ -35,10 +37,10 @@ async function fetchComments(
                 }
                 return discussion;
             };
-            const commentsWithReplies = await Promise.all(filteredComments.map(fetchReplies));
+            const commentsWithReplies = await Promise.all(visibleComments.map(fetchReplies));
             return commentsWithReplies;
         } else {
-            return filteredComments;
+            return visibleComments;
         }
     } catch (error) {
         console.error("Failed to fetch comments:", error);

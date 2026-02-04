@@ -7,6 +7,7 @@ import { Discussion, Notifications, Operation } from "@hiveio/dhive";
 import { extractNumber } from "../utils/extractNumber";
 import { VideoPart } from "@/types/VideoPart";
 import { HIVE_CONFIG } from '@/config/app.config';
+import { filterSoftDeletedPosts, getDeletedPostKeys } from '@/lib/utils/softDelete';
 
 
 interface HiveKeychainResponse {
@@ -381,6 +382,12 @@ export async function uploadImage(file: File, signature: string, index?: number,
 }
 
 export async function getPost(user: string, postId: string) {
+  const deletedKeys = await getDeletedPostKeys();
+  const postKey = `${String(user).toLowerCase()}/${String(postId).toLowerCase()}`;
+  if (deletedKeys.has(postKey)) {
+    throw new Error('Post not found');
+  }
+
   const postContent = await HiveClient.database.call('get_content', [
     user,
     postId,
@@ -550,7 +557,7 @@ export async function findPosts(query: string, params: any[]) {
         limit: Math.min(limit || 20, 20), // Bridge API max limit is 20
         observer: ''
       });
-      return posts;
+      return await filterSoftDeletedPosts(posts || []);
     } catch (error) {
       console.error('Error fetching author posts with Bridge API:', error);
       throw error;
@@ -589,7 +596,7 @@ export async function findPosts(query: string, params: any[]) {
       start_permlink: start_permlink || undefined,
       observer: ''
     });
-    return posts;
+    return await filterSoftDeletedPosts(posts || []);
   } catch (error) {
     console.error('Error fetching posts with Bridge API:', error);
     throw error;

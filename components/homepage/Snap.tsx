@@ -79,7 +79,14 @@ const Snap = ({
   } = usePostEdit(discussion);
 
   const [isDeleted, setIsDeleted] = useState(false);
-  const { isDeleting, handleDelete, handleSoftDelete } = usePostDelete(
+  const {
+    canDelete,
+    isLiteOwner,
+    isDeleting,
+    handleDelete,
+    handleSoftDelete,
+    handleLiteSoftDelete,
+  } = usePostDelete(
     discussion,
     () => {
       setIsDeleted(true);
@@ -213,6 +220,11 @@ const Snap = ({
   const { daysRemaining, isPending } = calculatePayoutDays(discussion.created);
 
   const handleDeleteClick = () => {
+    if (isLiteOwner) {
+      handleLiteSoftDelete();
+      return;
+    }
+
     if (hasRepliesOrVotes) {
       handleSoftDelete();
     } else {
@@ -281,7 +293,7 @@ const Snap = ({
                   Edit
                 </MenuItem>
               )}
-              {user === discussion.author && (
+              {canDelete && (
                 <MenuItem
                   onClick={handleDeleteClick}
                   bg={"background"}

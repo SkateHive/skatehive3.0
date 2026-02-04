@@ -1,7 +1,7 @@
 // app/page.tsx
 "use client";
 
-import { Box, Flex, Spinner } from "@chakra-ui/react";
+import { Alert, AlertDescription, AlertIcon, Box, Flex, Spinner } from "@chakra-ui/react";
 import SnapList from "../homepage/SnapList";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Discussion } from "@hiveio/dhive"; // Ensure this import is consistent
@@ -13,6 +13,7 @@ import { useComments } from "@/hooks/useComments";
 import InitFrameSDK from "@/hooks/init-frame-sdk";
 import BountyDetail from "@/components/bounties/BountyDetail";
 import ContentErrorWatcher from "@/components/shared/ContentErrorWatcher";
+import { getDeletedPostKeys } from "@/lib/utils/softDelete";
 
 interface PostPageProps {
   author: string;
@@ -45,6 +46,14 @@ export default function PostPage({ author, permlink }: PostPageProps) {
     async function loadPost() {
       setIsLoading(true);
       try {
+        const deletedKeys = await getDeletedPostKeys();
+        const postKey = `${author}/${permlink}`.toLowerCase();
+        if (deletedKeys.has(postKey)) {
+          setError("Post not found");
+          setPost(null);
+          return;
+        }
+
         const post = await getPost(author, permlink);
         setPost(post);
       } catch (err) {
@@ -72,7 +81,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
     return post?.body && post.body.includes("Trick/Challenge:");
   }, [post?.body]);
 
-  if (isLoading || !post || !author || !permlink) {
+  if (isLoading) {
     return (
       <Box
         display="flex"
@@ -81,6 +90,17 @@ export default function PostPage({ author, permlink }: PostPageProps) {
         height="100vh"
       >
         <Spinner size="xl" color="primary" />
+      </Box>
+    );
+  }
+
+  if (error || !post || !author || !permlink) {
+    return (
+      <Box p={4}>
+        <Alert status="warning">
+          <AlertIcon />
+          <AlertDescription>{error || "Post not found"}</AlertDescription>
+        </Alert>
       </Box>
     );
   }
