@@ -19,7 +19,7 @@ import { Discussion } from "@hiveio/dhive";
 import { FaRegComment } from "react-icons/fa";
 import { LuArrowUp, LuArrowDown, LuDollarSign } from "react-icons/lu";
 import { useAioha } from "@aioha/react-ui";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getPayoutValue } from "@/lib/hive/client-functions";
 import { EnhancedMarkdownRenderer } from "@/components/markdown/EnhancedMarkdownRenderer";
 import { getPostDate } from "@/lib/utils/GetPostDate";
@@ -40,6 +40,9 @@ import {
 import { BiDotsHorizontal } from "react-icons/bi";
 import MediaRenderer from "../shared/MediaRenderer";
 import VoteListPopover from "@/components/blog/VoteListModal";
+import { isAdminUser } from "@/lib/utils/adminCheck";
+import { deletePostAsSkatedev } from "@/lib/hive/server-actions";
+import { HIVE_CONFIG } from "@/config/app.config";
 
 interface SnapProps {
   discussion: Discussion;
@@ -79,6 +82,8 @@ const Snap = ({
   } = usePostEdit(discussion);
 
   const [isDeleted, setIsDeleted] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdminDeleting, setIsAdminDeleting] = useState(false);
   const { isDeleting, handleDelete, handleSoftDelete } = usePostDelete(
     discussion,
     () => {
@@ -89,6 +94,8 @@ const Snap = ({
   const hasRepliesOrVotes =
     (discussion.children ?? 0) > 0 ||
     (discussion.active_votes?.length ?? 0) > 0;
+  const isSkatedevPost =
+    discussion.author?.toLowerCase() === HIVE_CONFIG.APP_ACCOUNT.toLowerCase();
 
   const [showSlider, setShowSlider] = useState(false);
   const [activeVotes, setActiveVotes] = useState(discussion.active_votes || []);
@@ -120,6 +127,28 @@ const Snap = ({
     ) || false
   );
   const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAdminState() {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const admin = await isAdminUser(user);
+      if (isMounted) {
+        setIsAdmin(admin);
+      }
+    }
+
+    loadAdminState();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   // Direct vote handler for when slider is disabled
   async function handleDirectVote() {
@@ -220,6 +249,43 @@ const Snap = ({
     }
   };
 
+  const handleAdminDeleteClick = async () => {
+    if (!user || !isAdmin || !isSkatedevPost) return;
+
+    setIsAdminDeleting(true);
+    try {
+      const result = await deletePostAsSkatedev({
+        adminUsername: user,
+        author: discussion.author,
+        permlink: discussion.permlink,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to delete post");
+      }
+
+      setIsDeleted(true);
+      onDelete?.(discussion.permlink);
+      toast({
+        title: "Post deleted",
+        description: "Skatedev post was deleted via admin action.",
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Delete failed",
+        description: error?.message || "Failed to delete skatedev post.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsAdminDeleting(false);
+    }
+  };
+
   if (isDeleted) {
     return null;
   }
@@ -290,6 +356,17 @@ const Snap = ({
                 >
                   <DeleteIcon style={{ marginRight: "8px" }} />
                   Delete
+                </MenuItem>
+              )}
+              {isAdmin && isSkatedevPost && (
+                <MenuItem
+                  onClick={handleAdminDeleteClick}
+                  bg={"background"}
+                  color={"error"}
+                  isDisabled={isAdminDeleting}
+                >
+                  <DeleteIcon style={{ marginRight: "8px" }} />
+                  Delete skatedev post (Admin)
                 </MenuItem>
               )}
               <ShareMenuButtons comment={discussion} />

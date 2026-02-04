@@ -4,6 +4,7 @@ import { PrivateKey, Operation } from '@hiveio/dhive';
 import HiveClient from "./hiveclient";
 import { HIVE_CONFIG } from '@/config/app.config';
 import { Buffer } from 'buffer';
+import { isServerSideAdmin, logAdminAuditEvent } from '@/lib/server/adminUtils';
 // Centralized app author with fallback for consistency across all functions
 const APP_AUTHOR = HIVE_CONFIG.APP_ACCOUNT || 'skatedev';
 // Image signing server action
@@ -288,6 +289,134 @@ export async function updatePostWithCoinInfo({
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+export async function deletePostAsSkatedev({
+  adminUsername,
+  author,
+  permlink,
+}: {
+  adminUsername: string;
+  author: string;
+  permlink: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const normalizedAdmin = (adminUsername || '').trim().toLowerCase();
+  const normalizedAuthor = (author || '').trim().toLowerCase();
+  const normalizedPermlink = (permlink || '').trim();
+  const normalizedAppAuthor = APP_AUTHOR.toLowerCase();
+
+  const auditBase = {
+    adminUsername: normalizedAdmin || 'anonymous',
+    targetAuthor: normalizedAuthor || 'unknown',
+    targetPermlink: normalizedPermlink || 'unknown',
+  };
+
+  try {
+    if (!normalizedAdmin || !isServerSideAdmin(normalizedAdmin)) {
+      logAdminAuditEvent('delete_post_as_skatedev', {
+        ...auditBase,
+        success: false,
+        reason: 'unauthorized_admin',
+      });
+      return {
+        success: false,
+        error: 'Unauthorized: admin privileges required',
+      };
+    }
+
+    if (!normalizedAuthor || normalizedAuthor !== normalizedAppAuthor) {
+      logAdminAuditEvent('delete_post_as_skatedev', {
+        ...auditBase,
+        success: false,
+        reason: 'author_not_allowed',
+      });
+      return {
+        success: false,
+        error: `Only ${APP_AUTHOR} posts can be deleted`,
+      };
+    }
+
+    if (!normalizedPermlink) {
+      logAdminAuditEvent('delete_post_as_skatedev', {
+        ...auditBase,
+        success: false,
+        reason: 'missing_permlink',
+      });
+      return {
+        success: false,
+        error: 'Permlink is required',
+      };
+    }
+
+    const postingKey = process.env.HIVE_POSTING_KEY;
+    if (!postingKey) {
+      logAdminAuditEvent('delete_post_as_skatedev', {
+        ...auditBase,
+        success: false,
+        reason: 'missing_posting_key',
+      });
+      return {
+        success: false,
+        error: 'HIVE_POSTING_KEY is not set in the environment',
+      };
+    }
+
+    const content = await HiveClient.database.call('get_content', [APP_AUTHOR, normalizedPermlink]);
+    if (!content || !content.author) {
+      logAdminAuditEvent('delete_post_as_skatedev', {
+        ...auditBase,
+        success: false,
+        reason: 'post_not_found',
+      });
+      return {
+        success: false,
+        error: 'Post not found',
+      };
+    }
+
+    if (String(content.author).toLowerCase() !== normalizedAppAuthor) {
+      logAdminAuditEvent('delete_post_as_skatedev', {
+        ...auditBase,
+        success: false,
+        reason: 'content_author_not_allowed',
+        chainAuthor: content.author,
+      });
+      return {
+        success: false,
+        error: `Only ${APP_AUTHOR} posts can be deleted`,
+      };
+    }
+
+    const operation: Operation = [
+      'delete_comment',
+      {
+        author: APP_AUTHOR,
+        permlink: normalizedPermlink,
+      },
+    ];
+
+    const privateKey = PrivateKey.fromString(postingKey);
+    await HiveClient.broadcast.sendOperations([operation], privateKey);
+
+    logAdminAuditEvent('delete_post_as_skatedev', {
+      ...auditBase,
+      success: true,
+    });
+
+    return { success: true };
+  } catch (error) {
+    logAdminAuditEvent('delete_post_as_skatedev', {
+      ...auditBase,
+      success: false,
+      reason: 'broadcast_error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }

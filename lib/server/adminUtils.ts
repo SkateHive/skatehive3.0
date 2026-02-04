@@ -1,5 +1,5 @@
 // Server-side admin utilities - NEVER expose this to client
-// This file should only be used in API routes
+// This file should only be used in server contexts (API routes/server actions)
 
 const ADMIN_USERS = process.env.ADMIN_USERS?.split(',').map(u => u.trim().toLowerCase()) || [];
 
@@ -29,6 +29,17 @@ export const logSecurityAttempt = (
     } else {
         console.warn('🚫 [SECURITY] Unauthorized admin attempt:', logData);
     }
+};
+
+export const logAdminAuditEvent = (
+    operation: string,
+    payload: Record<string, unknown>
+) => {
+    console.info('🧾 [ADMIN_AUDIT]', {
+        operation,
+        timestamp: new Date().toISOString(),
+        ...payload,
+    });
 };
 
 export const createUnauthorizedResponse = () => {
