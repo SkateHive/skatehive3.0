@@ -169,6 +169,49 @@ export const ptBR = {
     evmLabel: 'Ethereum',
     farcasterLabel: 'Farcaster',
   },
+  userbase: {
+    sponsorButton: {
+      tooltip: 'Patrocine este usuário para criar sua conta Hive',
+      label: 'Patrocinar',
+    },
+    upgradeModal: {
+      title: 'upgrade necessário',
+      whatIsHive: 'O que é uma conta Hive?',
+      hiveDescription: 'Uma conta Hive dá acesso completo ao ecossistema Skatehive com recursos baseados em blockchain como ganhar recompensas, gerenciar sua carteira e ser dono do seu conteúdo.',
+      withHiveYouCan: 'Com uma conta Hive você pode:',
+      benefitFollow: 'Seguir e deixar de seguir outros skatistas',
+      benefitEdit: 'Editar e deletar seus posts',
+      benefitWallet: 'Enviar e receber HIVE e HBD',
+      benefitRewards: 'Ganhar recompensas pelo seu conteúdo',
+      benefitVote: 'Votar em witnesses e propostas da DAO',
+      getSponsoredTitle: 'Seja patrocinado por um usuário OG',
+      getSponsoredDescription: 'Membros OG do Skatehive podem patrocinar a criação da sua conta. Visite a página da DAO ou pergunte no chat da comunidade para encontrar um patrocinador.',
+      findSponsor: 'Encontrar um Patrocinador',
+      learnMore: 'Saiba mais sobre contas Hive',
+      actions: {
+        follow: {
+          title: 'Seguir Usuários',
+          description: 'Seguir contas requer uma conta Hive blockchain.',
+        },
+        edit: {
+          title: 'Editar Posts',
+          description: 'Editar posts requer uma conta Hive blockchain.',
+        },
+        delete: {
+          title: 'Deletar Posts',
+          description: 'Deletar posts requer uma conta Hive blockchain.',
+        },
+        wallet: {
+          title: 'Recursos da Carteira',
+          description: 'Operações de carteira requerem uma conta Hive blockchain.',
+        },
+        general: {
+          title: 'Recursos Hive',
+          description: 'Este recurso requer uma conta Hive blockchain.',
+        },
+      },
+    },
+  },
   wallet: {
     sendHive: 'Enviar HIVE',
     sendHBD: 'Enviar HBD',

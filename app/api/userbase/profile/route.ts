@@ -113,13 +113,11 @@ export async function GET(request: NextRequest) {
     let user = null;
     let matchedBy: "hive" | "handle" | "evm" | null = null;
 
-    console.log("[userbase/profile] Lookup params:", { handle, hiveHandle, address });
 
     if (hiveHandle) {
       userId = await getUserByIdentity({ type: "hive", handle: hiveHandle });
       if (userId) {
         matchedBy = "hive";
-        console.log("[userbase/profile] Found by hive identity:", { hiveHandle, userId });
       }
     }
 
@@ -128,13 +126,11 @@ export async function GET(request: NextRequest) {
       userId = user?.id || null;
       if (userId) {
         matchedBy = "handle";
-        console.log("[userbase/profile] Found by handle:", { handle, userId, userHandle: user?.handle });
       }
     }
 
     if (!userId && handle) {
       const byDisplay = await getUserByDisplayName(handle);
-      console.log("[userbase/profile] Display name search result:", { handle, byDisplay: byDisplay ? (("ambiguous" in byDisplay) ? "ambiguous" : byDisplay) : null });
       if (byDisplay && "ambiguous" in byDisplay) {
         return NextResponse.json(
           { error: "Profile lookup ambiguous" },

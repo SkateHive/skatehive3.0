@@ -169,6 +169,49 @@ export const es = {
     evmLabel: 'Ethereum',
     farcasterLabel: 'Farcaster',
   },
+  userbase: {
+    sponsorButton: {
+      tooltip: 'Patrocina a este usuario para crear su cuenta Hive',
+      label: 'Patrocinar',
+    },
+    upgradeModal: {
+      title: 'upgrade requerido',
+      whatIsHive: '¿Qué es una cuenta Hive?',
+      hiveDescription: 'Una cuenta Hive te da acceso completo al ecosistema Skatehive con funciones basadas en blockchain como ganar recompensas, administrar tu billetera y ser dueño de tu contenido.',
+      withHiveYouCan: 'Con una cuenta Hive puedes:',
+      benefitFollow: 'Seguir y dejar de seguir a otros skaters',
+      benefitEdit: 'Editar y eliminar tus publicaciones',
+      benefitWallet: 'Enviar y recibir HIVE y HBD',
+      benefitRewards: 'Ganar recompensas por tu contenido',
+      benefitVote: 'Votar por testigos y propuestas de la DAO',
+      getSponsoredTitle: 'Consigue un patrocinador OG',
+      getSponsoredDescription: 'Los miembros OG de Skatehive pueden patrocinar la creación de tu cuenta. Visita la página de la DAO o pregunta en el chat de la comunidad para encontrar un patrocinador.',
+      findSponsor: 'Encontrar un Patrocinador',
+      learnMore: 'Aprende más sobre las cuentas Hive',
+      actions: {
+        follow: {
+          title: 'Seguir Usuarios',
+          description: 'Seguir cuentas requiere una cuenta Hive blockchain.',
+        },
+        edit: {
+          title: 'Editar Publicaciones',
+          description: 'Editar publicaciones requiere una cuenta Hive blockchain.',
+        },
+        delete: {
+          title: 'Eliminar Publicaciones',
+          description: 'Eliminar publicaciones requiere una cuenta Hive blockchain.',
+        },
+        wallet: {
+          title: 'Funciones de Billetera',
+          description: 'Las operaciones de billetera requieren una cuenta Hive blockchain.',
+        },
+        general: {
+          title: 'Funciones Hive',
+          description: 'Esta función requiere una cuenta Hive blockchain.',
+        },
+      },
+    },
+  },
   wallet: {
     sendHive: 'Enviar HIVE',
     sendHBD: 'Enviar HBD',

@@ -108,7 +108,6 @@ async function getHiveIdentity(userId: string) {
 }
 
 async function getPostingKey(userId: string) {
-  console.log("[getPostingKey] Looking for key - userId:", userId);
 
   // Check userbase_hive_keys for encrypted posting key
   const { data: hiveKeyRows } = await supabase!
@@ -118,7 +117,6 @@ async function getPostingKey(userId: string) {
     .limit(1);
 
   const hiveKey = hiveKeyRows?.[0];
-  console.log("[getPostingKey] userbase_hive_keys result:", hiveKey ? "FOUND" : "NOT FOUND");
 
   if (hiveKey && hiveKey.encrypted_posting_key) {
     // Format as encrypted secret for decryption
@@ -127,11 +125,9 @@ async function getPostingKey(userId: string) {
       iv: hiveKey.encryption_iv,
       authTag: hiveKey.encryption_auth_tag,
     });
-    console.log("[getPostingKey] Returning encrypted posting key");
     return { error: null, userKeyId: hiveKey.id, secret };
   }
 
-  console.log("[getPostingKey] No posting key found");
   return { error: "Posting key not stored", userKeyId: null, secret: null };
 }
 
@@ -247,7 +243,6 @@ export async function POST(request: NextRequest) {
   let usingDefaultAccount = false;
 
   if (voter && hiveIdentity) {
-    console.log("[POST /vote] Found Hive identity for user:", session.userId, "handle:", voter);
     const { error: keyError, userKeyId: keyId, secret } = await getPostingKey(
       session.userId
     );
@@ -262,20 +257,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    console.log("[POST /vote] Found posting key, proceeding with broadcast");
 
     try {
-      console.log("[POST /vote] Attempting to decrypt posting key");
       // Check if this is a sponsored key (JSON format)
       if (secret.startsWith('{')) {
         const encryptedData = JSON.parse(secret);
-        console.log("[POST /vote] Decrypting sponsored key with data:", Object.keys(encryptedData));
         postingKey = decryptHivePostingKey(encryptedData, session.userId);
-        console.log("[POST /vote] Decrypted sponsored key successfully");
       } else {
         // Old system decryption
         postingKey = decryptSecret(secret);
-        console.log("[POST /vote] Decrypted old system key successfully");
       }
       userKeyId = keyId;
     } catch (error: any) {

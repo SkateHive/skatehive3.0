@@ -92,7 +92,6 @@ export async function POST(
       .eq('id', sponsorship_id);
 
     // 2. Verify transaction on blockchain
-    console.log(`Verifying transaction ${transaction_id} for account ${sponsorship.hive_username}`);
 
     const verification = await verifyAccountCreationComplete(
       transaction_id,
@@ -118,7 +117,6 @@ export async function POST(
       );
     }
 
-    console.log(`Transaction verified! Block: ${verification.blockNumber}`);
 
     // 3. Get user email
     const { data: authMethod, error: emailError } = await supabase
@@ -157,7 +155,6 @@ export async function POST(
     const sponsorUsername = sponsorIdentity?.handle || 'anonymous';
 
     // 5. Encrypt and store posting key
-    console.log(`Encrypting posting key for ${sponsorship.hive_username}`);
 
     await storeEncryptedKey(
       supabase,
@@ -185,7 +182,6 @@ export async function POST(
     });
 
     // 6.5. Update Hive profile metadata with lite account info
-    console.log(`Updating Hive profile metadata for ${sponsorship.hive_username}...`);
     try {
       // Get user's display name and avatar
       const { data: userData } = await supabase
@@ -229,7 +225,6 @@ export async function POST(
         const privateKey = PrivateKey.fromString(keys.posting);
         await hiveClient.broadcast.sendOperations([accountUpdateOp], privateKey);
 
-        console.log(`✓ Profile metadata updated for ${sponsorship.hive_username}`);
       }
     } catch (error: any) {
       console.error('Failed to update Hive profile metadata:', error);
@@ -237,7 +232,6 @@ export async function POST(
     }
 
     // 7. Send email with all keys
-    console.log(`Sending sponsorship email to ${userEmail}`);
 
     const emailSent = await sendSponsorshipEmail(
       userEmail,
@@ -260,7 +254,6 @@ export async function POST(
       })
       .eq('id', sponsorship_id);
 
-    console.log(`Sponsorship completed for ${sponsorship.hive_username}`);
 
     return NextResponse.json(
       {

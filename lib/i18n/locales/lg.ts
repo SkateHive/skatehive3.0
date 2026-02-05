@@ -169,6 +169,49 @@ export const lg = {
     evmLabel: 'Ethereum',
     farcasterLabel: 'Farcaster',
   },
+  userbase: {
+    sponsorButton: {
+      tooltip: 'Sponsa eyikozesa ono okutonda akawunti ye Hive',
+      label: 'Sponsa',
+    },
+    upgradeModal: {
+      title: 'upgrade yeetaagisa',
+      whatIsHive: 'Akawunti ya Hive kye ki?',
+      hiveDescription: 'Akawunti ya Hive ekuwa okufuna byonna mu Skatehive ecosystem nga oyinza okufuna empeera, okuteeka ssente zo, n\'okuba nanyini w\'ebyo by\'owandika.',
+      withHiveYouCan: 'N\'akawunti ya Hive oyinza:',
+      benefitFollow: 'Okugoberera n\'okuleka okugoberera skaters abalala',
+      benefitEdit: 'Okukyusa n\'okusazaamu posts zo',
+      benefitWallet: 'Okusindika n\'okufuna HIVE ne HBD',
+      benefitRewards: 'Okufuna empeera ku by\'owandika',
+      benefitVote: 'Okuvota witnesses ne DAO proposals',
+      getSponsoredTitle: 'Funa sponsor okuva ku OG user',
+      getSponsoredDescription: 'OG Skatehive members bayinza okukusponsora okutonda akawunti yo. Kyalira ku DAO page oba buuza mu community chat okufuna sponsor.',
+      findSponsor: 'Zuula Sponsor',
+      learnMore: 'Yiga ebisingawo ku Hive accounts',
+      actions: {
+        follow: {
+          title: 'Goberera Abakozesa',
+          description: 'Okugoberera akawunti yeetaaga akawunti ya Hive blockchain.',
+        },
+        edit: {
+          title: 'Kyusa Posts',
+          description: 'Okukyusa posts yeetaaga akawunti ya Hive blockchain.',
+        },
+        delete: {
+          title: 'Sazaamu Posts',
+          description: 'Okusazaamu posts yeetaaga akawunti ya Hive blockchain.',
+        },
+        wallet: {
+          title: 'Ebintu bya Wallet',
+          description: 'Okukola ku wallet yeetaaga akawunti ya Hive blockchain.',
+        },
+        general: {
+          title: 'Ebintu bya Hive',
+          description: 'Kino kyeetaaga akawunti ya Hive blockchain.',
+        },
+      },
+    },
+  },
   wallet: {
     sendHive: 'Tumira HIVE',
     sendHBD: 'Tumira HBD',

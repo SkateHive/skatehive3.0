@@ -106,15 +106,12 @@ export async function GET(request: NextRequest) {
     return session.error;
   }
 
-  console.log("[GET /keys/posting] Checking key storage for userId:", session.userId);
 
   const hiveIdentity = await getHiveIdentity(session.userId, null);
   if (!hiveIdentity) {
-    console.log("[GET /keys/posting] No Hive identity found");
     return NextResponse.json({ stored: false, custody: "none" });
   }
 
-  console.log("[GET /keys/posting] Found Hive identity:", hiveIdentity.handle);
 
   // Check userbase_hive_keys for encrypted posting key
   const { data: hiveKeyRow } = await supabase!
@@ -124,7 +121,6 @@ export async function GET(request: NextRequest) {
     .limit(1);
 
   const hiveKey = hiveKeyRow?.[0];
-  console.log("[GET /keys/posting] userbase_hive_keys:", hiveKey ? "FOUND" : "NOT FOUND");
 
   if (hiveKey) {
     return NextResponse.json({
@@ -138,7 +134,6 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  console.log("[GET /keys/posting] No key found in either system");
   return NextResponse.json({ stored: false, custody: "none" });
 }
 

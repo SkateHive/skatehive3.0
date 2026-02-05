@@ -22,6 +22,7 @@ import {
 import { CheckCircleIcon } from "@chakra-ui/icons";
 import SkateModal from "@/components/shared/SkateModal";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/hooks";
 
 export type UpgradeAction = "follow" | "edit" | "delete" | "wallet" | "general";
 
@@ -31,32 +32,12 @@ interface HiveUpgradePromptModalProps {
   action: UpgradeAction;
 }
 
-const actionConfig = {
-  follow: {
-    icon: FaUserFriends,
-    title: "Follow Users",
-    description: "Following accounts requires a Hive blockchain account.",
-  },
-  edit: {
-    icon: FaEdit,
-    title: "Edit Posts",
-    description: "Editing posts requires a Hive blockchain account.",
-  },
-  delete: {
-    icon: FaTrash,
-    title: "Delete Posts",
-    description: "Deleting posts requires a Hive blockchain account.",
-  },
-  wallet: {
-    icon: FaWallet,
-    title: "Wallet Features",
-    description: "Wallet operations require a Hive blockchain account.",
-  },
-  general: {
-    icon: FaHive,
-    title: "Hive Features",
-    description: "This feature requires a Hive blockchain account.",
-  },
+const actionIcons = {
+  follow: FaUserFriends,
+  edit: FaEdit,
+  delete: FaTrash,
+  wallet: FaWallet,
+  general: FaHive,
 };
 
 export default function HiveUpgradePromptModal({
@@ -65,10 +46,9 @@ export default function HiveUpgradePromptModal({
   action,
 }: HiveUpgradePromptModalProps) {
   const router = useRouter();
-  const config = actionConfig[action];
+  const t = useTranslations("userbase");
 
   const handleFindSponsor = () => {
-    // Navigate to the community page or Discord to find sponsors
     router.push("/dao");
     onClose();
   };
@@ -77,11 +57,15 @@ export default function HiveUpgradePromptModal({
     window.open("https://docs.skatehive.app/docs/create-account", "_blank");
   };
 
+  const actionIcon = actionIcons[action];
+  const actionTitle = t(`upgradeModal.actions.${action}.title`);
+  const actionDescription = t(`upgradeModal.actions.${action}.description`);
+
   return (
     <SkateModal
       isOpen={isOpen}
       onClose={onClose}
-      title="upgrade required"
+      title={t("upgradeModal.title")}
       isCentered={true}
       size="md"
     >
@@ -89,14 +73,14 @@ export default function HiveUpgradePromptModal({
         <VStack spacing={5} align="stretch">
           {/* Header with action icon */}
           <HStack spacing={3} justify="center" py={2}>
-            <Icon as={config.icon} boxSize={8} color="primary" />
+            <Icon as={actionIcon} boxSize={8} color="primary" />
             <Text
               fontFamily="mono"
               fontSize="lg"
               fontWeight="bold"
               color="text"
             >
-              {config.title}
+              {actionTitle}
             </Text>
           </HStack>
 
@@ -104,10 +88,10 @@ export default function HiveUpgradePromptModal({
           <Text
             fontFamily="mono"
             fontSize="sm"
-            color="gray.400"
+            color="dim"
             textAlign="center"
           >
-            {config.description}
+            {actionDescription}
           </Text>
 
           {/* Explanation box */}
@@ -125,48 +109,46 @@ export default function HiveUpgradePromptModal({
                 color="primary"
                 fontWeight="bold"
               >
-                What is a Hive account?
+                {t("upgradeModal.whatIsHive")}
               </Text>
-              <Text fontFamily="mono" fontSize="xs" color="gray.400">
-                A Hive account gives you full access to the Skatehive ecosystem
-                with blockchain-powered features like earning rewards, managing
-                your wallet, and owning your content.
+              <Text fontFamily="mono" fontSize="xs" color="dim">
+                {t("upgradeModal.hiveDescription")}
               </Text>
             </VStack>
           </Box>
 
           {/* Benefits list */}
           <Box>
-            <Text fontFamily="mono" fontSize="xs" color="gray.500" mb={2}>
-              With a Hive account you can:
+            <Text fontFamily="mono" fontSize="xs" color="muted" mb={2}>
+              {t("upgradeModal.withHiveYouCan")}
             </Text>
             <List spacing={1}>
-              <ListItem fontFamily="mono" fontSize="xs" color="gray.400">
+              <ListItem fontFamily="mono" fontSize="xs" color="dim">
                 <ListIcon as={CheckCircleIcon} color="primary" boxSize={3} />
-                Follow and unfollow other skaters
+                {t("upgradeModal.benefitFollow")}
               </ListItem>
-              <ListItem fontFamily="mono" fontSize="xs" color="gray.400">
+              <ListItem fontFamily="mono" fontSize="xs" color="dim">
                 <ListIcon as={CheckCircleIcon} color="primary" boxSize={3} />
-                Edit and delete your posts
+                {t("upgradeModal.benefitEdit")}
               </ListItem>
-              <ListItem fontFamily="mono" fontSize="xs" color="gray.400">
+              <ListItem fontFamily="mono" fontSize="xs" color="dim">
                 <ListIcon as={CheckCircleIcon} color="primary" boxSize={3} />
-                Send and receive HIVE and HBD
+                {t("upgradeModal.benefitWallet")}
               </ListItem>
-              <ListItem fontFamily="mono" fontSize="xs" color="gray.400">
+              <ListItem fontFamily="mono" fontSize="xs" color="dim">
                 <ListIcon as={CheckCircleIcon} color="primary" boxSize={3} />
-                Earn rewards from your content
+                {t("upgradeModal.benefitRewards")}
               </ListItem>
-              <ListItem fontFamily="mono" fontSize="xs" color="gray.400">
+              <ListItem fontFamily="mono" fontSize="xs" color="dim">
                 <ListIcon as={CheckCircleIcon} color="primary" boxSize={3} />
-                Vote for witnesses and DAO proposals
+                {t("upgradeModal.benefitVote")}
               </ListItem>
             </List>
           </Box>
 
           {/* How to upgrade */}
           <Box
-            bg="rgba(0, 255, 0, 0.05)"
+            bg="subtle"
             border="1px solid"
             borderColor="primary"
             borderRadius="sm"
@@ -181,12 +163,11 @@ export default function HiveUpgradePromptModal({
                   color="primary"
                   fontWeight="bold"
                 >
-                  Get sponsored by an OG user
+                  {t("upgradeModal.getSponsoredTitle")}
                 </Text>
               </HStack>
-              <Text fontFamily="mono" fontSize="xs" color="gray.400">
-                OG Skatehive members can sponsor your account creation. Visit
-                the DAO page or ask in the community chat to find a sponsor.
+              <Text fontFamily="mono" fontSize="xs" color="dim">
+                {t("upgradeModal.getSponsoredDescription")}
               </Text>
             </VStack>
           </Box>
@@ -201,17 +182,17 @@ export default function HiveUpgradePromptModal({
               w="full"
               leftIcon={<Icon as={FaGift} />}
             >
-              Find a Sponsor
+              {t("upgradeModal.findSponsor")}
             </Button>
             <Button
               onClick={handleLearnMore}
               variant="ghost"
               size="xs"
               fontFamily="mono"
-              color="gray.500"
+              color="dim"
               _hover={{ color: "primary" }}
             >
-              Learn more about Hive accounts
+              {t("upgradeModal.learnMore")}
             </Button>
           </VStack>
         </VStack>

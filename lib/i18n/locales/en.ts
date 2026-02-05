@@ -176,6 +176,43 @@ export const en = {
       tooltip: 'Sponsor this user to create their Hive account',
       label: 'Sponsor',
     },
+    upgradeModal: {
+      title: 'upgrade required',
+      whatIsHive: 'What is a Hive account?',
+      hiveDescription: 'A Hive account gives you full access to the Skatehive ecosystem with blockchain-powered features like earning rewards, managing your wallet, and owning your content.',
+      withHiveYouCan: 'With a Hive account you can:',
+      benefitFollow: 'Follow and unfollow other skaters',
+      benefitEdit: 'Edit and delete your posts',
+      benefitWallet: 'Send and receive HIVE and HBD',
+      benefitRewards: 'Earn rewards from your content',
+      benefitVote: 'Vote for witnesses and DAO proposals',
+      getSponsoredTitle: 'Get sponsored by an OG user',
+      getSponsoredDescription: 'OG Skatehive members can sponsor your account creation. Visit the DAO page or ask in the community chat to find a sponsor.',
+      findSponsor: 'Find a Sponsor',
+      learnMore: 'Learn more about Hive accounts',
+      actions: {
+        follow: {
+          title: 'Follow Users',
+          description: 'Following accounts requires a Hive blockchain account.',
+        },
+        edit: {
+          title: 'Edit Posts',
+          description: 'Editing posts requires a Hive blockchain account.',
+        },
+        delete: {
+          title: 'Delete Posts',
+          description: 'Deleting posts requires a Hive blockchain account.',
+        },
+        wallet: {
+          title: 'Wallet Features',
+          description: 'Wallet operations require a Hive blockchain account.',
+        },
+        general: {
+          title: 'Hive Features',
+          description: 'This feature requires a Hive blockchain account.',
+        },
+      },
+    },
   },
   wallet: {
     sendHive: 'Send HIVE',
