@@ -85,12 +85,7 @@ export default function HiveUpgradePromptModal({
           </HStack>
 
           {/* Description */}
-          <Text
-            fontFamily="mono"
-            fontSize="sm"
-            color="dim"
-            textAlign="center"
-          >
+          <Text fontFamily="mono" fontSize="sm" color="dim" textAlign="center">
             {actionDescription}
           </Text>
 
