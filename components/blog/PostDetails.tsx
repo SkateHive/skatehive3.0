@@ -52,6 +52,7 @@ import { MarkdownCoinModal } from "@/components/zora/MarkdownCoinModal/MarkdownC
 import { canCreateCoin, analyzeContent } from "@/lib/utils/markdownCoinUtils";
 import { ZoraButton } from "./ZoraButton";
 import { extractSafeUser } from "@/lib/userbase/safeUserMetadata";
+import HiveUpgradePromptModal from "@/components/shared/HiveUpgradePromptModal";
 
 interface PostDetailsProps {
   post: Discussion;
@@ -175,6 +176,9 @@ export default function PostDetails({
     handleEditClick,
     handleCancelEdit,
     handleSaveEdit,
+    showUpgradeModal,
+    upgradeAction,
+    closeUpgradeModal,
   } = usePostEdit(post);
 
   const {
@@ -887,6 +891,13 @@ export default function PostDetails({
           post={post}
         />
       )}
+
+      {/* Hive Upgrade Prompt Modal for lite users */}
+      <HiveUpgradePromptModal
+        isOpen={showUpgradeModal}
+        onClose={closeUpgradeModal}
+        action={upgradeAction}
+      />
     </Box>
   );
 }
