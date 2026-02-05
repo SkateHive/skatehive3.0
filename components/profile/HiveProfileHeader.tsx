@@ -40,7 +40,9 @@ const HiveProfileHeader = function HiveProfileHeader({
 }: HiveProfileHeaderProps) {
   // Fetch voting power value in dollars
   const [voteValue, setVoteValue] = useState<number | null>(null);
-  const { estimateVoteValue, isLoading: isHivePowerLoading } = useHivePower(username || "");
+  const { estimateVoteValue, isLoading: isHivePowerLoading } = useHivePower(
+    username || "",
+  );
 
   useEffect(() => {
     if (username && estimateVoteValue && !isHivePowerLoading) {
@@ -52,7 +54,7 @@ const HiveProfileHeader = function HiveProfileHeader({
 
   // Parse VP percentage safely
   const parsePercentage = (percentStr: string | number | undefined): number => {
-    if (typeof percentStr === 'number') return percentStr;
+    if (typeof percentStr === "number") return percentStr;
     const cleaned = String(percentStr || "0").replace("%", "");
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : Math.min(100, Math.max(0, parsed));
@@ -62,7 +64,15 @@ const HiveProfileHeader = function HiveProfileHeader({
 
   // Stats row: Single horizontal line with followers + voting power bar + dollar value
   const statsRow = (
-    <HStack spacing={6} fontSize="xs" fontFamily="mono" flexWrap="wrap" align="center" justifyContent="center" w="100%">
+    <HStack
+      spacing={6}
+      fontSize="xs"
+      fontFamily="mono"
+      flexWrap="wrap"
+      align="center"
+      justifyContent="center"
+      w="100%"
+    >
       {/* Follower counts */}
       <Text color="text" whiteSpace="nowrap" textTransform="uppercase">
         <Text as="span" fontWeight="bold" color="primary">
@@ -83,8 +93,8 @@ const HiveProfileHeader = function HiveProfileHeader({
           <HStack spacing={1} align="center">
             <Text color="dim">[</Text>
             <Text color="success" letterSpacing="tight">
-              {'█'.repeat(Math.floor((vpValue / 100) * 20))}
-              {'░'.repeat(20 - Math.floor((vpValue / 100) * 20))}
+              {"█".repeat(Math.floor((vpValue / 100) * 20))}
+              {"░".repeat(20 - Math.floor((vpValue / 100) * 20))}
             </Text>
             <Text color="dim">]</Text>
           </HStack>
@@ -99,33 +109,35 @@ const HiveProfileHeader = function HiveProfileHeader({
   );
 
   // Edit icon button next to username
-  const editIcon = (canEdit ?? isOwner) ? (
-    <IconButton
-      aria-label="Edit Profile"
-      icon={<FaEdit />}
-      size="xs"
-      variant="ghost"
-      color="text"
-      onClick={onEditModalOpen}
-      borderRadius="none"
-      opacity={0.7}
-      _hover={{ opacity: 1, color: "primary" }}
-      transition="all 0.2s"
-    />
-  ) : null;
+  const editIcon =
+    (canEdit ?? isOwner) ? (
+      <IconButton
+        aria-label="Edit Profile"
+        icon={<FaEdit />}
+        size="xs"
+        variant="ghost"
+        color="text"
+        onClick={onEditModalOpen}
+        borderRadius="none"
+        opacity={0.7}
+        _hover={{ opacity: 1, color: "primary" }}
+        transition="all 0.2s"
+      />
+    ) : null;
 
   // Follow button at bottom-left (for non-owners, including lite users who will see upgrade modal)
-  const followAction = !isOwner && (user || isLiteUser) ? (
-    <FollowButton
-      user={user}
-      username={username}
-      isFollowing={isFollowing}
-      isFollowLoading={isFollowLoading}
-      onFollowingChange={onFollowingChange}
-      onLoadingChange={onLoadingChange}
-      isLiteUser={isLiteUser && !user}
-    />
-  ) : null;
+  const followAction =
+    !isOwner && (user || isLiteUser) ? (
+      <FollowButton
+        user={user}
+        username={username}
+        isFollowing={isFollowing}
+        isFollowLoading={isFollowLoading}
+        onFollowingChange={onFollowingChange}
+        onLoadingChange={onLoadingChange}
+        isLiteUser={isLiteUser && !user}
+      />
+    ) : null;
 
   return (
     <Box position="relative" pb={followAction ? 12 : 0}>
@@ -148,11 +160,7 @@ const HiveProfileHeader = function HiveProfileHeader({
 
       {/* Follow Button - Bottom-left outside terminal box (only for non-owners) */}
       {followAction && (
-        <Box
-          position="absolute"
-          bottom={0}
-          left={0}
-        >
+        <Box position="absolute" bottom={0} left={0}>
           {followAction}
         </Box>
       )}

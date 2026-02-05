@@ -66,12 +66,13 @@ export default function PostDetails({
   const { title, author, body, created } = post;
   const safeUser = useMemo(
     () => extractSafeUser(post.json_metadata),
-    [post.json_metadata]
+    [post.json_metadata],
   );
 
   const softPost = useSoftPostOverlay(post.author, post.permlink, safeUser);
   const softVote = useSoftVoteOverlay(post.author, post.permlink);
-  const displayAuthor =  softPost?.user.display_name || softPost?.user.handle ||author;
+  const displayAuthor =
+    softPost?.user.display_name || softPost?.user.handle || author;
   const displayAvatar =
     softPost?.user.avatar_url ||
     `https://images.hive.blog/u/${author}/avatar/sm`;
@@ -83,15 +84,15 @@ export default function PostDetails({
   const [showSlider, setShowSlider] = useState(false);
   const [activeVotes, setActiveVotes] = useState(post.active_votes || []);
   const [payoutValue, setPayoutValue] = useState(
-    parseFloat(getPayoutValue(post))
+    parseFloat(getPayoutValue(post)),
   );
   const hasSoftVote =
     !!softVote && softVote.status !== "failed" && softVote.weight > 0;
   const [voted, setVoted] = useState(
     hasSoftVote ||
       post.active_votes?.some(
-        (item) => item.voter.toLowerCase() === effectiveUser?.toLowerCase()
-      )
+        (item) => item.voter.toLowerCase() === effectiveUser?.toLowerCase(),
+      ),
   );
   const toast = useToast();
 
@@ -131,7 +132,7 @@ export default function PostDetails({
     // Remove the instance after animation completes
     setTimeout(() => {
       setStokeInstances((prev) =>
-        prev.filter((instance) => instance.id !== newInstance.id)
+        prev.filter((instance) => instance.id !== newInstance.id),
       );
     }, 4000); // Total animation duration from UpvoteStoke.tsx
   }, []);
@@ -199,9 +200,9 @@ export default function PostDetails({
     setVoted(
       hasSoftVote ||
         post.active_votes?.some(
-          (item) => item.voter.toLowerCase() === effectiveUser?.toLowerCase()
+          (item) => item.voter.toLowerCase() === effectiveUser?.toLowerCase(),
         ) ||
-        false
+        false,
     );
   }, [post, effectiveUser, hasSoftVote]);
 
@@ -226,7 +227,7 @@ export default function PostDetails({
       typeof val === "string" ? val : val.toString();
 
     const parsePayout = (
-      val: string | { toString: () => string } | undefined
+      val: string | { toString: () => string } | undefined,
     ): number => {
       if (!val) return 0;
       const str = assetToString(val);
@@ -262,15 +263,17 @@ export default function PostDetails({
     await safeCopyToClipboard(postUrl, {
       successMessage: "Link copied!",
       errorMessage: "Failed to copy",
-      showToast: (options) => toast({
-        title: options.title,
-        description: options.status === "success" 
-          ? "Post URL has been copied to clipboard" 
-          : "Could not copy URL to clipboard",
-        status: options.status,
-        duration: 2000,
-        isClosable: true,
-      })
+      showToast: (options) =>
+        toast({
+          title: options.title,
+          description:
+            options.status === "success"
+              ? "Post URL has been copied to clipboard"
+              : "Could not copy URL to clipboard",
+          status: options.status,
+          duration: 2000,
+          isClosable: true,
+        }),
     });
   }, [author, post.permlink, toast]);
 
@@ -280,7 +283,7 @@ export default function PostDetails({
       const voteResult = await vote(
         post.author,
         post.permlink,
-        sliderValue * 100
+        sliderValue * 100,
       );
       if (voteResult.success) {
         setVoted(true);
@@ -352,11 +355,7 @@ export default function PostDetails({
             mb={2}
           >
             <Flex direction="row" alignItems="center" flex="0 0 auto" minW="0">
-              <Avatar
-                size="sm"
-                name={displayAuthor}
-                src={displayAvatar}
-              />
+              <Avatar size="sm" name={displayAuthor} src={displayAvatar} />
               <Box ml={2} minW="0">
                 <Text
                   fontWeight="medium"
@@ -554,11 +553,7 @@ export default function PostDetails({
           m={2}
         >
           <Flex direction="row" alignItems="center" flex="0 0 auto" minW="0">
-            <Avatar
-              size="sm"
-              name={displayAuthor}
-              src={displayAvatar}
-            />
+            <Avatar size="sm" name={displayAuthor} src={displayAvatar} />
             <HStack ml={2} minW="0">
               <Text
                 fontWeight="medium"
