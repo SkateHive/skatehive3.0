@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState, createContext } from "react";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 
 export interface SoftVoteOverlay {
@@ -13,6 +13,13 @@ export interface SoftVoteOverlay {
 
 const overlayCache = new Map<string, SoftVoteOverlay | null>();
 const inflight = new Map<string, Promise<void>>();
+
+// Context for batch-provided soft votes (set by SoftVoteProvider)
+interface SoftVoteContextValue {
+  getVote: (author: string, permlink: string) => SoftVoteOverlay | null;
+}
+
+export const SoftVoteContext = createContext<SoftVoteContextValue | null>(null);
 
 function getKey(userId: string, author?: string | null, permlink?: string | null) {
   if (!author || !permlink) return null;
@@ -161,8 +168,24 @@ export function useSoftVoteOverlays(
   return overlays;
 }
 
+/**
+ * Hook to get soft vote overlay for a single post.
+ * 
+ * If used within a SoftVoteProvider, it will use the batch-fetched data
+ * (no additional API call). Otherwise, it will fetch individually.
+ * 
+ * For best performance, wrap your list component with SoftVoteProvider.
+ */
 export default function useSoftVoteOverlay(author?: string, permlink?: string) {
   const { user } = useUserbaseAuth();
+  const context = useContext(SoftVoteContext);
+
+  // If we have a SoftVoteProvider context, use it (batch fetch already done)
+  if (context && author && permlink) {
+    return context.getVote(author, permlink);
+  }
+
+  // Fallback: fetch individually (this causes N+1 problem, avoid if possible)
   const overlays = useSoftVoteOverlays(
     author && permlink ? [{ author, permlink }] : []
   );
