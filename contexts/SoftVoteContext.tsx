@@ -25,7 +25,7 @@ interface SoftVoteProviderProps {
 /**
  * Provider that fetches soft votes for a list of posts in a single batch request.
  * Use this at the list level (SnapList, PostList, etc.) to avoid N+1 API calls.
- * 
+ *
  * @example
  * <SoftVoteProvider posts={comments}>
  *   {comments.map(c => <Snap key={c.permlink} discussion={c} />)}

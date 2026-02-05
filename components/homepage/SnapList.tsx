@@ -24,9 +24,7 @@ import CoinCreatorComposer from "./CoinCreatorComposer";
 import { AirdropModal } from "../airdrop/AirdropModal";
 import { Discussion } from "@hiveio/dhive"; // Add this import for consistency
 import LogoMatrix from "../graphics/LogoMatrix";
-import {
-  filterAutoComments,
-} from "@/lib/utils/postUtils";
+import { filterAutoComments } from "@/lib/utils/postUtils";
 import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
 import { useAccount } from "wagmi";
 import SidebarLogo from "../graphics/SidebarLogo";
@@ -99,7 +97,7 @@ export default function SnapList({
     if (newComment) {
       setDisplayedComments((prevComments) => {
         const exists = prevComments.some(
-          (c) => c.permlink === (newComment as any).permlink
+          (c) => c.permlink === (newComment as any).permlink,
         );
         if (!exists) {
           return [newComment as unknown as Discussion, ...prevComments];
@@ -123,7 +121,7 @@ export default function SnapList({
 
   const handleDeleteComment = useCallback((permlink: string) => {
     setDisplayedComments((prev) =>
-      prev.filter((comment) => comment.permlink !== permlink)
+      prev.filter((comment) => comment.permlink !== permlink),
     );
   }, []);
 
@@ -138,37 +136,37 @@ export default function SnapList({
   // Filter out duplicate posts by the same author with identical content
   const filterDuplicates = (comments: Discussion[]): Discussion[] => {
     const seen = new Map<string, Set<string>>();
-    
+
     return comments.filter((comment) => {
       const commentAuthor = comment.author;
-      const content = (comment.body?.trim() || '').toLowerCase();
-      
+      const content = (comment.body?.trim() || "").toLowerCase();
+
       if (!content) return true; // Keep empty posts
-      
+
       if (!seen.has(commentAuthor)) {
         seen.set(commentAuthor, new Set());
       }
-      
+
       const authorContents = seen.get(commentAuthor)!;
-      
+
       if (authorContents.has(content)) {
         if (process.env.NODE_ENV === "development") {
-          console.log('🗑️ Hiding duplicate post:', {
+          console.log("🗑️ Hiding duplicate post:", {
             author: commentAuthor,
             permlink: comment.permlink,
-            preview: content.substring(0, 50) + '...'
+            preview: content.substring(0, 50) + "...",
           });
         }
         return false; // Filter out duplicate
       }
-      
+
       authorContents.add(content);
       return true; // Keep unique post
     });
   };
 
   const filteredAndSortedComments = filterDuplicates(
-    filterDeletedPosts(filterAutoComments([...displayedComments]))
+    filterDeletedPosts(filterAutoComments([...displayedComments])),
   ).sort((a: Discussion, b: Discussion) => {
     // Sort by creation date (newest first) instead of payout value
     // This ensures users see the latest content first, including new Zora posts
@@ -210,7 +208,7 @@ export default function SnapList({
                   pp={permlink}
                   onNewComment={
                     handleNewComment as (
-                      newComment: Partial<Discussion>
+                      newComment: Partial<Discussion>,
                     ) => void
                   }
                   onClose={() => null}
@@ -349,7 +347,7 @@ export default function SnapList({
                           window.open(
                             "https://base.skatehive.app",
                             "_blank",
-                            "noopener,noreferrer"
+                            "noopener,noreferrer",
                           );
                         }}
                       >
