@@ -11,7 +11,14 @@ import {
   ListItem,
   ListIcon,
 } from "@chakra-ui/react";
-import { FaHive, FaUserFriends, FaEdit, FaTrash, FaWallet, FaGift } from "react-icons/fa";
+import {
+  FaHive,
+  FaUserFriends,
+  FaEdit,
+  FaTrash,
+  FaWallet,
+  FaGift,
+} from "react-icons/fa";
 import { CheckCircleIcon } from "@chakra-ui/icons";
 import SkateModal from "@/components/shared/SkateModal";
 import { useRouter } from "next/navigation";
@@ -83,13 +90,23 @@ export default function HiveUpgradePromptModal({
           {/* Header with action icon */}
           <HStack spacing={3} justify="center" py={2}>
             <Icon as={config.icon} boxSize={8} color="primary" />
-            <Text fontFamily="mono" fontSize="lg" fontWeight="bold" color="text">
+            <Text
+              fontFamily="mono"
+              fontSize="lg"
+              fontWeight="bold"
+              color="text"
+            >
               {config.title}
             </Text>
           </HStack>
 
           {/* Description */}
-          <Text fontFamily="mono" fontSize="sm" color="gray.400" textAlign="center">
+          <Text
+            fontFamily="mono"
+            fontSize="sm"
+            color="gray.400"
+            textAlign="center"
+          >
             {config.description}
           </Text>
 
@@ -102,13 +119,18 @@ export default function HiveUpgradePromptModal({
             p={4}
           >
             <VStack spacing={3} align="stretch">
-              <Text fontFamily="mono" fontSize="xs" color="primary" fontWeight="bold">
+              <Text
+                fontFamily="mono"
+                fontSize="xs"
+                color="primary"
+                fontWeight="bold"
+              >
                 What is a Hive account?
               </Text>
               <Text fontFamily="mono" fontSize="xs" color="gray.400">
-                A Hive account gives you full access to the Skatehive ecosystem with
-                blockchain-powered features like earning rewards, managing your wallet,
-                and owning your content.
+                A Hive account gives you full access to the Skatehive ecosystem
+                with blockchain-powered features like earning rewards, managing
+                your wallet, and owning your content.
               </Text>
             </VStack>
           </Box>
@@ -153,13 +175,18 @@ export default function HiveUpgradePromptModal({
             <VStack spacing={2} align="stretch">
               <HStack>
                 <Icon as={FaGift} boxSize={4} color="primary" />
-                <Text fontFamily="mono" fontSize="xs" color="primary" fontWeight="bold">
+                <Text
+                  fontFamily="mono"
+                  fontSize="xs"
+                  color="primary"
+                  fontWeight="bold"
+                >
                   Get sponsored by an OG user
                 </Text>
               </HStack>
               <Text fontFamily="mono" fontSize="xs" color="gray.400">
-                OG Skatehive members can sponsor your account creation. Visit the DAO
-                page or ask in the community chat to find a sponsor.
+                OG Skatehive members can sponsor your account creation. Visit
+                the DAO page or ask in the community chat to find a sponsor.
               </Text>
             </VStack>
           </Box>

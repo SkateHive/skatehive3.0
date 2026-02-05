@@ -1,5 +1,12 @@
 "use client";
-import React, { memo, useState, useMemo, useRef, useEffect, useCallback } from "react";
+import React, {
+  memo,
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import { Box, HStack, Image, Tooltip } from "@chakra-ui/react";
 import MobileProfileHeader from "./MobileProfileHeader";
 import HiveProfileHeader from "./HiveProfileHeader";
@@ -10,8 +17,6 @@ import { ProfileData } from "./ProfilePage";
 import ProfileDebugControl from "./ProfileDebugControl";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
-
-
 
 interface FarcasterProfileData {
   fid?: number;
@@ -40,7 +45,16 @@ interface ProfileHeaderProps {
   onEditModalOpen: () => void;
   onUserbaseEditModalOpen?: () => void;
   onActiveViewChange?: (view: ProfileView) => void;
-  onContentViewChange?: (view: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts") => void;
+  onContentViewChange?: (
+    view:
+      | "grid"
+      | "list"
+      | "magazine"
+      | "videoparts"
+      | "snaps"
+      | "tokens"
+      | "casts",
+  ) => void;
   debugPayload?: Record<string, any> | null;
   hasHiveProfile?: boolean;
   hasUserbaseProfile?: boolean;
@@ -93,7 +107,6 @@ const ProfileHeader = function ProfileHeader({
 
   // Calculate linked identities
   const hasHiveLinked = hiveConnection.linked;
-
 
   // Determine default view:
   // - If user has Hive profile (native or linked), prefer Hive
@@ -155,8 +168,8 @@ const ProfileHeader = function ProfileHeader({
     activeView === "skate"
       ? skateHeaderData
       : activeView === "hive"
-      ? hiveHeaderData
-      : profileData;
+        ? hiveHeaderData
+        : profileData;
 
   // Determine which edit handler to use per profile type
   const userbaseEditHandler =
@@ -169,7 +182,6 @@ const ProfileHeader = function ProfileHeader({
   const canEditSkate = !!isUserbaseOwner;
   const activeEditHandler =
     activeView === "skate" ? userbaseEditHandler : hiveEditHandler;
-
 
   // Network toggle buttons (to be passed as integrations prop)
   const networkButtons = (
@@ -334,9 +346,7 @@ const ProfileHeader = function ProfileHeader({
         </Tooltip>
       )}
 
-      {debugPayload && (
-        <ProfileDebugControl payload={debugPayload} />
-      )}
+      {debugPayload && <ProfileDebugControl payload={debugPayload} />}
     </HStack>
   );
 
@@ -415,7 +425,10 @@ const ProfileHeader = function ProfileHeader({
 
           {/* Farcaster Profile Layout */}
           {hasFarcaster && (
-            <Box display={activeView === "farcaster" ? "block" : "none"} w="100%">
+            <Box
+              display={activeView === "farcaster" ? "block" : "none"}
+              w="100%"
+            >
               <FarcasterProfileHeader
                 profileData={profileData}
                 username={username}
@@ -424,7 +437,6 @@ const ProfileHeader = function ProfileHeader({
               />
             </Box>
           )}
-      
         </Box>
       </Box>
     </Box>
@@ -445,11 +457,15 @@ export default memo(ProfileHeader, (prevProps, nextProps) => {
     prevProps.hasHiveProfile === nextProps.hasHiveProfile &&
     prevProps.hasUserbaseProfile === nextProps.hasUserbaseProfile &&
     prevProps.farcasterProfile?.fid === nextProps.farcasterProfile?.fid &&
-    prevProps.farcasterProfile?.displayName === nextProps.farcasterProfile?.displayName &&
+    prevProps.farcasterProfile?.displayName ===
+      nextProps.farcasterProfile?.displayName &&
     prevProps.farcasterProfile?.pfpUrl === nextProps.farcasterProfile?.pfpUrl &&
     prevProps.farcasterProfile?.bio === nextProps.farcasterProfile?.bio &&
-    prevProps.farcasterProfile?.username === nextProps.farcasterProfile?.username &&
-    prevProps.farcasterProfile?.custody === nextProps.farcasterProfile?.custody &&
-    prevProps.farcasterProfile?.verifications === nextProps.farcasterProfile?.verifications
+    prevProps.farcasterProfile?.username ===
+      nextProps.farcasterProfile?.username &&
+    prevProps.farcasterProfile?.custody ===
+      nextProps.farcasterProfile?.custody &&
+    prevProps.farcasterProfile?.verifications ===
+      nextProps.farcasterProfile?.verifications
   );
 });

@@ -62,7 +62,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
   const { aioha } = useAioha();
   const [followsBack, setFollowsBack] = useState<boolean>(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const t = useTranslations('profile');
+  const t = useTranslations("profile");
   // Check if the viewed user follows the current user back
   useEffect(() => {
     if (!user || !username || user === username) return;
@@ -126,8 +126,6 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
     }
   }, [aioha]);
 
-
-
   return (
     <Box display={{ base: "block", md: "none" }} position="relative" w="100%">
       {/* Farcaster-style Profile Section - Overlapping the banner */}
@@ -152,7 +150,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
           {/* Top-right settings (only for owner) */}
           {(canEdit ?? isOwner) && (
             <IconButton
-              aria-label={t('settings')}
+              aria-label={t("settings")}
               icon={<FaCog />}
               variant="ghost"
               color="white"
