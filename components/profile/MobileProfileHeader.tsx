@@ -19,6 +19,7 @@ import { checkFollow, changeFollow } from "@/lib/hive/client-functions";
 import ZoraProfileCoinDisplay from "./ZoraProfileCoinDisplay";
 import { ZoraProfileData } from "@/hooks/useZoraProfileCoin";
 import { useTranslations } from "@/contexts/LocaleContext";
+import HiveUpgradePromptModal from "@/components/shared/HiveUpgradePromptModal";
 interface MobileProfileHeaderProps {
   profileData: ProfileData;
   username: string;
@@ -35,6 +36,8 @@ interface MobileProfileHeaderProps {
   cachedZoraData?: ZoraProfileData | null;
   zoraLoading?: boolean;
   zoraError?: string | null;
+  /** If true, the viewer is a lite account without a Hive wallet connected */
+  isLiteUser?: boolean;
 }
 
 const MobileProfileHeader = memo(function MobileProfileHeader({
@@ -53,10 +56,12 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
   cachedZoraData,
   zoraLoading = false,
   zoraError = null,
+  isLiteUser = false,
 }: MobileProfileHeaderProps) {
   const router = useRouter();
   const { aioha } = useAioha();
   const [followsBack, setFollowsBack] = useState<boolean>(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const t = useTranslations('profile');
   // Check if the viewed user follows the current user back
   useEffect(() => {
@@ -77,6 +82,12 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
 
   // Memoized follow handler
   const handleFollowToggle = useCallback(async () => {
+    // If lite user without Hive wallet, show upgrade modal
+    if (isLiteUser && !user) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
     if (!user || !username || user === username || isFollowLoading) return;
 
     const prev = isFollowing;
@@ -103,6 +114,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
     isFollowLoading,
     onFollowingChange,
     onLoadingChange,
+    isLiteUser,
   ]);
 
   // Memoized logout handler
@@ -177,7 +189,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
                 </Badge>
               )}
               {/* Follow/Following Button */}
-              {!isOwner && user && (
+              {!isOwner && (user || isLiteUser) && (
                 <Button
                   onClick={handleFollowToggle}
                   size="xs"
@@ -293,6 +305,13 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
           </Flex>
         )}
       </Box>
+
+      {/* Hive Upgrade Prompt Modal for lite users */}
+      <HiveUpgradePromptModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        action="follow"
+      />
     </Box>
   );
 });

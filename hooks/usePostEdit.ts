@@ -4,6 +4,8 @@ import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
 import { Discussion, Operation } from "@hiveio/dhive";
 
+export type UpgradeAction = "follow" | "edit" | "delete" | "wallet" | "general";
+
 export const usePostEdit = (discussion: Discussion) => {
     const { aioha, user } = useAioha();
     const toast = useToast();
@@ -12,8 +14,17 @@ export const usePostEdit = (discussion: Discussion) => {
     const [editedContent, setEditedContent] = useState(discussion.body);
     const [isSaving, setIsSaving] = useState(false);
     const [selectedThumbnail, setSelectedThumbnail] = useState<string | null>(null);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+    const [upgradeAction, setUpgradeAction] = useState<UpgradeAction>("edit");
 
     const handleEditClick = useCallback(() => {
+        // If no Hive user connected, show upgrade modal
+        if (!user) {
+            setUpgradeAction("edit");
+            setShowUpgradeModal(true);
+            return;
+        }
+
         setEditedContent(discussion.body);
         
         // Try to get current thumbnail from metadata
@@ -29,7 +40,23 @@ export const usePostEdit = (discussion: Discussion) => {
         }
         
         setIsEditing(true);
-    }, [discussion.body, discussion.json_metadata]);
+    }, [discussion.body, discussion.json_metadata, user]);
+
+    const handleDeleteClick = useCallback(() => {
+        // If no Hive user connected, show upgrade modal
+        if (!user) {
+            setUpgradeAction("delete");
+            setShowUpgradeModal(true);
+            return;
+        }
+        // If user is connected, the actual delete logic is handled elsewhere
+        // This just provides the gate check
+        return true;
+    }, [user]);
+
+    const closeUpgradeModal = useCallback(() => {
+        setShowUpgradeModal(false);
+    }, []);
 
     const handleCancelEdit = useCallback(() => {
         setEditedContent(discussion.body);
@@ -158,7 +185,14 @@ export const usePostEdit = (discussion: Discussion) => {
         setEditedContent,
         setSelectedThumbnail,
         handleEditClick,
+        handleDeleteClick,
         handleCancelEdit,
         handleSaveEdit,
+        // Upgrade modal state for lite users
+        showUpgradeModal,
+        upgradeAction,
+        closeUpgradeModal,
+        isHiveConnected: !!user,
     };
 };
+

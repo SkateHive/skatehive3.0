@@ -20,6 +20,8 @@ interface HiveProfileHeaderProps {
   onLoadingChange: (loading: boolean) => void;
   onEditModalOpen: () => void;
   integrations?: React.ReactNode;
+  /** If true, the viewer is a lite account without a Hive wallet connected */
+  isLiteUser?: boolean;
 }
 
 const HiveProfileHeader = function HiveProfileHeader({
@@ -34,6 +36,7 @@ const HiveProfileHeader = function HiveProfileHeader({
   onLoadingChange,
   onEditModalOpen,
   integrations,
+  isLiteUser = false,
 }: HiveProfileHeaderProps) {
   // Fetch voting power value in dollars
   const [voteValue, setVoteValue] = useState<number | null>(null);
@@ -111,8 +114,8 @@ const HiveProfileHeader = function HiveProfileHeader({
     />
   ) : null;
 
-  // Follow button at bottom-left (for non-owners)
-  const followAction = !isOwner && user ? (
+  // Follow button at bottom-left (for non-owners, including lite users who will see upgrade modal)
+  const followAction = !isOwner && (user || isLiteUser) ? (
     <FollowButton
       user={user}
       username={username}
@@ -120,6 +123,7 @@ const HiveProfileHeader = function HiveProfileHeader({
       isFollowLoading={isFollowLoading}
       onFollowingChange={onFollowingChange}
       onLoadingChange={onLoadingChange}
+      isLiteUser={isLiteUser && !user}
     />
   ) : null;
 

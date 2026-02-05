@@ -9,6 +9,7 @@ import FarcasterProfileHeader from "./FarcasterProfileHeader";
 import { ProfileData } from "./ProfilePage";
 import ProfileDebugControl from "./ProfileDebugControl";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
+import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 
 
 
@@ -72,11 +73,17 @@ const ProfileHeader = function ProfileHeader({
   viewerHiveUsername = null,
 }: ProfileHeaderProps) {
   const { connections } = useLinkedIdentities();
+  const { user: viewerUserbaseUser } = useUserbaseAuth();
   const hiveConnection = connections.hive;
   const evmConnection = connections.evm;
   const farcasterConnection = connections.farcaster;
   const hiveHeaderData = hiveProfileData || profileData;
   const skateHeaderData = skateProfileData || profileData;
+
+  // Determine if viewer is a lite user (has userbase account but no Hive connection)
+  const isViewerLiteUser = useMemo(() => {
+    return !!viewerUserbaseUser && !user;
+  }, [viewerUserbaseUser, user]);
 
   // Determine available views and default view
   const hasZora = !!profileData.ethereum_address;
@@ -352,6 +359,7 @@ const ProfileHeader = function ProfileHeader({
         cachedZoraData={null}
         zoraLoading={false}
         zoraError={null}
+        isLiteUser={isViewerLiteUser}
       />
 
       {/* Desktop Layout */}
@@ -400,6 +408,7 @@ const ProfileHeader = function ProfileHeader({
                 onLoadingChange={onLoadingChange}
                 onEditModalOpen={hiveEditHandler}
                 integrations={networkButtons}
+                isLiteUser={isViewerLiteUser}
               />
             </Box>
           )}

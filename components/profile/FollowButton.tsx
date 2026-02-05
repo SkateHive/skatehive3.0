@@ -1,7 +1,8 @@
 "use client";
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { Button, useToast } from "@chakra-ui/react";
 import { checkFollow, changeFollow } from "@/lib/hive/client-functions";
+import HiveUpgradePromptModal from "@/components/shared/HiveUpgradePromptModal";
 
 interface FollowButtonProps {
     user: string | null;
@@ -10,6 +11,8 @@ interface FollowButtonProps {
     isFollowLoading: boolean;
     onFollowingChange: (following: boolean | null) => void;
     onLoadingChange: (loading: boolean) => void;
+    /** If true, the user is a lite account without a Hive wallet connected */
+    isLiteUser?: boolean;
 }
 
 export default function FollowButton({
@@ -18,11 +21,19 @@ export default function FollowButton({
     isFollowing,
     isFollowLoading,
     onFollowingChange,
-    onLoadingChange
+    onLoadingChange,
+    isLiteUser = false,
 }: FollowButtonProps) {
     const toast = useToast();
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
     const handleFollowToggle = useCallback(async () => {
+        // If lite user without Hive wallet, show upgrade modal
+        if (isLiteUser) {
+            setShowUpgradeModal(true);
+            return;
+        }
+
         if (!user || !username || user === username) return;
 
         const prev = isFollowing;
@@ -67,26 +78,34 @@ export default function FollowButton({
                 isClosable: true,
             });
         }
-    }, [user, username, isFollowing, onFollowingChange, onLoadingChange, toast]);
+    }, [user, username, isFollowing, onFollowingChange, onLoadingChange, toast, isLiteUser]);
 
-    if (!user || user === username) {
+    // Show button for lite users (to trigger upgrade modal) or for logged in users
+    if ((!user && !isLiteUser) || user === username) {
         return null;
     }
 
     return (
-        <Button
-            onClick={handleFollowToggle}
-            colorScheme={isFollowing ? 'secondary' : 'primary'}
-            isLoading={isFollowLoading}
-            isDisabled={isFollowLoading}
-            borderRadius="none"
-            fontWeight="bold"
-            px={2}
-            py={0}
-            size="xs"
-            variant="solid"
-        >
-            {isFollowing ? 'Unfollow' : 'Follow'}
-        </Button>
+        <>
+            <Button
+                onClick={handleFollowToggle}
+                colorScheme={isFollowing ? 'secondary' : 'primary'}
+                isLoading={isFollowLoading}
+                isDisabled={isFollowLoading}
+                borderRadius="none"
+                fontWeight="bold"
+                px={2}
+                py={0}
+                size="xs"
+                variant="solid"
+            >
+                {isFollowing ? 'Unfollow' : 'Follow'}
+            </Button>
+            <HiveUpgradePromptModal
+                isOpen={showUpgradeModal}
+                onClose={() => setShowUpgradeModal(false)}
+                action="follow"
+            />
+        </>
     );
 }
