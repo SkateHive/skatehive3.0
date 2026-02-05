@@ -1,6 +1,41 @@
 'use client';
-import { Broadcast, Custom, KeychainKeyTypes, KeychainRequestResponse, KeychainSDK, Login, Post, Transfer, Vote, WitnessVote } from "keychain-sdk";
-import HiveClient from "./hiveclient";
+let KeychainSDK: any = undefined;
+let KeychainKeyTypes: any = undefined;
+let KeychainRequestResponse: any = undefined;
+let Broadcast: any = undefined;
+let Custom: any = undefined;
+let Login: any = undefined;
+let Post: any = undefined;
+let Transfer: any = undefined;
+let Vote: any = undefined;
+let WitnessVote: any = undefined;
+
+try {
+  // Attempt to require keychain-sdk at runtime. In test environments this package
+  // might not be installed, so we fall back to undefined and rely on injected
+  // mocks for functions that accept a keychain instance.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const kc = require('keychain-sdk');
+  KeychainSDK = kc.KeychainSDK;
+  KeychainKeyTypes = kc.KeychainKeyTypes;
+  KeychainRequestResponse = kc.KeychainRequestResponse;
+  Broadcast = kc.Broadcast;
+  Custom = kc.Custom;
+  Login = kc.Login;
+  Post = kc.Post;
+  Transfer = kc.Transfer;
+  Vote = kc.Vote;
+  WitnessVote = kc.WitnessVote;
+} catch (e) {
+  // keychain-sdk not available in this environment (e.g., unit tests)
+}
+let HiveClient: any = undefined;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  HiveClient = require('./hiveclient').default;
+} catch (e) {
+  // hive client not available in test environment
+}
 import crypto from 'crypto';
 import { signImageHash } from "./server-actions";
 import { Discussion, Notifications, Operation } from "@hiveio/dhive";
@@ -43,6 +78,45 @@ export async function commentWithKeychain(formParamsAsObject: any): Promise<Hive
       publicKey: 'deu merda'
     }
 
+  }
+}
+
+/**
+ * Edit an existing post using Hive Keychain
+ * This is a thin wrapper that builds the same 'comment' operation used for edits
+ */
+export async function editPostWithKeychainInstance(keychain: any, params: {
+  username: string,
+  author: string,
+  permlink: string,
+  title?: string,
+  body: string,
+  json_metadata?: any,
+}) {
+  const data = {
+    username: params.username,
+    parent_author: '',
+    parent_permlink: params.permlink.includes('/') ? params.permlink.split('/')[0] : '',
+    author: params.author,
+    permlink: params.permlink,
+    title: params.title || '',
+    body: params.body,
+    json_metadata: typeof params.json_metadata === 'string' ? params.json_metadata : JSON.stringify(params.json_metadata || {}),
+  } as Post;
+
+  // Keychain post can be used for editing if permlink and author match existing post
+  const result = await keychain.post(data as Post);
+  return result;
+}
+
+export async function editPostWithKeychain(username: string, author: string, permlink: string, title: string | undefined, body: string, json_metadata?: any) {
+  const keychain = new KeychainSDK(window);
+  try {
+    const result = await editPostWithKeychainInstance(keychain, { username, author, permlink, title, body, json_metadata });
+    return result;
+  } catch (error) {
+    console.error('editPostWithKeychain failed:', error);
+    throw error;
   }
 }
 

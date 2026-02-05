@@ -3,6 +3,7 @@ import { useToast } from "@chakra-ui/react";
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
 import { Discussion, Operation } from "@hiveio/dhive";
+import { editPostWithKeychain } from "@/lib/hive/client-functions";
 
 export const usePostEdit = (discussion: Discussion) => {
     const { aioha, user } = useAioha();
@@ -100,8 +101,22 @@ export const usePostEdit = (discussion: Discussion) => {
             ];
 
 
-            // Use aioha to broadcast the edit
-            const result = await aioha.signAndBroadcastTx([operation], KeyTypes.Posting);
+            // If Hive Keychain is available in the browser, use it for the edit
+            const isKeychainAvailable = typeof window !== 'undefined' && ((window as any).hive_keychain || (window as any).hiveKeychain || (window as any).keychain);
+
+            let result: any;
+            if (isKeychainAvailable) {
+                // Use Keychain SDK to edit post
+                try {
+                    const jsonMeta = JSON.parse(operation[1].json_metadata || '{}');
+                    result = await editPostWithKeychain(user as string, discussion.author, discussion.permlink, discussion.title || undefined, editedContent, jsonMeta);
+                } catch (e) {
+                    throw e;
+                }
+            } else {
+                // Use aioha to broadcast the edit
+                result = await aioha.signAndBroadcastTx([operation], KeyTypes.Posting);
+            }
 
 
             if (result && !result.error) {
