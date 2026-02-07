@@ -1,7 +1,5 @@
 "use client";
 
-// Import suppressWarnings first to patch console.error before any components render
-import "@/lib/suppressWarnings";
 import "@rainbow-me/rainbowkit/styles.css";
 import { CSSReset } from "@chakra-ui/react";
 import { Aioha } from "@aioha/aioha";
