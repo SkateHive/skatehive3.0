@@ -170,25 +170,31 @@ export function useSoftVoteOverlays(
 
 /**
  * Hook to get soft vote overlay for a single post.
- * 
+ *
  * If used within a SoftVoteProvider, it will use the batch-fetched data
  * (no additional API call). Otherwise, it will fetch individually.
- * 
+ *
  * For best performance, wrap your list component with SoftVoteProvider.
  */
 export default function useSoftVoteOverlay(author?: string, permlink?: string) {
   const { user } = useUserbaseAuth();
   const context = useContext(SoftVoteContext);
 
-  // If we have a SoftVoteProvider context, use it (batch fetch already done)
+  // Skip building posts array when context provides data (avoids individual fetches)
+  const posts = useMemo(() => {
+    if (context) return [];
+    if (!author || !permlink) return [];
+    return [{ author, permlink }];
+  }, [context, author, permlink]);
+
+  // Always call hooks unconditionally; posts=[] means no fetch when context exists
+  const overlays = useSoftVoteOverlays(posts);
+
+  // Prefer batch context if available
   if (context && author && permlink) {
     return context.getVote(author, permlink);
   }
 
-  // Fallback: fetch individually (this causes N+1 problem, avoid if possible)
-  const overlays = useSoftVoteOverlays(
-    author && permlink ? [{ author, permlink }] : []
-  );
   if (!user) return null;
   const key = getKey(user.id, author, permlink);
   return key ? overlays[key] ?? null : null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export interface SoftPostOverlayUser {
   id: string;
@@ -16,6 +16,13 @@ export interface SoftPostOverlay {
   metadata?: Record<string, any> | null;
   user: SoftPostOverlayUser;
 }
+
+// Context for batch-provided soft posts (set by SoftPostProvider)
+interface SoftPostContextValue {
+  getPost: (author: string, permlink: string) => SoftPostOverlay | null;
+}
+
+export const SoftPostContext = createContext<SoftPostContextValue | null>(null);
 
 const overlayCache = new Map<
   string,
@@ -216,23 +223,39 @@ export function useSoftPostOverlays(
   }, [overlays, keys]);
 }
 
+/**
+ * Hook to get soft post overlay for a single post.
+ *
+ * If used within a SoftPostProvider, it will use the batch-fetched data
+ * (no additional API call). Otherwise, it will fetch individually.
+ *
+ * For best performance, wrap your list component with SoftPostProvider.
+ */
 export default function useSoftPostOverlay(
   author?: string,
   permlink?: string,
   safeUser?: string | null
 ) {
+  const context = useContext(SoftPostContext);
   const normalizedAuthor = author?.trim();
   const normalizedPermlink = permlink?.trim();
   const key = getKey(normalizedAuthor, normalizedPermlink);
 
   // Memoize the posts array to prevent unnecessary re-renders and race conditions
   const posts = useMemo(() => {
+    // Skip building posts array when context provides data
+    if (context) return [];
     if (!normalizedAuthor || !normalizedPermlink) return [];
     return [{ author: normalizedAuthor, permlink: normalizedPermlink, safe_user: safeUser }];
-  }, [normalizedAuthor, normalizedPermlink, safeUser]);
-  
-  // This triggers the fetch if needed
+  }, [context, normalizedAuthor, normalizedPermlink, safeUser]);
+
+  // This triggers the fetch only when there's no context provider
   const overlays = useSoftPostOverlays(posts);
-  
+
+  // Prefer batch context if available
+  if (context && normalizedAuthor && normalizedPermlink) {
+    return context.getPost(normalizedAuthor, normalizedPermlink);
+  }
+
   return key ? overlays[key] ?? null : null;
 }

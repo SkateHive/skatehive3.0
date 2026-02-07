@@ -29,6 +29,7 @@ import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
 import { useAccount } from "wagmi";
 import SidebarLogo from "../graphics/SidebarLogo";
 import { SoftVoteProvider } from "@/contexts/SoftVoteContext";
+import { SoftPostProvider } from "@/contexts/SoftPostContext";
 
 interface SnapListProps {
   author: string;
@@ -474,20 +475,22 @@ export default function SnapList({
             }
             scrollableTarget="scrollableDiv"
           >
-            <SoftVoteProvider posts={filteredAndSortedComments}>
-              <VStack spacing={1} align="stretch">
-                {filteredAndSortedComments.map((discussion: Discussion) => (
-                  <Snap
-                    key={discussion.permlink}
-                    discussion={discussion}
-                    onOpen={onOpenConversation}
-                    setReply={setReply}
-                    {...(!post ? { setConversation } : {})}
-                    onDelete={handleDeleteComment}
-                  />
-                ))}
-              </VStack>
-            </SoftVoteProvider>
+            <SoftPostProvider posts={filteredAndSortedComments}>
+              <SoftVoteProvider posts={filteredAndSortedComments}>
+                <VStack spacing={1} align="stretch">
+                  {filteredAndSortedComments.map((discussion: Discussion) => (
+                    <Snap
+                      key={discussion.permlink}
+                      discussion={discussion}
+                      onOpen={onOpenConversation}
+                      setReply={setReply}
+                      {...(!post ? { setConversation } : {})}
+                      onDelete={handleDeleteComment}
+                    />
+                  ))}
+                </VStack>
+              </SoftVoteProvider>
+            </SoftPostProvider>
           </InfiniteScroll>
         </>
       )}

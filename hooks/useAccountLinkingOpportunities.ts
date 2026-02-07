@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useAioha } from "@aioha/react-ui";
 import { useAccount } from "wagmi";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import useHiveAccount from "@/hooks/useHiveAccount";
 
 export interface LinkingOpportunity {
@@ -45,57 +46,10 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
   const { address: evmAddress, isConnected: isEvmConnected } = useAccount();
   const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } = useFarcasterSession();
   const { hiveAccount } = useHiveAccount(hiveUser || "");
-  
-  const [identities, setIdentities] = useState<IdentityRow[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch current user's identities
-  const fetchIdentities = useCallback(async () => {
-    if (!userbaseUser || !enabled) {
-      setIdentities([]);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Add timeout to prevent infinite loading
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
-      const response = await fetch("/api/userbase/identities", {
-        cache: "no-store",
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      const data = await response.json();
-      if (response.ok) {
-        setIdentities(data?.identities || []);
-      } else {
-        console.error("Failed to fetch identities:", data);
-        setIdentities([]);
-      }
-    } catch (error: any) {
-      if (error?.name === 'AbortError') {
-        console.warn('[AccountLinking] Identity fetch timed out after 10s');
-      } else {
-        console.error("Failed to fetch identities", error);
-      }
-      setIdentities([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userbaseUser, enabled]);
-
-  useEffect(() => {
-    if (!enabled || !userbaseUser) {
-      setIdentities([]);
-      return;
-    }
-    fetchIdentities();
-  }, [fetchIdentities, enabled, userbaseUser]);
+  // Use shared LinkedIdentityContext instead of independent fetch
+  const { identities: contextIdentities, isLoading, refresh } = useLinkedIdentities();
+  const identities: IdentityRow[] = enabled ? contextIdentities : [];
 
   // Extract linked accounts from Hive metadata
   const hiveMetadataAccounts = useMemo(() => {
@@ -266,7 +220,7 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
     opportunities,
     isLoading: enabled ? isLoading : false,
     hasUnlinkedOpportunities,
-    refresh: fetchIdentities,
+    refresh,
     identities,
   };
 }
