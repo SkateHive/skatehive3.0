@@ -20,7 +20,7 @@ import VideoUploader, {
   VideoUploaderRef,
   ErrorDemoPanel,
 } from "./VideoUploader";
-import VideoTrimModal from "./VideoTrimModal";
+import VideoTrimModal, { type TrimmedVideoFile } from "./VideoTrimModal";
 import InstagramModal from "./InstagramModal";
 import { IGif } from "@giphy/js-types";
 import { FaImage } from "react-icons/fa";
@@ -234,10 +234,10 @@ const SnapComposer = React.memo(function SnapComposer({
   };
 
   // Handle trim modal completion
-  const handleTrimComplete = async (trimmedFile: File) => {
+  const handleTrimComplete = async (result: TrimmedVideoFile) => {
     if (videoUploaderRef.current) {
       // Let VideoUploader handle its own upload state
-      await videoUploaderRef.current.handleFile(trimmedFile);
+      await videoUploaderRef.current.handleFile(result);
     }
     setPendingVideoFile(null);
   };

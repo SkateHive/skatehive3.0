@@ -41,11 +41,18 @@ const ComponentLoader = memo(() => (
 ));
 ComponentLoader.displayName = "ComponentLoader";
 
+/** Wrapper for a File with metadata from the trim modal */
+export interface TrimmedVideoFile {
+  file: File;
+  thumbnailUrl: string | null;
+  fromTrimModal: true;
+}
+
 interface VideoTrimModalProps {
   isOpen: boolean;
   onClose: () => void;
   videoFile: File | null;
-  onTrimComplete: (trimmedFile: File) => void;
+  onTrimComplete: (trimmedFile: TrimmedVideoFile) => void;
   maxDuration?: number;
   canBypass?: boolean;
 }
@@ -617,12 +624,12 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
           }
         );
 
-        // Mark this file as already processed to skip compression
-        (trimmedFile as any).thumbnailUrl = finalThumbnailUrl;
-        (trimmedFile as any).fromTrimModal = true;
-
         console.log("✅ Video trimming completed successfully");
-        onTrimComplete(trimmedFile);
+        onTrimComplete({
+          file: trimmedFile,
+          thumbnailUrl: finalThumbnailUrl ?? null,
+          fromTrimModal: true,
+        });
         onClose();
       } catch (error) {
         console.error("❌ Error trimming video:", error);
@@ -654,15 +661,19 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
             }
           }
 
-          (videoFile as any).thumbnailUrl = finalThumbnailUrl;
-          (videoFile as any).fromTrimModal = true;
-
-          onTrimComplete(videoFile);
+          onTrimComplete({
+            file: videoFile,
+            thumbnailUrl: finalThumbnailUrl ?? null,
+            fromTrimModal: true,
+          });
           onClose();
         } catch (error) {
           console.error("Error generating thumbnail for bypass:", error);
-          (videoFile as any).fromTrimModal = true;
-          onTrimComplete(videoFile);
+          onTrimComplete({
+            file: videoFile,
+            thumbnailUrl: null,
+            fromTrimModal: true,
+          });
           onClose();
         }
       }

@@ -247,6 +247,80 @@ export interface TranslationSchema {
     unsupportedFileType: string;
     videoProcessFailed: string;
   };
+  videoUploader: {
+    roasts: {
+      oracle1: string;
+      oracle2: string;
+      oracle3: string;
+      macmini1: string;
+      macmini2: string;
+      macmini3: string;
+      pi1: string;
+      pi2: string;
+      pi3: string;
+      pinata1: string;
+      pinata2: string;
+      pinata3: string;
+      all1: string;
+      all2: string;
+      all3: string;
+      all4: string;
+      all5: string;
+      all6: string;
+      all7: string;
+      all8: string;
+    };
+    status: {
+      s400: string;
+      s403: string;
+      s404: string;
+      s413: string;
+      s500: string;
+      s502: string;
+      s503: string;
+      s504: string;
+    };
+    advice: {
+      mp4Direct500: string;
+      mp4Direct413: string;
+      mp4DirectDefault: string;
+      transcoding403: string;
+      transcodingFileTooLarge: string;
+      transcodingTimeout: string;
+      transcodingConnection: string;
+      transcodingServerError: string;
+      transcodingDefault: string;
+    };
+    message: {
+      serversTried: string;
+      error: string;
+      errorType: string;
+      file: string;
+      details: string;
+      serverChainDirect: string;
+      stoppedHere: string;
+    };
+    terminal: {
+      startingUpload: string;
+      fileInfo: string;
+      validating: string;
+      validated: string;
+      trimmedDetected: string;
+      mp4Detected: string;
+      uploadingPinata: string;
+      ipfsSuccess: string;
+      cidLabel: string;
+      videoReady: string;
+      nonMp4: string;
+      startingFallback: string;
+      transcodingSuccess: string;
+      ipfsCid: string;
+      uploadFailed: string;
+      pinataFailed: string;
+      tryingServer: string;
+      serverFailed: string;
+    };
+  };
   magazine: {
     title: string;
     viewInfinityMag: string;
