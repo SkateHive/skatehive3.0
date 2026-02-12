@@ -10,7 +10,7 @@ const FALLBACK_IMAGE = `${APP_CONFIG.BASE_URL}/ogimage.png`;
 
 // Function to safely parse JSON metadata that might be double-encoded
 function parseJsonMetadata(
-  jsonMetadata: any
+  jsonMetadata: any,
 ): { image?: string[]; images?: string[]; thumbnail?: string[] } | null {
   if (!jsonMetadata) return null;
 
@@ -219,8 +219,12 @@ export async function generateMetadata({
         ],
         siteName: "Skatehive",
         type: "article",
-        publishedTime: post.created ? new Date(post.created + 'Z').toISOString() : undefined,
-        modifiedTime: post.last_update ? new Date(post.last_update + 'Z').toISOString() : undefined,
+        publishedTime: post.created
+          ? new Date(post.created + "Z").toISOString()
+          : undefined,
+        modifiedTime: post.last_update
+          ? new Date(post.last_update + "Z").toISOString()
+          : undefined,
         authors: [cleanedAuthor],
       },
       twitter: {
@@ -299,8 +303,11 @@ export default async function PostPageRoute({
     const cleanedBody = cleanTextForDescription(post.body || "");
     const parsedMetadata = parseJsonMetadata(post.json_metadata);
     let bannerImage = FALLBACK_IMAGE;
-    if (parsedMetadata?.thumbnail?.[0]) bannerImage = parsedMetadata.thumbnail[0];
+    if (parsedMetadata?.thumbnail?.[0])
+      bannerImage = parsedMetadata.thumbnail[0];
     else if (parsedMetadata?.image?.[0]) bannerImage = parsedMetadata.image[0];
+    else if (parsedMetadata?.images?.[0])
+      bannerImage = parsedMetadata.images[0];
 
     jsonLd = {
       "@context": "https://schema.org",
@@ -322,8 +329,12 @@ export default async function PostPageRoute({
         },
       },
       url: `${DOMAIN_URL}/post/${cleanedAuthor}/${decodedPermlink}`,
-      datePublished: post.created ? new Date(post.created + 'Z').toISOString() : undefined,
-      dateModified: post.last_update ? new Date(post.last_update + 'Z').toISOString() : undefined,
+      datePublished: post.created
+        ? new Date(post.created + "Z").toISOString()
+        : undefined,
+      dateModified: post.last_update
+        ? new Date(post.last_update + "Z").toISOString()
+        : undefined,
       mainEntityOfPage: {
         "@type": "WebPage",
         "@id": `${DOMAIN_URL}/post/${cleanedAuthor}/${decodedPermlink}`,
@@ -341,10 +352,7 @@ export default async function PostPageRoute({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <PostPage
-        author={cleanedAuthor}
-        permlink={decodedPermlink}
-      />
+      <PostPage author={cleanedAuthor} permlink={decodedPermlink} />
     </>
   );
 }
