@@ -96,43 +96,103 @@ const IPFS_GATEWAYS = [
   "cloudflare-ipfs.com",
 ];
 
-function extractFirstVideoUrl(body: string): string | null {
+const VIDEO_CONTENT_TYPES = ["video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"];
+
+/**
+ * HEAD-request an IPFS URL to check if it's actually a video.
+ * Pinata IPFS links have no file extension, so Content-Type is the
+ * only reliable signal. Returns the URL if it's a video, null otherwise.
+ */
+async function probeIpfsContentType(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(url, {
+      method: "HEAD",
+      signal: controller.signal,
+      next: { revalidate: 3600 },
+    });
+    clearTimeout(timeout);
+    const ct = res.headers.get("content-type") || "";
+    if (VIDEO_CONTENT_TYPES.some((t) => ct.startsWith(t))) {
+      return url;
+    }
+  } catch {
+    // Timeout or network error — skip this URL
+  }
+  return null;
+}
+
+/**
+ * Find the first video URL in a post body.
+ * For URLs with clear extensions or known platforms (YouTube, 3Speak)
+ * we return immediately. For extensionless IPFS URLs we do a HEAD
+ * request to check Content-Type.
+ */
+async function extractFirstVideoUrl(body: string): Promise<string | null> {
   if (!body) return null;
 
-  // 1. Direct video links in markdown image syntax: ![desc](url.mp4)
+  // 1. Direct video links with extension: ![desc](url.mp4)
   const mdVideo = body.match(
     /!\[.*?\]\((https?:\/\/[^\s)]+?\.(mp4|webm|mov))\)/i,
   );
   if (mdVideo) return mdVideo[1];
 
-  // 2. IPFS video links (hash without extension — most skatehive uploads)
-  for (const gw of IPFS_GATEWAYS) {
-    const ipfsPattern = new RegExp(
-      `!\\[.*?\\]\\((https://${gw.replace(/\./g, "\\.")}/ipfs/[\\w-]+)`,
-      "i",
-    );
-    const ipfsMatch = body.match(ipfsPattern);
-    if (ipfsMatch) return ipfsMatch[1];
-  }
-
-  // 3. iframe src with video
-  const iframeMatch = body.match(
-    /<iframe[^>]*src=["'](https?:\/\/[^"']*\/ipfs\/[\w-]+)["'][^>]*>/i,
+  // 2. iframe src with IPFS and extension
+  const iframeExtMatch = body.match(
+    /<iframe[^>]*src=["'](https?:\/\/[^"']+\.(mp4|webm|mov))["'][^>]*>/i,
   );
-  if (iframeMatch) return iframeMatch[1];
+  if (iframeExtMatch) return iframeExtMatch[1];
 
-  // 4. YouTube
+  // 3. YouTube (always video)
   const ytMatch = body.match(
     /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
   );
   if (ytMatch) return `https://www.youtube.com/watch?v=${ytMatch[1]}`;
 
-  // 5. 3Speak
+  // 4. 3Speak (always video)
   const threeSpeakMatch = body.match(
     /https?:\/\/3speak\.tv\/watch\?v=([\w\-/]+)/,
   );
   if (threeSpeakMatch)
     return `https://3speak.tv/watch?v=${threeSpeakMatch[1]}`;
+
+  // 5. Extensionless IPFS links — need HEAD request to verify content type
+  //    Collect candidate URLs, probe at most 3 to keep latency low
+  const ipfsCandidates: string[] = [];
+  for (const gw of IPFS_GATEWAYS) {
+    const escaped = gw.replace(/\./g, "\\.");
+    // Markdown image links
+    const mdPattern = new RegExp(
+      `!\\[.*?\\]\\((https://${escaped}/ipfs/[\\w-]+)\\)`,
+      "gi",
+    );
+    let m;
+    while ((m = mdPattern.exec(body)) !== null) {
+      // Skip if URL has an image extension (it's a photo, not a video)
+      if (/\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(m[1])) continue;
+      // Skip if already has a video extension (handled in step 1)
+      if (/\.(mp4|webm|mov)$/i.test(m[1])) continue;
+      ipfsCandidates.push(m[1]);
+    }
+    // iframe links
+    const iframePattern = new RegExp(
+      `<iframe[^>]*src=["'](https://${escaped}/ipfs/[\\w-]+)["']`,
+      "gi",
+    );
+    while ((m = iframePattern.exec(body)) !== null) {
+      if (/\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(m[1])) continue;
+      ipfsCandidates.push(m[1]);
+    }
+  }
+
+  // Probe up to 3 candidates in parallel
+  const toProbe = ipfsCandidates.slice(0, 3);
+  if (toProbe.length > 0) {
+    const results = await Promise.all(toProbe.map(probeIpfsContentType));
+    const found = results.find((r) => r !== null);
+    if (found) return found;
+  }
 
   return null;
 }
@@ -400,7 +460,7 @@ export default async function PostPageRoute({
     };
 
     // Build VideoObject schema if the post contains a video
-    const videoUrl = extractFirstVideoUrl(post.body || "");
+    const videoUrl = await extractFirstVideoUrl(post.body || "");
     if (videoUrl) {
       videoJsonLd = {
         "@context": "https://schema.org",

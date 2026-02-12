@@ -9,7 +9,8 @@
  */
 export function safeJsonLdStringify(data: unknown): string {
     const raw = JSON.stringify(data);
-    return raw
+    const safe = raw === undefined ? "" : raw;
+    return safe
         .replace(/<\/script/gi, "<\\/script")
         .replace(/<!--/g, "<\\!--");
 }
