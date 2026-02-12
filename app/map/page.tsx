@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     url: `${APP_CONFIG.BASE_URL}/map`,
     images: [
       {
-        url: `${APP_CONFIG.BASE_URL}/og-map.png`,
+        url: `${APP_CONFIG.BASE_URL}/ogimage.png`,
         width: 1200,
         height: 630,
         alt: "Skatehive Map Open Graph Image",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     title: "Skate Map | Global Skatespot Finder",
     description:
       "Explore skateparks and street spots submitted by skaters worldwide.",
-    images: [`${APP_CONFIG.BASE_URL}/og-map.png`],
+    images: [`${APP_CONFIG.BASE_URL}/ogimage.png`],
   },
   alternates: {
     canonical: `${APP_CONFIG.BASE_URL}/map`,

@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     url: `${APP_CONFIG.BASE_URL}/bounties`,
     images: [
       {
-        url: `${APP_CONFIG.BASE_URL}/og-bounties.png`,
+        url: `${APP_CONFIG.BASE_URL}/ogimage.png`,
         width: 1200,
         height: 630,
         alt: "Skatehive Bounties Open Graph Image",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     title: "Bounties | Skate Trick Challenges",
     description:
       "Submit and complete skate trick bounties. Post a challenge, submit your trick, and earn respect!",
-    images: [`${APP_CONFIG.BASE_URL}/og-bounties.png`],
+    images: [`${APP_CONFIG.BASE_URL}/ogimage.png`],
   },
   alternates: {
     canonical: `${APP_CONFIG.BASE_URL}/bounties`,

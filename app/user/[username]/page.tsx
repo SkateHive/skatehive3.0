@@ -5,6 +5,7 @@ import { cleanUsername } from "@/lib/utils/cleanUsername";
 import HiveClient from "@/lib/hive/hiveclient";
 import { APP_CONFIG } from "@/config/app.config";
 import { validateHiveUsernameFormat, cleanHiveUsername } from "@/lib/utils/hiveAccountUtils";
+import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 
 // Constants
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
@@ -219,5 +220,40 @@ export default async function UserProfilePage(props: Props) {
   const params = await props.params;
   const username = cleanUsername(params.username);
 
-  return <ProfilePage username={username} />;
+  // Build Person JSON-LD
+  let personJsonLd: Record<string, unknown> | null = null;
+  try {
+    const baseUrl = await getBaseUrl();
+    const userData = await getUserData(username, baseUrl);
+    if (userData) {
+      const profileUrl = `${DOMAIN_URL}/user/${username}`;
+      personJsonLd = {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        name: userData.name || username,
+        url: profileUrl,
+        image: userData.profileImage,
+        description: userData.about || undefined,
+        sameAs: [`https://hive.blog/@${username}`],
+        mainEntityOfPage: {
+          "@type": "ProfilePage",
+          "@id": profileUrl,
+        },
+      };
+    }
+  } catch {
+    // Silently fail - page renders without JSON-LD
+  }
+
+  return (
+    <>
+      {personJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(personJsonLd) }}
+        />
+      )}
+      <ProfilePage username={username} />
+    </>
+  );
 }

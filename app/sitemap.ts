@@ -210,6 +210,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             });
         }
 
+        // Collect unique author profiles from blog posts and snaps
+        const authors = new Set<string>();
+        for (const post of blogPosts) {
+            if (post?.author) authors.add(post.author);
+        }
+        for (const snap of feedSnaps) {
+            if (snap?.author) authors.add(snap.author);
+        }
+        for (const author of authors) {
+            pushUrl({
+                url: `${baseUrl}/user/${author}`,
+                lastModified: new Date(),
+                changeFrequency: 'weekly',
+                priority: 0.4,
+            });
+        }
+
         return urls;
     } catch (error) {
         console.error('Error generating sitemap:', error);

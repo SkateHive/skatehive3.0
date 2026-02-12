@@ -410,7 +410,8 @@ export default async function PostPageRoute({
   const decodedPermlink = decodeURIComponent(permlink);
   const cleanedAuthor = cleanUsername(decodedAuthor);
 
-  // Build JSON-LD structured data (Article + optional VideoObject)
+  // Build JSON-LD structured data (Breadcrumb + Article + optional VideoObject)
+  let breadcrumbJsonLd: Record<string, unknown> | null = null;
   let articleJsonLd: Record<string, unknown> | null = null;
   let videoJsonLd: Record<string, unknown> | null = null;
   try {
@@ -428,6 +429,31 @@ export default async function PostPageRoute({
     const publishedIso = post.created
       ? new Date(post.created + "Z").toISOString()
       : undefined;
+
+    breadcrumbJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "Home",
+          item: DOMAIN_URL,
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: "Blog",
+          item: `${DOMAIN_URL}/blog`,
+        },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: post.title || "Post",
+          item: postUrl,
+        },
+      ],
+    };
 
     articleJsonLd = {
       "@context": "https://schema.org",
@@ -487,6 +513,12 @@ export default async function PostPageRoute({
 
   return (
     <>
+      {breadcrumbJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(breadcrumbJsonLd) }}
+        />
+      )}
       {articleJsonLd && (
         <script
           type="application/ld+json"

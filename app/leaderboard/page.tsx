@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import LeaderboardClient from "./leaderboardClient";
 import { SkaterData } from "@/types/leaderboard";
 import { APP_CONFIG } from "@/config/app.config";
+import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 
 interface LeaderboardDataResult {
   data: SkaterData[];
@@ -161,5 +162,30 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LeaderboardPage() {
   const { data: skatersData } = await processLeaderboardData(60); // 1 minute cache for page data
 
-  return <LeaderboardClient skatersData={skatersData} />;
+  // Build ItemList JSON-LD for top skaters
+  const top10 = [...skatersData].sort((a, b) => b.points - a.points).slice(0, 10);
+  const itemListJsonLd = top10.length > 0 ? {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Skatehive Leaderboard - Top Skaters",
+    numberOfItems: top10.length,
+    itemListElement: top10.map((skater, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: skater.hive_author,
+      url: `${BASE_URL}/user/${skater.hive_author}`,
+    })),
+  } : null;
+
+  return (
+    <>
+      {itemListJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(itemListJsonLd) }}
+        />
+      )}
+      <LeaderboardClient skatersData={skatersData} />
+    </>
+  );
 }
