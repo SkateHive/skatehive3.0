@@ -5,6 +5,7 @@ import { Metadata } from "next";
 import { ColorModeScript } from "@chakra-ui/react";
 import Image from "next/image";
 import { APP_CONFIG } from "@/config/app.config";
+import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 // import '@aioha/react-ui/dist/build.css';
 import "@coinbase/onchainkit/styles.css";
 
@@ -163,13 +164,13 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(jsonLdOrganization),
+            __html: safeJsonLdStringify(jsonLdOrganization),
           }}
         />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(jsonLdWebSite),
+            __html: safeJsonLdStringify(jsonLdWebSite),
           }}
         />
       </head>

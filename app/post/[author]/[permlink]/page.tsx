@@ -3,6 +3,7 @@ import HiveClient from "@/lib/hive/hiveclient";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
 import { Metadata } from "next";
 import { APP_CONFIG } from "@/config/app.config";
+import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 
 // Constants
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
@@ -85,6 +86,59 @@ function cleanTextForDescription(text: string): string {
     .trim();
 
   return cleaned;
+}
+
+// Video URL extraction for VideoObject schema
+const IPFS_GATEWAYS = [
+  "ipfs.skatehive.app",
+  "gateway.pinata.cloud",
+  "ipfs.io",
+  "cloudflare-ipfs.com",
+];
+
+function extractFirstVideoUrl(body: string): string | null {
+  if (!body) return null;
+
+  // 1. Direct video links in markdown image syntax: ![desc](url.mp4)
+  const mdVideo = body.match(
+    /!\[.*?\]\((https?:\/\/[^\s)]+?\.(mp4|webm|mov))\)/i,
+  );
+  if (mdVideo) return mdVideo[1];
+
+  // 2. IPFS video links (hash without extension — most skatehive uploads)
+  for (const gw of IPFS_GATEWAYS) {
+    const ipfsPattern = new RegExp(
+      `!\\[.*?\\]\\((https://${gw.replace(/\./g, "\\.")}/ipfs/[\\w-]+)`,
+      "i",
+    );
+    const ipfsMatch = body.match(ipfsPattern);
+    if (ipfsMatch) return ipfsMatch[1];
+  }
+
+  // 3. iframe src with video
+  const iframeMatch = body.match(
+    /<iframe[^>]*src=["'](https?:\/\/[^"']*\/ipfs\/[\w-]+)["'][^>]*>/i,
+  );
+  if (iframeMatch) return iframeMatch[1];
+
+  // 4. YouTube
+  const ytMatch = body.match(
+    /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+  );
+  if (ytMatch) return `https://www.youtube.com/watch?v=${ytMatch[1]}`;
+
+  // 5. 3Speak
+  const threeSpeakMatch = body.match(
+    /https?:\/\/3speak\.tv\/watch\?v=([\w\-/]+)/,
+  );
+  if (threeSpeakMatch)
+    return `https://3speak.tv/watch?v=${threeSpeakMatch[1]}`;
+
+  return null;
+}
+
+function isIpfsVideoUrl(url: string): boolean {
+  return IPFS_GATEWAYS.some((gw) => url.includes(gw));
 }
 
 // Check for object permlinks only
@@ -296,8 +350,9 @@ export default async function PostPageRoute({
   const decodedPermlink = decodeURIComponent(permlink);
   const cleanedAuthor = cleanUsername(decodedAuthor);
 
-  // Build JSON-LD Article structured data
-  let jsonLd = null;
+  // Build JSON-LD structured data (Article + optional VideoObject)
+  let articleJsonLd: Record<string, unknown> | null = null;
+  let videoJsonLd: Record<string, unknown> | null = null;
   try {
     const post = await getData(decodedAuthor, decodedPermlink);
     const cleanedBody = cleanTextForDescription(post.body || "");
@@ -309,7 +364,12 @@ export default async function PostPageRoute({
     else if (parsedMetadata?.images?.[0])
       bannerImage = parsedMetadata.images[0];
 
-    jsonLd = {
+    const postUrl = `${DOMAIN_URL}/post/${cleanedAuthor}/${decodedPermlink}`;
+    const publishedIso = post.created
+      ? new Date(post.created + "Z").toISOString()
+      : undefined;
+
+    articleJsonLd = {
       "@context": "https://schema.org",
       "@type": "Article",
       headline: post.title || "Skatehive Post",
@@ -328,28 +388,55 @@ export default async function PostPageRoute({
           url: `${DOMAIN_URL}/SKATE_HIVE_VECTOR_FIN.svg`,
         },
       },
-      url: `${DOMAIN_URL}/post/${cleanedAuthor}/${decodedPermlink}`,
-      datePublished: post.created
-        ? new Date(post.created + "Z").toISOString()
-        : undefined,
+      url: postUrl,
+      datePublished: publishedIso,
       dateModified: post.last_update
         ? new Date(post.last_update + "Z").toISOString()
         : undefined,
       mainEntityOfPage: {
         "@type": "WebPage",
-        "@id": `${DOMAIN_URL}/post/${cleanedAuthor}/${decodedPermlink}`,
+        "@id": postUrl,
       },
     };
+
+    // Build VideoObject schema if the post contains a video
+    const videoUrl = extractFirstVideoUrl(post.body || "");
+    if (videoUrl) {
+      videoJsonLd = {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        name: post.title || "Skatehive Video",
+        description: cleanedBody.slice(0, 160) || "Skateboarding video on Skatehive",
+        thumbnailUrl: bannerImage,
+        uploadDate: publishedIso,
+        contentUrl: isIpfsVideoUrl(videoUrl) ? videoUrl : undefined,
+        embedUrl: !isIpfsVideoUrl(videoUrl) ? videoUrl : undefined,
+        publisher: {
+          "@type": "Organization",
+          name: "Skatehive",
+          logo: {
+            "@type": "ImageObject",
+            url: `${DOMAIN_URL}/SKATE_HIVE_VECTOR_FIN.svg`,
+          },
+        },
+      };
+    }
   } catch {
     // Silently fail - page will still render without JSON-LD
   }
 
   return (
     <>
-      {jsonLd && (
+      {articleJsonLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(articleJsonLd) }}
+        />
+      )}
+      {videoJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(videoJsonLd) }}
         />
       )}
       <PostPage author={cleanedAuthor} permlink={decodedPermlink} />
