@@ -125,6 +125,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
 
     // Static pages with proper priorities
+    // Only include pages that are NOT blocked in robots.txt
     const staticPages: MetadataRoute.Sitemap = [
         {
             url: baseUrl,
@@ -136,7 +137,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             url: `${baseUrl}/blog`,
             lastModified: new Date(),
             changeFrequency: 'daily',
-            priority: 0.8,
+            priority: 0.9,
         },
         {
             url: `${baseUrl}/leaderboard`,
@@ -169,40 +170,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.6,
         },
         {
-            url: `${baseUrl}/wallet`,
-            lastModified: new Date(),
-            changeFrequency: 'monthly',
-            priority: 0.5,
-        },
-        {
-            url: `${baseUrl}/compose`,
-            lastModified: new Date(),
-            changeFrequency: 'monthly',
-            priority: 0.5,
-        },
-        {
-            url: `${baseUrl}/settings`,
-            lastModified: new Date(),
-            changeFrequency: 'monthly',
-            priority: 0.4,
-        },
-        {
             url: `${baseUrl}/invite`,
             lastModified: new Date(),
             changeFrequency: 'monthly',
             priority: 0.4,
-        },
-        {
-            url: `${baseUrl}/notifications`,
-            lastModified: new Date(),
-            changeFrequency: 'monthly',
-            priority: 0.3,
-        },
-        {
-            url: `${baseUrl}/share`,
-            lastModified: new Date(),
-            changeFrequency: 'monthly',
-            priority: 0.3,
         },
     ];
 

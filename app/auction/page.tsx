@@ -35,6 +35,9 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
       title,
       description,
+      alternates: {
+        canonical: `${APP_CONFIG.BASE_URL}/auction`,
+      },
       openGraph: {
         title,
         description,

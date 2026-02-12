@@ -203,6 +203,9 @@ export async function generateMetadata({
       description: description,
       authors: [{ name: cleanedAuthor }],
       applicationName: "Skatehive",
+      alternates: {
+        canonical: postUrl,
+      },
       openGraph: {
         title: title,
         description: description,
@@ -216,13 +219,16 @@ export async function generateMetadata({
         ],
         siteName: "Skatehive",
         type: "article",
+        publishedTime: post.created ? new Date(post.created + 'Z').toISOString() : undefined,
+        modifiedTime: post.last_update ? new Date(post.last_update + 'Z').toISOString() : undefined,
+        authors: [cleanedAuthor],
       },
       twitter: {
         card: "summary_large_image",
         title: title,
         description: description,
         images: bannerImage,
-        site: "@skatabordhive",
+        site: "@skatehive",
         creator: `@${cleanedAuthor}`,
       },
       other: {
@@ -284,11 +290,61 @@ export default async function PostPageRoute({
 
   const decodedAuthor = decodeURIComponent(author);
   const decodedPermlink = decodeURIComponent(permlink);
+  const cleanedAuthor = cleanUsername(decodedAuthor);
+
+  // Build JSON-LD Article structured data
+  let jsonLd = null;
+  try {
+    const post = await getData(decodedAuthor, decodedPermlink);
+    const cleanedBody = cleanTextForDescription(post.body || "");
+    const parsedMetadata = parseJsonMetadata(post.json_metadata);
+    let bannerImage = FALLBACK_IMAGE;
+    if (parsedMetadata?.thumbnail?.[0]) bannerImage = parsedMetadata.thumbnail[0];
+    else if (parsedMetadata?.image?.[0]) bannerImage = parsedMetadata.image[0];
+
+    jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: post.title || "Skatehive Post",
+      description: cleanedBody.slice(0, 160),
+      image: bannerImage,
+      author: {
+        "@type": "Person",
+        name: cleanedAuthor,
+        url: `${DOMAIN_URL}/user/${cleanedAuthor}`,
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "Skatehive",
+        logo: {
+          "@type": "ImageObject",
+          url: `${DOMAIN_URL}/SKATE_HIVE_VECTOR_FIN.svg`,
+        },
+      },
+      url: `${DOMAIN_URL}/post/${cleanedAuthor}/${decodedPermlink}`,
+      datePublished: post.created ? new Date(post.created + 'Z').toISOString() : undefined,
+      dateModified: post.last_update ? new Date(post.last_update + 'Z').toISOString() : undefined,
+      mainEntityOfPage: {
+        "@type": "WebPage",
+        "@id": `${DOMAIN_URL}/post/${cleanedAuthor}/${decodedPermlink}`,
+      },
+    };
+  } catch {
+    // Silently fail - page will still render without JSON-LD
+  }
 
   return (
-    <PostPage
-      author={cleanUsername(decodedAuthor)}
-      permlink={decodedPermlink}
-    />
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      <PostPage
+        author={cleanedAuthor}
+        permlink={decodedPermlink}
+      />
+    </>
   );
 }

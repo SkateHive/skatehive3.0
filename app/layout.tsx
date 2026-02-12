@@ -18,6 +18,35 @@ const vt323 = VT323({
 
 const BASE_URL = APP_CONFIG.ORIGIN;
 
+// JSON-LD structured data for Organization + WebSite (sitewide)
+const jsonLdOrganization = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Skatehive",
+  url: BASE_URL,
+  logo: `${BASE_URL}/SKATE_HIVE_VECTOR_FIN.svg`,
+  description:
+    "The infinity skateboard magazine - A decentralized skateboarding community on the Hive blockchain.",
+  sameAs: [
+    "https://twitter.com/skatehive",
+    "https://warpcast.com/skatehive",
+  ],
+};
+
+const jsonLdWebSite = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Skatehive",
+  url: BASE_URL,
+  description:
+    "The infinity skateboard magazine - Discover skateboarding content, tricks, spots, and join the global skateboarding community.",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${BASE_URL}/blog?query={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
+};
+
 const frameObject = {
   version: "next",
   imageUrl: `${BASE_URL}/ogimage.png`,
@@ -84,14 +113,16 @@ export const metadata: Metadata = {
     creator: "@skatehive",
     site: "@skatehive",
   },
+  alternates: {
+    canonical: BASE_URL,
+  },
   robots: {
     index: true,
     follow: true,
-    nocache: true,
+    nocache: false,
     googleBot: {
       index: true,
       follow: true,
-      noimageindex: true,
       "max-video-preview": -1,
       "max-image-preview": "large",
       "max-snippet": -1,
@@ -128,6 +159,19 @@ export default function RootLayout({
       <head>
         {/* Preconnect to IPFS gateway for faster video loading */}
         <link rel="preconnect" href={`https://${APP_CONFIG.IPFS_GATEWAY}`} />
+        {/* JSON-LD structured data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLdOrganization),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLdWebSite),
+          }}
+        />
       </head>
       <body className="chakra-ui-dark">
         <div id="splash-root">

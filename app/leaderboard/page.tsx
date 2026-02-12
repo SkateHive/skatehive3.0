@@ -112,6 +112,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: pageTitle,
     description: dynamicDescription,
+    alternates: {
+      canonical: `${BASE_URL}/leaderboard`,
+    },
     keywords: [
       "skatehive",
       "leaderboard",

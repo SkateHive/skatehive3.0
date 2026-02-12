@@ -1,47 +1,43 @@
 import { MetadataRoute } from 'next';
 import { APP_CONFIG } from '@/config/app.config';
 
+const COMMON_DISALLOWS = [
+    '/admin/',
+    '/api/',
+    '/compose/',
+    '/settings/',
+    '/notifications/',
+    '/share/',
+    '/wallet/',
+    '/chat/',
+    '/_next/',
+    '/_vercel/',
+    '/pages/',
+    '/src/',
+    '/ipfs/',
+    '/coin/',
+    '/notifications.db',
+];
+
 export default function robots(): MetadataRoute.Robots {
     return {
         rules: [
             {
                 userAgent: '*',
                 allow: '/',
-                disallow: [
-                    '/admin/',
-                    '/api/',
-                    '/compose/',
-                    '/settings/',
-                    '/_next/',
-                    '/pages/',
-                    '/src/',
-                    '/_vercel/',
-                    '/notifications.db'
-                ],
+                disallow: COMMON_DISALLOWS,
                 crawlDelay: 1,
             },
             {
                 userAgent: 'Googlebot',
                 allow: '/',
-                disallow: [
-                    '/admin/',
-                    '/api/',
-                    '/compose/',
-                    '/settings/',
-                    '/_next/'
-                ],
+                disallow: COMMON_DISALLOWS,
                 crawlDelay: 0.5,
             },
             {
                 userAgent: 'Bingbot',
                 allow: '/',
-                disallow: [
-                    '/admin/',
-                    '/api/',
-                    '/compose/',
-                    '/settings/',
-                    '/_next/'
-                ],
+                disallow: COMMON_DISALLOWS,
                 crawlDelay: 1,
             }
         ],

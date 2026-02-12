@@ -165,6 +165,9 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       description: description,
       authors: [{ name: username }],
       applicationName: "Skatehive",
+      alternates: {
+        canonical: profileUrl,
+      },
       openGraph: {
         title: `${userData.name || username} (@${username})`,
         description: description,

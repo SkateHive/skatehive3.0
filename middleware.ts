@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+const CANONICAL_HOST = 'skatehive.app';
+
 export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
+    const host = request.headers.get('host') || '';
 
-    // Handle snap URLs: /user/username/snap/permlink
+    // 1. Redirect www → non-www (fixes 174 redirect issues in Search Console)
+    if (host.startsWith('www.')) {
+        const newUrl = new URL(request.url);
+        newUrl.host = host.replace(/^www\./, '');
+        newUrl.protocol = 'https:';
+        return NextResponse.redirect(newUrl, 301);
+    }
+
+    // 2. Handle snap URLs: /user/username/snap/permlink
     const snapMatch = url.pathname.match(/^\/user\/([^\/]+)\/snap\/([^\/]+)$/);
 
     if (snapMatch) {
@@ -22,6 +33,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-    // Match user profile snap routes
-    matcher: '/user/:username/snap/:permlink',
+    matcher: [
+        // Match all paths except static files and api routes
+        '/((?!_next/static|_next/image|favicon.ico|ogimage.png|SKATE_HIVE_VECTOR_FIN.svg|manifest.json).*)',
+    ],
 };
