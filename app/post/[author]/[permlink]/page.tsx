@@ -305,12 +305,7 @@ export async function generateMetadata({
     }
 
     const postUrl = `${DOMAIN_URL}/post/${cleanedAuthor}/${permlink}`;
-
-    //   title,
-    //   description,
-    //   bannerImage,
-    //   postUrl,
-    // });
+    const ogImage = `${DOMAIN_URL}/api/og/post/${cleanedAuthor}/${permlink}`;
 
     return {
       title: title,
@@ -326,7 +321,7 @@ export async function generateMetadata({
         url: postUrl,
         images: [
           {
-            url: bannerImage,
+            url: ogImage,
             width: 1200,
             height: 630,
           },
@@ -345,7 +340,7 @@ export async function generateMetadata({
         card: "summary_large_image",
         title: title,
         description: description,
-        images: bannerImage,
+        images: ogImage,
         site: "@skatehive",
         creator: `@${cleanedAuthor}`,
       },

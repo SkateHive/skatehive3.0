@@ -16,6 +16,7 @@ type RankedPost = {
     created?: string;
     last_update?: string;
     body?: string;
+    json_metadata?: any;
 };
 
 type FeedSnap = {
@@ -224,6 +225,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 lastModified: new Date(),
                 changeFrequency: 'weekly',
                 priority: 0.4,
+            });
+        }
+
+        // Collect unique tags from blog posts for tag pages
+        const tags = new Set<string>();
+        for (const post of blogPosts) {
+            try {
+                let meta = post.json_metadata;
+                if (typeof meta === 'string') meta = JSON.parse(meta);
+                if (Array.isArray(meta?.tags)) {
+                    for (const t of meta.tags) {
+                        if (typeof t === 'string' && t.length > 1 && t.length < 50) {
+                            tags.add(t.toLowerCase());
+                        }
+                    }
+                }
+            } catch {
+                // skip invalid metadata
+            }
+        }
+        for (const t of tags) {
+            pushUrl({
+                url: `${baseUrl}/blog/tag/${t}`,
+                lastModified: new Date(),
+                changeFrequency: 'weekly',
+                priority: 0.3,
             });
         }
 
