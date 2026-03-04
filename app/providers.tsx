@@ -16,8 +16,7 @@ import { LinkedIdentityProvider } from "@/contexts/LinkedIdentityContext";
 import { VoteWeightProvider } from "@/contexts/VoteWeightContext";
 import { WindowProvider } from "@/contexts/WindowContext";
 import { LocaleProvider } from "@/contexts/LocaleContext";
-import { AuthKitProvider } from "@farcaster/auth-kit";
-import "@farcaster/auth-kit/styles.css";
+import { ClientOnlyAuthKit } from "@/components/providers/ClientOnlyAuthKit";
 import { dynamicRainbowTheme } from "@/lib/themes/rainbowkitTheme";
 import { useState, useEffect } from "react";
 import { APP_CONFIG } from "@/config/app.config";
@@ -128,7 +127,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                         chain={base}
                         apiKey={APP_CONFIG.ONCHAINKIT_API_KEY}
                       >
-                        <AuthKitProvider config={farcasterAuthConfig}>
+                        <ClientOnlyAuthKit config={farcasterAuthConfig}>
                           <AiohaProvider aioha={aioha}>
                             <LinkedIdentityProvider>
                               <VoteWeightProvider>
@@ -140,7 +139,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                               </VoteWeightProvider>
                             </LinkedIdentityProvider>
                           </AiohaProvider>
-                        </AuthKitProvider>
+                        </ClientOnlyAuthKit>
                       </OnchainKitProvider>
                     </RainbowKitProvider>
                   </WagmiProvider>
