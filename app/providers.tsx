@@ -16,7 +16,7 @@ import { LinkedIdentityProvider } from "@/contexts/LinkedIdentityContext";
 import { VoteWeightProvider } from "@/contexts/VoteWeightContext";
 import { WindowProvider } from "@/contexts/WindowContext";
 import { LocaleProvider } from "@/contexts/LocaleContext";
-import { ClientOnlyAuthKit } from "@/components/providers/ClientOnlyAuthKit";
+// import { ClientOnlyAuthKit } from "@/components/providers/ClientOnlyAuthKit"; // Removed: not needed, auth-kit works without global provider
 import { dynamicRainbowTheme } from "@/lib/themes/rainbowkitTheme";
 import { useState, useEffect } from "react";
 import { APP_CONFIG } from "@/config/app.config";
@@ -60,30 +60,6 @@ function getWagmiConfig() {
 export const wagmiConfig = getWagmiConfig();
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  // Stable Farcaster config - use server-safe defaults, update on client mount
-  const [farcasterAuthConfig, setFarcasterAuthConfig] = useState<{
-    rpcUrl: string;
-    domain: string;
-    siweUri: string;
-    relay: string;
-  }>(() => ({
-    rpcUrl: "https://mainnet.optimism.io",
-    domain: APP_CONFIG.DOMAIN,
-    siweUri: `https://${APP_CONFIG.DOMAIN}`,
-    relay: "https://relay.farcaster.xyz",
-  }));
-
-  // Update with client-specific values after mount to avoid hydration mismatch
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setFarcasterAuthConfig(prev => ({
-        ...prev,
-        domain: window.location.host,
-        siweUri: window.location.href,
-      }));
-    }
-  }, []);
-
   // Create QueryClient inside the component to avoid SSR issues
   const [queryClient] = useState(
     () =>
@@ -127,19 +103,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
                         chain={base}
                         apiKey={APP_CONFIG.ONCHAINKIT_API_KEY}
                       >
-                        <ClientOnlyAuthKit config={farcasterAuthConfig}>
-                          <AiohaProvider aioha={aioha}>
-                            <LinkedIdentityProvider>
-                              <VoteWeightProvider>
-                                <WindowProvider>
-                                  <CSSReset />
-                                  <UserbaseWalletBootstrapper />
-                                  {children}
-                                </WindowProvider>
-                              </VoteWeightProvider>
-                            </LinkedIdentityProvider>
-                          </AiohaProvider>
-                        </ClientOnlyAuthKit>
+                        <AiohaProvider aioha={aioha}>
+                          <LinkedIdentityProvider>
+                            <VoteWeightProvider>
+                              <WindowProvider>
+                                <CSSReset />
+                                <UserbaseWalletBootstrapper />
+                                {children}
+                              </WindowProvider>
+                            </VoteWeightProvider>
+                          </LinkedIdentityProvider>
+                        </AiohaProvider>
                       </OnchainKitProvider>
                     </RainbowKitProvider>
                   </WagmiProvider>
