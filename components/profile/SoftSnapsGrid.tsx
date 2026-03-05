@@ -15,6 +15,7 @@ import { FaImage } from "react-icons/fa";
 import { useTranslations } from "@/lib/i18n/hooks";
 import VideoPreview from "./VideoPreview";
 import SnapModal from "./SnapModal";
+import { useHeicFallback } from "@/hooks/useHeicFallback";
 
 interface SoftSnapsGridProps {
   snaps: Discussion[];
@@ -99,6 +100,7 @@ const SoftSnapGridItem = React.memo(
     const firstVideo = snap.media.videos[0];
     const hasMultipleMedia =
       snap.media.images.length + snap.media.videos.length > 1;
+    const { src: imageSrc, onError: onImageError } = useHeicFallback(firstImage || "");
 
     return (
       <Box
@@ -115,12 +117,13 @@ const SoftSnapGridItem = React.memo(
       >
         {firstImage ? (
           <Image
-            src={firstImage}
+            src={imageSrc}
             alt="Snap content"
             objectFit="cover"
             width="100%"
             height="auto"
             loading="lazy"
+            onError={onImageError}
           />
         ) : firstVideo ? (
           <Box width="100%" overflow="hidden">

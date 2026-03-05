@@ -37,6 +37,7 @@ import Snap from "../homepage/Snap";
 import { UpvoteButton } from "@/components/shared";
 import { useComments } from "@/hooks/useComments";
 import HiveMarkdown from "../shared/HiveMarkdown";
+import { useHeicFallback } from "@/hooks/useHeicFallback";
 
 interface SnapWithMedia extends Discussion {
   media: {
@@ -116,6 +117,7 @@ const SnapModal = ({
   );
   const currentMedia = allMedia[currentMediaIndex];
   const isVideo = currentSnap.media.videos.includes(currentMedia);
+  const { src: mediaSrc, onError: onMediaError } = useHeicFallback(currentMedia || "");
 
   const nextMedia = useCallback(() => {
     setCurrentMediaIndex((prev) => (prev + 1) % allMedia.length);
@@ -338,13 +340,14 @@ const SnapModal = ({
               </Box>
             ) : (
               <Image
-                src={currentMedia}
+                src={mediaSrc}
                 alt="Snap content"
                 w={{ base: "100%", md: "auto" }}
                 h={{ base: "100%", md: "auto" }}
                 maxW={{ base: "none", md: "100%" }}
                 maxH={{ base: "none", md: "85vh" }}
                 objectFit={{ base: "cover", md: "contain" }}
+                onError={onMediaError}
               />
             )}
 

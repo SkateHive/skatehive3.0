@@ -14,6 +14,7 @@ import useUserSnaps from "@/hooks/useUserSnaps";
 import VideoPreview from "./VideoPreview";
 import SnapModal, { type SnapWithMedia } from "./SnapModal";
 import { preloadThumbnails } from "@/hooks/useVideoThumbnail";
+import { useHeicFallback } from "@/hooks/useHeicFallback";
 
 interface SnapsGridProps {
   username: string;
@@ -25,6 +26,7 @@ const SnapGridItem = React.memo(
     const firstVideo = snap.media.videos[0];
     const hasMultipleMedia =
       snap.media.images.length + snap.media.videos.length > 1;
+    const { src: imageSrc, onError: onImageError } = useHeicFallback(firstImage || "");
 
     return (
       <Box
@@ -41,12 +43,13 @@ const SnapGridItem = React.memo(
       >
         {firstImage ? (
           <Image
-            src={firstImage}
+            src={imageSrc}
             alt="Snap content"
             objectFit="cover"
             width="100%"
             height="auto"
             loading="lazy"
+            onError={onImageError}
           />
         ) : firstVideo ? (
           <Box width="100%" overflow="hidden">
