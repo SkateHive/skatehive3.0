@@ -65,13 +65,14 @@ const HiveProfileHeader = function HiveProfileHeader({
   // Stats row: Single horizontal line with followers + voting power bar + dollar value
   const statsRow = (
     <HStack
-      spacing={6}
+      spacing={{ base: 3, md: 6 }}
       fontSize="xs"
       fontFamily="mono"
       flexWrap="wrap"
       align="center"
       justifyContent="center"
       w="100%"
+      rowGap={2}
     >
       {/* Follower counts */}
       <Text color="text" whiteSpace="nowrap" textTransform="uppercase">
@@ -125,7 +126,7 @@ const HiveProfileHeader = function HiveProfileHeader({
       />
     ) : null;
 
-  // Follow button at bottom-left (for non-owners, including lite users who will see upgrade modal)
+  // Follow button (for non-owners, including lite users who will see upgrade modal)
   const followAction =
     !isOwner && (user || isLiteUser) ? (
       <FollowButton
@@ -140,7 +141,7 @@ const HiveProfileHeader = function HiveProfileHeader({
     ) : null;
 
   return (
-    <Box position="relative" pb={followAction ? 12 : 0}>
+    <Box position="relative">
       {/* Profile Header */}
       <ProfileHeaderWrapper
         coverImage={profileData.coverImage}
@@ -154,16 +155,10 @@ const HiveProfileHeader = function HiveProfileHeader({
             statsRow={statsRow}
             integrations={integrations}
             editButton={editIcon}
+            followButton={followAction}
           />
         }
       />
-
-      {/* Follow Button - Bottom-left outside terminal box (only for non-owners) */}
-      {followAction && (
-        <Box position="absolute" bottom={0} left={0}>
-          {followAction}
-        </Box>
-      )}
     </Box>
   );
 };

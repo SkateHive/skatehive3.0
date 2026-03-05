@@ -20,6 +20,7 @@ interface IdentityBlockProps {
   statsRow?: React.ReactNode;
   integrations?: React.ReactNode;
   editButton?: React.ReactNode;
+  followButton?: React.ReactNode;
 }
 
 /**
@@ -43,6 +44,7 @@ export default function IdentityBlock({
   statsRow,
   integrations,
   editButton,
+  followButton,
 }: IdentityBlockProps) {
   return (
     <Box position="relative" w="100%">
@@ -55,7 +57,20 @@ export default function IdentityBlock({
         p={{ base: 3, md: 4 }}
         bg="muted"
         boxShadow="0 0 5px rgba(168, 255, 96, 0.1)"
+        overflow="hidden"
       >
+        {/* Follow button - top right */}
+        {followButton && (
+          <Flex
+            position="absolute"
+            top={{ base: 2, md: 3 }}
+            right={{ base: 2, md: 3 }}
+            zIndex={10}
+          >
+            {followButton}
+          </Flex>
+        )}
+
         {/* Network folder icons - Bottom right of gray box */}
         {integrations && (
           <Flex
@@ -69,7 +84,7 @@ export default function IdentityBlock({
             {integrations}
           </Flex>
         )}
-        <Flex direction="row" align="flex-start" gap={{ base: 3, md: 4 }}>
+        <Flex direction="row" align="flex-start" gap={{ base: 3, md: 4 }} pr={followButton ? { base: "80px", md: "100px" } : undefined}>
           {/* Avatar - square, sharp edges */}
           <Box position="relative" flexShrink={0}>
             <Avatar
@@ -103,9 +118,11 @@ export default function IdentityBlock({
           {/* Text content - monospace terminal style */}
           <VStack
             align="flex-start"
-            spacing={{ base: 2, md: 3 }}
+            spacing={{ base: 1, md: 3 }}
             flex="1"
             minW={0}
+            maxW="100%"
+            overflow="hidden"
             fontFamily="mono"
           >
             {/* Name row - terminal style */}

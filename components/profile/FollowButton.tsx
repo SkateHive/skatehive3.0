@@ -104,10 +104,14 @@ export default function FollowButton({
         isDisabled={isFollowLoading}
         borderRadius="none"
         fontWeight="bold"
-        px={2}
-        py={0}
-        size="xs"
+        fontFamily="mono"
+        textTransform="uppercase"
+        fontSize="xs"
+        px={3}
+        py={1}
+        size="sm"
         variant="solid"
+        letterSpacing="wide"
       >
         {isFollowing ? "Unfollow" : "Follow"}
       </Button>
