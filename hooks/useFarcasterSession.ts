@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useProfile } from '@farcaster/auth-kit';
+
+// Conditional import to prevent SSR indexedDB errors
+let useProfile: any;
+if (typeof window !== 'undefined') {
+  useProfile = require('@farcaster/auth-kit').useProfile;
+} else {
+  // Server-side fallback - return dummy hook
+  useProfile = () => ({ isAuthenticated: false, profile: null });
+}
 
 interface FarcasterSession {
   fid: number;
