@@ -1,3 +1,49 @@
+// ---------------------------------------------------------------------------
+// Server-side polyfills for browser-only globals.
+//
+// Some dependencies (e.g. @farcaster/auth-kit → idb-keyval) access
+// `indexedDB` or `localStorage` at the module/top-level.  When Next.js
+// bundles them into a server chunk or prerenders pages, these globals
+// don't exist and the process crashes.
+//
+// We shim them here (before any Next.js code runs) so that the calls
+// silently return empty/no-op values instead of throwing.
+// ---------------------------------------------------------------------------
+
+if (typeof globalThis.indexedDB === "undefined") {
+  const noop = () => {};
+  const noopReq = (result) => {
+    const r = { result, error: null, onsuccess: null, onerror: null, oncomplete: null, onupgradeneeded: null };
+    queueMicrotask(() => { r.onsuccess?.({ target: r }); r.oncomplete?.({ target: r }); });
+    return r;
+  };
+  const noopStore = () => ({
+    get: () => noopReq(undefined), put: () => noopReq(), delete: () => noopReq(),
+    getAll: () => noopReq([]), clear: () => noopReq(), count: () => noopReq(0),
+    openCursor: () => noopReq(null), openKeyCursor: () => noopReq(null),
+  });
+  const noopTx = () => ({ objectStore: noopStore, abort: noop, commit: noop, oncomplete: null, onerror: null, onabort: null });
+  const noopDB = () => ({
+    createObjectStore: noopStore, deleteObjectStore: noop,
+    transaction: noopTx, close: noop,
+    name: "", version: 1, objectStoreNames: { length: 0, contains: () => false },
+    onclose: null, onabort: null, onerror: null, onversionchange: null,
+  });
+  globalThis.indexedDB = { open: () => noopReq(noopDB()), deleteDatabase: () => noopReq(), databases: async () => [], cmp: () => 0 };
+}
+
+if (typeof globalThis.localStorage === "undefined" || typeof globalThis.localStorage?.getItem !== "function") {
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => store.get(k) ?? null,
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: (k) => store.delete(k),
+    clear: () => store.clear(),
+    key: (i) => [...store.keys()][i] ?? null,
+    get length() { return store.size; },
+  };
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     // Production optimizations
