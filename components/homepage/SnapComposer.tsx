@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useRef, useMemo, useCallback } from "react";
 import { useTranslations } from "@/contexts/LocaleContext";
 import {

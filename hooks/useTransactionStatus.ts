@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useCallback, useEffect } from 'react';
 import { TransactionStatus, TransactionState } from '@/types/airdrop';
 
@@ -11,7 +13,12 @@ export const useTransactionStatus = (options: UseTransactionStatusOptions = {}) 
   const { persistKey, autoReset = false, resetDelay = 10000 } = options;
   
   const getInitialStatus = (): TransactionStatus => {
-    if (persistKey && typeof window !== 'undefined') {
+    if (
+      persistKey &&
+      typeof window !== 'undefined' &&
+      typeof localStorage !== 'undefined' &&
+      typeof localStorage.getItem === 'function'
+    ) {
       const saved = localStorage.getItem(`airdrop_status_${persistKey}`);
       if (saved) {
         try {
@@ -35,7 +42,12 @@ export const useTransactionStatus = (options: UseTransactionStatusOptions = {}) 
       const updated = { ...prev, ...newStatus };
       
       // Persist to localStorage if key provided
-      if (persistKey && typeof window !== 'undefined') {
+      if (
+        persistKey &&
+        typeof window !== 'undefined' &&
+        typeof localStorage !== 'undefined' &&
+        typeof localStorage.setItem === 'function'
+      ) {
         localStorage.setItem(`airdrop_status_${persistKey}`, JSON.stringify(updated));
       }
       

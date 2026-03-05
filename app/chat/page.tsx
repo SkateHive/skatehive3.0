@@ -24,6 +24,15 @@ const loadExternalScript = (src: string): Promise<void> => {
 
 // Utility: Clean only corrupted localStorage keys
 const cleanCorruptedLocalStorage = () => {
+  if (
+    typeof localStorage === "undefined" ||
+    typeof localStorage.getItem !== "function" ||
+    typeof localStorage.key !== "function" ||
+    typeof localStorage.removeItem !== "function"
+  ) {
+    return;
+  }
+
   const keysToRemove: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);

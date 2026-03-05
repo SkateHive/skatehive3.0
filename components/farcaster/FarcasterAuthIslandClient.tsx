@@ -9,7 +9,7 @@ import { Box } from "@chakra-ui/react";
 const config = {
   relay: "https://relay.farcaster.xyz",
   rpcUrl: "https://mainnet.optimism.io",
-  siweUri: APP_CONFIG.SITE_URL || "https://skatehive.app",
+  siweUri: APP_CONFIG.BASE_URL || "https://skatehive.app",
   domain: APP_CONFIG.DOMAIN || "skatehive.app",
 };
 

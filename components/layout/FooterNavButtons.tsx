@@ -63,43 +63,7 @@ export default function FooterNavButtons() {
   // Farcaster integration - use methods from island
   const farcasterMethods = useFarcasterAuthMethods();
   const { signIn, signOut, connect, reconnect, isSuccess, isError } = farcasterMethods;
-  
-  // Farcaster callbacks
-  const handleFarcasterSuccess = useCallback(({ fid, username, bio, displayName, pfpUrl }: any) => {
-    // Clear safety timeout and auth progress state first
-    clearAuthTimeout();
-    setIsFarcasterAuthInProgress(false);
 
-    // Reset Auth Kit state immediately to prevent modal reopening
-    setTimeout(() => {
-      signOut();
-    }, 100);
-
-    // Close modal and show success toast
-    safeCloseConnectionModal();
-    setTimeout(() => {
-      toast({
-        title: tAuth('connectedSuccess'),
-        description: `${tAuth('connectedSuccess')} as @${username}`,
-        status: "success",
-        duration: 3000,
-      });
-    }, 500);
-  }, [clearAuthTimeout, signOut, toast, tAuth]);
-
-  const handleFarcasterError = useCallback((error: any) => {
-    console.error("[FarcasterConnect] Auth error callback:", error);
-    // Clear safety timeout and auth progress state
-    clearAuthTimeout();
-    setIsFarcasterAuthInProgress(false);
-    safeCloseConnectionModal();
-    toast({
-      title: tAuth('connectionFailed'),
-      description: tAuth('connectionFailed') + ". " + tCommon('pleaseTryAgain'),
-      status: "error",
-      duration: 3000,
-    });
-  }, [clearAuthTimeout, toast, tAuth, tCommon]);
   const {
     isAuthenticated: isFarcasterConnected,
     profile: farcasterProfile,
@@ -119,6 +83,45 @@ export default function FooterNavButtons() {
       authTimeoutRef.current = null;
     }
   }, []);
+
+  // Farcaster callbacks
+  const handleFarcasterSuccess = useCallback(
+    ({ fid, username }: any) => {
+      clearAuthTimeout();
+      setIsFarcasterAuthInProgress(false);
+
+      setTimeout(() => {
+        signOut();
+      }, 100);
+
+      setIsConnectionModalOpen(false);
+      setTimeout(() => {
+        toast({
+          title: tAuth('connectedSuccess'),
+          description: `${tAuth('connectedSuccess')} as @${username}`,
+          status: 'success',
+          duration: 3000,
+        });
+      }, 500);
+    },
+    [clearAuthTimeout, signOut, toast, tAuth]
+  );
+
+  const handleFarcasterError = useCallback(
+    (error: any) => {
+      console.error('[FarcasterConnect] Auth error callback:', error);
+      clearAuthTimeout();
+      setIsFarcasterAuthInProgress(false);
+      setIsConnectionModalOpen(false);
+      toast({
+        title: tAuth('connectionFailed'),
+        description: tAuth('connectionFailed') + '. ' + tCommon('pleaseTryAgain'),
+        status: 'error',
+        duration: 3000,
+      });
+    },
+    [clearAuthTimeout, toast, tAuth, tCommon]
+  );
 
   // Safety timeout to reset auth progress if callbacks don't fire
   const setAuthTimeoutSafety = useCallback(() => {
