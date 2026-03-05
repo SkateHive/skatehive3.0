@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import dynamic from "next/dynamic";
 import {
   Button,
   Box,
@@ -15,8 +16,14 @@ import {
 import { useAioha } from "@aioha/react-ui";
 import { useAccount } from "wagmi";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
-import { SignInButton, useSignIn } from "@farcaster/auth-kit";
+import { useSignIn } from "@farcaster/auth-kit";
 import HiveLoginModal from "./HiveLoginModal";
+
+// Dynamic import for SignInButton to prevent SSR indexedDB errors
+const SignInButton = dynamic(
+  () => import("@farcaster/auth-kit").then((mod) => mod.SignInButton),
+  { ssr: false }
+);
 import { FaEthereum, FaHive, FaEnvelope } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
 import { Name, Avatar } from "@coinbase/onchainkit/identity";
