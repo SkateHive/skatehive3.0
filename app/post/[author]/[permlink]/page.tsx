@@ -2,8 +2,19 @@ import PostPage from "@/components/blog/PostPage";
 import HiveClient from "@/lib/hive/hiveclient";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
 import { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
+
+// Known profile tab slugs that bots/crawlers mistakenly request as
+// /post/{user}/{tab} instead of /user/{user}/{tab}.
+// Intercepting them avoids a Hive RPC call that always fails with
+// "Invalid parameters" and pollutes error logs.
+const PROFILE_TAB_SLUGS = new Set([
+  "blog", "posts", "comments", "replies", "wallet",
+  "settings", "followers", "following", "communities",
+  "engine", "notifications", "snaps",
+]);
 
 // Constants
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
@@ -218,6 +229,19 @@ function validatePermlink(permlink: any, source: string) {
 
 async function getData(user: string, permlink: string) {
   validatePermlink(permlink, "getData");
+
+  // Redirect profile-tab slugs to the correct /user route
+  if (PROFILE_TAB_SLUGS.has(permlink.toLowerCase())) {
+    const cleanUser = user.startsWith("@") ? user.slice(1) : user;
+    redirect(`/user/${cleanUser}/${permlink.toLowerCase()}`);
+  }
+
+  // Reject obviously invalid permlinks (pure numbers, single chars, etc.)
+  // Real Hive permlinks are kebab-case strings of 3+ chars
+  if (/^\d+$/.test(permlink) || permlink.length < 2) {
+    throw new Error(`Invalid permlink: "${permlink}" is not a valid Hive post slug`);
+  }
+
   try {
     const cleanUser = user.startsWith("@") ? user.slice(1) : user;
     const postContent = await HiveClient.database.call("get_content", [
