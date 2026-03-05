@@ -1,9 +1,3 @@
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     // Production optimizations
@@ -38,18 +32,7 @@ const nextConfig = {
             bodySizeLimit: '200mb', // Increase the body size limit for large video uploads
         },
     },
-
-    // Next.js 15: keep these packages external on the server
-    serverExternalPackages: ['@farcaster/auth-kit'],
     webpack: (config, { isServer, dev }) => {
-        // Replace @farcaster/auth-kit with stub on server to prevent indexedDB SSR errors
-        if (isServer) {
-            config.resolve.alias = {
-                ...config.resolve.alias,
-                '@farcaster/auth-kit': resolve(__dirname, './lib/stubs/farcaster-auth-kit-stub.js'),
-            };
-        }
-        
         if (!isServer) {
             config.resolve.fallback = {
                 fs: false,

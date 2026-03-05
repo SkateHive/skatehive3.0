@@ -2,7 +2,7 @@
 
 import { TokenDetail, blockchainDictionary } from "../../../types/portfolio";
 import { useAccount } from "wagmi";
-import { useProfile } from '@farcaster/auth-kit';
+import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { usePortfolioContext } from "../../../contexts/PortfolioContext";
 
 export type WalletSourceType = 'ethereum' | 'farcaster' | 'verified';
@@ -65,7 +65,7 @@ export function getWalletSource(tokenDetail: TokenDetail): WalletSourceInfo {
 // Hook version for legacy support where source tag is not available
 export function useWalletSource(tokenDetail: TokenDetail): WalletSourceInfo {
     const { address } = useAccount();
-    const { profile: farcasterProfile } = useProfile();
+    const { profile: farcasterProfile } = useFarcasterSession();
     const { portfolio, farcasterPortfolio, farcasterVerifiedPortfolios } = usePortfolioContext();
 
     const networkInfo = blockchainDictionary[tokenDetail.network];
