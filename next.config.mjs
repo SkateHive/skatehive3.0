@@ -32,6 +32,10 @@ const nextConfig = {
             bodySizeLimit: '200mb', // Increase the body size limit for large video uploads
         },
     },
+    
+    // Externalize packages that use browser-only APIs (indexedDB)
+    serverExternalPackages: ['@farcaster/auth-kit', 'idb'],
+    
     webpack: (config, { isServer, dev }) => {
         if (!isServer) {
             config.resolve.fallback = {
