@@ -1,3 +1,5 @@
+"use client";
+
 import { TokenDetail, blockchainDictionary } from "../../../types/portfolio";
 import { useAccount } from "wagmi";
 import { useProfile } from '@farcaster/auth-kit';

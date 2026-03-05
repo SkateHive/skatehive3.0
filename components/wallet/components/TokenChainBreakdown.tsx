@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Text, HStack, VStack, Image, Badge } from "@chakra-ui/react";
 import { ConsolidatedToken } from "../../../lib/utils/portfolioUtils";
 import { blockchainDictionary, TokenDetail } from "../../../types/portfolio";
