@@ -31,10 +31,11 @@ const jsonLdOrganization = {
   url: BASE_URL,
   logo: `${BASE_URL}/SKATE_HIVE_VECTOR_FIN.svg`,
   description:
-    "The infinity skateboard magazine - A decentralized skateboarding community on the Hive blockchain.",
+    "The infinity skateboard magazine. Post skate videos, find spots on the map, earn crypto rewards, and connect with skaters worldwide.",
   sameAs: [
     "https://twitter.com/skatehive",
     "https://warpcast.com/skatehive",
+    "https://github.com/skatehive",
   ],
 };
 
@@ -44,7 +45,7 @@ const jsonLdWebSite = {
   name: "Skatehive",
   url: BASE_URL,
   description:
-    "The infinity skateboard magazine - Discover skateboarding content, tricks, spots, and join the global skateboarding community.",
+    "Post skate videos, find spots on the map, earn crypto rewards, and connect with skaters worldwide. The decentralized skate community.",
   potentialAction: {
     "@type": "SearchAction",
     target: `${BASE_URL}/blog?query={search_term_string}`,
@@ -73,15 +74,23 @@ export const metadata: Metadata = {
     template: "%s | Skatehive",
   },
   description:
-    "The infinity skateboard magazine - Discover skateboarding content, tricks, spots, and join the global skateboarding community.",
+    "The infinity skateboard magazine. Post skate videos, find skate spots on the map, earn crypto rewards, and connect with skaters worldwide. Built on blockchain.",
   keywords: [
     "skateboarding",
     "skate",
     "skateboard",
-    "tricks",
-    "spots",
-    "community",
-    "magazine",
+    "skate videos",
+    "skate tricks",
+    "skate spots",
+    "skate map",
+    "skate community",
+    "skateboard magazine",
+    "crypto skateboarding",
+    "hive blockchain",
+    "skate spot finder",
+    "skateparks",
+    "street skating",
+    "earn skating",
   ],
   authors: [{ name: "Skatehive Community" }],
   creator: "Skatehive",
@@ -95,7 +104,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Skatehive - The Infinity Skateboard Magazine",
     description:
-      "The infinity skateboard magazine - Discover skateboarding content, tricks, spots, and join the global skateboarding community.",
+      "Post skate videos, find skate spots on the map, earn crypto rewards, and connect with skaters worldwide. The decentralized skate community.",
     url: BASE_URL,
     siteName: "Skatehive",
     images: [

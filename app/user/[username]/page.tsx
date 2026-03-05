@@ -153,10 +153,10 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
     // Create description from about text or fallback
     const description = userData.about
-      ? `${userData.about.slice(0, 128)}...`
-      : `View ${userData.name || username}'s profile on Skatehive - ${
+      ? `${userData.about.slice(0, 155).replace(/\s+\S*$/, '')}...`
+      : `${userData.name || username} is a skater on Skatehive with ${
           userData.followers
-        } followers, ${userData.following} following`;
+        } followers. Check out their skate videos, snaps, and posts.`;
 
     // Generate dynamic OpenGraph image using our gamified API
     const frameImage = `${DOMAIN_URL}/api/og/profile/${username}`;

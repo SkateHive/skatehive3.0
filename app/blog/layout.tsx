@@ -4,16 +4,27 @@ import { APP_CONFIG } from "@/config/app.config";
 const BASE_URL = APP_CONFIG.BASE_URL;
 
 export const metadata: Metadata = {
-  title: "Blog - Skateboarding Content",
+  title: "Skate Blog — Videos, Tricks, Spots & Stories from Skaters Worldwide",
   description:
-    "Browse the latest skateboarding content from the Skatehive community. Tricks, spots, tutorials, and more from skaters worldwide.",
+    "Watch skate videos, learn new tricks, discover street spots, and read stories from the global skateboarding community. New content daily from skaters around the world.",
+  keywords: [
+    "skate blog",
+    "skateboarding videos",
+    "skate tricks",
+    "skateboard blog",
+    "skate videos",
+    "street skating",
+    "skatepark videos",
+    "skateboarding community",
+    "skate content",
+  ],
   alternates: {
     canonical: `${BASE_URL}/blog`,
   },
   openGraph: {
-    title: "Skatehive Blog - Skateboarding Content",
+    title: "Skate Blog — Videos, Tricks & Stories | Skatehive",
     description:
-      "Browse the latest skateboarding content from the Skatehive community.",
+      "Watch skate videos, learn tricks, discover spots, and read stories from skaters worldwide. New content daily.",
     url: `${BASE_URL}/blog`,
     siteName: "Skatehive",
     type: "website",
@@ -22,15 +33,15 @@ export const metadata: Metadata = {
         url: "/ogimage.png",
         width: 1200,
         height: 630,
-        alt: "Skatehive Blog",
+        alt: "Skatehive Blog - Skateboarding content from around the world",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Skatehive Blog",
+    title: "Skate Blog — Videos, Tricks & Stories | Skatehive",
     description:
-      "Browse the latest skateboarding content from the Skatehive community.",
+      "Watch skate videos, learn tricks, discover spots. New content daily from skaters worldwide.",
     images: ["/ogimage.png"],
   },
 };

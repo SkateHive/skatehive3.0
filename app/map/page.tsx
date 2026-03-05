@@ -3,29 +3,38 @@ import { Metadata } from "next";
 import { APP_CONFIG } from "@/config/app.config";
 
 export const metadata: Metadata = {
-  title: "Skate Map | Find and Share Skatespots Worldwide",
+  title: "Skate Spot Map — Find Skateparks & Street Spots Near You",
   description:
-    "Discover and contribute to the Skatehive Skate Map – a collaborative tool to find, add, and share skate spots and parks near you.",
+    "Find skateparks, street spots, and DIY spots worldwide on the Skatehive Skate Map. Community-built by skaters, for skaters. Add your local spots and discover new ones to shred.",
   keywords: [
+    "skate spot map",
     "skate map",
+    "skatemap",
+    "skatespot map",
+    "find skate spots",
     "skate spot finder",
+    "skateboard map",
     "skateboarding map",
-    "global skate spots",
-    "skateparks",
+    "skateparks near me",
     "street spots",
+    "skate spots near me",
+    "global skate spots",
+    "skatepark finder",
+    "skate spot app",
     "add skate spot",
+    "DIY skate spots",
   ],
   openGraph: {
-    title: "Skate Map | Global Skatespot Finder",
+    title: "Skate Spot Map — Find Skateparks & Street Spots Worldwide",
     description:
-      "Explore skateparks and street spots submitted by skaters worldwide.",
+      "Discover skateparks, street spots, and DIY spots near you. Community-built map by skaters worldwide. Add your spots and explore new ones.",
     url: `${APP_CONFIG.BASE_URL}/map`,
     images: [
       {
         url: `${APP_CONFIG.BASE_URL}/ogimage.png`,
         width: 1200,
         height: 630,
-        alt: "Skatehive Map Open Graph Image",
+        alt: "Skatehive Skate Spot Map - Find spots worldwide",
       },
     ],
     siteName: "Skatehive",
@@ -33,9 +42,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Skate Map | Global Skatespot Finder",
+    title: "Skate Spot Map — Find Skateparks & Street Spots Near You",
     description:
-      "Explore skateparks and street spots submitted by skaters worldwide.",
+      "Community-built skate spot map. Find skateparks, street spots, and DIY spots worldwide. Add your local spots.",
     images: [`${APP_CONFIG.BASE_URL}/ogimage.png`],
   },
   alternates: {

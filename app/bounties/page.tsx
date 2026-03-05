@@ -3,21 +3,24 @@ import BountiesClient from "@/components/bounties/bountiesClient";
 import { APP_CONFIG } from "@/config/app.config";
 
 export const metadata: Metadata = {
-  title: "Bounties | Skate Trick Challenges",
+  title: "Skate Trick Bounties — Land Tricks, Earn Rewards",
   description:
-    "Submit and complete skate trick bounties. Post a challenge, submit your trick, and earn respect!",
+    "Take on skate trick challenges and earn crypto rewards. Post a bounty for any trick, submit your clip landing it, and get paid. Real challenges from real skaters.",
   keywords: [
     "skate bounties",
     "trick challenges",
-    "skateboarding",
-    "skatehive",
-    "bounty",
+    "skateboarding challenges",
+    "earn skating",
+    "skate trick contest",
+    "skateboard rewards",
+    "crypto skateboarding",
     "skate tricks",
+    "land tricks earn money",
   ],
   openGraph: {
-    title: "Bounties | Skate Trick Challenges",
+    title: "Skate Trick Bounties — Land Tricks, Earn Rewards | Skatehive",
     description:
-      "Submit and complete skate trick bounties. Post a challenge, submit your trick, and earn respect!",
+      "Take on skate trick challenges and earn crypto rewards. Post a bounty, submit your clip, get paid. Real challenges from real skaters.",
     url: `${APP_CONFIG.BASE_URL}/bounties`,
     images: [
       {
@@ -32,9 +35,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bounties | Skate Trick Challenges",
+    title: "Skate Trick Bounties — Land Tricks, Earn Rewards | Skatehive",
     description:
-      "Submit and complete skate trick bounties. Post a challenge, submit your trick, and earn respect!",
+      "Take on skate trick challenges and earn crypto rewards. Post a bounty, submit your clip, get paid.",
     images: [`${APP_CONFIG.BASE_URL}/ogimage.png`],
   },
   alternates: {
