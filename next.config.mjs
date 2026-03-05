@@ -37,8 +37,10 @@ const nextConfig = {
         serverActions: {
             bodySizeLimit: '200mb', // Increase the body size limit for large video uploads
         },
-        serverComponentsExternalPackages: ['@farcaster/auth-kit'],
     },
+
+    // Next.js 15: keep these packages external on the server
+    serverExternalPackages: ['@farcaster/auth-kit'],
     webpack: (config, { isServer, dev }) => {
         // Replace @farcaster/auth-kit with stub on server to prevent indexedDB SSR errors
         if (isServer) {
