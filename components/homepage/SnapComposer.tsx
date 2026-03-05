@@ -46,6 +46,7 @@ import { FaTimes } from "react-icons/fa";
 import ImageCompressor from "@/lib/utils/ImageCompressor";
 import { ImageCompressorRef } from "@/lib/utils/ImageCompressor";
 import imageCompression from "browser-image-compression";
+import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
 
 import GIFMakerWithSelector, {
   GIFMakerRef as GIFMakerWithSelectorRef,
@@ -739,12 +740,29 @@ const SnapComposer = React.memo(function SnapComposer({
         }
       }
       
-      if (file.type.startsWith("image/")) {
+      if (file.type.startsWith("image/") || isHeicFile(file)) {
+        // Convert HEIC/HEIF → JPEG first
+        let imageFile = file;
+        if (isHeicFile(file)) {
+          try {
+            imageFile = await convertHeicIfNeeded(file);
+          } catch (err) {
+            toast({
+              title: "HEIC conversion failed",
+              description: err instanceof Error ? err.message : String(err),
+              status: "error",
+              duration: 5000,
+              isClosable: true,
+            });
+            return;
+          }
+        }
+
         // If GIF or WEBP, use GIF/WEBP upload logic
-        if (file.type === "image/gif" || file.type === "image/webp") {
+        if (imageFile.type === "image/gif" || imageFile.type === "image/webp") {
           // Simulate input event for GIF/WEBP
           const fakeEvent = {
-            target: { files: [file] },
+            target: { files: [imageFile] },
           } as unknown as React.ChangeEvent<HTMLInputElement>;
           await handleGifWebpUpload(fakeEvent);
         } else {
@@ -755,7 +773,7 @@ const SnapComposer = React.memo(function SnapComposer({
               maxWidthOrHeight: 1920,
               useWebWorker: true,
             };
-            const compressedFile = await imageCompression(file, options);
+            const compressedFile = await imageCompression(imageFile, options);
             const url = URL.createObjectURL(compressedFile);
             await handleCompressedImageUpload(url, compressedFile.name);
             URL.revokeObjectURL(url);

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import imageCompression from "browser-image-compression";
 import { uploadToIpfs, generateVideoIframeMarkdown } from "@/lib/markdown/composeUtils";
+import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
 
 // Optimized hook with better error handling and progress tracking
 export const useImageUpload = (insertAtCursor: (content: string) => void) => {
@@ -123,20 +124,23 @@ export const useFileDropUpload = (insertAtCursor: (content: string) => void) => 
         
         const results = await Promise.allSettled(
             acceptedFiles.map(async (file) => {
-                let fileToUpload = file;
-                let fileName = file.name;
+                // Convert HEIC/HEIF → JPEG before any processing
+                let fileToUpload: File = isHeicFile(file)
+                    ? await convertHeicIfNeeded(file)
+                    : file;
+                let fileName = fileToUpload.name;
                 
                 // Image compression for non-GIF/WEBP images
-                if (file.type.startsWith("image/") && 
-                    file.type !== "image/gif" && 
-                    file.type !== "image/webp") {
+                if (fileToUpload.type.startsWith("image/") && 
+                    fileToUpload.type !== "image/gif" && 
+                    fileToUpload.type !== "image/webp") {
                     try {
                         const options = {
                             maxSizeMB: 2,
                             maxWidthOrHeight: 1920,
                             useWebWorker: true,
                         };
-                        const compressedFile = await imageCompression(file, options);
+                        const compressedFile = await imageCompression(fileToUpload, options);
                         fileToUpload = compressedFile;
                         fileName = compressedFile.name;
                     } catch (err) {
@@ -150,7 +154,7 @@ export const useFileDropUpload = (insertAtCursor: (content: string) => void) => 
                 
                 const url = await uploadToIpfs(fileToUpload, fileName);
                 
-                if (file.type.startsWith("image/")) {
+                if (fileToUpload.type.startsWith("image/")) {
                     const meaningfulCaption = fileName && fileName.trim() &&
                         !fileName.match(/\.(jpg|jpeg|png|gif|webp|mp4|mov|avi)$/i) ? fileName : "";
                     insertAtCursor(`\n![${meaningfulCaption}](${url})\n`);

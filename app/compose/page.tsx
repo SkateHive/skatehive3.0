@@ -31,6 +31,7 @@ import { generateVideoIframeMarkdown } from "@/lib/markdown/composeUtils";
 import { useDropzone } from "react-dropzone";
 import { APP_CONFIG } from "@/config/app.config";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
 
 export default function Composer() {
   const t = useTranslations();
@@ -162,16 +163,18 @@ export default function Composer() {
       
       if (!file) return;
       
-      if (file.type.startsWith('image/')) {
+      if (file.type.startsWith('image/') || isHeicFile(file)) {
         // Set state for image upload
         setIsImageUploading(true);
+        // Convert HEIC → JPEG before processing
+        const imageFile = isHeicFile(file) ? await convertHeicIfNeeded(file) : file;
         // Manually process the image file through the image upload pipeline
         const reader = new FileReader();
         reader.onload = async () => {
           const url = reader.result as string;
-          await handleImageUploadWithCaption(url, file.name, file);
+          await handleImageUploadWithCaption(url, imageFile.name, imageFile);
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(imageFile);
       } else if (file.type.startsWith('video/')) {
         // Directly pass file to video uploader's handleFile method
         if (videoUploaderRef.current) {

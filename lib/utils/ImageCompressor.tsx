@@ -6,6 +6,7 @@ import React, {
   useEffect,
 } from "react";
 import imageCompression from "browser-image-compression";
+import { isHeicFile, convertHeicIfNeeded } from "./heicToJpeg";
 
 export interface ImageCompressorProps {
   onUpload: (url: string | null, fileName?: string, originalFile?: File) => void;
@@ -25,6 +26,8 @@ const SUPPORTED_TYPES = [
   "image/svg+xml",
   "image/bmp",
   "image/tiff",
+  "image/heic",
+  "image/heif",
 ];
 
 const SUPPORTED_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "tiff", "heic", "heif"];
@@ -83,13 +86,22 @@ const ImageCompressor = forwardRef<ImageCompressorRef, ImageCompressorProps>(
         })
       );
 
-      if (!SUPPORTED_TYPES.includes(file.type)) {
-        setError(`Unsupported file type: ${file.type || fileName.split('.').pop()}. Supported types: JPEG, PNG, GIF, WebP, SVG, BMP, TIFF`);
+      // Some browsers report empty MIME for HEIC — also check extension
+      const isHeic = isHeicFile(file);
+      if (!SUPPORTED_TYPES.includes(file.type) && !isHeic) {
+        setError(`Unsupported file type: ${file.type || fileName.split('.').pop()}. Supported types: JPEG, PNG, GIF, WebP, SVG, BMP, TIFF, HEIC`);
         onUpload(null);
         return;
       }
 
       try {
+        // Convert HEIC/HEIF → JPEG before anything else
+        let processedFile = file;
+        if (isHeic) {
+          setStatus("Converting HEIC to JPEG...");
+          processedFile = await convertHeicIfNeeded(file);
+        }
+
         setStatus("Compressing image...");
         const options = {
           maxSizeMB: 2,
@@ -98,16 +110,16 @@ const ImageCompressor = forwardRef<ImageCompressorRef, ImageCompressorProps>(
         };
 
         // Skip compression for GIF, WebP, and SVG (they're already optimized)
-        if (file.type === "image/gif" || file.type === "image/webp" || file.type === "image/svg+xml") {
+        if (processedFile.type === "image/gif" || processedFile.type === "image/webp" || processedFile.type === "image/svg+xml") {
           setStatus("Preparing image...");
-          const url = URL.createObjectURL(file);
+          const url = URL.createObjectURL(processedFile);
           setBlobUrl(url);
           setStatus("Image ready!");
-          onUpload(url, file.name, file);
+          onUpload(url, processedFile.name, processedFile);
           return;
         }
 
-        const compressedFile = await imageCompression(file, options);
+        const compressedFile = await imageCompression(processedFile, options);
         if (blobUrl) {
           URL.revokeObjectURL(blobUrl);
         }
@@ -128,7 +140,7 @@ const ImageCompressor = forwardRef<ImageCompressorRef, ImageCompressorProps>(
         <input
           ref={inputRef}
           type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,image/bmp,image/tiff"
+          accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,image/bmp,image/tiff,image/heic,image/heif,.heic,.heif"
           style={{ display: "none" }}
           onChange={handleImageUpload}
           disabled={isProcessing}
