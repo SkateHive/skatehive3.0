@@ -216,6 +216,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${baseUrl}/auction`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
         { url: `${baseUrl}/magazine`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
         { url: `${baseUrl}/invite`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.4 },
+        { url: `${baseUrl}/tricks`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+        { url: `${baseUrl}/map/near-me`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
+        // Individual trick pages
+        ...['kickflip', 'heelflip', 'ollie', 'pop-shove-it', 'varial-kickflip', 'tre-flip',
+            'hardflip', 'laser-flip', 'nollie', 'manual', 'no-comply', 'boneless',
+            '50-50', 'boardslide', 'nosegrind', 'smith-grind', 'feeble', 'crooked-grind',
+            'blunt-stall', 'wallride', 'drop-in', 'rock-to-fakie', 'axle-stall',
+            'frontside-air', 'backside-air',
+        ].map(trick => ({
+            url: `${baseUrl}/tricks/${trick}`,
+            lastModified: new Date(),
+            changeFrequency: 'weekly' as const,
+            priority: 0.7,
+        })),
     ];
 
     try {
