@@ -1,4 +1,5 @@
 import { VT323 } from "next/font/google";
+import Script from "next/script";
 import RootLayoutClient from "./RootLayoutClient";
 import "./globals.css";
 import { Metadata } from "next";
@@ -6,6 +7,9 @@ import { ColorModeScript } from "@chakra-ui/react";
 import Image from "next/image";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
+
+// Google Analytics 4
+const GA_MEASUREMENT_ID = "G-M3CSHT7F03";
 // import '@aioha/react-ui/dist/build.css';
 import "@coinbase/onchainkit/styles.css";
 
@@ -161,6 +165,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Google Analytics 4 */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}');
+          `}
+        </Script>
         {/* Preconnect to IPFS gateway for faster video loading */}
         <link rel="preconnect" href={`https://${APP_CONFIG.IPFS_GATEWAY}`} />
         {/* JSON-LD structured data */}
