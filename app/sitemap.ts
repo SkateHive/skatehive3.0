@@ -237,7 +237,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 if (Array.isArray(meta?.tags)) {
                     for (const t of meta.tags) {
                         if (typeof t === 'string' && t.length > 1 && t.length < 50) {
-                            tags.add(t.toLowerCase());
+                            // Strip leading # and skip tags that are only special chars
+                            const cleaned = t.toLowerCase().replace(/^#/, '');
+                            if (cleaned && /^[a-z0-9]/.test(cleaned)) {
+                                tags.add(cleaned);
+                            }
                         }
                     }
                 }

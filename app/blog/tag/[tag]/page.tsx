@@ -43,7 +43,7 @@ function formatTagTitle(tag: string): string {
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { tag } = await props.params;
-  const decodedTag = decodeURIComponent(tag);
+  const decodedTag = decodeURIComponent(tag).replace(/^#/, '');
   const title = formatTagTitle(decodedTag);
   const tagUrl = `${BASE_URL}/blog/tag/${decodedTag}`;
 
@@ -79,7 +79,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function TagPage(props: Props) {
   const { tag } = await props.params;
-  const decodedTag = decodeURIComponent(tag);
+  const decodedTag = decodeURIComponent(tag).replace(/^#/, '');
   const title = formatTagTitle(decodedTag);
 
   const posts = await fetchPostsByTag(decodedTag);
