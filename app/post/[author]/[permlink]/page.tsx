@@ -331,11 +331,23 @@ export async function generateMetadata({
     const postUrl = `${DOMAIN_URL}/post/${cleanedAuthor}/${permlink}`;
     const ogImage = `${DOMAIN_URL}/api/og/post/${cleanedAuthor}/${permlink}`;
 
+    // Extract keywords from post tags
+    const postTags: string[] = [];
+    if (parsedMetadata) {
+      const meta = post.json_metadata;
+      const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
+      if (Array.isArray(parsed?.tags)) {
+        postTags.push(...parsed.tags.filter((t: any) => typeof t === 'string' && t.length > 1).slice(0, 10));
+      }
+    }
+    const keywords = [...new Set([...postTags, 'skateboarding', 'skatehive', cleanedAuthor])];
+
     return {
       title: title,
       description: description,
       authors: [{ name: cleanedAuthor }],
       applicationName: "Skatehive",
+      keywords,
       alternates: {
         canonical: postUrl,
       },

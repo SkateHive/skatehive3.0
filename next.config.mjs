@@ -197,6 +197,18 @@ const nextConfig = {
                 source: '/skatespots',
                 destination: '/map',
                 permanent: true,
+            },
+            // Hive community URL patterns (from Ecency/PeakD links)
+            {
+                source: '/hive-173115/@:author/:permlink',
+                destination: '/post/:author/:permlink',
+                permanent: true,
+            },
+            // Redirect /blog/tag URLs with encoded # (from old sitemap)
+            {
+                source: '/blog/tag/%23:tag',
+                destination: '/blog/tag/:tag',
+                permanent: true,
             }
         ];
     },

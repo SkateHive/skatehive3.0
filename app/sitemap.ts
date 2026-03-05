@@ -2,22 +2,36 @@ import { MetadataRoute } from 'next';
 import HiveClient from '@/lib/hive/hiveclient';
 import { APP_CONFIG, HIVE_CONFIG } from '@/config/app.config';
 
-// Aggressive sitemap — index ALL community content
-const REVALIDATE_SECONDS = 60 * 60; // 1 hour (was 30min — heavier now)
+// === CONFIG ===
+const REVALIDATE_SECONDS = 60 * 60; // 1 hour
 const BRIDGE_PAGE_SIZE = 20;
-const MAX_BLOG_POSTS = 500; // Up from 120 → 500 recent blog posts via Hive
 const SNAP_API_PAGE_SIZE = 50;
-const MAX_SNAP_PAGES = 100; // Up to 5000 snaps from API
+const MAX_SNAP_PAGES = 100;
+
+// Community posts (hive-173115)
+const MAX_COMMUNITY_POSTS = 500;
+
+// Global skate tags — posts from ALL of Hive, not just our community
+const GLOBAL_SKATE_TAGS = [
+    'skateboarding', 'skateboard', 'skate', 'skatelife',
+    'skating', 'skatepark', 'streetskating', 'sk8',
+    'skatevideo', 'kickflip', 'longboard', 'skateshop',
+    'skatetricks', 'skater', 'skateclips', 'cruiser',
+];
+const MAX_POSTS_PER_TAG = 100; // 100 posts per tag × 16 tags = up to 1600 extra posts
 
 export const revalidate = 3600;
 
-type RankedPost = {
+type HivePost = {
     author?: string;
     permlink?: string;
     created?: string;
     last_update?: string;
-    body?: string;
     json_metadata?: any;
+    pending_payout_value?: string;
+    total_payout_value?: string;
+    net_votes?: number;
+    children?: number;
 };
 
 type FeedSnap = {
@@ -25,7 +39,6 @@ type FeedSnap = {
     permlink?: string;
     created?: string;
     last_update?: string;
-    body?: string;
 };
 
 function safeDate(value?: string): Date {
@@ -42,54 +55,77 @@ function extractFeedItems(payload: any): FeedSnap[] {
     return [];
 }
 
-async function fetchRankedPosts(sort: string, tag: string, maxItems: number): Promise<RankedPost[]> {
-    const posts: RankedPost[] = [];
+/**
+ * Calculate SEO priority for a post based on engagement signals.
+ * Higher engagement = higher priority in sitemap = Google crawls it first.
+ */
+function calculatePostPriority(post: HivePost): number {
+    let score = 0.5; // base
+
+    const votes = post.net_votes || 0;
+    const comments = post.children || 0;
+
+    // Parse payout values
+    const pendingPayout = parseFloat(post.pending_payout_value?.replace(' HBD', '') || '0');
+    const totalPayout = parseFloat(post.total_payout_value?.replace(' HBD', '') || '0');
+    const payout = Math.max(pendingPayout, totalPayout);
+
+    // Engagement scoring
+    if (votes > 50) score += 0.15;
+    else if (votes > 20) score += 0.1;
+    else if (votes > 5) score += 0.05;
+
+    if (comments > 10) score += 0.1;
+    else if (comments > 3) score += 0.05;
+
+    if (payout > 10) score += 0.1;
+    else if (payout > 1) score += 0.05;
+
+    return Math.min(score, 0.9); // cap at 0.9 (1.0 = homepage only)
+}
+
+async function fetchRankedPosts(sort: string, tag: string, maxItems: number): Promise<HivePost[]> {
+    const posts: HivePost[] = [];
     const seen = new Set<string>();
     let startAuthor: string | undefined;
     let startPermlink: string | undefined;
-
     const maxPages = Math.ceil(maxItems / BRIDGE_PAGE_SIZE);
 
     for (let page = 0; page < maxPages; page += 1) {
         const limit = Math.min(BRIDGE_PAGE_SIZE, maxItems - posts.length);
         try {
-            const batch: RankedPost[] = await HiveClient.call('bridge', 'get_ranked_posts', {
-                sort,
-                tag,
-                limit,
+            const batch: HivePost[] = await HiveClient.call('bridge', 'get_ranked_posts', {
+                sort, tag, limit,
                 start_author: startAuthor || undefined,
                 start_permlink: startPermlink || undefined,
                 observer: ''
             });
-
             if (!batch?.length) break;
 
-            let addedThisBatch = 0;
+            let added = 0;
             for (const post of batch) {
                 if (!post?.author || !post?.permlink) continue;
                 const key = `${post.author}/${post.permlink}`;
                 if (seen.has(key)) continue;
                 seen.add(key);
                 posts.push(post);
-                addedThisBatch += 1;
+                added += 1;
                 if (posts.length >= maxItems) break;
             }
 
             const last = batch[batch.length - 1];
-            if (!last?.author || !last?.permlink || addedThisBatch === 0) break;
+            if (!last?.author || !last?.permlink || added === 0) break;
             startAuthor = last.author;
             startPermlink = last.permlink;
-
             if (batch.length < limit) break;
         } catch {
-            break; // Don't let one failed page break the whole sitemap
+            break;
         }
     }
-
     return posts;
 }
 
-async function fetchAllSnapsFromApi(): Promise<FeedSnap[]> {
+async function fetchAllSnaps(): Promise<FeedSnap[]> {
     const snaps: FeedSnap[] = [];
     const seen = new Set<string>();
 
@@ -97,42 +133,66 @@ async function fetchAllSnapsFromApi(): Promise<FeedSnap[]> {
         try {
             const url = `${APP_CONFIG.API_BASE_URL}/api/v2/feed?limit=${SNAP_API_PAGE_SIZE}&page=${page}`;
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout per page
-
+            const timeout = setTimeout(() => controller.abort(), 10000);
             const response = await fetch(url, {
                 next: { revalidate: REVALIDATE_SECONDS },
                 signal: controller.signal,
             });
             clearTimeout(timeout);
-
             if (!response.ok) break;
-            const payload = await response.json();
 
-            // Check total from pagination
-            const pagination = payload?.pagination;
+            const payload = await response.json();
             const batch = extractFeedItems(payload);
             if (!batch.length) break;
 
-            let addedThisBatch = 0;
+            let added = 0;
             for (const snap of batch) {
                 if (!snap?.author || !snap?.permlink) continue;
                 const key = `${snap.author}/${snap.permlink}`;
                 if (seen.has(key)) continue;
                 seen.add(key);
                 snaps.push(snap);
-                addedThisBatch += 1;
+                added += 1;
             }
 
-            if (addedThisBatch === 0 || batch.length < SNAP_API_PAGE_SIZE) break;
-
-            // If pagination says no next page, stop
-            if (pagination && !pagination.hasNextPage) break;
+            if (added === 0 || batch.length < SNAP_API_PAGE_SIZE) break;
+            if (payload?.pagination && !payload.pagination.hasNextPage) break;
         } catch {
-            break; // Timeout or error — stop paginating, use what we have
+            break;
+        }
+    }
+    return snaps;
+}
+
+/**
+ * Fetch posts from global skate tags across ALL of Hive blockchain.
+ * This is the key SEO strategy — aggregate all skate content as indexable pages.
+ */
+async function fetchGlobalSkatePosts(): Promise<HivePost[]> {
+    const allPosts: HivePost[] = [];
+    const seen = new Set<string>();
+
+    // Fetch from each tag in parallel (batches of 4 to not overload the API)
+    for (let i = 0; i < GLOBAL_SKATE_TAGS.length; i += 4) {
+        const batch = GLOBAL_SKATE_TAGS.slice(i, i + 4);
+        const results = await Promise.allSettled(
+            batch.map(tag => fetchRankedPosts('created', tag, MAX_POSTS_PER_TAG))
+        );
+
+        for (const result of results) {
+            if (result.status === 'fulfilled') {
+                for (const post of result.value) {
+                    if (!post?.author || !post?.permlink) continue;
+                    const key = `${post.author}/${post.permlink}`;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    allPosts.push(post);
+                }
+            }
         }
     }
 
-    return snaps;
+    return allPosts;
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -148,84 +208,54 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Static pages
     const staticPages: MetadataRoute.Sitemap = [
-        {
-            url: baseUrl,
-            lastModified: new Date(),
-            changeFrequency: 'daily',
-            priority: 1,
-        },
-        {
-            url: `${baseUrl}/blog`,
-            lastModified: new Date(),
-            changeFrequency: 'daily',
-            priority: 0.9,
-        },
-        {
-            url: `${baseUrl}/leaderboard`,
-            lastModified: new Date(),
-            changeFrequency: 'weekly',
-            priority: 0.7,
-        },
-        {
-            url: `${baseUrl}/bounties`,
-            lastModified: new Date(),
-            changeFrequency: 'daily',
-            priority: 0.7,
-        },
-        {
-            url: `${baseUrl}/auction`,
-            lastModified: new Date(),
-            changeFrequency: 'daily',
-            priority: 0.7,
-        },
-        {
-            url: `${baseUrl}/map`,
-            lastModified: new Date(),
-            changeFrequency: 'weekly',
-            priority: 0.8, // Bumped — highest SEO value page
-        },
-        {
-            url: `${baseUrl}/magazine`,
-            lastModified: new Date(),
-            changeFrequency: 'weekly',
-            priority: 0.6,
-        },
-        {
-            url: `${baseUrl}/invite`,
-            lastModified: new Date(),
-            changeFrequency: 'monthly',
-            priority: 0.4,
-        },
+        { url: baseUrl, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
+        { url: `${baseUrl}/blog`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+        { url: `${baseUrl}/map`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+        { url: `${baseUrl}/leaderboard`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 },
+        { url: `${baseUrl}/bounties`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
+        { url: `${baseUrl}/auction`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
+        { url: `${baseUrl}/magazine`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
+        { url: `${baseUrl}/invite`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.4 },
     ];
 
     try {
         const tag = HIVE_CONFIG.COMMUNITY_TAG;
-        if (!tag) {
-            throw new Error('Missing Hive community tag for sitemap');
-        }
+        if (!tag) throw new Error('Missing Hive community tag');
 
         staticPages.forEach(pushUrl);
 
-        // Fetch blog posts from Hive AND all snaps from API in parallel
-        const [blogPosts, feedSnaps] = await Promise.all([
-            fetchRankedPosts('created', tag, MAX_BLOG_POSTS),
-            fetchAllSnapsFromApi(),
+        // Fetch ALL content sources in parallel
+        const [communityPosts, feedSnaps, globalPosts] = await Promise.all([
+            fetchRankedPosts('created', tag, MAX_COMMUNITY_POSTS),
+            fetchAllSnaps(),
+            fetchGlobalSkatePosts(),
         ]);
 
-        console.log(`[Sitemap] Fetched ${blogPosts.length} blog posts + ${feedSnaps.length} snaps`);
+        console.log(`[Sitemap] Community: ${communityPosts.length} | Snaps: ${feedSnaps.length} | Global skate: ${globalPosts.length}`);
 
-        // Blog posts — full articles get higher priority
-        for (const post of blogPosts) {
+        // Community blog posts (highest priority — our own community)
+        for (const post of communityPosts) {
             if (!post?.author || !post?.permlink) continue;
             pushUrl({
                 url: `${baseUrl}/post/${post.author}/${post.permlink}`,
                 lastModified: safeDate(post.created || post.last_update),
                 changeFrequency: 'monthly',
-                priority: 0.6, // Bumped from 0.5
+                priority: calculatePostPriority(post),
             });
         }
 
-        // Snaps — shorter content but still valuable
+        // Global skate posts from all of Hive (lower base priority but engagement-boosted)
+        for (const post of globalPosts) {
+            if (!post?.author || !post?.permlink) continue;
+            pushUrl({
+                url: `${baseUrl}/post/${post.author}/${post.permlink}`,
+                lastModified: safeDate(post.created || post.last_update),
+                changeFrequency: 'monthly',
+                priority: Math.max(0.3, calculatePostPriority(post) - 0.1), // slightly lower than community
+            });
+        }
+
+        // Snaps
         for (const snap of feedSnaps) {
             if (!snap?.author || !snap?.permlink) continue;
             pushUrl({
@@ -236,9 +266,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             });
         }
 
-        // Collect unique author profiles
+        // Unique author profiles
         const authors = new Set<string>();
-        for (const post of blogPosts) {
+        for (const post of [...communityPosts, ...globalPosts]) {
             if (post?.author) authors.add(post.author);
         }
         for (const snap of feedSnaps) {
@@ -253,9 +283,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             });
         }
 
-        // Collect unique tags from blog posts
+        // Tag pages — from community posts + global skate tags
         const tags = new Set<string>();
-        for (const post of blogPosts) {
+        for (const post of [...communityPosts, ...globalPosts]) {
             try {
                 let meta = post.json_metadata;
                 if (typeof meta === 'string') meta = JSON.parse(meta);
@@ -269,9 +299,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                         }
                     }
                 }
-            } catch {
-                // skip invalid metadata
-            }
+            } catch { /* skip */ }
+        }
+        // Also add the global skate tags themselves
+        for (const t of GLOBAL_SKATE_TAGS) {
+            tags.add(t);
         }
         for (const t of tags) {
             pushUrl({
@@ -282,7 +314,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             });
         }
 
-        console.log(`[Sitemap] Total URLs: ${urls.length}`);
+        console.log(`[Sitemap] Total URLs: ${urls.length} (${authors.size} authors, ${tags.size} tags)`);
         return urls;
     } catch (error) {
         console.error('Error generating sitemap:', error);
