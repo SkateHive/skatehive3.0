@@ -1,3 +1,9 @@
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     // Production optimizations
@@ -37,7 +43,7 @@ const nextConfig = {
         if (isServer) {
             config.resolve.alias = {
                 ...config.resolve.alias,
-                '@farcaster/auth-kit': require.resolve('./lib/stubs/farcaster-auth-kit-stub.js'),
+                '@farcaster/auth-kit': resolve(__dirname, './lib/stubs/farcaster-auth-kit-stub.js'),
             };
         }
         
