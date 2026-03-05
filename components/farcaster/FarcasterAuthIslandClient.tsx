@@ -1,7 +1,8 @@
 "use client";
 
 import { AuthKitProvider, SignInButton, useSignIn } from "@farcaster/auth-kit";
-import "@farcaster/auth-kit/styles.css";
+// CSS import removed - it was processed at build time even with dynamic ssr:false,
+// potentially including auth-kit side-effects in server bundle
 import { APP_CONFIG } from "@/config/app.config";
 import { useEffect } from "react";
 import { Box } from "@chakra-ui/react";
