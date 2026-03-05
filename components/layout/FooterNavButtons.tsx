@@ -20,7 +20,7 @@ import HiveLoginModal from "./HiveLoginModal";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { useFarcasterMiniapp } from "@/hooks/useFarcasterMiniapp";
-import { useFarcasterAuth as useSignIn } from "@/hooks/useFarcasterAuth";
+import { FarcasterAuthIsland, useFarcasterAuthMethods } from "@/components/farcaster/FarcasterAuthIsland";
 import { useTranslations } from "@/lib/i18n/hooks";
 import ConnectionModal from "./ConnectionModal";
 import {
@@ -60,46 +60,46 @@ export default function FooterNavButtons() {
   const tCommon = useTranslations('common');
   const tAuth = useTranslations('auth');
 
-  // Farcaster integration with proper callbacks and mobile detection
-  const { signIn, signOut, connect, reconnect, isSuccess, isError } = useSignIn(
-    {
-      onSuccess: ({ fid, username, bio, displayName, pfpUrl }) => {
-        // Clear safety timeout and auth progress state first
-        clearAuthTimeout();
-        setIsFarcasterAuthInProgress(false);
+  // Farcaster integration - use methods from island
+  const farcasterMethods = useFarcasterAuthMethods();
+  const { signIn, signOut, connect, reconnect, isSuccess, isError } = farcasterMethods;
+  
+  // Farcaster callbacks
+  const handleFarcasterSuccess = useCallback(({ fid, username, bio, displayName, pfpUrl }: any) => {
+    // Clear safety timeout and auth progress state first
+    clearAuthTimeout();
+    setIsFarcasterAuthInProgress(false);
 
-        // Reset Auth Kit state immediately to prevent modal reopening
-        setTimeout(() => {
-          signOut();
-        }, 100);
+    // Reset Auth Kit state immediately to prevent modal reopening
+    setTimeout(() => {
+      signOut();
+    }, 100);
 
-        // Close modal and show success toast
-        safeCloseConnectionModal();
-        setTimeout(() => {
-          toast({
-            title: tAuth('connectedSuccess'),
-            description: `${tAuth('connectedSuccess')} as @${username}`,
-            status: "success",
-            duration: 3000,
-          });
-        }, 500);
-      },
-      onError: (error) => {
-        console.error("[FarcasterConnect] Auth error callback:", error);
-        // Clear safety timeout and auth progress state
-        clearAuthTimeout();
-        setIsFarcasterAuthInProgress(false);
-        safeCloseConnectionModal();
-        toast({
-          title: tAuth('connectionFailed'),
-          description: tAuth('connectionFailed') + ". " + tCommon('pleaseTryAgain'),
-          status: "error",
-          duration: 3000,
-        });
-      },
-      onStatusResponse: (res) => {},
-    }
-  );
+    // Close modal and show success toast
+    safeCloseConnectionModal();
+    setTimeout(() => {
+      toast({
+        title: tAuth('connectedSuccess'),
+        description: `${tAuth('connectedSuccess')} as @${username}`,
+        status: "success",
+        duration: 3000,
+      });
+    }, 500);
+  }, [clearAuthTimeout, signOut, toast, tAuth]);
+
+  const handleFarcasterError = useCallback((error: any) => {
+    console.error("[FarcasterConnect] Auth error callback:", error);
+    // Clear safety timeout and auth progress state
+    clearAuthTimeout();
+    setIsFarcasterAuthInProgress(false);
+    safeCloseConnectionModal();
+    toast({
+      title: tAuth('connectionFailed'),
+      description: tAuth('connectionFailed') + ". " + tCommon('pleaseTryAgain'),
+      status: "error",
+      duration: 3000,
+    });
+  }, [clearAuthTimeout, toast, tAuth, tCommon]);
   const {
     isAuthenticated: isFarcasterConnected,
     profile: farcasterProfile,
@@ -1080,6 +1080,13 @@ export default function FooterNavButtons() {
         // Pass the actual connection states to avoid hook duplication
         actualFarcasterConnection={actualFarcasterConnection}
         actualFarcasterProfile={actualFarcasterProfile}
+      />
+      {/* Farcaster Auth Island (hidden, provides auth methods via window) */}
+      <FarcasterAuthIsland
+        hidden
+        renderButton
+        onSuccess={handleFarcasterSuccess}
+        onError={handleFarcasterError}
       />
     </>
   );

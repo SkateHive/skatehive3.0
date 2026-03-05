@@ -25,7 +25,7 @@ import { useAccount, useDisconnect } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { useFarcasterMiniapp } from "@/hooks/useFarcasterMiniapp";
-import { useFarcasterAuth as useSignIn } from "@/hooks/useFarcasterAuth";
+import { useFarcasterAuthMethods } from "@/components/farcaster/FarcasterAuthIsland";
 import { FaEthereum, FaHive, FaLink } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
@@ -266,7 +266,7 @@ export default function ConnectionModal({
   const { isAuthenticated: isFarcasterConnected, clearSession } =
     useFarcasterSession();
   const { isInMiniapp, user: miniappUser } = useFarcasterMiniapp();
-  const { signOut } = useSignIn({});
+  const { signOut } = useFarcasterAuthMethods();
 
   // Use passed props if available, otherwise fall back to hook values
   const finalFarcasterConnection =
