@@ -201,11 +201,22 @@ const nextConfig = {
         ];
     },
     async headers() {
+        // Block search engine indexing on non-production deployments
+        // (dev.skatehive.app, preview branches, etc.) to avoid duplicate content
+        const isProduction = process.env.VERCEL_ENV === 'production';
+        const noIndexHeaders = !isProduction ? [
+            {
+                key: 'X-Robots-Tag',
+                value: 'noindex, nofollow',
+            },
+        ] : [];
+
         return [
             {
                 // Apply headers to all routes
                 source: '/(.*)',
                 headers: [
+                    ...noIndexHeaders,
                     {
                         // Allow embedding in any iframe (for Farcaster frames and embeds)
                         key: 'X-Frame-Options',
