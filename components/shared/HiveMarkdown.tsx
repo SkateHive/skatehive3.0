@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import markdownRenderer from "@/lib/markdown/MarkdownRenderer";
 import SkateErrorBoundary from "./SkateErrorBoundary";
 import { Skeleton } from "@chakra-ui/react";
+import { observeHeicImages } from "@/lib/utils/heicImageFallback";
 
 interface HiveMarkdownProps {
   markdown: string;
@@ -22,6 +23,13 @@ const HiveMarkdown: React.FC<HiveMarkdownProps> = ({
   const [renderedHtml, setRenderedHtml] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const lastProcessedRef = useRef<{ markdown: string; disableAutoplay: boolean; html: string } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Observe the container for HEIC images and convert them on the fly
+  useEffect(() => {
+    if (!containerRef.current || isLoading) return;
+    return observeHeicImages(containerRef.current);
+  }, [renderedHtml, isLoading]);
 
   useEffect(() => {
     // Skip full processing for rawIframes mode - handled by useMemo below
@@ -181,7 +189,7 @@ const HiveMarkdown: React.FC<HiveMarkdownProps> = ({
   if (rawIframes) {
     return (
       <SkateErrorBoundary>
-        <div className={className} style={style}>
+        <div ref={containerRef} className={className} style={style}>
           {rawIframesContent}
         </div>
       </SkateErrorBoundary>
@@ -191,6 +199,7 @@ const HiveMarkdown: React.FC<HiveMarkdownProps> = ({
   return (
     <SkateErrorBoundary>
       <div
+        ref={containerRef}
         className={className}
         style={style}
         dangerouslySetInnerHTML={{ __html: renderedHtml }}
