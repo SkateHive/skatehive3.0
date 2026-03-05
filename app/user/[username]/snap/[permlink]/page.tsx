@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import HiveClient from '@/lib/hive/hiveclient';
 import { Discussion } from '@hiveio/dhive';
 import { APP_CONFIG } from '@/config/app.config';
@@ -11,13 +12,23 @@ interface Props {
     }>;
 }
 
+// Known bot user agents that need full HTML content for indexing
+const BOT_UA_PATTERNS = [
+    'googlebot', 'bingbot', 'yandex', 'baiduspider', 'duckduckbot',
+    'slurp', 'facebookexternalhit', 'twitterbot', 'linkedinbot',
+    'whatsapp', 'telegrambot', 'discordbot', 'applebot',
+];
+
+function isBot(userAgent: string): boolean {
+    const ua = userAgent.toLowerCase();
+    return BOT_UA_PATTERNS.some(bot => ua.includes(bot));
+}
+
 // Server-side function to fetch post data with caching
 async function fetchPostData(username: string, permlink: string): Promise<Discussion | null> {
     try {
-        // Try with username as author (most likely case for clean URLs)
         const postContent = await HiveClient.database.call('get_content', [username, permlink]);
 
-        // Check if we got a valid post back
         if (postContent && postContent.permlink === permlink) {
             return postContent as Discussion;
         }
@@ -29,12 +40,25 @@ async function fetchPostData(username: string, permlink: string): Promise<Discus
     }
 }
 
+// Clean markdown for description
+function cleanBodyForDescription(body: string): string {
+    return body
+        .replace(/!\[.*?\]\(.*?\)/g, '')       // Remove image markdown
+        .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '') // Remove iframes
+        .replace(/<[^>]*>/g, '')               // Remove HTML tags
+        .replace(/^#{1,6}\s+/gm, '')           // Remove headers
+        .replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1') // Remove bold/italic
+        .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')  // Remove links, keep text
+        .replace(/\n\s*\n/g, ' ')              // Remove extra line breaks
+        .replace(/\s{2,}/g, ' ')               // Collapse spaces
+        .trim();
+}
+
 // Server-side metadata generation
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { username, permlink } = await params;
 
     try {
-        // Fetch the post/snap data from Hive blockchain
         const post = await fetchPostData(username, permlink);
 
         if (!post) {
@@ -49,15 +73,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         const imageUrl = imageMatch ? imageMatch[1] : null;
 
         // Clean the body text for description
-        const cleanBody = post.body
-            .replace(/!\[.*?\]\(.*?\)/g, '') // Remove image markdown
-            .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '') // Remove iframes
-            .replace(/\n\s*\n/g, ' ') // Remove extra line breaks
-            .trim()
-            .substring(0, 160); // Limit to 160 characters
+        const cleanBody = cleanBodyForDescription(post.body);
+        const descText = cleanBody.length > 155
+            ? `${cleanBody.slice(0, 155).replace(/\s+\S*$/, '')}...`
+            : cleanBody;
 
-        const title = `${post.author}'s Snap - SkateHive`;
-        const description = cleanBody || `Check out this awesome snap by @${post.author} on SkateHive`;
+        const title = post.title
+            ? `${post.title} - @${post.author} | SkateHive`
+            : `Snap by @${post.author} | SkateHive`;
+        const description = descText || `Check out this snap by @${post.author} on SkateHive - the decentralized skateboarding community.`;
         const url = `${APP_CONFIG.ORIGIN}/user/${username}/snap/${permlink}`;
 
         return {
@@ -68,6 +92,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
                 description,
                 url,
                 type: 'article',
+                siteName: 'SkateHive',
                 images: imageUrl ? [
                     {
                         url: imageUrl,
@@ -75,7 +100,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
                         height: 630,
                         alt: `Snap by ${post.author}`,
                     }
-                ] : [],
+                ] : [{
+                    url: `${APP_CONFIG.ORIGIN}/ogimage.png`,
+                    width: 1200,
+                    height: 630,
+                    alt: 'SkateHive',
+                }],
                 authors: [post.author],
                 publishedTime: post.created,
             },
@@ -83,7 +113,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
                 card: 'summary_large_image',
                 title,
                 description,
-                images: imageUrl ? [imageUrl] : [],
+                images: imageUrl ? [imageUrl] : [`${APP_CONFIG.ORIGIN}/ogimage.png`],
                 creator: `@${post.author}`,
             },
             alternates: {
@@ -94,16 +124,67 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         console.error('Error generating metadata for snap:', error);
         return {
             title: 'SkateHive Snap',
-            description: 'Share your skate content on SkateHive',
+            description: 'Share your skate content on SkateHive - the decentralized skateboarding community.',
         };
     }
 }
 
-// This page component redirects to the profile with modal open
+// Render content for bots, redirect for users
 export default async function SnapPage({ params }: Props) {
     const { username, permlink } = await params;
+    const headersList = await headers();
+    const userAgent = headersList.get('user-agent') || '';
 
-    // Redirect to the profile page with view=snaps and snap parameter
-    // The client-side code will detect the URL structure and open the modal
-    redirect(`/user/${username}?view=snaps&snap=${permlink}`);
+    // For regular users: redirect to profile with snap modal
+    if (!isBot(userAgent)) {
+        redirect(`/user/${username}?view=snaps&snap=${permlink}`);
+    }
+
+    // For bots: render actual content so they can index it
+    const post = await fetchPostData(username, permlink);
+
+    if (!post) {
+        redirect(`/user/${username}?view=snaps`);
+    }
+
+    // Extract images from body
+    const imageMatches = post.body.match(/!\[.*?\]\((https?:\/\/[^\)]+)\)/g) || [];
+    const imageUrls = imageMatches.map((img: string) => {
+        const match = img.match(/\((https?:\/\/[^\)]+)\)/);
+        return match ? match[1] : '';
+    }).filter(Boolean);
+
+    const cleanBody = cleanBodyForDescription(post.body);
+
+    return (
+        <article
+            style={{
+                maxWidth: '600px',
+                margin: '0 auto',
+                padding: '20px',
+                fontFamily: 'system-ui, sans-serif',
+            }}
+        >
+            <h1>{post.title || `Snap by @${post.author}`}</h1>
+            <p style={{ color: '#666', fontSize: '14px' }}>
+                Posted by <strong>@{post.author}</strong> on {new Date(post.created).toLocaleDateString()}
+            </p>
+            {imageUrls[0] && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    src={imageUrls[0]}
+                    alt={`Snap by ${post.author}`}
+                    style={{ maxWidth: '100%', height: 'auto' }}
+                />
+            )}
+            <div>
+                <p>{cleanBody}</p>
+            </div>
+            <footer style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
+                <p>
+                    View on <a href={`${APP_CONFIG.ORIGIN}/user/${username}?view=snaps&snap=${permlink}`}>SkateHive</a>
+                </p>
+            </footer>
+        </article>
+    );
 }

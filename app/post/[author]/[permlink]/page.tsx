@@ -301,8 +301,8 @@ export async function generateMetadata({
     // Clean the post body of markdown and HTML syntax before creating description
     const cleanedBody = cleanTextForDescription(post.body || "");
     const description = cleanedBody
-      ? `${cleanedBody.slice(0, 128)}...`
-      : "No description available";
+      ? `${cleanedBody.slice(0, 155).replace(/\s+\S*$/, '')}...`
+      : `Skateboarding post by @${cleanedAuthor} on Skatehive - the decentralized skate community.`;
 
     // Extract images from markdown using regex (similar to old approach)
     const images = post.body ? post.body.match(/!\[.*?\]\((.*?)\)/g) : [];
