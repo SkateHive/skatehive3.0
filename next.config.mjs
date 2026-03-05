@@ -1,3 +1,9 @@
+import { fileURLToPath } from 'url';
+import { dirname, resolve as pathResolve } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = dirname(__filename);
+
 // ---------------------------------------------------------------------------
 // Server-side polyfills for browser-only globals.
 //
@@ -79,6 +85,16 @@ const nextConfig = {
         },
     },
     webpack: (config, { isServer, dev }) => {
+        // On the server, replace idb-keyval with a no-op stub so that
+        // indexedDB.open() is never called.  The real idb-keyval will
+        // still be used on the client.
+        if (isServer) {
+            config.resolve.alias = {
+                ...config.resolve.alias,
+                'idb-keyval': pathResolve(__dirname, 'lib/stubs/idb-keyval-server.js'),
+            };
+        }
+
         if (!isServer) {
             config.resolve.fallback = {
                 fs: false,
