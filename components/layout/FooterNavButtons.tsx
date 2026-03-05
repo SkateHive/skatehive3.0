@@ -20,7 +20,7 @@ import HiveLoginModal from "./HiveLoginModal";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { useFarcasterMiniapp } from "@/hooks/useFarcasterMiniapp";
-import { useSignIn } from "@farcaster/auth-kit";
+import { useFarcasterAuth as useSignIn } from "@/hooks/useFarcasterAuth";
 import { useTranslations } from "@/lib/i18n/hooks";
 import ConnectionModal from "./ConnectionModal";
 import {

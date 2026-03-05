@@ -25,7 +25,7 @@ import { useAccount, useDisconnect } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { useFarcasterMiniapp } from "@/hooks/useFarcasterMiniapp";
-import { useSignIn } from "@farcaster/auth-kit";
+import { useFarcasterAuth as useSignIn } from "@/hooks/useFarcasterAuth";
 import { FaEthereum, FaHive, FaLink } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";

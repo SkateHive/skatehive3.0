@@ -4,7 +4,13 @@ import { useFarcasterMiniapp } from "@/hooks/useFarcasterMiniapp";
 import FarcasterMiniappWallet from "./FarcasterMiniappWallet";
 import { Box, Text, VStack, Spinner, useToast } from "@chakra-ui/react";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
-import { SignInButton } from "@farcaster/auth-kit";
+import dynamic from "next/dynamic";
+
+// Dynamic import to prevent SSR indexedDB errors
+const SignInButton = dynamic(
+  () => import("@farcaster/auth-kit").then(mod => mod.SignInButton),
+  { ssr: false, loading: () => <Spinner size="sm" /> }
+);
 
 interface FarcasterUniversalWalletProps {
   hiveUsername?: string;
