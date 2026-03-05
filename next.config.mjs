@@ -33,6 +33,14 @@ const nextConfig = {
         },
     },
     webpack: (config, { isServer, dev }) => {
+        // Replace @farcaster/auth-kit with stub on server to prevent indexedDB SSR errors
+        if (isServer) {
+            config.resolve.alias = {
+                ...config.resolve.alias,
+                '@farcaster/auth-kit': require.resolve('./lib/stubs/farcaster-auth-kit-stub.js'),
+            };
+        }
+        
         if (!isServer) {
             config.resolve.fallback = {
                 fs: false,
