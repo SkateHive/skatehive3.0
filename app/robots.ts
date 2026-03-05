@@ -26,19 +26,16 @@ export default function robots(): MetadataRoute.Robots {
                 userAgent: '*',
                 allow: '/',
                 disallow: COMMON_DISALLOWS,
-                crawlDelay: 1,
             },
             {
                 userAgent: 'Googlebot',
                 allow: '/',
                 disallow: COMMON_DISALLOWS,
-                crawlDelay: 0.5,
             },
             {
                 userAgent: 'Bingbot',
                 allow: '/',
                 disallow: COMMON_DISALLOWS,
-                crawlDelay: 1,
             }
         ],
         sitemap: `${APP_CONFIG.BASE_URL}/sitemap.xml`,
