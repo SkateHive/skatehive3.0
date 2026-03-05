@@ -5,6 +5,7 @@ import "@farcaster/auth-kit/styles.css";
 import { APP_CONFIG } from "@/config/app.config";
 import { useEffect } from "react";
 import { Box } from "@chakra-ui/react";
+import { saveFarcasterSession } from "@/hooks/useFarcasterSession";
 
 const config = {
   relay: "https://relay.farcaster.xyz",
@@ -55,6 +56,19 @@ export default function FarcasterAuthIslandClient({
     validSignature,
   } = useSignIn({
     onSuccess: (res: any) => {
+      // Save session to localStorage for useFarcasterSession hook
+      if (res?.fid && res?.username) {
+        saveFarcasterSession({
+          fid: res.fid,
+          username: res.username,
+          pfpUrl: res.pfpUrl,
+          bio: res.bio,
+          displayName: res.displayName,
+          custody: res.custody,
+          verifications: res.verifications,
+        });
+      }
+      
       onSuccess?.(res);
     },
     onError: (err: any) => {

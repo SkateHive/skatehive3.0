@@ -2,14 +2,16 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 
-// Conditional import to prevent SSR indexedDB errors
-let useProfile: any;
-if (typeof window !== 'undefined') {
-  useProfile = require('@farcaster/auth-kit').useProfile;
-} else {
-  // Server-side fallback - return dummy hook
-  useProfile = () => ({ isAuthenticated: false, profile: null });
-}
+/**
+ * Farcaster session hook that reads ONLY from localStorage.
+ * 
+ * CRITICAL: This hook must NOT import or depend on @farcaster/auth-kit
+ * in any way (not even dynamic require), because that would bundle
+ * auth-kit code into the server chunk and cause indexedDB errors.
+ * 
+ * Session data is persisted to localStorage by FarcasterAuthIslandClient
+ * when auth succeeds. This hook only reads from localStorage.
+ */
 
 interface FarcasterSession {
   fid: number;
@@ -33,38 +35,9 @@ const SESSION_KEY = 'farcaster_session';
 const SESSION_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export function useFarcasterSession() {
-  const { isAuthenticated, profile } = useProfile();
+  const [sessionData, setSessionData] = useState<FarcasterSession | null>(null);
   const [hasPersistedSession, setHasPersistedSession] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
-  const [sessionData, setSessionData] = useState<FarcasterSession | null>(null);
-
-  // Save session to localStorage when authenticated
-  useEffect(() => {
-    if (isAuthenticated && profile?.fid && profile?.username) {
-      const session: FarcasterSession = {
-        fid: profile.fid,
-        username: profile.username,
-        pfpUrl: profile.pfpUrl,
-        bio: profile.bio,
-        displayName: profile.displayName,
-        custody: profile.custody,
-        verifications: profile.verifications,
-        timestamp: Date.now(),
-      };
-      
-      // Avoid unnecessary localStorage writes and state updates
-      const currentSessionString = localStorage.getItem(SESSION_KEY);
-      const newSessionString = JSON.stringify(session);
-      
-      if (currentSessionString !== newSessionString) {
-        localStorage.setItem(SESSION_KEY, newSessionString);
-        setSessionData(session);
-        if (!hasPersistedSession) {
-          setHasPersistedSession(true);
-        }
-      }
-    }
-  }, [isAuthenticated, profile?.fid, profile?.username, hasPersistedSession]);
 
   // Restore session from localStorage on mount
   useEffect(() => {
@@ -102,7 +75,6 @@ export function useFarcasterSession() {
 
   // Clear session on sign out
   const clearSession = useCallback(() => {
-    
     // Clear localStorage
     localStorage.removeItem(SESSION_KEY);
     
@@ -121,7 +93,7 @@ export function useFarcasterSession() {
     // Update state
     setHasPersistedSession(false);
     setSessionData(null);
-  }, [hasPersistedSession]);
+  }, []);
 
   // Get persisted session data
   const getPersistedSession = useCallback((): FarcasterSession | null => {
@@ -146,28 +118,50 @@ export function useFarcasterSession() {
     return null;
   }, [sessionData]);
 
-  // Memoize the final authentication state
-  const finalIsAuthenticated = useMemo(() => {
-    return isAuthenticated || hasPersistedSession;
-  }, [isAuthenticated, hasPersistedSession]);
+  // Compute authentication state from persisted session
+  const isAuthenticated = useMemo(() => {
+    return hasPersistedSession && sessionData !== null;
+  }, [hasPersistedSession, sessionData]);
 
-  // Memoize the profile computation
-  const computedProfile = useMemo(() => {
-    // Prioritize Auth Kit profile if available
-    if (isAuthenticated && profile) return profile;
-    // Fall back to persisted session data
-    if (hasPersistedSession && sessionData) return sessionData;
-    // No profile available
-    return null;
-  }, [isAuthenticated, profile, hasPersistedSession, sessionData]);
+  // Profile is just the session data
+  const profile = useMemo(() => {
+    return sessionData;
+  }, [sessionData]);
 
 
   return {
-    isAuthenticated: finalIsAuthenticated,
-    profile: computedProfile,
+    isAuthenticated,
+    profile,
     hasPersistedSession,
     isRestoring,
     clearSession,
     getPersistedSession,
   };
+}
+
+/**
+ * Helper function to save Farcaster session to localStorage.
+ * 
+ * This should be called by FarcasterAuthIslandClient when auth succeeds.
+ * It's exported here so the Island can import it without circular deps.
+ */
+export function saveFarcasterSession(data: {
+  fid: number;
+  username: string;
+  pfpUrl?: string;
+  bio?: string;
+  displayName?: string;
+  custody?: `0x${string}`;
+  verifications?: string[];
+}) {
+  const session: FarcasterSession = {
+    ...data,
+    timestamp: Date.now(),
+  };
+  
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch (error) {
+    console.error('[FarcasterSession] Failed to save session:', error);
+  }
 }
