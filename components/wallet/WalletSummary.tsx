@@ -8,7 +8,6 @@ import {
 } from "@chakra-ui/react";
 import { useAccount, useDisconnect } from "wagmi";
 import { useFarcasterSession } from "../../hooks/useFarcasterSession";
-import { useSignIn } from "@farcaster/auth-kit";
 
 import { memo, useCallback, useMemo } from "react";
 import { usePortfolioContext } from "../../contexts/PortfolioContext";
@@ -34,7 +33,7 @@ const WalletSummary = memo(function WalletSummary({
     profile: farcasterProfile,
     clearSession,
   } = useFarcasterSession();
-  const { signOut } = useSignIn({});
+  const signOut = clearSession; // Alias for compatibility
   const {
     farcasterVerifiedPortfolios,
     portfolio,

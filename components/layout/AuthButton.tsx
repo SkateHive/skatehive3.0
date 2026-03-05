@@ -16,14 +16,7 @@ import {
 import { useAioha } from "@aioha/react-ui";
 import { useAccount } from "wagmi";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
-import { useSignIn } from "@farcaster/auth-kit";
 import HiveLoginModal from "./HiveLoginModal";
-
-// Dynamic import for SignInButton to prevent SSR indexedDB errors
-const SignInButton = dynamic(
-  () => import("@farcaster/auth-kit").then((mod) => mod.SignInButton),
-  { ssr: false }
-);
 import { FaEthereum, FaHive, FaEnvelope } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
 import { Name, Avatar } from "@coinbase/onchainkit/identity";
@@ -60,8 +53,11 @@ export default function AuthButton() {
   // Get connection states
   const { isConnected: isEthereumConnected, address: ethereumAddress } =
     useAccount();
-  const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } =
-    useFarcasterSession();
+  const { 
+    isAuthenticated: isFarcasterConnected, 
+    profile: farcasterProfile,
+    clearSession: farcasterSignOut 
+  } = useFarcasterSession();
   const { hiveAccount } = useHiveAccount(user || "");
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [mergeType, setMergeType] = useState<MergeType>("ethereum");
@@ -159,9 +155,6 @@ export default function AuthButton() {
   const hiddenSignInRef = React.useRef<HTMLDivElement>(null);
   const [isFarcasterAuthInProgress, setIsFarcasterAuthInProgress] =
     useState(false);
-
-  // Get signOut function to reset Auth Kit state and prevent modal flash
-  const { signOut: farcasterSignOut } = useSignIn({});
 
   // Connection status data with priority (Hive > Ethereum > Farcaster) - Memoized
   const connections: ConnectionStatus[] = useMemo(() => [

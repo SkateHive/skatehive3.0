@@ -12,7 +12,7 @@ import {
 } from "@chakra-ui/react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAccount } from "wagmi";
-import { useProfile } from "@farcaster/auth-kit";
+import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { usePortfolioContext } from "../../contexts/PortfolioContext";
 import { TokenDetail } from "../../types/portfolio";
 import {
@@ -32,7 +32,7 @@ import DesktopTokenTable from "./components/DesktopTokenTable";
 export default function EthereumAssetsSection() {
   const { isConnected, address } = useAccount();
   const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } =
-    useProfile();
+    useFarcasterSession();
   const {
     aggregatedPortfolio,
     portfolio,
