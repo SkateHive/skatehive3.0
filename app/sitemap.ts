@@ -2,13 +2,14 @@ import { MetadataRoute } from 'next';
 import HiveClient from '@/lib/hive/hiveclient';
 import { APP_CONFIG, HIVE_CONFIG } from '@/config/app.config';
 
-const REVALIDATE_SECONDS = 60 * 30; // 30 minutes
+// Aggressive sitemap — index ALL community content
+const REVALIDATE_SECONDS = 60 * 60; // 1 hour (was 30min — heavier now)
 const BRIDGE_PAGE_SIZE = 20;
-const MAX_BLOG_POSTS = 120;
-const MAX_SNAP_POSTS = 120;
+const MAX_BLOG_POSTS = 500; // Up from 120 → 500 recent blog posts via Hive
 const SNAP_API_PAGE_SIZE = 50;
+const MAX_SNAP_PAGES = 100; // Up to 5000 snaps from API
 
-export const revalidate = 1800;
+export const revalidate = 3600;
 
 type RankedPost = {
     author?: string;
@@ -51,64 +52,84 @@ async function fetchRankedPosts(sort: string, tag: string, maxItems: number): Pr
 
     for (let page = 0; page < maxPages; page += 1) {
         const limit = Math.min(BRIDGE_PAGE_SIZE, maxItems - posts.length);
-        const batch: RankedPost[] = await HiveClient.call('bridge', 'get_ranked_posts', {
-            sort,
-            tag,
-            limit,
-            start_author: startAuthor || undefined,
-            start_permlink: startPermlink || undefined,
-            observer: ''
-        });
+        try {
+            const batch: RankedPost[] = await HiveClient.call('bridge', 'get_ranked_posts', {
+                sort,
+                tag,
+                limit,
+                start_author: startAuthor || undefined,
+                start_permlink: startPermlink || undefined,
+                observer: ''
+            });
 
-        if (!batch?.length) break;
+            if (!batch?.length) break;
 
-        let addedThisBatch = 0;
-        for (const post of batch) {
-            if (!post?.author || !post?.permlink) continue;
-            const key = `${post.author}/${post.permlink}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            posts.push(post);
-            addedThisBatch += 1;
-            if (posts.length >= maxItems) break;
+            let addedThisBatch = 0;
+            for (const post of batch) {
+                if (!post?.author || !post?.permlink) continue;
+                const key = `${post.author}/${post.permlink}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                posts.push(post);
+                addedThisBatch += 1;
+                if (posts.length >= maxItems) break;
+            }
+
+            const last = batch[batch.length - 1];
+            if (!last?.author || !last?.permlink || addedThisBatch === 0) break;
+            startAuthor = last.author;
+            startPermlink = last.permlink;
+
+            if (batch.length < limit) break;
+        } catch {
+            break; // Don't let one failed page break the whole sitemap
         }
-
-        const last = batch[batch.length - 1];
-        if (!last?.author || !last?.permlink || addedThisBatch === 0) break;
-        startAuthor = last.author;
-        startPermlink = last.permlink;
-
-        if (batch.length < limit) break;
     }
 
     return posts;
 }
 
-async function fetchSnapsFromApi(maxItems: number): Promise<FeedSnap[]> {
+async function fetchAllSnapsFromApi(): Promise<FeedSnap[]> {
     const snaps: FeedSnap[] = [];
     const seen = new Set<string>();
-    const maxPages = Math.ceil(maxItems / SNAP_API_PAGE_SIZE);
 
-    for (let page = 1; page <= maxPages; page += 1) {
-        const url = `${APP_CONFIG.API_BASE_URL}/api/v2/feed?limit=${SNAP_API_PAGE_SIZE}&page=${page}`;
-        const response = await fetch(url, { next: { revalidate: REVALIDATE_SECONDS } });
-        if (!response.ok) break;
-        const payload = await response.json();
-        const batch = extractFeedItems(payload);
-        if (!batch.length) break;
+    for (let page = 1; page <= MAX_SNAP_PAGES; page += 1) {
+        try {
+            const url = `${APP_CONFIG.API_BASE_URL}/api/v2/feed?limit=${SNAP_API_PAGE_SIZE}&page=${page}`;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout per page
 
-        let addedThisBatch = 0;
-        for (const snap of batch) {
-            if (!snap?.author || !snap?.permlink) continue;
-            const key = `${snap.author}/${snap.permlink}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            snaps.push(snap);
-            addedThisBatch += 1;
-            if (snaps.length >= maxItems) break;
+            const response = await fetch(url, {
+                next: { revalidate: REVALIDATE_SECONDS },
+                signal: controller.signal,
+            });
+            clearTimeout(timeout);
+
+            if (!response.ok) break;
+            const payload = await response.json();
+
+            // Check total from pagination
+            const pagination = payload?.pagination;
+            const batch = extractFeedItems(payload);
+            if (!batch.length) break;
+
+            let addedThisBatch = 0;
+            for (const snap of batch) {
+                if (!snap?.author || !snap?.permlink) continue;
+                const key = `${snap.author}/${snap.permlink}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                snaps.push(snap);
+                addedThisBatch += 1;
+            }
+
+            if (addedThisBatch === 0 || batch.length < SNAP_API_PAGE_SIZE) break;
+
+            // If pagination says no next page, stop
+            if (pagination && !pagination.hasNextPage) break;
+        } catch {
+            break; // Timeout or error — stop paginating, use what we have
         }
-
-        if (addedThisBatch === 0 || batch.length < SNAP_API_PAGE_SIZE) break;
     }
 
     return snaps;
@@ -125,8 +146,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         urls.push(entry);
     };
 
-    // Static pages with proper priorities
-    // Only include pages that are NOT blocked in robots.txt
+    // Static pages
     const staticPages: MetadataRoute.Sitemap = [
         {
             url: baseUrl,
@@ -162,7 +182,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             url: `${baseUrl}/map`,
             lastModified: new Date(),
             changeFrequency: 'weekly',
-            priority: 0.6,
+            priority: 0.8, // Bumped — highest SEO value page
         },
         {
             url: `${baseUrl}/magazine`,
@@ -186,32 +206,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
         staticPages.forEach(pushUrl);
 
+        // Fetch blog posts from Hive AND all snaps from API in parallel
         const [blogPosts, feedSnaps] = await Promise.all([
             fetchRankedPosts('created', tag, MAX_BLOG_POSTS),
-            fetchSnapsFromApi(MAX_SNAP_POSTS),
+            fetchAllSnapsFromApi(),
         ]);
 
+        console.log(`[Sitemap] Fetched ${blogPosts.length} blog posts + ${feedSnaps.length} snaps`);
+
+        // Blog posts — full articles get higher priority
         for (const post of blogPosts) {
             if (!post?.author || !post?.permlink) continue;
             pushUrl({
                 url: `${baseUrl}/post/${post.author}/${post.permlink}`,
                 lastModified: safeDate(post.created || post.last_update),
                 changeFrequency: 'monthly',
-                priority: 0.5,
+                priority: 0.6, // Bumped from 0.5
             });
         }
 
+        // Snaps — shorter content but still valuable
         for (const snap of feedSnaps) {
             if (!snap?.author || !snap?.permlink) continue;
             pushUrl({
                 url: `${baseUrl}/user/${snap.author}/snap/${snap.permlink}`,
                 lastModified: safeDate(snap.created || snap.last_update),
-                changeFrequency: 'weekly',
-                priority: 0.6,
+                changeFrequency: 'monthly',
+                priority: 0.5,
             });
         }
 
-        // Collect unique author profiles from blog posts and snaps
+        // Collect unique author profiles
         const authors = new Set<string>();
         for (const post of blogPosts) {
             if (post?.author) authors.add(post.author);
@@ -228,7 +253,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             });
         }
 
-        // Collect unique tags from blog posts for tag pages
+        // Collect unique tags from blog posts
         const tags = new Set<string>();
         for (const post of blogPosts) {
             try {
@@ -237,7 +262,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 if (Array.isArray(meta?.tags)) {
                     for (const t of meta.tags) {
                         if (typeof t === 'string' && t.length > 1 && t.length < 50) {
-                            // Strip leading # and skip tags that are only special chars
                             const cleaned = t.toLowerCase().replace(/^#/, '');
                             if (cleaned && /^[a-z0-9]/.test(cleaned)) {
                                 tags.add(cleaned);
@@ -258,10 +282,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             });
         }
 
+        console.log(`[Sitemap] Total URLs: ${urls.length}`);
         return urls;
     } catch (error) {
         console.error('Error generating sitemap:', error);
-        // Return at least static pages if dynamic generation fails
         return staticPages;
     }
 }
