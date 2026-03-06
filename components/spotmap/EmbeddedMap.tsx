@@ -143,69 +143,44 @@ export default function EmbeddedMap({
 
   return (
     <>
-      <Global
-        styles={`
-          @keyframes float {
-            0% { transform: translateY(0); }
-            50% { transform: translateY(5px); }
-            100% { transform: translateY(0); }
-          }
-          @keyframes glow {
-            0% { text-shadow: 0 0 5px var(--chakra-colors-background), 0 0 10px var(--chakra-colors-background), 0 0 15px var(--chakra-colors-background), 0 0 20px var(--chakra-colors-background), 0 0 25px var(--chakra-colors-background); color: var(--chakra-colors-text); }
-            50% { text-shadow: 0 0 10px var(--chakra-colors-text), 0 0 20px var(--chakra-colors-text), 0 0 30px var(--chakra-colors-text), 0 0 40px var(--chakra-colors-text), 0 0 50px var(--chakra-colors-text); color: var(--chakra-colors-background); }
-            100% { text-shadow: 0 0 5px var(--chakra-colors-background), 0 0 10px var(--chakra-colors-background), 0 0 15px var(--chakra-colors-background), 0 0 20px var(--chakra-colors-background), 0 0 25px var(--chakra-colors-background); color: var(--chakra-colors-text); }
-          }
-        `}
-      />
       <Box height="auto" overflow="visible">
-        {/* Header Section */}
+        {/* Compact Header */}
         <Box
           position={{ base: "relative", md: "sticky" }}
           top={{ base: "auto", md: 0 }}
           zIndex={10}
           bg="background"
-          borderBottom="1px solid"
-          borderColor="muted"
           backdropFilter={{ base: "none", md: "blur(10px)" }}
         >
-          {/* Header Section */}
-          <Box p={{ base: 3, md: 4 }} pt={{ base: 2, md: 0 }} pb={0}>
-            <Text
-              className="fretqwik-title"
-              fontSize={{ base: "4xl", sm: "5xl", md: "7xl" }}
+          <Flex
+            p={{ base: 3, md: 4 }}
+            pb={{ base: 2, md: 2 }}
+            align="center"
+            justify="center"
+            gap={4}
+          >
+            <Heading
+              as="h1"
+              fontSize={{ base: "2xl", sm: "3xl", md: "4xl" }}
               fontWeight="extrabold"
               color="primary"
-              letterSpacing={{ base: "wide", md: "widest" }}
+              letterSpacing="wide"
               textAlign="center"
-              mt={{ base: 0, md: -4 }}
-              style={{
-                lineHeight: 1.1,
-                maxWidth: "100%",
-                wordBreak: "break-word",
-                overflowWrap: "break-word",
-              }}
             >
-              {t('title')}
-            </Text>
-          </Box>
+              🗺️ {t('title')}
+            </Heading>
 
-          {/* Add Spot Button Section */}
-          {canUseAppFeatures && (
-            <Box
-              p={{ base: 3, md: 4 }}
-              pt={{ base: 3, md: 6 }}
-              pb={{ base: 3, md: 2 }}
-              textAlign="center"
-            >
+            {canUseAppFeatures && (
               <Button
-                bg="background"
+                size="sm"
+                bg="transparent"
                 color="primary"
-                borderRadius="none"
-                px={{ base: 6, md: 4 }}
-                py={{ base: 3, md: 2 }}
+                border="1px solid"
+                borderColor="primary"
+                borderRadius="md"
+                px={4}
                 fontWeight="bold"
-                fontSize={{ base: "lg", md: "md" }}
-                boxShadow="md"
+                fontSize="sm"
                 _hover={{ bg: "primary", color: "background" }}
                 onClick={() => {
                   const el = document.getElementById("spot-name-field");
@@ -215,101 +190,80 @@ export default function EmbeddedMap({
                   }
                 }}
               >
-                {t('addASpot')}
+                + {t('addASpot')}
               </Button>
+            )}
+          </Flex>
+
+          {/* Location status indicator */}
+          {locationStatus && (
+            <Box
+              w="100%"
+              textAlign="center"
+              pb={2}
+              color="primary"
+              fontSize="xs"
+              fontWeight="bold"
+              opacity={0.8}
+            >
+              {locationStatus === "detecting" ? "📍 Detecting your location..." : "✅ Showing spots near you!"}
             </Box>
           )}
         </Box>
 
-        {/* Main Content Section */}
+        {/* Main Content Section — Map takes priority */}
         <Flex
-          height={{ base: "auto", md: fullHeight ? "700px" : "600px" }}
+          height={{ base: "auto", md: fullHeight ? "75vh" : "70vh" }}
           flexDirection={{ base: "column", md: "row" }}
-          align="flex-start"
-          justifyContent="center"
-          p={4}
+          align="stretch"
+          p={{ base: 2, md: 4 }}
           pt={0}
           w="100%"
           mx="auto"
-          gap={0}
+          gap={{ base: 2, md: 4 }}
         >
-          {/* Location status indicator */}
-          {locationStatus === "detecting" && (
-            <Box
-              w="100%"
-              textAlign="center"
-              py={2}
-              color="primary"
-              fontSize="sm"
-              fontWeight="bold"
-            >
-              📍 Detecting your location...
-            </Box>
-          )}
-          {locationStatus === "found" && (
-            <Box
-              w="100%"
-              textAlign="center"
-              py={2}
-              color="primary"
-              fontSize="sm"
-              fontWeight="bold"
-            >
-              ✅ Showing spots near you!
-            </Box>
-          )}
-
-          {/* Map Section */}
+          {/* Map Section — dominant */}
           <Box
-            flex="2"
+            flex="3"
             minW={0}
-            w={{ base: "100%", md: "65%" }}
-            height={{ base: "auto", md: "100%" }}
-            aspectRatio={{ base: "1 / 1", md: "auto" }}
-            overflow="visible"
-            borderRadius="10px"
-            width="100%"
-            mx="auto"
-            mb={{ base: 2, md: 6 }}
+            w={{ base: "100%", md: "70%" }}
+            height={{ base: "60vh", md: "100%" }}
+            borderRadius="lg"
+            overflow="hidden"
+            position="relative"
+            border="2px solid"
+            borderColor="primary"
+            boxShadow="0 0 20px rgba(167, 255, 0, 0.15)"
             onWheel={isMobile ? undefined : handleMapSideWheel}
           >
-            <Box
-              p={{ base: 2, md: 4 }}
-              pt={0}
-              textAlign="center"
-              width="100%"
-              height="100%"
-            >
-              <iframe
-                src={mapSrc}
-                style={{
-                  border: "5px solid var(--chakra-colors-primary, black)",
-                  width: "100%",
-                  height: "100%",
-                  padding: 0,
-                  margin: "auto",
-                  boxShadow:
-                    "0px 4px 10px var(--chakra-colors-muted, rgba(0, 0, 0, 0.5))",
-                  display: "block",
-                }}
-                allowFullScreen
-              ></iframe>
-            </Box>
+            <iframe
+              src={mapSrc}
+              style={{
+                border: "none",
+                width: "100%",
+                height: "100%",
+                display: "block",
+              }}
+              allowFullScreen
+            ></iframe>
           </Box>
 
-          {/* Sidebar Section - Only Composer */}
+          {/* Sidebar Section — Composer */}
           <Box
             flex="1"
-            minW={{ md: "340px" }}
-            maxW={{ md: "420px" }}
-            w={{ base: "100%", md: "35%" }}
-            ml={{ base: 0, md: 8 }}
-            mt={{ base: 0, md: 0 }}
-            mb={{ base: 0, md: 8 }}
-            mx={{ base: "auto", md: 0 }}
-            display={{ base: "block", md: "block" }}
+            minW={{ md: "300px" }}
+            maxW={{ md: "380px" }}
+            w={{ base: "100%", md: "30%" }}
             height={{ base: "auto", md: "100%" }}
-            overflowY="visible"
+            overflowY={{ base: "visible", md: "auto" }}
+            bg="rgba(0,0,0,0.2)"
+            borderRadius="lg"
+            border="1px solid"
+            borderColor="whiteAlpha.100"
+            sx={{
+              "&::-webkit-scrollbar": { width: "4px" },
+              "&::-webkit-scrollbar-thumb": { bg: "primary", borderRadius: "2px" },
+            }}
           >
             <SpotSnapComposer
               onNewComment={handleNewSpot}
