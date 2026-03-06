@@ -174,9 +174,8 @@ function InnerLayout({
       p={0}
       overflowX="hidden"
       sx={{
-        "&::-webkit-scrollbar": { display: "none" },
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
+        // Keep outer container clean; actual scrolling happens in the main content Box.
+        overflowX: "hidden",
       }}
     >
       {searchProps && (
@@ -219,13 +218,21 @@ function InnerLayout({
           overflowX="hidden"
           height="100vh"
           sx={{
+            scrollbarWidth: "thin",
+            scrollbarColor: "var(--chakra-colors-primary) transparent",
             "&::-webkit-scrollbar": {
-              display: "none",
-              width: "0",
-              height: "0",
+              width: "6px",
             },
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
+            "&::-webkit-scrollbar-track": {
+              background: "transparent",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              background: "var(--chakra-colors-primary)",
+              borderRadius: "999px",
+            },
+            "&::-webkit-scrollbar-thumb:hover": {
+              background: "#c8ff3a",
+            },
           }}
         >
           {children}
