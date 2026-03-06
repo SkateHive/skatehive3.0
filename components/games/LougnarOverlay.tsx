@@ -5,6 +5,7 @@ import { Box, Text } from "@chakra-ui/react";
 
 interface LougnarOverlayProps {
   children: React.ReactNode;
+  onClose?: () => void;
 }
 
 /**
@@ -12,7 +13,7 @@ interface LougnarOverlayProps {
  * Modern handheld gaming aesthetic with neon accents
  * Lougnar uses mouse/tap controls only (no keyboard)
  */
-export default function LougnarOverlay({ children }: LougnarOverlayProps) {
+export default function LougnarOverlay({ children, onClose }: LougnarOverlayProps) {
   return (
     <Box
       position="relative"
@@ -43,6 +44,42 @@ export default function LougnarOverlay({ children }: LougnarOverlayProps) {
         overflow="hidden"
         boxShadow="0 0 60px rgba(138,43,226,0.3), 0 0 120px rgba(0,191,255,0.2)"
       >
+        {/* Close button */}
+        {onClose && (
+          <Box
+            as="button"
+            onClick={onClose}
+            position="absolute"
+            top="20px"
+            right="20px"
+            zIndex={20}
+            w="50px"
+            h="50px"
+            borderRadius="full"
+            bg="rgba(20,20,35,0.9)"
+            border="2px solid rgba(138,43,226,0.5)"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            cursor="pointer"
+            transition="all 0.2s"
+            boxShadow="0 0 20px rgba(138,43,226,0.3)"
+            _hover={{
+              bg: "rgba(138,43,226,0.3)",
+              borderColor: "rgba(138,43,226,0.8)",
+              boxShadow: "0 0 30px rgba(138,43,226,0.6)",
+              transform: "scale(1.05)",
+            }}
+            _active={{
+              transform: "scale(0.95)",
+            }}
+          >
+            <Text fontSize="2xl" fontWeight="bold" color="rgba(200,200,255,0.9)">
+              ✕
+            </Text>
+          </Box>
+        )}
+
         {/* Game iframe */}
         <Box position="absolute" inset={0} zIndex={1}>
           {children}

@@ -68,7 +68,7 @@ export default function GameModal({
         {/* Per-game console overlay */}
         <Box w="100%" maxW="95vw" p={4}>
           {gameSlug === "quest-for-stoken" ? (
-            <QuestForStokenOverlay iframeRef={iframeRef}>
+            <QuestForStokenOverlay iframeRef={iframeRef} onClose={onClose}>
               <iframe
                 ref={iframeRef}
                 key={iframeKey}
@@ -85,7 +85,7 @@ export default function GameModal({
               />
             </QuestForStokenOverlay>
           ) : (
-            <LougnarOverlay>
+            <LougnarOverlay onClose={onClose}>
               <iframe
                 ref={iframeRef}
                 key={iframeKey}
