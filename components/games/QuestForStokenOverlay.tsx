@@ -5,18 +5,20 @@ import { Box, Text } from "@chakra-ui/react";
 
 interface QuestForStokenOverlayProps {
   children: React.ReactNode;
+  iframeRef?: React.RefObject<HTMLIFrameElement>;
 }
 
 type ControlKey = {
   label: string;
+  key: string;
+  code: string;
   hint?: string;
   variant?: "primary" | "default";
 };
 
 /**
  * Quest for Stoken overlay: arcade / CRT vibe.
- * NOTE: QFS runs in a cross-origin iframe, so we cannot programmatically send keys.
- * This overlay is purely visual (shows the correct keys to press).
+ * Now self-hosted (same-origin), so we CAN send keystrokes programmatically!
  *
  * Controls (from Vlad screenshot):
  * - Move: W A S D
@@ -26,21 +28,55 @@ type ControlKey = {
  */
 export default function QuestForStokenOverlay({
   children,
+  iframeRef,
 }: QuestForStokenOverlayProps) {
+  const sendKey = (k: ControlKey, action: "down" | "up" = "down") => {
+    if (!iframeRef?.current?.contentWindow) return;
+
+    const event = new KeyboardEvent(action === "down" ? "keydown" : "keyup", {
+      key: k.key,
+      code: k.code,
+      bubbles: true,
+      cancelable: true,
+    });
+
+    iframeRef.current.contentWindow.document.dispatchEvent(event);
+  };
+
+  const tap = (k: ControlKey) => {
+    sendKey(k, "down");
+    setTimeout(() => sendKey(k, "up"), 90);
+  };
+
   const ACTION_KEYS: ControlKey[] = [
-    { label: "O", hint: "Block" },
-    { label: "J", hint: "Attack" },
-    { label: "K", hint: "Action" },
-    { label: "L", hint: "Dash" },
+    { label: "O", key: "o", code: "KeyO", hint: "Block" },
+    { label: "J", key: "j", code: "KeyJ", hint: "Attack", variant: "primary" },
+    { label: "K", key: "k", code: "KeyK", hint: "Action" },
+    { label: "L", key: "l", code: "KeyL", hint: "Dash" },
   ];
+
+  const MOVE_KEYS: ControlKey[] = [
+    { label: "W", key: "w", code: "KeyW" },
+    { label: "A", key: "a", code: "KeyA" },
+    { label: "S", key: "s", code: "KeyS" },
+    { label: "D", key: "d", code: "KeyD" },
+  ];
+
+  const SPACE_KEY: ControlKey = {
+    label: "SPACE",
+    key: " ",
+    code: "Space",
+    hint: "Jump",
+    variant: "primary",
+  };
 
   return (
     <Box
       position="relative"
       w="100%"
-      maxW="1280px"
+      maxW="1400px"
       mx="auto"
-      aspectRatio="21/10"
+      aspectRatio="16/9"
       borderRadius="2xl"
       bg="linear-gradient(135deg, rgba(0,0,0,0.96) 0%, rgba(18,18,18,0.96) 100%)"
       boxShadow="0 22px 80px rgba(0,0,0,0.78)"
@@ -61,8 +97,8 @@ export default function QuestForStokenOverlay({
         top="50%"
         left="50%"
         transform="translate(-50%, -50%)"
-        w={{ base: "92%", md: "82%" }}
-        h={{ base: "74%", md: "78%" }}
+        w={{ base: "96%", md: "90%" }}
+        h={{ base: "82%", md: "88%" }}
         borderRadius="xl"
         bg="#050505"
         border="2px solid rgba(167,255,0,0.22)"
@@ -85,18 +121,17 @@ export default function QuestForStokenOverlay({
         </Box>
       </Box>
 
-      {/* Hybrid controls (bottom) */}
+      {/* Controls (bottom) - now functional! */}
       <Box
         position="absolute"
-        bottom={{ base: 4, md: 5 }}
+        bottom={{ base: 3, md: 4 }}
         left="50%"
         transform="translateX(-50%)"
-        w={{ base: "92%", md: "78%" }}
+        w={{ base: "94%", md: "86%" }}
         display="flex"
         justifyContent="space-between"
         alignItems="flex-end"
         gap={{ base: 3, md: 6 }}
-        pointerEvents="none"
       >
         {/* Movement: WASD cross */}
         <Box display="flex" gap={3} alignItems="flex-end">
@@ -114,6 +149,8 @@ export default function QuestForStokenOverlay({
           >
             <Box />
             <Box
+              as="button"
+              onClick={() => tap(MOVE_KEYS[0])}
               display="flex"
               alignItems="center"
               justifyContent="center"
@@ -122,11 +159,16 @@ export default function QuestForStokenOverlay({
               color="white"
               fontWeight="800"
               letterSpacing="0.06em"
+              cursor="pointer"
+              transition="all 0.1s"
+              _active={{ bg: "rgba(255,255,255,0.20)", transform: "scale(0.95)" }}
             >
               W
             </Box>
             <Box />
             <Box
+              as="button"
+              onClick={() => tap(MOVE_KEYS[1])}
               display="flex"
               alignItems="center"
               justifyContent="center"
@@ -135,10 +177,15 @@ export default function QuestForStokenOverlay({
               color="white"
               fontWeight="800"
               letterSpacing="0.06em"
+              cursor="pointer"
+              transition="all 0.1s"
+              _active={{ bg: "rgba(255,255,255,0.20)", transform: "scale(0.95)" }}
             >
               A
             </Box>
             <Box
+              as="button"
+              onClick={() => tap(MOVE_KEYS[2])}
               display="flex"
               alignItems="center"
               justifyContent="center"
@@ -147,10 +194,15 @@ export default function QuestForStokenOverlay({
               color="white"
               fontWeight="800"
               letterSpacing="0.06em"
+              cursor="pointer"
+              transition="all 0.1s"
+              _active={{ bg: "rgba(255,255,255,0.20)", transform: "scale(0.95)" }}
             >
               S
             </Box>
             <Box
+              as="button"
+              onClick={() => tap(MOVE_KEYS[3])}
               display="flex"
               alignItems="center"
               justifyContent="center"
@@ -159,6 +211,9 @@ export default function QuestForStokenOverlay({
               color="white"
               fontWeight="800"
               letterSpacing="0.06em"
+              cursor="pointer"
+              transition="all 0.1s"
+              _active={{ bg: "rgba(255,255,255,0.20)", transform: "scale(0.95)" }}
             >
               D
             </Box>
@@ -166,6 +221,8 @@ export default function QuestForStokenOverlay({
 
           {/* Space under-left of the cross */}
           <Box
+            as="button"
+            onClick={() => tap(SPACE_KEY)}
             px={{ base: 4, md: 5 }}
             py={{ base: 3, md: 3 }}
             minW={{ base: "110px", md: "130px" }}
@@ -174,6 +231,9 @@ export default function QuestForStokenOverlay({
             border="1px solid rgba(167,255,0,0.18)"
             backdropFilter="blur(10px)"
             boxShadow="0 10px 30px rgba(0,0,0,0.55)"
+            cursor="pointer"
+            transition="all 0.1s"
+            _active={{ bg: "rgba(0,0,0,0.85)", transform: "scale(0.98)" }}
           >
             <Text
               fontWeight="900"
@@ -206,16 +266,24 @@ export default function QuestForStokenOverlay({
           {ACTION_KEYS.map((k) => (
             <Box key={k.label} textAlign="center">
               <Box
+                as="button"
+                onClick={() => tap(k)}
                 w={{ base: "56px", md: "64px" }}
                 h={{ base: "44px", md: "48px" }}
                 borderRadius="md"
-                bg={k.label === "J" ? "rgba(167,255,0,0.18)" : "rgba(255,255,255,0.10)"}
-                color={k.label === "J" ? "primary" : "white"}
+                bg={k.variant === "primary" ? "rgba(167,255,0,0.18)" : "rgba(255,255,255,0.10)"}
+                color={k.variant === "primary" ? "primary" : "white"}
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
                 fontWeight="900"
                 letterSpacing="0.08em"
+                cursor="pointer"
+                transition="all 0.1s"
+                _active={{
+                  bg: k.variant === "primary" ? "rgba(167,255,0,0.28)" : "rgba(255,255,255,0.20)",
+                  transform: "scale(0.95)",
+                }}
               >
                 {k.label}
               </Box>

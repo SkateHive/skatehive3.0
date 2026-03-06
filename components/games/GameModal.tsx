@@ -21,7 +21,7 @@ interface GameModalProps {
 }
 
 const GAME_URLS = {
-  "quest-for-stoken": "https://quest-for-stoken.vercel.app/QFS/index.html",
+  "quest-for-stoken": "/games/quest-for-stoken/index.html",
   lougnar: "https://quest-for-stoken.vercel.app/lougnar/index.html",
 };
 
@@ -68,7 +68,7 @@ export default function GameModal({
         {/* Per-game console overlay */}
         <Box w="100%" maxW="95vw" p={4}>
           {gameSlug === "quest-for-stoken" ? (
-            <QuestForStokenOverlay>
+            <QuestForStokenOverlay iframeRef={iframeRef}>
               <iframe
                 ref={iframeRef}
                 key={iframeKey}
