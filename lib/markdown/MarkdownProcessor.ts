@@ -14,7 +14,7 @@ export interface ProcessedMarkdown {
 }
 
 export interface VideoPlaceholder {
-  type: 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | 'ZORACOIN' | 'SNAPSHOT';
+  type: 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME';
   id: string;
   placeholder: string;
 }
@@ -47,8 +47,11 @@ export class MarkdownProcessor {
     // Step 3: Convert Snapshot links to placeholders
     const contentWithSnapshotPlaceholders = this.convertSnapshotLinksToPlaceholders(contentWithZoraPlaceholders);
 
+    // Step 3.5: Convert SkateHive game links to placeholders
+    const contentWithGamePlaceholders = this.convertSkateHiveGameLinksToPlaceholders(contentWithSnapshotPlaceholders);
+
     // Step 4: Extract video placeholders and convert to our format
-    const contentWithPlaceholders = this.convertToVideoPlaceholders(contentWithSnapshotPlaceholders);
+    const contentWithPlaceholders = this.convertToVideoPlaceholders(contentWithGamePlaceholders);
 
     // Step 4: Detect Instagram embeds
     const hasInstagramEmbeds = processedContent.includes("<!--INSTAGRAM_EMBED_SCRIPT-->");
@@ -103,6 +106,15 @@ export class MarkdownProcessor {
     });
   }
 
+  private static convertSkateHiveGameLinksToPlaceholders(content: string): string {
+    // Match SkateHive game URLs (skatehive.app/games/quest-for-stoken or /games/lougnar)
+    const gameUrlRegex = /https?:\/\/(?:www\.)?skatehive\.app\/games\/(quest-for-stoken|lougnar)/g;
+    
+    return content.replace(gameUrlRegex, (match, slug) => {
+      return `[[SKATEHIVEGAME:${slug}]]`;
+    });
+  }
+
   private static convertToVideoPlaceholders(content: string): string {
     return content.replace(
       /<div class="video-embed" data-ipfs-hash="([^"]+)">[\s\S]*?<\/div>/g,
@@ -112,12 +124,12 @@ export class MarkdownProcessor {
 
   private static extractVideoPlaceholders(content: string): VideoPlaceholder[] {
     const placeholders: VideoPlaceholder[] = [];
-    const regex = /\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|ZORACOIN|SNAPSHOT):([^\]]+)\]\]/g;
+    const regex = /\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|ZORACOIN|SNAPSHOT|SKATEHIVEGAME):([^\]]+)\]\]/g;
     let match;
 
     while ((match = regex.exec(content)) !== null) {
       placeholders.push({
-        type: match[1] as 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | 'ZORACOIN' | 'SNAPSHOT',
+        type: match[1] as 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME',
         id: match[2],
         placeholder: match[0],
       });

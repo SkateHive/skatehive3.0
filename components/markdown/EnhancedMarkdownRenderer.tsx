@@ -7,6 +7,7 @@ import { VideoEmbed } from "./VideoEmbed";
 import InstagramEmbed from "./InstagramEmbed";
 import ZoraCoinPreview from "../zora/ZoraCoinPreview";
 import SnapshotPreview from "../shared/SnapshotPreview";
+import GameCartridgeEmbed from "../games/GameCartridgeEmbed";
 import HiveMarkdown from "@/components/shared/HiveMarkdown";
 
 interface EnhancedMarkdownRendererProps {
@@ -32,9 +33,9 @@ export function EnhancedMarkdownRenderer({
 function renderContentWithVideos(
   processed: ProcessedMarkdown
 ): React.ReactNode[] {
-  // Split on supported video, social media, Zora coin, and Snapshot placeholders
+  // Split on supported video, social media, Zora coin, Snapshot, and SkateHive game placeholders
   const parts = processed.contentWithPlaceholders.split(
-    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT):([^\]]+)\]\])/g
+    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME):([^\]]+)\]\])/g
   );
 
   return parts
@@ -73,6 +74,13 @@ function renderContentWithVideos(
       if (snapshotMatch) {
         const url = snapshotMatch[1];
         return <SnapshotPreview key={`snapshot-${idx}`} url={url} />;
+      }
+
+      // Handle SkateHive game placeholders
+      const gameMatch = part.match(/^\[\[SKATEHIVEGAME:([^\]]+)\]\]$/);
+      if (gameMatch) {
+        const slug = gameMatch[1] as "quest-for-stoken" | "lougnar";
+        return <GameCartridgeEmbed key={`game-${idx}`} gameSlug={slug} />;
       }
 
       // Skip empty parts or parts that are just whitespace
@@ -122,8 +130,9 @@ function cleanMarkdownPart(part: string): string {
       ""
     )
     .replace(/^https?:\/\/(?:www\.)?worldmappin\.com\/.*$/gm, "")
+    .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/games\/.*$/gm, "") // SkateHive games
     .replace(
-      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT)\s*$/gm,
+      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME)\s*$/gm,
       ""
     )
     .replace(/^[a-zA-Z0-9_-]{11}$/gm, "") // YouTube video IDs
