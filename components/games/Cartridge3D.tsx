@@ -101,9 +101,9 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
   const bodyMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#2a2a2a"),
-        roughness: 0.82,
-        metalness: 0.05,
+        color: new THREE.Color("#3d3d3d"),
+        roughness: 0.78,
+        metalness: 0.08,
       }),
     [],
   );
@@ -131,9 +131,9 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
   const ridgeMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#222222"),
-        roughness: 0.95,
-        metalness: 0.0,
+        color: new THREE.Color("#333333"),
+        roughness: 0.9,
+        metalness: 0.02,
       }),
     [],
   );
@@ -261,8 +261,8 @@ export default function Cartridge3D({ imageUrl, hovered }: CartridgeProps) {
       }}
       style={{ width: "100%", height: "100%" }}
     >
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[3, 4, 5]} intensity={1.2} />
+      <ambientLight intensity={0.7} />
+      <directionalLight position={[3, 4, 5]} intensity={1.4} />
       <directionalLight position={[-3, 2, 3]} intensity={0.5} color="#a7ff00" />
       <pointLight position={[0, -2, 3]} intensity={0.3} color="#ffffff" />
       <CartridgeMesh imageUrl={imageUrl} hovered={hovered} />

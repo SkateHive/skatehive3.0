@@ -69,11 +69,10 @@ function GameCard({ game }: { game: GameCartridge }) {
   return (
     <Link href={game.url} style={{ textDecoration: "none" }}>
       <Box
-        bg="rgba(20,20,20,0.7)"
+        bg="transparent"
         borderRadius="xl"
         overflow="hidden"
-        border="2px solid"
-        borderColor="whiteAlpha.100"
+        border="none"
         h={CARD_H}
         transition="all 0.3s ease"
         cursor="pointer"
@@ -81,9 +80,7 @@ function GameCard({ game }: { game: GameCartridge }) {
         display="flex"
         flexDirection="column"
         _hover={{
-          borderColor: "primary",
           transform: "translateY(-6px)",
-          boxShadow: "0 0 30px rgba(167, 255, 0, 0.2), 0 8px 32px rgba(0,0,0,0.6)",
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -158,14 +155,7 @@ function GameCard({ game }: { game: GameCartridge }) {
           </Flex>
         </VStack>
 
-        {/* Bottom accent */}
-        <Box
-          h="3px"
-          bg="primary"
-          opacity={0.25}
-          _groupHover={{ opacity: 0.7 }}
-          transition="opacity 0.25s"
-        />
+
       </Box>
     </Link>
   );
