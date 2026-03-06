@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadLimiter, getClientIP } from '@/lib/utils/rate-limiter';
 
+// Enable Edge Runtime for streaming support (no payload size limit)
+export const runtime = 'edge';
+
 export async function POST(request: NextRequest) {
     // Rate limiting check
     const ip = getClientIP(request);
@@ -42,7 +45,9 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        console.log('📱 Parsing FormData...');
+        console.log('📱 Parsing FormData (Edge streaming)...');
+        
+        // Edge Runtime still supports formData(), but processes it more efficiently
         const requestFormData = await request.formData();
         const file = requestFormData.get('file') as File;
         const creator = requestFormData.get('creator') as string;
@@ -63,7 +68,17 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
         }
 
-        // Upload file using Pinata API
+        // Check file size (warn if huge, but allow it)
+        const fileSizeMB = file.size / (1024 * 1024);
+        if (fileSizeMB > 100) {
+            console.warn('📱 Large file detected:', {
+                fileName: file.name,
+                sizeMB: fileSizeMB.toFixed(2),
+                isMobile
+            });
+        }
+
+        // Upload file using Pinata API (Edge Runtime handles streaming automatically)
         const uploadFormData = new FormData();
         uploadFormData.append('file', file);
 
@@ -88,7 +103,7 @@ export async function POST(request: NextRequest) {
         });
         uploadFormData.append('pinataOptions', pinataOptions);
 
-        console.log('📱 Sending to Pinata...', {
+        console.log('📱 Sending to Pinata (streaming)...', {
             fileSize: file.size,
             fileName: file.name,
             isMobile
@@ -113,6 +128,15 @@ export async function POST(request: NextRequest) {
                 isMobile,
                 fileSize: file.size
             });
+            
+            // Return specific error for 413 (if Pinata itself rejects)
+            if (uploadResponse.status === 413) {
+                return NextResponse.json(
+                    { error: 'File too large for IPFS pinning service' },
+                    { status: 413 }
+                );
+            }
+            
             throw new Error(`Pinata upload failed: ${uploadResponse.status} - ${errorText}`);
         }
 
