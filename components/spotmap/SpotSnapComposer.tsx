@@ -313,12 +313,14 @@ export default function SpotSnapComposer({
     <Box
       p={4}
       mb={1}
-      borderRadius="base"
+      borderRadius="md"
       borderBottom={"1px"}
       borderColor="muted"
       position="relative"
       maxHeight="600px"
       overflowY="auto"
+      bg="background"
+      color="text"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -366,7 +368,9 @@ export default function SpotSnapComposer({
             onChange={(e) => setSpotName(e.target.value)}
             isDisabled={isLoading}
             borderColor="muted"
+            bg="background"
             _focus={{ borderColor: "primary" }}
+            _placeholder={{ color: "gray.500" }}
           />
         </FormControl>
         <FormControl>
@@ -388,6 +392,7 @@ export default function SpotSnapComposer({
             borderColor="muted"
             bg={lat && lon ? "muted" : "background"}
             _focus={{ borderColor: "primary" }}
+            _placeholder={{ color: "gray.500" }}
           />
         </FormControl>
         <FormControl>
@@ -506,7 +511,7 @@ export default function SpotSnapComposer({
           display="flex"
           alignItems="center"
           justifyContent="center"
-          bg="rgba(255,255,255,0.85)"
+          bg="rgba(0,0,0,0.85)"
           borderRadius="base"
           pointerEvents="all"
         >
