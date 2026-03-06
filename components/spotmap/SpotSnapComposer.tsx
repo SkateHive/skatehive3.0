@@ -499,7 +499,7 @@ export default function SpotSnapComposer({
           ))}
         </Wrap>
       </VStack>
-      {/* Matrix Overlay and login prompt if not logged in */}
+      {/* Login prompt overlay if not logged in */}
       {!user && (
         <Box
           position="absolute"
@@ -511,17 +511,27 @@ export default function SpotSnapComposer({
           display="flex"
           alignItems="center"
           justifyContent="center"
-          bg="rgba(0,0,0,0.85)"
-          borderRadius="base"
+          bg="rgba(0,0,0,0.7)"
+          borderRadius="md"
           pointerEvents="all"
+          backdropFilter="blur(4px)"
         >
           <Box
-            color="primary"
-            fontWeight="bold"
-            fontSize="xl"
             textAlign="center"
+            p={6}
           >
-            {t('pleaseLoginToPost')}
+            <Box fontSize="3xl" mb={3}>📍</Box>
+            <Box
+              color="primary"
+              fontWeight="bold"
+              fontSize="lg"
+              mb={2}
+            >
+              {t('pleaseLoginToPost')}
+            </Box>
+            <Box color="gray.400" fontSize="sm">
+              Share your local skate spots with the community
+            </Box>
           </Box>
         </Box>
       )}

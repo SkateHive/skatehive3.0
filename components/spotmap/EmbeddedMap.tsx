@@ -144,71 +144,67 @@ export default function EmbeddedMap({
   return (
     <>
       <Box height="auto" overflow="visible">
-        {/* Compact Header */}
+        {/* Header — SEO-friendly with visible text */}
         <Box
           position={{ base: "relative", md: "sticky" }}
           top={{ base: "auto", md: 0 }}
           zIndex={10}
           bg="background"
           backdropFilter={{ base: "none", md: "blur(10px)" }}
+          borderBottom="1px solid"
+          borderColor="whiteAlpha.100"
         >
-          <Flex
-            p={{ base: 3, md: 4 }}
-            pb={{ base: 2, md: 2 }}
-            align="center"
-            justify="center"
-            gap={4}
-          >
+          <Box textAlign="center" p={{ base: 3, md: 4 }} pb={1}>
             <Heading
               as="h1"
-              fontSize={{ base: "2xl", sm: "3xl", md: "4xl" }}
+              className="fretqwik-title"
+              fontSize={{ base: "3xl", sm: "4xl", md: "5xl" }}
               fontWeight="extrabold"
               color="primary"
-              letterSpacing="wide"
-              textAlign="center"
+              letterSpacing={{ base: "wide", md: "wider" }}
+              mb={1}
             >
-              🗺️ {t('title')}
+              {t('title')}
             </Heading>
-
-            {canUseAppFeatures && (
-              <Button
-                size="sm"
-                bg="transparent"
-                color="primary"
-                border="1px solid"
-                borderColor="primary"
-                borderRadius="md"
-                px={4}
-                fontWeight="bold"
-                fontSize="sm"
-                _hover={{ bg: "primary", color: "background" }}
-                onClick={() => {
-                  const el = document.getElementById("spot-name-field");
-                  if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "start" });
-                    el.focus();
-                  }
-                }}
-              >
-                + {t('addASpot')}
-              </Button>
-            )}
-          </Flex>
-
-          {/* Location status indicator */}
-          {locationStatus && (
-            <Box
-              w="100%"
-              textAlign="center"
-              pb={2}
-              color="primary"
-              fontSize="xs"
-              fontWeight="bold"
-              opacity={0.8}
-            >
-              {locationStatus === "detecting" ? "📍 Detecting your location..." : "✅ Showing spots near you!"}
-            </Box>
-          )}
+            <Text color="gray.400" fontSize={{ base: "xs", md: "sm" }} mb={2}>
+              Find skateparks, street spots &amp; DIY spots worldwide — built by skaters, for skaters
+            </Text>
+            <Flex justify="center" gap={3} align="center">
+              {canUseAppFeatures && (
+                <Button
+                  size="sm"
+                  bg="transparent"
+                  color="primary"
+                  border="1px solid"
+                  borderColor="primary"
+                  borderRadius="md"
+                  px={4}
+                  fontWeight="bold"
+                  fontSize="sm"
+                  _hover={{ bg: "primary", color: "background" }}
+                  onClick={() => {
+                    const el = document.getElementById("spot-name-field");
+                    if (el) {
+                      el.scrollIntoView({ behavior: "smooth", block: "start" });
+                      el.focus();
+                    }
+                  }}
+                >
+                  + {t('addASpot')}
+                </Button>
+              )}
+              {/* Location status indicator */}
+              {locationStatus && (
+                <Text
+                  color="primary"
+                  fontSize="xs"
+                  fontWeight="bold"
+                >
+                  {locationStatus === "detecting" ? "📍 Detecting your location..." : "✅ Showing spots near you!"}
+                </Text>
+              )}
+            </Flex>
+          </Box>
         </Box>
 
         {/* Main Content Section — Map takes priority */}
@@ -256,10 +252,10 @@ export default function EmbeddedMap({
             w={{ base: "100%", md: "30%" }}
             height={{ base: "auto", md: "100%" }}
             overflowY={{ base: "visible", md: "auto" }}
-            bg="rgba(0,0,0,0.2)"
+            bg="rgba(20,20,20,0.6)"
             borderRadius="lg"
             border="1px solid"
-            borderColor="whiteAlpha.100"
+            borderColor="whiteAlpha.200"
             sx={{
               "&::-webkit-scrollbar": { width: "4px" },
               "&::-webkit-scrollbar-thumb": { bg: "primary", borderRadius: "2px" },
