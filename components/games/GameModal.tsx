@@ -10,6 +10,8 @@ import {
 } from "@chakra-ui/react";
 import { FiX } from "react-icons/fi";
 import GameBoyOverlay from "./GameBoyOverlay";
+import LougnarOverlay from "./LougnarOverlay";
+import QuestForStokenOverlay from "./QuestForStokenOverlay";
 
 interface GameModalProps {
   isOpen: boolean;
@@ -63,24 +65,43 @@ export default function GameModal({
           zIndex={10}
         />
 
-        {/* Game Boy Advance console */}
+        {/* Per-game console overlay */}
         <Box w="100%" maxW="95vw" p={4}>
-          <GameBoyOverlay iframeRef={iframeRef}>
-            <iframe
-              ref={iframeRef}
-              key={iframeKey}
-              src={gameUrl}
-              title={gameTitle}
-              style={{
-                width: "100%",
-                height: "100%",
-                border: "none",
-                display: "block",
-              }}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </GameBoyOverlay>
+          {gameSlug === "quest-for-stoken" ? (
+            <QuestForStokenOverlay>
+              <iframe
+                ref={iframeRef}
+                key={iframeKey}
+                src={gameUrl}
+                title={gameTitle}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  border: "none",
+                  display: "block",
+                }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </QuestForStokenOverlay>
+          ) : (
+            <LougnarOverlay>
+              <iframe
+                ref={iframeRef}
+                key={iframeKey}
+                src={gameUrl}
+                title={gameTitle}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  border: "none",
+                  display: "block",
+                }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </LougnarOverlay>
+          )}
         </Box>
       </ModalContent>
     </Modal>
