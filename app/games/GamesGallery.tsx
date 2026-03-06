@@ -46,7 +46,7 @@ const GAMES: GameCartridge[] = [
     title: "Lougnar",
     description:
       "The newest skatehive game by webgnar. A fresh take on skate gaming built with Excalibur.js.",
-    thumbnail: "/images/qfs-ogimage.png",
+    thumbnail: "/images/lougnar-thumb.jpg",
     url: "/games/lougnar",
     developer: "webgnar",
     tags: ["action", "new"],
@@ -98,8 +98,8 @@ function GameCard({ game }: { game: GameCartridge }) {
           h={{ base: "220px", md: "260px" }}
           bg="background"
         >
-          {/* 3D cartridge (fallback to image when reduced motion or SSR) */}
-          {reduceMotion ? (
+          {/* Keep it light: show 2D image until hover, then swap in 3D */}
+          {reduceMotion || !hovered ? (
             <Image
               src={game.thumbnail}
               alt={game.title}
@@ -130,7 +130,7 @@ function GameCard({ game }: { game: GameCartridge }) {
               py={4}
             >
               <Box w="100%" h="100%">
-                <Cartridge3D imageUrl={game.thumbnail || "/ogimage.png"} hovered={hovered} />
+                <Cartridge3D imageUrl={game.thumbnail} hovered={hovered} />
               </Box>
             </Box>
           )}

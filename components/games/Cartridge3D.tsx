@@ -50,16 +50,21 @@ function CartridgeMesh({ imageUrl, hovered }: Cartridge3DProps) {
 
     const t = state.clock.getElapsedTime();
 
-    // Subtle idle bob
-    const bob = Math.sin(t * 1.2) * 0.015;
+    // Only animate when hovered (reduces GPU load / avoids WebGL context loss)
+    if (!hovered) {
+      g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, -0.12, 0.12);
+      g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, 0.18, 0.12);
+      g.position.y = THREE.MathUtils.lerp(g.position.y, 0, 0.12);
+      return;
+    }
 
-    // Hover tilt
-    const targetRotX = hovered ? -0.25 : -0.15;
-    const targetRotY = hovered ? 0.35 : 0.22;
+    const bob = Math.sin(t * 2.2) * 0.02;
+    const targetRotX = -0.28;
+    const targetRotY = 0.38;
 
-    g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, targetRotX, 0.08);
-    g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, targetRotY, 0.08);
-    g.position.y = THREE.MathUtils.lerp(g.position.y, bob, 0.1);
+    g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, targetRotX, 0.12);
+    g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, targetRotY, 0.12);
+    g.position.y = THREE.MathUtils.lerp(g.position.y, bob, 0.12);
   });
 
   return (
@@ -93,15 +98,18 @@ function CartridgeMesh({ imageUrl, hovered }: Cartridge3DProps) {
 export default function Cartridge3D({ imageUrl, hovered }: Cartridge3DProps) {
   return (
     <Canvas
-      dpr={[1, 1.5]}
+      dpr={1}
       camera={{ position: [0, 0.1, 4.2], fov: 35 }}
-      gl={{ antialias: true, alpha: true }}
+      gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
+      onCreated={({ gl }) => {
+        // Transparent background without invalid THREE.Color('transparent')
+        gl.setClearColor(0x000000, 0);
+      }}
       style={{ width: "100%", height: "100%" }}
     >
-      <color attach="background" args={["transparent"]} />
       <ambientLight intensity={0.55} />
-      <directionalLight position={[3, 3, 5]} intensity={1.2} />
-      <directionalLight position={[-4, 2, 2]} intensity={0.6} />
+      <directionalLight position={[3, 3, 5]} intensity={1.1} />
+      <directionalLight position={[-4, 2, 2]} intensity={0.55} />
       <CartridgeMesh imageUrl={imageUrl} hovered={hovered} />
     </Canvas>
   );
