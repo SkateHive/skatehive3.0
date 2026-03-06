@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState } from "react";
 import {
   Box,
   Heading,
@@ -9,8 +10,14 @@ import {
   VStack,
   Badge,
   Flex,
+  usePrefersReducedMotion,
 } from "@chakra-ui/react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+const Cartridge3D = dynamic(() => import("@/components/games/Cartridge3D"), {
+  ssr: false,
+});
 
 interface GameCartridge {
   slug: string;
@@ -39,7 +46,7 @@ const GAMES: GameCartridge[] = [
     title: "Lougnar",
     description:
       "The newest skatehive game by webgnar. A fresh take on skate gaming built with Excalibur.js.",
-    thumbnail: "/images/lougnar-thumb.png",
+    thumbnail: "/images/qfs-ogimage.png",
     url: "/games/lougnar",
     developer: "webgnar",
     tags: ["action", "new"],
@@ -48,6 +55,9 @@ const GAMES: GameCartridge[] = [
 ];
 
 function GameCard({ game }: { game: GameCartridge }) {
+  const reduceMotion = usePrefersReducedMotion();
+  const [hovered, setHovered] = useState(false);
+
   return (
     <Link href={game.url} style={{ textDecoration: "none" }}>
       <Box
@@ -64,6 +74,10 @@ function GameCard({ game }: { game: GameCartridge }) {
           transform: "translateY(-4px)",
           boxShadow: "0 0 25px rgba(167, 255, 0, 0.25)",
         }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={() => setHovered(false)}
         role="group"
       >
         {/* Cartridge top notch */}
@@ -77,26 +91,50 @@ function GameCard({ game }: { game: GameCartridge }) {
           transition="opacity 0.3s"
         />
 
-        {/* Thumbnail */}
-        <Box position="relative" overflow="hidden" h={{ base: "180px", md: "220px" }}>
-          <Image
-            src={game.thumbnail}
-            alt={game.title}
-            w="100%"
-            h="100%"
-            objectFit="cover"
-            fallback={
-              <Flex
-                w="100%"
-                h="100%"
-                bg="background"
-                align="center"
-                justify="center"
-              >
-                <Text fontSize="5xl">🛹</Text>
-              </Flex>
-            }
-          />
+        {/* Cartridge */}
+        <Box
+          position="relative"
+          overflow="hidden"
+          h={{ base: "220px", md: "260px" }}
+          bg="background"
+        >
+          {/* 3D cartridge (fallback to image when reduced motion or SSR) */}
+          {reduceMotion ? (
+            <Image
+              src={game.thumbnail}
+              alt={game.title}
+              w="100%"
+              h="100%"
+              objectFit="cover"
+              fallback={
+                <Flex
+                  w="100%"
+                  h="100%"
+                  bg="background"
+                  align="center"
+                  justify="center"
+                >
+                  <Text fontSize="5xl">🛹</Text>
+                </Flex>
+              }
+            />
+          ) : (
+            <Box
+              w="100%"
+              h="100%"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              pointerEvents="none"
+              px={6}
+              py={4}
+            >
+              <Box w="100%" h="100%">
+                <Cartridge3D imageUrl={game.thumbnail || "/ogimage.png"} hovered={hovered} />
+              </Box>
+            </Box>
+          )}
+
           {game.isNew && (
             <Badge
               position="absolute"
@@ -113,6 +151,7 @@ function GameCard({ game }: { game: GameCartridge }) {
               NEW
             </Badge>
           )}
+
           {/* Play overlay on hover */}
           <Flex
             position="absolute"
@@ -120,7 +159,7 @@ function GameCard({ game }: { game: GameCartridge }) {
             left={0}
             right={0}
             bottom={0}
-            bg="rgba(0,0,0,0.6)"
+            bg="rgba(0,0,0,0.45)"
             align="center"
             justify="center"
             opacity={0}
