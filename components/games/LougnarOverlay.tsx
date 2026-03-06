@@ -19,7 +19,7 @@ export default function LougnarOverlay({ children, onClose }: LougnarOverlayProp
       position="relative"
       w="100%"
       aspectRatio="16/9"
-      bg="linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%)"
+      bgGradient="linear(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)"
       display="flex"
       alignItems="center"
       justifyContent="center"
@@ -30,7 +30,7 @@ export default function LougnarOverlay({ children, onClose }: LougnarOverlayProp
       <Box
         position="absolute"
         inset={0}
-        bg="radial-gradient(circle at 30% 50%, rgba(138,43,226,0.15), transparent 50%), radial-gradient(circle at 70% 50%, rgba(0,191,255,0.15), transparent 50%)"
+        bgGradient="radial(circle at 30% 50%, rgba(138,43,226,0.25), transparent 50%), radial(circle at 70% 50%, rgba(167,255,0,0.15), transparent 50%)"
         pointerEvents="none"
       />
 
@@ -56,25 +56,26 @@ export default function LougnarOverlay({ children, onClose }: LougnarOverlayProp
             w="50px"
             h="50px"
             borderRadius="full"
-            bg="rgba(20,20,35,0.9)"
-            border="2px solid rgba(138,43,226,0.5)"
+            bg="rgba(60,60,90,0.9)"
+            border="2px solid rgba(167,255,0,0.7)"
             display="flex"
             alignItems="center"
             justifyContent="center"
             cursor="pointer"
             transition="all 0.2s"
-            boxShadow="0 0 20px rgba(138,43,226,0.3)"
+            boxShadow="0 0 20px rgba(138,43,226,0.4), inset 0 0 15px rgba(255,255,255,0.1)"
             _hover={{
-              bg: "rgba(138,43,226,0.3)",
-              borderColor: "rgba(138,43,226,0.8)",
-              boxShadow: "0 0 30px rgba(138,43,226,0.6)",
-              transform: "scale(1.05)",
+              bg: "rgba(138,43,226,0.6)",
+              borderColor: "rgba(167,255,0,1)",
+              boxShadow: "0 0 40px rgba(167,255,0,0.8)",
+              transform: "scale(1.08)",
             }}
             _active={{
-              transform: "scale(0.95)",
+              transform: "scale(0.92)",
+              boxShadow: "0 0 50px rgba(167,255,0,1)",
             }}
           >
-            <Text fontSize="2xl" fontWeight="bold" color="rgba(200,200,255,0.9)">
+            <Text fontSize="2xl" fontWeight="black" color="white" textShadow="0 0 10px rgba(167,255,0,0.9)">
               ✕
             </Text>
           </Box>

@@ -80,7 +80,7 @@ export default function QuestForStokenOverlay({
       position="relative"
       w="100%"
       aspectRatio="16/9"
-      bg="linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%)"
+      bgGradient="linear(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)"
       display="flex"
       alignItems="center"
       justifyContent="center"
@@ -91,7 +91,7 @@ export default function QuestForStokenOverlay({
       <Box
         position="absolute"
         inset={0}
-        bg="radial-gradient(circle at 30% 50%, rgba(138,43,226,0.15), transparent 50%), radial-gradient(circle at 70% 50%, rgba(0,191,255,0.15), transparent 50%)"
+        bgGradient="radial(circle at 30% 50%, rgba(138,43,226,0.25), transparent 50%), radial(circle at 70% 50%, rgba(167,255,0,0.15), transparent 50%)"
         pointerEvents="none"
       />
 
@@ -117,25 +117,26 @@ export default function QuestForStokenOverlay({
             w="50px"
             h="50px"
             borderRadius="full"
-            bg="rgba(20,20,35,0.9)"
-            border="2px solid rgba(138,43,226,0.5)"
+            bg="rgba(60,60,90,0.9)"
+            border="2px solid rgba(167,255,0,0.7)"
             display="flex"
             alignItems="center"
             justifyContent="center"
             cursor="pointer"
             transition="all 0.2s"
-            boxShadow="0 0 20px rgba(138,43,226,0.3)"
+            boxShadow="0 0 20px rgba(138,43,226,0.4), inset 0 0 15px rgba(255,255,255,0.1)"
             _hover={{
-              bg: "rgba(138,43,226,0.3)",
-              borderColor: "rgba(138,43,226,0.8)",
-              boxShadow: "0 0 30px rgba(138,43,226,0.6)",
-              transform: "scale(1.05)",
+              bg: "rgba(138,43,226,0.6)",
+              borderColor: "rgba(167,255,0,1)",
+              boxShadow: "0 0 40px rgba(167,255,0,0.8)",
+              transform: "scale(1.08)",
             }}
             _active={{
-              transform: "scale(0.95)",
+              transform: "scale(0.92)",
+              boxShadow: "0 0 50px rgba(167,255,0,1)",
             }}
           >
-            <Text fontSize="2xl" fontWeight="bold" color="rgba(200,200,255,0.9)">
+            <Text fontSize="2xl" fontWeight="black" color="white" textShadow="0 0 10px rgba(167,255,0,0.9)">
               ✕
             </Text>
           </Box>
@@ -183,22 +184,27 @@ export default function QuestForStokenOverlay({
               <Box
                 as="button"
                 onClick={() => tap(MOVE_KEYS[0])}
-                bg="linear-gradient(135deg, rgba(30,30,50,0.7), rgba(138,43,226,0.15))"
+                bg="linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"
                 borderRadius="md"
-                border="1px solid rgba(138,43,226,0.4)"
+                border="2px solid rgba(167,255,0,0.6)"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
                 cursor="pointer"
                 transition="all 0.1s"
-                _hover={{ bg: "rgba(138,43,226,0.3)" }}
+                boxShadow="0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"
+                _hover={{
+                  bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
+                  borderColor: "rgba(167,255,0,0.9)",
+                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
+                }}
                 _active={{
-                  bg: "rgba(138,43,226,0.5)",
+                  bg: "rgba(138,43,226,0.7)",
                   transform: "scale(0.95)",
-                  boxShadow: "0 0 20px rgba(138,43,226,0.8)",
+                  boxShadow: "0 0 30px rgba(167,255,0,0.8)",
                 }}
               >
-                <Text fontSize="xl" fontWeight="bold" color="rgba(200,200,255,0.9)">
+                <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
                   W
                 </Text>
               </Box>
@@ -210,22 +216,27 @@ export default function QuestForStokenOverlay({
               <Box
                 as="button"
                 onClick={() => tap(MOVE_KEYS[1])}
-                bg="linear-gradient(135deg, rgba(30,30,50,0.7), rgba(138,43,226,0.15))"
+                bg="linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"
                 borderRadius="md"
-                border="1px solid rgba(138,43,226,0.4)"
+                border="2px solid rgba(167,255,0,0.6)"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
                 cursor="pointer"
                 transition="all 0.1s"
-                _hover={{ bg: "rgba(138,43,226,0.3)" }}
+                boxShadow="0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"
+                _hover={{
+                  bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
+                  borderColor: "rgba(167,255,0,0.9)",
+                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
+                }}
                 _active={{
-                  bg: "rgba(138,43,226,0.5)",
+                  bg: "rgba(138,43,226,0.7)",
                   transform: "scale(0.95)",
-                  boxShadow: "0 0 20px rgba(138,43,226,0.8)",
+                  boxShadow: "0 0 30px rgba(167,255,0,0.8)",
                 }}
               >
-                <Text fontSize="xl" fontWeight="bold" color="rgba(200,200,255,0.9)">
+                <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
                   A
                 </Text>
               </Box>
@@ -234,22 +245,27 @@ export default function QuestForStokenOverlay({
               <Box
                 as="button"
                 onClick={() => tap(MOVE_KEYS[2])}
-                bg="linear-gradient(135deg, rgba(30,30,50,0.7), rgba(138,43,226,0.15))"
+                bg="linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"
                 borderRadius="md"
-                border="1px solid rgba(138,43,226,0.4)"
+                border="2px solid rgba(167,255,0,0.6)"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
                 cursor="pointer"
                 transition="all 0.1s"
-                _hover={{ bg: "rgba(138,43,226,0.3)" }}
+                boxShadow="0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"
+                _hover={{
+                  bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
+                  borderColor: "rgba(167,255,0,0.9)",
+                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
+                }}
                 _active={{
-                  bg: "rgba(138,43,226,0.5)",
+                  bg: "rgba(138,43,226,0.7)",
                   transform: "scale(0.95)",
-                  boxShadow: "0 0 20px rgba(138,43,226,0.8)",
+                  boxShadow: "0 0 30px rgba(167,255,0,0.8)",
                 }}
               >
-                <Text fontSize="xl" fontWeight="bold" color="rgba(200,200,255,0.9)">
+                <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
                   S
                 </Text>
               </Box>
@@ -258,22 +274,27 @@ export default function QuestForStokenOverlay({
               <Box
                 as="button"
                 onClick={() => tap(MOVE_KEYS[3])}
-                bg="linear-gradient(135deg, rgba(30,30,50,0.7), rgba(138,43,226,0.15))"
+                bg="linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"
                 borderRadius="md"
-                border="1px solid rgba(138,43,226,0.4)"
+                border="2px solid rgba(167,255,0,0.6)"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
                 cursor="pointer"
                 transition="all 0.1s"
-                _hover={{ bg: "rgba(138,43,226,0.3)" }}
+                boxShadow="0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"
+                _hover={{
+                  bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
+                  borderColor: "rgba(167,255,0,0.9)",
+                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
+                }}
                 _active={{
-                  bg: "rgba(138,43,226,0.5)",
+                  bg: "rgba(138,43,226,0.7)",
                   transform: "scale(0.95)",
-                  boxShadow: "0 0 20px rgba(138,43,226,0.8)",
+                  boxShadow: "0 0 30px rgba(167,255,0,0.8)",
                 }}
               >
-                <Text fontSize="xl" fontWeight="bold" color="rgba(200,200,255,0.9)">
+                <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
                   D
                 </Text>
               </Box>
@@ -286,37 +307,43 @@ export default function QuestForStokenOverlay({
             onClick={() => tap(SPACE_KEY)}
             w="140px"
             h="50px"
-            bg="linear-gradient(135deg, rgba(30,30,50,0.7), rgba(138,43,226,0.15))"
+            bg="linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"
             borderRadius="lg"
-            border="1px solid rgba(138,43,226,0.4)"
+            border="2px solid rgba(167,255,0,0.6)"
             display="flex"
             alignItems="center"
             justifyContent="center"
             cursor="pointer"
             transition="all 0.1s"
             position="relative"
-            _hover={{ bg: "rgba(138,43,226,0.3)" }}
+            boxShadow="0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"
+            _hover={{
+              bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
+              borderColor: "rgba(167,255,0,0.9)",
+              boxShadow: "0 0 20px rgba(138,43,226,0.6)",
+            }}
             _active={{
-              bg: "rgba(138,43,226,0.5)",
+              bg: "rgba(138,43,226,0.7)",
               transform: "scale(0.98)",
-              boxShadow: "0 0 20px rgba(138,43,226,0.8)",
+              boxShadow: "0 0 30px rgba(167,255,0,0.8)",
             }}
           >
             <Box
               position="absolute"
               inset={0}
-              bg="radial-gradient(circle, rgba(138,43,226,0.2), transparent 70%)"
+              bg="radial-gradient(circle, rgba(167,255,0,0.15), transparent 70%)"
               filter="blur(15px)"
               pointerEvents="none"
             />
-            <Text fontSize="sm" fontWeight="bold" color="rgba(200,200,255,0.9)">
+            <Text fontSize="sm" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
               SPACE
             </Text>
             <Text
               position="absolute"
               bottom="-20px"
               fontSize="xs"
-              color="rgba(180,180,220,0.7)"
+              color="rgba(200,255,150,0.9)"
+              fontWeight="semibold"
             >
               {SPACE_KEY.hint}
             </Text>
