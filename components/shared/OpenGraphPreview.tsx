@@ -28,13 +28,14 @@ const OpenGraphPreview: React.FC<OpenGraphPreviewProps> = ({ url }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  // Skip OpenGraph preview for coin URLs, Snapshot URLs, and Google Maps links since they're handled by specific components
+  // Skip OpenGraph preview for coin URLs, Snapshot URLs, game URLs, and Google Maps links since they're handled by specific components
   const shouldSkip =
     url.includes("skatehive.app/coin") ||
     url.includes("zora.co/coin") ||
     url.includes("snapshot.org") ||
     url.includes("snapshot.box") ||
     url.includes("demo.snapshot.org") ||
+    url.includes("skatehive.app/games") ||
     url.includes("maps.google.com") ||
     url.includes("www.google.com/maps") ||
     url.includes("goo.gl/maps") ||
