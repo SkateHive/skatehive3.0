@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -8,8 +8,15 @@ import {
   Heading,
   Text,
   useBreakpointValue,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  useDisclosure,
 } from "@chakra-ui/react";
-import { Global } from "@emotion/react";
+// Global removed — no longer needed
 import { useTranslations } from "@/contexts/LocaleContext";
 import SpotSnapComposer from "@/components/spotmap/SpotSnapComposer";
 import SpotList from "@/components/spotmap/SpotList";
@@ -43,18 +50,12 @@ export default function EmbeddedMap({
   fullHeight = false,
 }: EmbeddedMapProps = {}) {
   const t = useTranslations('map');
-  const boxWidth = useBreakpointValue({
-    base: "90%",
-    sm: "80%",
-    md: "75%",
-    lg: "100%",
-  });
-  const paddingX = useBreakpointValue({ base: 2, sm: 4, md: 6 });
   const isMobile = useBreakpointValue({ base: true, md: false });
   const [newSpot, setNewSpot] = useState<Discussion | null>(null);
   const [composerKey, setComposerKey] = useState<number>(0);
-  const sidebarRef = useRef<HTMLDivElement>(null);
+  // sidebarRef removed — composer is now in a modal
   const { canUseAppFeatures } = useEffectiveHiveUser();
+  const { isOpen, onOpen, onClose: onModalClose } = useDisclosure();
 
   // Dynamic map source based on geolocation or initial coords
   const [mapSrc, setMapSrc] = useState(
@@ -117,29 +118,9 @@ export default function EmbeddedMap({
 
   const handleClose = () => {
     setComposerKey((k: number) => k + 1); // force reset by changing key
+    onModalClose(); // close the dialog
   };
 
-  // Only redirect scroll on desktop
-  const handleMapSideWheel = useCallback(
-    (e: React.WheelEvent<HTMLDivElement>) => {
-      // Only apply on md and up
-      if (window.innerWidth < 768) return;
-      // If the event is from the iframe, do nothing
-      if (
-        e.target instanceof HTMLIFrameElement ||
-        (e.target as HTMLElement)?.closest("iframe")
-      ) {
-        return;
-      }
-      // Prevent default scroll on map side
-      e.preventDefault();
-      // Scroll the sidebar
-      if (sidebarRef.current) {
-        sidebarRef.current.scrollTop += e.deltaY;
-      }
-    },
-    []
-  );
 
   return (
     <>
@@ -170,29 +151,21 @@ export default function EmbeddedMap({
               Find skateparks, street spots &amp; DIY spots worldwide — built by skaters, for skaters
             </Text>
             <Flex justify="center" gap={3} align="center">
-              {canUseAppFeatures && (
-                <Button
-                  size="sm"
-                  bg="transparent"
-                  color="primary"
-                  border="1px solid"
-                  borderColor="primary"
-                  borderRadius="md"
-                  px={4}
-                  fontWeight="bold"
-                  fontSize="sm"
-                  _hover={{ bg: "primary", color: "background" }}
-                  onClick={() => {
-                    const el = document.getElementById("spot-name-field");
-                    if (el) {
-                      el.scrollIntoView({ behavior: "smooth", block: "start" });
-                      el.focus();
-                    }
-                  }}
-                >
-                  + {t('addASpot')}
-                </Button>
-              )}
+              <Button
+                size="sm"
+                bg="transparent"
+                color="primary"
+                border="1px solid"
+                borderColor="primary"
+                borderRadius="md"
+                px={4}
+                fontWeight="bold"
+                fontSize="sm"
+                _hover={{ bg: "primary", color: "background" }}
+                onClick={onOpen}
+              >
+                + {t('addASpot')}
+              </Button>
               {/* Location status indicator */}
               {locationStatus && (
                 <Text
@@ -207,30 +180,22 @@ export default function EmbeddedMap({
           </Box>
         </Box>
 
-        {/* Main Content Section — Map takes priority */}
-        <Flex
-          height={{ base: "auto", md: fullHeight ? "75vh" : "70vh" }}
-          flexDirection={{ base: "column", md: "row" }}
-          align="stretch"
+        {/* Map Section — full width */}
+        <Box
           p={{ base: 2, md: 4 }}
           pt={0}
           w="100%"
           mx="auto"
-          gap={{ base: 2, md: 4 }}
         >
-          {/* Map Section — dominant */}
           <Box
-            flex="3"
-            minW={0}
-            w={{ base: "100%", md: "70%" }}
-            height={{ base: "60vh", md: "100%" }}
+            w="100%"
+            height={{ base: "65vh", md: fullHeight ? "80vh" : "75vh" }}
             borderRadius="lg"
             overflow="hidden"
             position="relative"
             border="2px solid"
             borderColor="primary"
             boxShadow="0 0 20px rgba(167, 255, 0, 0.15)"
-            onWheel={isMobile ? undefined : handleMapSideWheel}
           >
             <iframe
               src={mapSrc}
@@ -243,30 +208,38 @@ export default function EmbeddedMap({
               allowFullScreen
             ></iframe>
           </Box>
+        </Box>
 
-          {/* Sidebar Section — Composer */}
-          <Box
-            flex="1"
-            minW={{ md: "300px" }}
-            maxW={{ md: "380px" }}
-            w={{ base: "100%", md: "30%" }}
-            height={{ base: "auto", md: "100%" }}
-            overflowY={{ base: "visible", md: "auto" }}
-            bg="rgba(20,20,20,0.6)"
-            borderRadius="lg"
+        {/* Add Spot Dialog */}
+        <Modal isOpen={isOpen} onClose={onModalClose} size="lg" isCentered>
+          <ModalOverlay bg="rgba(0,0,0,0.7)" backdropFilter="blur(4px)" />
+          <ModalContent
+            bg="background"
             border="1px solid"
-            borderColor="whiteAlpha.200"
-            sx={{
-              "&::-webkit-scrollbar": { width: "4px" },
-              "&::-webkit-scrollbar-thumb": { bg: "primary", borderRadius: "2px" },
-            }}
+            borderColor="primary"
+            borderRadius="xl"
+            mx={4}
+            maxH="85vh"
+            overflowY="auto"
           >
-            <SpotSnapComposer
-              onNewComment={handleNewSpot}
-              onClose={handleClose}
-            />
-          </Box>
-        </Flex>
+            <ModalHeader
+              color="primary"
+              fontWeight="bold"
+              fontSize="xl"
+              pb={0}
+            >
+              📍 {t('addASpot')}
+            </ModalHeader>
+            <ModalCloseButton color="gray.400" />
+            <ModalBody pb={6}>
+              <SpotSnapComposer
+                key={composerKey}
+                onNewComment={handleNewSpot}
+                onClose={handleClose}
+              />
+            </ModalBody>
+          </ModalContent>
+        </Modal>
 
         {/* Spot List Section - 3 Column Grid */}
         <Box p={4} pt={0}>

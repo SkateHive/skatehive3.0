@@ -311,14 +311,10 @@ export default function SpotSnapComposer({
 
   return (
     <Box
-      p={4}
+      p={0}
       mb={1}
       borderRadius="md"
-      borderBottom={"1px"}
-      borderColor="muted"
       position="relative"
-      maxHeight="600px"
-      overflowY="auto"
       bg="background"
       color="text"
       onDragOver={handleDragOver}
