@@ -30,7 +30,7 @@ const GAMES: GameCartridge[] = [
     description:
       "The OG skatehive game. Control your skater through challenging levels, perform epic tricks, and collect STOKEN.",
     thumbnail: "/images/qfs-ogimage.png",
-    url: "/game",
+    url: "/games/quest-for-stoken",
     developer: "webgnar",
     tags: ["platformer", "arcade", "classic"],
   },

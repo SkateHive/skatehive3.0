@@ -163,6 +163,12 @@ const nextConfig = {
     },
     async redirects() {
         return [
+            // Legacy game route
+            {
+                source: '/game',
+                destination: '/games',
+                permanent: true,
+            },
             // Profile redirects: /@username -> /user/username
             {
                 source: '/@:username',
