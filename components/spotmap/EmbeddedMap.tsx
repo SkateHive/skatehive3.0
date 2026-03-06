@@ -58,13 +58,16 @@ export default function EmbeddedMap({
   const { isOpen, onOpen, onClose: onModalClose } = useDisclosure();
 
   // Dynamic map source based on geolocation or initial coords
-  const [mapSrc, setMapSrc] = useState(
-    buildMapSrc(initialLat, initialLng, initialZoom)
-  );
+  const defaultSrc = buildMapSrc(initialLat, initialLng, initialZoom);
+  const [mapSrc, setMapSrc] = useState(defaultSrc);
   const [locationStatus, setLocationStatus] = useState<string | null>(
     useGeolocation ? "detecting" : null
   );
+  const [isNearMe, setIsNearMe] = useState(false);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
 
+  // Auto-detect on /near-me page
   useEffect(() => {
     if (!useGeolocation || typeof window === "undefined") return;
     if (!navigator.geolocation) {
@@ -75,18 +78,52 @@ export default function EmbeddedMap({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
+        setUserCoords({ lat: latitude, lng: longitude });
         setMapSrc(buildMapSrc(latitude, longitude, 11));
+        setIsNearMe(true);
         setLocationStatus("found");
-        // Clear status after 3s
         setTimeout(() => setLocationStatus(null), 3000);
       },
       () => {
-        // User denied or error — fall back to default
         setLocationStatus(null);
       },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
     );
   }, [useGeolocation]);
+
+  // Toggle Near Me — request geolocation or zoom out
+  const handleNearMeToggle = () => {
+    if (isNearMe) {
+      // Zoom out to world view
+      setMapSrc(defaultSrc);
+      setIsNearMe(false);
+      return;
+    }
+
+    // If we already have coords, just re-center
+    if (userCoords) {
+      setMapSrc(buildMapSrc(userCoords.lat, userCoords.lng, 11));
+      setIsNearMe(true);
+      return;
+    }
+
+    // Request geolocation
+    if (!navigator.geolocation) return;
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserCoords({ lat: latitude, lng: longitude });
+        setMapSrc(buildMapSrc(latitude, longitude, 11));
+        setIsNearMe(true);
+        setGeoLoading(false);
+      },
+      () => {
+        setGeoLoading(false);
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+    );
+  };
 
   const {
     spots: allSpots,
@@ -150,7 +187,7 @@ export default function EmbeddedMap({
             <Text color="gray.400" fontSize={{ base: "xs", md: "sm" }} mb={2}>
               Find skateparks, street spots &amp; DIY spots worldwide — built by skaters, for skaters
             </Text>
-            <Flex justify="center" gap={3} align="center">
+            <Flex justify="center" gap={3} align="center" flexWrap="wrap">
               <Button
                 size="sm"
                 bg="transparent"
@@ -165,6 +202,23 @@ export default function EmbeddedMap({
                 onClick={onOpen}
               >
                 + {t('addASpot')}
+              </Button>
+              <Button
+                size="sm"
+                bg={isNearMe ? "primary" : "transparent"}
+                color={isNearMe ? "background" : "primary"}
+                border="1px solid"
+                borderColor="primary"
+                borderRadius="md"
+                px={4}
+                fontWeight="bold"
+                fontSize="sm"
+                _hover={{ bg: isNearMe ? "accent" : "primary", color: "background" }}
+                onClick={handleNearMeToggle}
+                isLoading={geoLoading}
+                loadingText="Locating..."
+              >
+                📍 {isNearMe ? "World View" : "Near Me"}
               </Button>
               {/* Location status indicator */}
               {locationStatus && (
