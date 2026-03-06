@@ -84,7 +84,7 @@ const nextConfig = {
             bodySizeLimit: '200mb', // Increase the body size limit for large video uploads
         },
     },
-    webpack: (config, { isServer, dev }) => {
+    webpack: (config, { isServer, dev, webpack }) => {
         // On the server, replace idb-keyval with a no-op stub so that
         // indexedDB.open() is never called.  The real idb-keyval will
         // still be used on the client.
@@ -93,6 +93,30 @@ const nextConfig = {
                 ...config.resolve.alias,
                 'idb-keyval': pathResolve(__dirname, 'lib/stubs/idb-keyval-server.js'),
             };
+
+            // Polyfill localStorage for prerender workers — Chakra UI's
+            // color-mode script accesses localStorage at module level,
+            // crashing static generation.  BannerPlugin injects this into
+            // every server chunk so it runs before any Chakra code.
+            config.plugins.push(
+                new webpack.BannerPlugin({
+                    banner: [
+                        'if(typeof globalThis.localStorage==="undefined"||typeof globalThis.localStorage.getItem!=="function"){',
+                        '  var _ls={};',
+                        '  globalThis.localStorage={',
+                        '    getItem:function(k){return Object.prototype.hasOwnProperty.call(_ls,k)?_ls[k]:null},',
+                        '    setItem:function(k,v){_ls[k]=String(v)},',
+                        '    removeItem:function(k){delete _ls[k]},',
+                        '    clear:function(){_ls={}},',
+                        '    key:function(i){return Object.keys(_ls)[i]||null},',
+                        '    get length(){return Object.keys(_ls).length}',
+                        '  };',
+                        '}',
+                    ].join(''),
+                    raw: true,
+                    entryOnly: false,
+                }),
+            );
         }
 
         if (!isServer) {

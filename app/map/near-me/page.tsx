@@ -1,9 +1,10 @@
 import { Metadata } from "next";
-import dynamic from "next/dynamic";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
+import NearMeMapClient from "./NearMeMapClient";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
+
 
 export const metadata: Metadata = {
     title: "Skate Spots Near Me — Find Skateparks & Street Spots Nearby",
@@ -53,10 +54,6 @@ export const metadata: Metadata = {
     },
 };
 
-const EmbeddedMap = dynamic(
-    () => import("@/components/spotmap/EmbeddedMap"),
-    { ssr: true }
-);
 
 export default function NearMePage() {
     // This page uses geolocation to center the map on the user
@@ -148,7 +145,7 @@ export default function NearMePage() {
                 </header>
 
                 {/* The actual map — uses geolocation to center near user */}
-                <EmbeddedMap useGeolocation={true} fullHeight={true} />
+                <NearMeMapClient />
 
                 {/* Additional SEO content below the map */}
                 <section

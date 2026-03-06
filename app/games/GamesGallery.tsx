@@ -6,7 +6,6 @@ import {
   Heading,
   Text,
   SimpleGrid,
-  Image,
   VStack,
   Badge,
   Flex,
@@ -17,6 +16,11 @@ import dynamic from "next/dynamic";
 
 const Cartridge3D = dynamic(() => import("@/components/games/Cartridge3D"), {
   ssr: false,
+  loading: () => (
+    <Flex w="100%" h="100%" bg="background" align="center" justify="center">
+      <Text fontSize="5xl">🛹</Text>
+    </Flex>
+  ),
 });
 
 interface GameCartridge {
@@ -35,7 +39,7 @@ const GAMES: GameCartridge[] = [
     slug: "quest-for-stoken",
     title: "Quest for Stoken",
     description:
-      "The OG skatehive game. Control your skater through challenging levels, perform epic tricks, and collect STOKEN.",
+      "The OG skatehive game. Control your skater through challenging levels and collect STOKEN.",
     thumbnail: "/images/qfs-ogimage.png",
     url: "/games/quest-for-stoken",
     developer: "webgnar",
@@ -45,7 +49,7 @@ const GAMES: GameCartridge[] = [
     slug: "lougnar",
     title: "Lougnar",
     description:
-      "The newest skatehive game by webgnar. A fresh take on skate gaming built with Excalibur.js.",
+      "The newest skatehive game by webgnar. A fresh take on skate gaming with Excalibur.js.",
     thumbnail: "/images/lougnar-thumb.jpg",
     url: "/games/lougnar",
     developer: "webgnar",
@@ -54,6 +58,10 @@ const GAMES: GameCartridge[] = [
   },
 ];
 
+/* ─── Fixed-height card ─── */
+const CARD_H = { base: "380px", md: "420px" };
+const CANVAS_H = { base: "260px", md: "300px" };
+
 function GameCard({ game }: { game: GameCartridge }) {
   const reduceMotion = usePrefersReducedMotion();
   const [hovered, setHovered] = useState(false);
@@ -61,18 +69,21 @@ function GameCard({ game }: { game: GameCartridge }) {
   return (
     <Link href={game.url} style={{ textDecoration: "none" }}>
       <Box
-        bg="muted"
-        borderRadius="lg"
+        bg="rgba(20,20,20,0.7)"
+        borderRadius="xl"
         overflow="hidden"
         border="2px solid"
-        borderColor="transparent"
+        borderColor="whiteAlpha.100"
+        h={CARD_H}
         transition="all 0.3s ease"
         cursor="pointer"
         position="relative"
+        display="flex"
+        flexDirection="column"
         _hover={{
           borderColor: "primary",
-          transform: "translateY(-4px)",
-          boxShadow: "0 0 25px rgba(167, 255, 0, 0.25)",
+          transform: "translateY(-6px)",
+          boxShadow: "0 0 30px rgba(167, 255, 0, 0.2), 0 8px 32px rgba(0,0,0,0.6)",
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -80,59 +91,19 @@ function GameCard({ game }: { game: GameCartridge }) {
         onBlur={() => setHovered(false)}
         role="group"
       >
-        {/* Cartridge top notch */}
-        <Box
-          h="6px"
-          bg="primary"
-          mx="25%"
-          borderBottomRadius="md"
-          opacity={0.6}
-          _groupHover={{ opacity: 1 }}
-          transition="opacity 0.3s"
-        />
-
-        {/* Cartridge */}
+        {/* 3D Cartridge area */}
         <Box
           position="relative"
-          overflow="hidden"
-          h={{ base: "220px", md: "260px" }}
+          h={CANVAS_H}
           bg="background"
+          flexShrink={0}
         >
-          {/* Keep it light: show 2D image until hover, then swap in 3D */}
-          {reduceMotion || !hovered ? (
-            <Image
-              src={game.thumbnail}
-              alt={game.title}
-              w="100%"
-              h="100%"
-              objectFit="cover"
-              fallback={
-                <Flex
-                  w="100%"
-                  h="100%"
-                  bg="background"
-                  align="center"
-                  justify="center"
-                >
-                  <Text fontSize="5xl">🛹</Text>
-                </Flex>
-              }
-            />
+          {reduceMotion ? (
+            <Flex w="100%" h="100%" bg="background" align="center" justify="center">
+              <Text fontSize="5xl">🎮</Text>
+            </Flex>
           ) : (
-            <Box
-              w="100%"
-              h="100%"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              pointerEvents="none"
-              px={6}
-              py={4}
-            >
-              <Box w="100%" h="100%">
-                <Cartridge3D imageUrl={game.thumbnail} hovered={hovered} />
-              </Box>
-            </Box>
+            <Cartridge3D imageUrl={game.thumbnail} hovered={hovered} />
           )}
 
           {game.isNew && (
@@ -147,53 +118,38 @@ function GameCard({ game }: { game: GameCartridge }) {
               px={2}
               py={1}
               borderRadius="md"
+              zIndex={2}
             >
               NEW
             </Badge>
           )}
-
-          {/* Play overlay on hover */}
-          <Flex
-            position="absolute"
-            top={0}
-            left={0}
-            right={0}
-            bottom={0}
-            bg="rgba(0,0,0,0.45)"
-            align="center"
-            justify="center"
-            opacity={0}
-            _groupHover={{ opacity: 1 }}
-            transition="opacity 0.3s"
-          >
-            <Text fontSize="4xl">▶️</Text>
-          </Flex>
         </Box>
 
-        {/* Info */}
-        <VStack p={4} align="start" spacing={2}>
+        {/* Info (fixed layout) */}
+        <VStack p={3} align="start" spacing={1} flex={1} justify="center">
           <Heading
             as="h3"
-            fontSize={{ base: "lg", md: "xl" }}
+            fontSize={{ base: "md", md: "lg" }}
             color="primary"
             fontWeight="bold"
+            noOfLines={1}
           >
             {game.title}
           </Heading>
-          <Text color="gray.400" fontSize="sm" noOfLines={2}>
+          <Text color="gray.400" fontSize="xs" noOfLines={2} minH="2.4em">
             {game.description}
           </Text>
-          <Flex gap={2} flexWrap="wrap" align="center">
-            <Text color="gray.500" fontSize="xs">
+          <Flex gap={1} flexWrap="wrap" align="center" mt={1}>
+            <Text color="gray.500" fontSize="2xs">
               by @{game.developer}
             </Text>
             {game.tags.map((tag) => (
               <Badge
                 key={tag}
-                bg="background"
+                bg="whiteAlpha.100"
                 color="gray.400"
                 fontSize="2xs"
-                px={2}
+                px={1.5}
                 borderRadius="sm"
               >
                 {tag}
@@ -202,8 +158,14 @@ function GameCard({ game }: { game: GameCartridge }) {
           </Flex>
         </VStack>
 
-        {/* Cartridge bottom */}
-        <Box h="4px" bg="primary" opacity={0.3} _groupHover={{ opacity: 0.6 }} transition="opacity 0.3s" />
+        {/* Bottom accent */}
+        <Box
+          h="3px"
+          bg="primary"
+          opacity={0.25}
+          _groupHover={{ opacity: 0.7 }}
+          transition="opacity 0.25s"
+        />
       </Box>
     </Link>
   );
@@ -224,7 +186,8 @@ export default function GamesGallery() {
           🎮 skate games
         </Heading>
         <Text color="gray.400" fontSize={{ base: "sm", md: "md" }} maxW="600px">
-          Free skateboarding games built by the community. Pick a cartridge and shred.
+          Free skateboarding games built by the community. Pick a cartridge and
+          shred.
         </Text>
       </VStack>
 

@@ -120,6 +120,7 @@
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",
     "@types/react-select-country-list": "^2.2.3",
+    "@types/three": "^0.183.1",
     "autoprefixer": "^10.4.20",
     "baseline-browser-mapping": "^2.9.19",
     "eslint": "^9.27.0",

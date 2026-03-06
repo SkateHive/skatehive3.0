@@ -292,6 +292,9 @@ importers:
       '@types/react-select-country-list':
         specifier: ^2.2.3
         version: 2.2.3
+      '@types/three':
+        specifier: ^0.183.1
+        version: 0.183.1
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.21(postcss@8.5.6)

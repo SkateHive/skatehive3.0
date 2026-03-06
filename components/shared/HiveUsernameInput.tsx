@@ -18,6 +18,10 @@ import { FaCheck, FaTimes } from "react-icons/fa";
 import { useHiveUserValidation } from "@/hooks/useHiveUserValidation";
 import useIsMobile from "@/hooks/useIsMobile";
 
+// Chakra polymorphic types can trigger TS "union type too complex" on refs.
+// We only need a DOM ref for focus/contain checks, so we relax the JSX typing here.
+const InputAny = Input as unknown as React.ComponentType<any>;
+
 interface UsernameSuggestion {
   username: string;
   reputation: number;
@@ -218,7 +222,7 @@ export default function HiveUsernameInput({
     <Box position="relative" width="100%">
       <HStack spacing={2}>
         <Box flex="1" position="relative">
-          <Input
+          <InputAny
             ref={inputRef}
             value={value}
             onChange={handleInputChange}

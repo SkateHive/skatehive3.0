@@ -41,7 +41,7 @@ export const ZoraButton = React.memo<ZoraButtonProps>(
           minW="auto"
           h="auto"
           p={1}
-          {...iconButtonProps}
+          {...(iconButtonProps as Record<string, unknown>)}
         />
       </Tooltip>
     );
