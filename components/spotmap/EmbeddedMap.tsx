@@ -17,10 +17,31 @@ import { useSkatespots } from "@/hooks/useSkatespots";
 import { Discussion } from "@hiveio/dhive";
 import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
 
-const mapSrc =
+const DEFAULT_MAP_SRC =
   "https://www.google.com/maps/d/u/1/embed?mid=1iiXzotKL-uJ3l7USddpTDvadGII&hl=en&ll=29.208380630280647%2C-100.5437214508988&z=4";
 
-export default function EmbeddedMap() {
+function buildMapSrc(lat?: number, lng?: number, zoom?: number): string {
+  const base = "https://www.google.com/maps/d/u/1/embed?mid=1iiXzotKL-uJ3l7USddpTDvadGII&hl=en";
+  const ll = lat && lng ? `&ll=${lat}%2C${lng}` : "&ll=29.208380630280647%2C-100.5437214508988";
+  const z = `&z=${zoom || 4}`;
+  return `${base}${ll}${z}`;
+}
+
+interface EmbeddedMapProps {
+  initialLat?: number;
+  initialLng?: number;
+  initialZoom?: number;
+  useGeolocation?: boolean;
+  fullHeight?: boolean;
+}
+
+export default function EmbeddedMap({
+  initialLat,
+  initialLng,
+  initialZoom,
+  useGeolocation = false,
+  fullHeight = false,
+}: EmbeddedMapProps = {}) {
   const t = useTranslations('map');
   const boxWidth = useBreakpointValue({
     base: "90%",
@@ -34,6 +55,37 @@ export default function EmbeddedMap() {
   const [composerKey, setComposerKey] = useState<number>(0);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { canUseAppFeatures } = useEffectiveHiveUser();
+
+  // Dynamic map source based on geolocation or initial coords
+  const [mapSrc, setMapSrc] = useState(
+    buildMapSrc(initialLat, initialLng, initialZoom)
+  );
+  const [locationStatus, setLocationStatus] = useState<string | null>(
+    useGeolocation ? "detecting" : null
+  );
+
+  useEffect(() => {
+    if (!useGeolocation || typeof window === "undefined") return;
+    if (!navigator.geolocation) {
+      setLocationStatus(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setMapSrc(buildMapSrc(latitude, longitude, 11));
+        setLocationStatus("found");
+        // Clear status after 3s
+        setTimeout(() => setLocationStatus(null), 3000);
+      },
+      () => {
+        // User denied or error — fall back to default
+        setLocationStatus(null);
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+    );
+  }, [useGeolocation]);
 
   const {
     spots: allSpots,
@@ -171,7 +223,7 @@ export default function EmbeddedMap() {
 
         {/* Main Content Section */}
         <Flex
-          height={{ base: "auto", md: "600px" }}
+          height={{ base: "auto", md: fullHeight ? "700px" : "600px" }}
           flexDirection={{ base: "column", md: "row" }}
           align="flex-start"
           justifyContent="center"
@@ -181,6 +233,32 @@ export default function EmbeddedMap() {
           mx="auto"
           gap={0}
         >
+          {/* Location status indicator */}
+          {locationStatus === "detecting" && (
+            <Box
+              w="100%"
+              textAlign="center"
+              py={2}
+              color="primary"
+              fontSize="sm"
+              fontWeight="bold"
+            >
+              📍 Detecting your location...
+            </Box>
+          )}
+          {locationStatus === "found" && (
+            <Box
+              w="100%"
+              textAlign="center"
+              py={2}
+              color="primary"
+              fontSize="sm"
+              fontWeight="bold"
+            >
+              ✅ Showing spots near you!
+            </Box>
+          )}
+
           {/* Map Section */}
           <Box
             flex="2"

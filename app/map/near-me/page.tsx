@@ -59,6 +59,7 @@ const EmbeddedMap = dynamic(
 );
 
 export default function NearMePage() {
+    // This page uses geolocation to center the map on the user
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "WebPage",
@@ -146,8 +147,8 @@ export default function NearMePage() {
                     </p>
                 </header>
 
-                {/* The actual map */}
-                <EmbeddedMap />
+                {/* The actual map — uses geolocation to center near user */}
+                <EmbeddedMap useGeolocation={true} fullHeight={true} />
 
                 {/* Additional SEO content below the map */}
                 <section
