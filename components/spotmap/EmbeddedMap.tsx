@@ -14,9 +14,11 @@ import {
   ModalHeader,
   ModalCloseButton,
   ModalBody,
+  IconButton,
+  HStack,
   useDisclosure,
 } from "@chakra-ui/react";
-// Global removed — no longer needed
+import { MdAdd, MdRemove, MdFullscreen, MdOpenInNew } from "react-icons/md";
 import { useTranslations } from "@/contexts/LocaleContext";
 import SpotSnapComposer from "@/components/spotmap/SpotSnapComposer";
 import SpotList from "@/components/spotmap/SpotList";
@@ -28,9 +30,24 @@ const DEFAULT_MAP_SRC =
   "https://www.google.com/maps/d/u/1/embed?mid=1iiXzotKL-uJ3l7USddpTDvadGII&hl=en&ll=29.208380630280647%2C-100.5437214508988&z=4";
 
 function buildMapSrc(lat?: number, lng?: number, zoom?: number): string {
-  const base = "https://www.google.com/maps/d/u/1/embed?mid=1iiXzotKL-uJ3l7USddpTDvadGII&hl=en";
-  const ll = lat && lng ? `&ll=${lat}%2C${lng}` : "&ll=29.208380630280647%2C-100.5437214508988";
-  const z = `&z=${zoom || 4}`;
+  const base =
+    "https://www.google.com/maps/d/u/1/embed?mid=1iiXzotKL-uJ3l7USddpTDvadGII&hl=en";
+  const ll =
+    lat != null && lng != null
+      ? `&ll=${lat}%2C${lng}`
+      : "&ll=29.208380630280647%2C-100.5437214508988";
+  const z = `&z=${zoom ?? 4}`;
+  return `${base}${ll}${z}`;
+}
+
+function buildMapViewerUrl(lat?: number, lng?: number, zoom?: number): string {
+  const base =
+    "https://www.google.com/maps/d/u/1/viewer?mid=1iiXzotKL-uJ3l7USddpTDvadGII&hl=en";
+  const ll =
+    lat != null && lng != null
+      ? `&ll=${lat}%2C${lng}`
+      : "&ll=29.208380630280647%2C-100.5437214508988";
+  const z = `&z=${zoom ?? 4}`;
   return `${base}${ll}${z}`;
 }
 
@@ -55,17 +72,41 @@ export default function EmbeddedMap({
   const [composerKey, setComposerKey] = useState<number>(0);
   // sidebarRef removed — composer is now in a modal
   const { canUseAppFeatures } = useEffectiveHiveUser();
-  const { isOpen, onOpen, onClose: onModalClose } = useDisclosure();
 
   // Dynamic map source based on geolocation or initial coords
-  const defaultSrc = buildMapSrc(initialLat, initialLng, initialZoom);
-  const [mapSrc, setMapSrc] = useState(defaultSrc);
+  const defaultCenter = {
+    lat: initialLat ?? 29.208380630280647,
+    lng: initialLng ?? -100.5437214508988,
+  };
+  const defaultZoom = initialZoom ?? 4;
+
+  const [center, setCenter] = useState(defaultCenter);
+  const [zoom, setZoom] = useState<number>(defaultZoom);
+  const [mapSrc, setMapSrc] = useState(buildMapSrc(center.lat, center.lng, zoom));
   const [locationStatus, setLocationStatus] = useState<string | null>(
     useGeolocation ? "detecting" : null
   );
   const [isNearMe, setIsNearMe] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
+
+  // Composer dialog
+  const {
+    isOpen: isComposerOpen,
+    onOpen: onComposerOpen,
+    onClose: onComposerClose,
+  } = useDisclosure();
+  // Map fullscreen dialog (helps mobile + no scroll wheel)
+  const {
+    isOpen: isMapOpen,
+    onOpen: onMapOpen,
+    onClose: onMapClose,
+  } = useDisclosure();
+
+  // Keep iframe src in sync with our center/zoom state
+  useEffect(() => {
+    setMapSrc(buildMapSrc(center.lat, center.lng, zoom));
+  }, [center.lat, center.lng, zoom]);
 
   // Auto-detect on /near-me page
   useEffect(() => {
@@ -79,7 +120,8 @@ export default function EmbeddedMap({
       (position) => {
         const { latitude, longitude } = position.coords;
         setUserCoords({ lat: latitude, lng: longitude });
-        setMapSrc(buildMapSrc(latitude, longitude, 11));
+        setCenter({ lat: latitude, lng: longitude });
+        setZoom(11);
         setIsNearMe(true);
         setLocationStatus("found");
         setTimeout(() => setLocationStatus(null), 3000);
@@ -94,15 +136,16 @@ export default function EmbeddedMap({
   // Toggle Near Me — request geolocation or zoom out
   const handleNearMeToggle = () => {
     if (isNearMe) {
-      // Zoom out to world view
-      setMapSrc(defaultSrc);
+      setCenter(defaultCenter);
+      setZoom(defaultZoom);
       setIsNearMe(false);
       return;
     }
 
     // If we already have coords, just re-center
     if (userCoords) {
-      setMapSrc(buildMapSrc(userCoords.lat, userCoords.lng, 11));
+      setCenter({ lat: userCoords.lat, lng: userCoords.lng });
+      setZoom(11);
       setIsNearMe(true);
       return;
     }
@@ -114,7 +157,8 @@ export default function EmbeddedMap({
       (position) => {
         const { latitude, longitude } = position.coords;
         setUserCoords({ lat: latitude, lng: longitude });
-        setMapSrc(buildMapSrc(latitude, longitude, 11));
+        setCenter({ lat: latitude, lng: longitude });
+        setZoom(11);
         setIsNearMe(true);
         setGeoLoading(false);
       },
@@ -123,6 +167,15 @@ export default function EmbeddedMap({
       },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
     );
+  };
+
+  const zoomIn = () => setZoom((z) => Math.min(18, z + 1));
+  const zoomOut = () => setZoom((z) => Math.max(2, z - 1));
+
+  const openInNewTab = () => {
+    if (typeof window === "undefined") return;
+    const url = buildMapViewerUrl(center.lat, center.lng, zoom);
+    window.open(url, "_blank");
   };
 
   const {
@@ -155,7 +208,7 @@ export default function EmbeddedMap({
 
   const handleClose = () => {
     setComposerKey((k: number) => k + 1); // force reset by changing key
-    onModalClose(); // close the dialog
+    onComposerClose(); // close the dialog
   };
 
 
@@ -199,7 +252,7 @@ export default function EmbeddedMap({
                 fontWeight="bold"
                 fontSize="sm"
                 _hover={{ bg: "primary", color: "background" }}
-                onClick={onOpen}
+                onClick={onComposerOpen}
               >
                 + {t('addASpot')}
               </Button>
@@ -251,6 +304,79 @@ export default function EmbeddedMap({
             borderColor="primary"
             boxShadow="0 0 20px rgba(167, 255, 0, 0.15)"
           >
+            {/* Map controls (helps mobile + no scroll wheel) */}
+            <HStack
+              position="absolute"
+              top={3}
+              right={3}
+              zIndex={5}
+              spacing={2}
+              bg="rgba(0,0,0,0.35)"
+              backdropFilter="blur(6px)"
+              border="1px solid"
+              borderColor="whiteAlpha.200"
+              borderRadius="lg"
+              p={2}
+            >
+              <IconButton
+                aria-label="Zoom in"
+                icon={<MdAdd />}
+                size="sm"
+                variant="ghost"
+                color="primary"
+                _hover={{ bg: "whiteAlpha.200" }}
+                onClick={zoomIn}
+              />
+              <IconButton
+                aria-label="Zoom out"
+                icon={<MdRemove />}
+                size="sm"
+                variant="ghost"
+                color="primary"
+                _hover={{ bg: "whiteAlpha.200" }}
+                onClick={zoomOut}
+              />
+              <IconButton
+                aria-label="Fullscreen"
+                icon={<MdFullscreen />}
+                size="sm"
+                variant="ghost"
+                color="primary"
+                _hover={{ bg: "whiteAlpha.200" }}
+                onClick={onMapOpen}
+              />
+              <IconButton
+                aria-label="Open in new tab"
+                icon={<MdOpenInNew />}
+                size="sm"
+                variant="ghost"
+                color="primary"
+                _hover={{ bg: "whiteAlpha.200" }}
+                onClick={openInNewTab}
+              />
+            </HStack>
+
+            {isMobile && (
+              <Box
+                position="absolute"
+                bottom={3}
+                left="50%"
+                transform="translateX(-50%)"
+                zIndex={5}
+                px={3}
+                py={1}
+                bg="rgba(0,0,0,0.35)"
+                backdropFilter="blur(6px)"
+                borderRadius="full"
+                border="1px solid"
+                borderColor="whiteAlpha.200"
+              >
+                <Text fontSize="xs" color="gray.200">
+                  Tip: use + / - or fullscreen to zoom
+                </Text>
+              </Box>
+            )}
+
             <iframe
               src={mapSrc}
               style={{
@@ -265,7 +391,8 @@ export default function EmbeddedMap({
         </Box>
 
         {/* Add Spot Dialog */}
-        <Modal isOpen={isOpen} onClose={onModalClose} size="lg" isCentered>
+        <Modal isOpen={isComposerOpen} onClose={onComposerClose} size="lg" isCentered>
+
           <ModalOverlay bg="rgba(0,0,0,0.7)" backdropFilter="blur(4px)" />
           <ModalContent
             bg="background"
@@ -290,6 +417,87 @@ export default function EmbeddedMap({
                 key={composerKey}
                 onNewComment={handleNewSpot}
                 onClose={handleClose}
+              />
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+
+        {/* Map Fullscreen */}
+        <Modal isOpen={isMapOpen} onClose={onMapClose} size="full" isCentered motionPreset="none">
+          <ModalOverlay bg="rgba(0,0,0,0.8)" backdropFilter="blur(6px)" />
+          <ModalContent bg="background" m={0} maxW="100vw" maxH="100vh" h="100vh" w="100vw" overflow="hidden">
+            <ModalCloseButton
+              size="lg"
+              color="white"
+              bg="red.600"
+              _hover={{ bg: "red.500" }}
+              _active={{ bg: "red.700" }}
+              borderRadius="lg"
+              zIndex={10001}
+              top={4}
+              right={4}
+              position="fixed"
+              title="Close"
+              boxShadow="xl"
+            />
+            <ModalBody p={0} h="100vh" w="100vw" position="relative" overflow="hidden">
+              <HStack
+                position="absolute"
+                top={4}
+                left={4}
+                zIndex={10002}
+                spacing={2}
+                bg="rgba(0,0,0,0.45)"
+                backdropFilter="blur(8px)"
+                border="1px solid"
+                borderColor="whiteAlpha.200"
+                borderRadius="lg"
+                p={2}
+              >
+                <IconButton
+                  aria-label="Zoom in"
+                  icon={<MdAdd />}
+                  size="sm"
+                  variant="ghost"
+                  color="primary"
+                  _hover={{ bg: "whiteAlpha.200" }}
+                  onClick={zoomIn}
+                />
+                <IconButton
+                  aria-label="Zoom out"
+                  icon={<MdRemove />}
+                  size="sm"
+                  variant="ghost"
+                  color="primary"
+                  _hover={{ bg: "whiteAlpha.200" }}
+                  onClick={zoomOut}
+                />
+                <IconButton
+                  aria-label="Open in new tab"
+                  icon={<MdOpenInNew />}
+                  size="sm"
+                  variant="ghost"
+                  color="primary"
+                  _hover={{ bg: "whiteAlpha.200" }}
+                  onClick={openInNewTab}
+                />
+              </HStack>
+
+              <Box
+                key={mapSrc}
+                as="iframe"
+                src={mapSrc}
+                w="100%"
+                h="100%"
+                border="none"
+                title="SkateHive Skate Spot Map (Fullscreen)"
+                allow="fullscreen"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
+                sx={{
+                  scrollbarWidth: "none",
+                  msOverflowStyle: "none",
+                  "&::-webkit-scrollbar": { display: "none" },
+                }}
               />
             </ModalBody>
           </ModalContent>
