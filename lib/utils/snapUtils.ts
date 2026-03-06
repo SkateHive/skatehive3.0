@@ -66,6 +66,8 @@ export const extractLastUrl = (content: string): string | null => {
       url.includes('vimeo.com') ||
       // Skip Odysee URLs
       url.includes('odysee.com') ||
+      // Skip game URLs (handled by game cartridge renderer)
+      url.includes('skatehive.app/games') ||
       // Skip IPFS URLs
       url.includes('ipfs')
       // Skip Hive Imaages URLs
@@ -109,8 +111,8 @@ export const removeLastUrlFromContent = (content: string): string => {
   const lastUrl = extractLastUrl(content);
   if (!lastUrl) return content;
   
-  // Don't remove Zora coin URLs as they should be rendered as previews
-  if (lastUrl.includes('zora.co/coin') || lastUrl.includes('skatehive.app/coin')) {
+  // Don't remove Zora coin URLs or game URLs as they should be rendered as special previews
+  if (lastUrl.includes('zora.co/coin') || lastUrl.includes('skatehive.app/coin') || lastUrl.includes('skatehive.app/games')) {
     return content;
   }
   
