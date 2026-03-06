@@ -5,9 +5,28 @@ import { Box, Text } from "@chakra-ui/react";
 
 interface GameBoyOverlayProps {
   children: React.ReactNode;
+  iframeRef?: React.RefObject<HTMLIFrameElement>;
 }
 
-export default function GameBoyOverlay({ children }: GameBoyOverlayProps) {
+export default function GameBoyOverlay({ children, iframeRef }: GameBoyOverlayProps) {
+  const sendKey = (key: string, action: 'down' | 'up' = 'down') => {
+    if (!iframeRef?.current?.contentWindow) return;
+    
+    const event = new KeyboardEvent(action === 'down' ? 'keydown' : 'keyup', {
+      key,
+      code: key,
+      bubbles: true,
+      cancelable: true,
+    });
+    
+    iframeRef.current.contentWindow.document.dispatchEvent(event);
+  };
+
+  const handleButtonPress = (key: string) => {
+    sendKey(key, 'down');
+    setTimeout(() => sendKey(key, 'up'), 100);
+  };
+
   return (
     <Box
       position="relative"
@@ -50,7 +69,7 @@ export default function GameBoyOverlay({ children }: GameBoyOverlayProps) {
         {children}
       </Box>
 
-      {/* D-pad (left side) */}
+      {/* D-pad (left side) - FUNCTIONAL */}
       <Box
         position="absolute"
         bottom="20%"
@@ -58,19 +77,81 @@ export default function GameBoyOverlay({ children }: GameBoyOverlayProps) {
         w={24}
         h={24}
       >
-        <svg viewBox="0 0 100 100" fill="none">
-          <g filter="drop-shadow(0px 3px 6px rgba(0,0,0,0.4))">
-            {/* Horizontal bar */}
-            <rect x="18" y="35" width="64" height="30" fill="#1a1a2e" rx="4" />
-            {/* Vertical bar */}
-            <rect x="35" y="18" width="30" height="64" fill="#1a1a2e" rx="4" />
-            {/* Center circle */}
-            <circle cx="50" cy="50" r="12" fill="#0f0f1a" />
-          </g>
-        </svg>
+        {/* Up */}
+        <Box
+          position="absolute"
+          top={0}
+          left="50%"
+          transform="translateX(-50%)"
+          w={8}
+          h={10}
+          bg="#1a1a2e"
+          borderRadius="sm"
+          cursor="pointer"
+          transition="all 0.1s"
+          _active={{ bg: "#0f0f1a", transform: "translateX(-50%) scale(0.95)" }}
+          onClick={() => handleButtonPress('ArrowUp')}
+        />
+        {/* Down */}
+        <Box
+          position="absolute"
+          bottom={0}
+          left="50%"
+          transform="translateX(-50%)"
+          w={8}
+          h={10}
+          bg="#1a1a2e"
+          borderRadius="sm"
+          cursor="pointer"
+          transition="all 0.1s"
+          _active={{ bg: "#0f0f1a", transform: "translateX(-50%) scale(0.95)" }}
+          onClick={() => handleButtonPress('ArrowDown')}
+        />
+        {/* Left */}
+        <Box
+          position="absolute"
+          left={0}
+          top="50%"
+          transform="translateY(-50%)"
+          w={10}
+          h={8}
+          bg="#1a1a2e"
+          borderRadius="sm"
+          cursor="pointer"
+          transition="all 0.1s"
+          _active={{ bg: "#0f0f1a", transform: "translateY(-50%) scale(0.95)" }}
+          onClick={() => handleButtonPress('ArrowLeft')}
+        />
+        {/* Right */}
+        <Box
+          position="absolute"
+          right={0}
+          top="50%"
+          transform="translateY(-50%)"
+          w={10}
+          h={8}
+          bg="#1a1a2e"
+          borderRadius="sm"
+          cursor="pointer"
+          transition="all 0.1s"
+          _active={{ bg: "#0f0f1a", transform: "translateY(-50%) scale(0.95)" }}
+          onClick={() => handleButtonPress('ArrowRight')}
+        />
+        {/* Center */}
+        <Box
+          position="absolute"
+          top="50%"
+          left="50%"
+          transform="translate(-50%, -50%)"
+          w={8}
+          h={8}
+          bg="#0f0f1a"
+          borderRadius="full"
+          pointerEvents="none"
+        />
       </Box>
 
-      {/* A/B buttons (right side) */}
+      {/* A/B buttons (right side) - FUNCTIONAL */}
       <Box
         position="absolute"
         bottom="22%"
@@ -92,6 +173,10 @@ export default function GameBoyOverlay({ children }: GameBoyOverlayProps) {
           fontWeight="bold"
           color="white"
           textShadow="0 1px 2px rgba(0,0,0,0.5)"
+          cursor="pointer"
+          transition="all 0.1s"
+          _active={{ transform: "scale(0.9)", boxShadow: "0 2px 4px rgba(0,0,0,0.4)" }}
+          onClick={() => handleButtonPress('x')}
         >
           B
         </Box>
@@ -110,12 +195,16 @@ export default function GameBoyOverlay({ children }: GameBoyOverlayProps) {
           color="white"
           textShadow="0 1px 2px rgba(0,0,0,0.5)"
           mt={-3}
+          cursor="pointer"
+          transition="all 0.1s"
+          _active={{ transform: "scale(0.9)", boxShadow: "0 2px 4px rgba(0,0,0,0.4)" }}
+          onClick={() => handleButtonPress('z')}
         >
           A
         </Box>
       </Box>
 
-      {/* L/R shoulder buttons */}
+      {/* L/R shoulder buttons - FUNCTIONAL */}
       <Box
         position="absolute"
         top={2}
@@ -128,6 +217,10 @@ export default function GameBoyOverlay({ children }: GameBoyOverlayProps) {
         py={1}
         borderRadius="md"
         boxShadow="0 2px 4px rgba(0,0,0,0.3)"
+        cursor="pointer"
+        transition="all 0.1s"
+        _active={{ transform: "translateY(1px)", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
+        onClick={() => handleButtonPress('q')}
       >
         L
       </Box>
@@ -143,11 +236,15 @@ export default function GameBoyOverlay({ children }: GameBoyOverlayProps) {
         py={1}
         borderRadius="md"
         boxShadow="0 2px 4px rgba(0,0,0,0.3)"
+        cursor="pointer"
+        transition="all 0.1s"
+        _active={{ transform: "translateY(1px)", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
+        onClick={() => handleButtonPress('e')}
       >
         R
       </Box>
 
-      {/* START/SELECT buttons (below screen) */}
+      {/* START/SELECT buttons (below screen) - FUNCTIONAL */}
       <Box
         position="absolute"
         bottom="8%"
@@ -165,6 +262,10 @@ export default function GameBoyOverlay({ children }: GameBoyOverlayProps) {
           fontWeight="bold"
           color="white"
           boxShadow="0 2px 4px rgba(0,0,0,0.3)"
+          cursor="pointer"
+          transition="all 0.1s"
+          _active={{ transform: "translateY(1px)", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
+          onClick={() => handleButtonPress('Shift')}
         >
           SELECT
         </Box>
@@ -177,6 +278,10 @@ export default function GameBoyOverlay({ children }: GameBoyOverlayProps) {
           fontWeight="bold"
           color="white"
           boxShadow="0 2px 4px rgba(0,0,0,0.3)"
+          cursor="pointer"
+          transition="all 0.1s"
+          _active={{ transform: "translateY(1px)", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
+          onClick={() => handleButtonPress('Enter')}
         >
           START
         </Box>

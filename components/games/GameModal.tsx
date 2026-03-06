@@ -30,6 +30,7 @@ export default function GameModal({
   gameTitle,
 }: GameModalProps) {
   const [iframeKey, setIframeKey] = React.useState(0);
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
 
   const gameUrl = GAME_URLS[gameSlug];
 
@@ -64,8 +65,9 @@ export default function GameModal({
 
         {/* Game Boy Advance console */}
         <Box w="100%" maxW="95vw" p={4}>
-          <GameBoyOverlay>
+          <GameBoyOverlay iframeRef={iframeRef}>
             <iframe
+              ref={iframeRef}
               key={iframeKey}
               src={gameUrl}
               title={gameTitle}
