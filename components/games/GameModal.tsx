@@ -19,8 +19,8 @@ interface GameModalProps {
 }
 
 const GAME_URLS = {
-  "quest-for-stoken": "https://quest-for-stoken.vercel.app/",
-  lougnar: "https://quest-for-stoken.vercel.app/lougnar",
+  "quest-for-stoken": "https://quest-for-stoken.vercel.app/QFS/index.html",
+  lougnar: "https://quest-for-stoken.vercel.app/lougnar/index.html",
 };
 
 export default function GameModal({

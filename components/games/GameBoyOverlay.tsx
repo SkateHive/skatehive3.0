@@ -12,9 +12,9 @@ export default function GameBoyOverlay({ children }: GameBoyOverlayProps) {
     <Box
       position="relative"
       w="100%"
-      maxW="900px"
+      maxW="1200px"
       mx="auto"
-      aspectRatio="16/10"
+      aspectRatio="2/1"
       bg="linear-gradient(135deg, #7b68ee 0%, #6a5acd 50%, #5a4fb8 100%)"
       borderRadius="3xl"
       boxShadow="0 20px 60px rgba(0,0,0,0.5), inset 0 2px 8px rgba(255,255,255,0.15)"
