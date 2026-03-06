@@ -48,9 +48,21 @@ export const STATIC_PAGES: PageResult[] = [
     icon: FaWallet,
   },
   {
-    title: "Skatehive Game",
-    path: "/game",
-    description: "Play skateboarding games and challenges",
+    title: "Skate Games",
+    path: "/games",
+    description: "Play free skateboarding games built by the community",
+    icon: FaGamepad,
+  },
+  {
+    title: "Quest for Stoken",
+    path: "/games/quest-for-stoken",
+    description: "The OG SkateHive skate game — play in your browser",
+    icon: FaGamepad,
+  },
+  {
+    title: "Lougnar",
+    path: "/games/lougnar",
+    description: "New SkateHive game by webgnar — play in your browser",
     icon: FaGamepad,
   },
   {
@@ -127,7 +139,7 @@ export const COMMAND_PAGES: PageResult[] = [
 
 export const getPopularPages = () => {
   const popularStaticPages = STATIC_PAGES.filter((page) =>
-    ["Home", "Blog", "Skatehive Game", "Bounties", "Leaderboard", "Create Post"].includes(
+    ["Home", "Blog", "Skate Games", "Bounties", "Leaderboard", "Create Post"].includes(
       page.title
     )
   );

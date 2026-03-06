@@ -317,7 +317,7 @@ export default function SearchOverlay({
                   </>
                 )}
 
-                {query.startsWith("/") && filteredPages.length > 0 && (
+                {filteredPages.length > 0 && (
                   <>
                     {filteredPages.map((page, index) => (
                       <PageResult
