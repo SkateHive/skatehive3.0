@@ -8,102 +8,140 @@ interface LougnarOverlayProps {
 }
 
 /**
- * Lougnar overlay: keeps the GBA vibe, but shows the correct control hint.
- * Lougnar input is click/tap (confirmed in webgnar/excaliburSkate source: pointer primary down).
+ * ROG Ally / Steam Deck style overlay for Lougnar
+ * Modern handheld gaming aesthetic with neon accents
+ * Lougnar uses mouse/tap controls only (no keyboard)
  */
 export default function LougnarOverlay({ children }: LougnarOverlayProps) {
   return (
     <Box
       position="relative"
       w="100%"
-      maxW="1200px"
-      mx="auto"
-      aspectRatio="2/1"
-      bg="linear-gradient(135deg, #7b68ee 0%, #6a5acd 50%, #5a4fb8 100%)"
-      borderRadius="3xl"
-      boxShadow="0 20px 60px rgba(0,0,0,0.5), inset 0 2px 8px rgba(255,255,255,0.15)"
-      p={8}
+      aspectRatio="16/9"
+      bg="linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%)"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      overflow="hidden"
+      borderRadius="lg"
     >
-      {/* Power LED */}
+      {/* Ambient glow */}
       <Box
         position="absolute"
-        top={6}
-        right={8}
-        w={3}
-        h={3}
-        borderRadius="full"
-        bg="#00ff00"
-        boxShadow="0 0 12px #00ff00"
+        inset={0}
+        bg="radial-gradient(circle at 30% 50%, rgba(138,43,226,0.15), transparent 50%), radial-gradient(circle at 70% 50%, rgba(0,191,255,0.15), transparent 50%)"
+        pointerEvents="none"
       />
 
-      {/* Screen */}
+      {/* Screen container */}
       <Box
-        position="absolute"
-        top="50%"
-        left="50%"
-        transform="translate(-50%, -50%)"
-        w="65%"
-        h="70%"
-        bg="#1a1a1a"
-        borderRadius="lg"
-        border="6px solid #0a0a0a"
-        boxShadow="inset 0 6px 16px rgba(0,0,0,0.7)"
+        position="relative"
+        w="100%"
+        h="100%"
+        bg="#000"
+        borderRadius="md"
         overflow="hidden"
+        boxShadow="0 0 60px rgba(138,43,226,0.3), 0 0 120px rgba(0,191,255,0.2)"
       >
-        {children}
+        {/* Game iframe */}
+        <Box position="absolute" inset={0} zIndex={1}>
+          {children}
+        </Box>
 
-        {/* Control hint overlay */}
+        {/* In-game control hint (top center) */}
         <Box
           position="absolute"
-          bottom={3}
-          left={3}
-          bg="rgba(0,0,0,0.65)"
-          border="1px solid rgba(255,255,255,0.14)"
-          borderRadius="lg"
-          px={3}
-          py={2}
+          top="30px"
+          left="50%"
+          transform="translateX(-50%)"
+          zIndex={10}
+          bg="rgba(0,0,0,0.7)"
+          backdropFilter="blur(10px)"
+          px={6}
+          py={3}
+          borderRadius="full"
+          border="1px solid rgba(138,43,226,0.3)"
+          boxShadow="0 0 30px rgba(138,43,226,0.2)"
         >
-          <Text fontSize="xs" color="gray.200" fontWeight="800" letterSpacing="0.08em">
-            CLICK / TAP
-          </Text>
-          <Text fontSize="xs" color="gray.300">
-            Jump
+          <Text
+            fontSize="lg"
+            fontWeight="bold"
+            color="white"
+            textAlign="center"
+            letterSpacing="wider"
+          >
+            🖱️ CLICK / TAP TO JUMP
           </Text>
         </Box>
-      </Box>
 
-      {/* Right-side: big CLICK button (visual only) */}
-      <Box position="absolute" bottom="22%" right="8%" pointerEvents="none">
+        {/* Right side: Large CLICK button (visual reference only) */}
         <Box
-          w={{ base: 24, md: 28 }}
-          h={{ base: 24, md: 28 }}
-          borderRadius="full"
-          bg="rgba(0,0,0,0.18)"
-          border="3px solid rgba(0,0,0,0.35)"
-          boxShadow="0 4px 10px rgba(0,0,0,0.35), inset 0 1px 2px rgba(255,255,255,0.12)"
+          position="absolute"
+          bottom="60px"
+          right="80px"
+          zIndex={10}
           display="flex"
           flexDirection="column"
           alignItems="center"
-          justifyContent="center"
+          gap={2}
         >
-          <Text fontSize="xs" color="white" fontWeight="900" letterSpacing="0.10em">
-            CLICK
+          {/* Large circular button */}
+          <Box
+            position="relative"
+            w="120px"
+            h="120px"
+            borderRadius="full"
+            bg="linear-gradient(135deg, rgba(0,212,255,0.3), rgba(138,43,226,0.15))"
+            border="3px solid rgba(0,212,255,0.5)"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            pointerEvents="none"
+            animation="pulse 2s ease-in-out infinite"
+            sx={{
+              "@keyframes pulse": {
+                "0%, 100%": {
+                  boxShadow: "0 0 20px rgba(0,212,255,0.4), 0 0 40px rgba(138,43,226,0.2)",
+                },
+                "50%": {
+                  boxShadow: "0 0 40px rgba(0,212,255,0.6), 0 0 80px rgba(138,43,226,0.4)",
+                },
+              },
+            }}
+          >
+            {/* Button glow */}
+            <Box
+              position="absolute"
+              inset={-20}
+              bg="radial-gradient(circle, rgba(0,212,255,0.3), transparent 60%)"
+              filter="blur(20px)"
+              pointerEvents="none"
+            />
+
+            {/* Click icon/label */}
+            <Text
+              fontSize="4xl"
+              fontWeight="black"
+              color="#00d4ff"
+              zIndex={1}
+              textShadow="0 0 15px #00d4ff"
+            >
+              🖱️
+            </Text>
+          </Box>
+
+          {/* Hint text */}
+          <Text
+            fontSize="sm"
+            fontWeight="bold"
+            color="rgba(255,255,255,0.7)"
+            textAlign="center"
+            letterSpacing="wider"
+          >
+            CLICK SCREEN
           </Text>
         </Box>
       </Box>
-
-      {/* Label */}
-      <Text
-        position="absolute"
-        top={6}
-        left={8}
-        fontSize="xs"
-        fontWeight="bold"
-        color="whiteAlpha.800"
-        letterSpacing="0.12em"
-      >
-        LOUGNAR
-      </Text>
     </Box>
   );
 }

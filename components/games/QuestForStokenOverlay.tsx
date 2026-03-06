@@ -13,18 +13,12 @@ type ControlKey = {
   key: string;
   code: string;
   hint?: string;
-  variant?: "primary" | "default";
+  color?: string;
 };
 
 /**
- * Quest for Stoken overlay: arcade / CRT vibe.
- * Now self-hosted (same-origin), so we CAN send keystrokes programmatically!
- *
- * Controls (from Vlad screenshot):
- * - Move: W A S D
- * - Jump: SPACE
- * - Attack/Action/Dash: J K L
- * - Block: O
+ * ROG Ally / Steam Deck style overlay for Quest for Stoken
+ * Modern handheld gaming aesthetic with neon accents
  */
 export default function QuestForStokenOverlay({
   children,
@@ -48,13 +42,6 @@ export default function QuestForStokenOverlay({
     setTimeout(() => sendKey(k, "up"), 90);
   };
 
-  const ACTION_KEYS: ControlKey[] = [
-    { label: "O", key: "o", code: "KeyO", hint: "Block" },
-    { label: "J", key: "j", code: "KeyJ", hint: "Attack", variant: "primary" },
-    { label: "K", key: "k", code: "KeyK", hint: "Action" },
-    { label: "L", key: "l", code: "KeyL", hint: "Dash" },
-  ];
-
   const MOVE_KEYS: ControlKey[] = [
     { label: "W", key: "w", code: "KeyW" },
     { label: "A", key: "a", code: "KeyA" },
@@ -67,228 +54,296 @@ export default function QuestForStokenOverlay({
     key: " ",
     code: "Space",
     hint: "Jump",
-    variant: "primary",
   };
+
+  const ACTION_KEYS: ControlKey[] = [
+    { label: "O", key: "o", code: "KeyO", hint: "Block", color: "#a7ff00" },
+    { label: "J", key: "j", code: "KeyJ", hint: "Attack", color: "#00d4ff" },
+    { label: "K", key: "k", code: "KeyK", hint: "Action", color: "#ff00ff" },
+    { label: "L", key: "l", code: "KeyL", hint: "Dash", color: "#ffaa00" },
+  ];
 
   return (
     <Box
       position="relative"
       w="100%"
-      maxW="1400px"
-      mx="auto"
       aspectRatio="16/9"
-      borderRadius="2xl"
-      bg="linear-gradient(135deg, rgba(0,0,0,0.96) 0%, rgba(18,18,18,0.96) 100%)"
-      boxShadow="0 22px 80px rgba(0,0,0,0.78)"
+      bg="linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%)"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
       overflow="hidden"
-      border="1px solid rgba(167,255,0,0.18)"
+      borderRadius="lg"
     >
-      {/* CRT glow */}
+      {/* Ambient glow */}
       <Box
         position="absolute"
         inset={0}
+        bg="radial-gradient(circle at 30% 50%, rgba(138,43,226,0.15), transparent 50%), radial-gradient(circle at 70% 50%, rgba(0,191,255,0.15), transparent 50%)"
         pointerEvents="none"
-        bg="radial-gradient(circle at 50% 50%, rgba(167,255,0,0.12), transparent 55%)"
       />
 
-      {/* Screen bezel */}
+      {/* Screen container */}
       <Box
-        position="absolute"
-        top="50%"
-        left="50%"
-        transform="translate(-50%, -50%)"
-        w={{ base: "96%", md: "90%" }}
-        h={{ base: "82%", md: "88%" }}
-        borderRadius="xl"
-        bg="#050505"
-        border="2px solid rgba(167,255,0,0.22)"
-        boxShadow="inset 0 0 0 6px rgba(0,0,0,0.62), 0 0 40px rgba(0,0,0,0.72)"
+        position="relative"
+        w="100%"
+        h="100%"
+        bg="#000"
+        borderRadius="md"
         overflow="hidden"
+        boxShadow="0 0 60px rgba(138,43,226,0.3), 0 0 120px rgba(0,191,255,0.2)"
       >
-        {/* Scanlines */}
-        <Box
-          position="absolute"
-          inset={0}
-          pointerEvents="none"
-          opacity={0.12}
-          bg="repeating-linear-gradient(0deg, rgba(255,255,255,0.12), rgba(255,255,255,0.12) 1px, transparent 1px, transparent 3px)"
-          mixBlendMode="overlay"
-        />
-
-        {/* Game */}
-        <Box position="relative" w="100%" h="100%" bg="#000">
+        {/* Game iframe */}
+        <Box position="absolute" inset={0} zIndex={1}>
           {children}
         </Box>
-      </Box>
 
-      {/* Controls (bottom) - now functional! */}
-      <Box
-        position="absolute"
-        bottom={{ base: 3, md: 4 }}
-        left="50%"
-        transform="translateX(-50%)"
-        w={{ base: "94%", md: "86%" }}
-        display="flex"
-        justifyContent="space-between"
-        alignItems="flex-end"
-        gap={{ base: 3, md: 6 }}
-      >
-        {/* Movement: WASD cross */}
-        <Box display="flex" gap={3} alignItems="flex-end">
-          <Box
-            display="grid"
-            gridTemplateColumns="repeat(3, 44px)"
-            gridTemplateRows="repeat(2, 44px)"
-            gap={2}
-            p={3}
-            borderRadius="xl"
-            bg="rgba(0,0,0,0.72)"
-            border="1px solid rgba(167,255,0,0.18)"
-            backdropFilter="blur(10px)"
-            boxShadow="0 10px 30px rgba(0,0,0,0.55)"
-          >
-            <Box />
-            <Box
-              as="button"
-              onClick={() => tap(MOVE_KEYS[0])}
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              borderRadius="md"
-              bg="rgba(255,255,255,0.10)"
-              color="white"
-              fontWeight="800"
-              letterSpacing="0.06em"
-              cursor="pointer"
-              transition="all 0.1s"
-              _active={{ bg: "rgba(255,255,255,0.20)", transform: "scale(0.95)" }}
-            >
-              W
-            </Box>
-            <Box />
-            <Box
-              as="button"
-              onClick={() => tap(MOVE_KEYS[1])}
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              borderRadius="md"
-              bg="rgba(255,255,255,0.10)"
-              color="white"
-              fontWeight="800"
-              letterSpacing="0.06em"
-              cursor="pointer"
-              transition="all 0.1s"
-              _active={{ bg: "rgba(255,255,255,0.20)", transform: "scale(0.95)" }}
-            >
-              A
-            </Box>
-            <Box
-              as="button"
-              onClick={() => tap(MOVE_KEYS[2])}
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              borderRadius="md"
-              bg="rgba(255,255,255,0.10)"
-              color="white"
-              fontWeight="800"
-              letterSpacing="0.06em"
-              cursor="pointer"
-              transition="all 0.1s"
-              _active={{ bg: "rgba(255,255,255,0.20)", transform: "scale(0.95)" }}
-            >
-              S
-            </Box>
-            <Box
-              as="button"
-              onClick={() => tap(MOVE_KEYS[3])}
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              borderRadius="md"
-              bg="rgba(255,255,255,0.10)"
-              color="white"
-              fontWeight="800"
-              letterSpacing="0.06em"
-              cursor="pointer"
-              transition="all 0.1s"
-              _active={{ bg: "rgba(255,255,255,0.20)", transform: "scale(0.95)" }}
-            >
-              D
-            </Box>
-          </Box>
-
-          {/* Space under-left of the cross */}
-          <Box
-            as="button"
-            onClick={() => tap(SPACE_KEY)}
-            px={{ base: 4, md: 5 }}
-            py={{ base: 3, md: 3 }}
-            minW={{ base: "110px", md: "130px" }}
-            borderRadius="xl"
-            bg="rgba(0,0,0,0.72)"
-            border="1px solid rgba(167,255,0,0.18)"
-            backdropFilter="blur(10px)"
-            boxShadow="0 10px 30px rgba(0,0,0,0.55)"
-            cursor="pointer"
-            transition="all 0.1s"
-            _active={{ bg: "rgba(0,0,0,0.85)", transform: "scale(0.98)" }}
-          >
-            <Text
-              fontWeight="900"
-              letterSpacing="0.10em"
-              color="primary"
-              textAlign="center"
-            >
-              SPACE
-            </Text>
-            <Text fontSize="xs" color="gray.300" textAlign="center">
-              Jump
-            </Text>
-          </Box>
-        </Box>
-
-        {/* Actions: O J K L */}
+        {/* Left controls (D-pad + Space) */}
         <Box
-          p={3}
-          borderRadius="xl"
-          bg="rgba(0,0,0,0.72)"
-          border="1px solid rgba(167,255,0,0.18)"
-          backdropFilter="blur(10px)"
-          boxShadow="0 10px 30px rgba(0,0,0,0.55)"
-          display="grid"
-          gridTemplateColumns={{ base: "repeat(2, 56px)", md: "repeat(4, 64px)" }}
-          gap={2}
-          alignItems="center"
-          justifyItems="center"
+          position="absolute"
+          bottom="40px"
+          left="60px"
+          zIndex={10}
+          display="flex"
+          flexDirection="column"
+          gap={4}
         >
-          {ACTION_KEYS.map((k) => (
-            <Box key={k.label} textAlign="center">
+          {/* D-pad */}
+          <Box position="relative" w="140px" h="140px">
+            {/* D-pad background glow */}
+            <Box
+              position="absolute"
+              inset={0}
+              bg="radial-gradient(circle, rgba(138,43,226,0.2), transparent 70%)"
+              filter="blur(20px)"
+            />
+
+            {/* D-pad buttons */}
+            <Box
+              position="relative"
+              display="grid"
+              gridTemplateColumns="repeat(3, 1fr)"
+              gridTemplateRows="repeat(3, 1fr)"
+              gap="2px"
+              w="100%"
+              h="100%"
+            >
+              {/* Empty corner */}
+              <Box />
+
+              {/* W (Up) */}
               <Box
                 as="button"
-                onClick={() => tap(k)}
-                w={{ base: "56px", md: "64px" }}
-                h={{ base: "44px", md: "48px" }}
+                onClick={() => tap(MOVE_KEYS[0])}
+                bg="linear-gradient(135deg, rgba(255,255,255,0.12), rgba(138,43,226,0.08))"
                 borderRadius="md"
-                bg={k.variant === "primary" ? "rgba(167,255,0,0.18)" : "rgba(255,255,255,0.10)"}
-                color={k.variant === "primary" ? "primary" : "white"}
+                border="1px solid rgba(138,43,226,0.3)"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
-                fontWeight="900"
-                letterSpacing="0.08em"
                 cursor="pointer"
                 transition="all 0.1s"
+                _hover={{ bg: "rgba(138,43,226,0.2)" }}
                 _active={{
-                  bg: k.variant === "primary" ? "rgba(167,255,0,0.28)" : "rgba(255,255,255,0.20)",
+                  bg: "rgba(138,43,226,0.4)",
                   transform: "scale(0.95)",
+                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
                 }}
               >
-                {k.label}
+                <Text fontSize="xl" fontWeight="bold" color="white">
+                  W
+                </Text>
               </Box>
-              <Text fontSize="xs" color="gray.300" mt={1}>
-                {k.hint}
+
+              {/* Empty corner */}
+              <Box />
+
+              {/* A (Left) */}
+              <Box
+                as="button"
+                onClick={() => tap(MOVE_KEYS[1])}
+                bg="linear-gradient(135deg, rgba(255,255,255,0.12), rgba(138,43,226,0.08))"
+                borderRadius="md"
+                border="1px solid rgba(138,43,226,0.3)"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                cursor="pointer"
+                transition="all 0.1s"
+                _hover={{ bg: "rgba(138,43,226,0.2)" }}
+                _active={{
+                  bg: "rgba(138,43,226,0.4)",
+                  transform: "scale(0.95)",
+                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
+                }}
+              >
+                <Text fontSize="xl" fontWeight="bold" color="white">
+                  A
+                </Text>
+              </Box>
+
+              {/* S (Down) */}
+              <Box
+                as="button"
+                onClick={() => tap(MOVE_KEYS[2])}
+                bg="linear-gradient(135deg, rgba(255,255,255,0.12), rgba(138,43,226,0.08))"
+                borderRadius="md"
+                border="1px solid rgba(138,43,226,0.3)"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                cursor="pointer"
+                transition="all 0.1s"
+                _hover={{ bg: "rgba(138,43,226,0.2)" }}
+                _active={{
+                  bg: "rgba(138,43,226,0.4)",
+                  transform: "scale(0.95)",
+                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
+                }}
+              >
+                <Text fontSize="xl" fontWeight="bold" color="white">
+                  S
+                </Text>
+              </Box>
+
+              {/* D (Right) */}
+              <Box
+                as="button"
+                onClick={() => tap(MOVE_KEYS[3])}
+                bg="linear-gradient(135deg, rgba(255,255,255,0.12), rgba(138,43,226,0.08))"
+                borderRadius="md"
+                border="1px solid rgba(138,43,226,0.3)"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                cursor="pointer"
+                transition="all 0.1s"
+                _hover={{ bg: "rgba(138,43,226,0.2)" }}
+                _active={{
+                  bg: "rgba(138,43,226,0.4)",
+                  transform: "scale(0.95)",
+                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
+                }}
+              >
+                <Text fontSize="xl" fontWeight="bold" color="white">
+                  D
+                </Text>
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Space button */}
+          <Box
+            as="button"
+            onClick={() => tap(SPACE_KEY)}
+            w="140px"
+            h="50px"
+            bg="linear-gradient(135deg, rgba(255,255,255,0.12), rgba(138,43,226,0.08))"
+            borderRadius="lg"
+            border="1px solid rgba(138,43,226,0.3)"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            cursor="pointer"
+            transition="all 0.1s"
+            position="relative"
+            _hover={{ bg: "rgba(138,43,226,0.2)" }}
+            _active={{
+              bg: "rgba(138,43,226,0.4)",
+              transform: "scale(0.98)",
+              boxShadow: "0 0 20px rgba(138,43,226,0.6)",
+            }}
+          >
+            <Box
+              position="absolute"
+              inset={0}
+              bg="radial-gradient(circle, rgba(138,43,226,0.15), transparent 70%)"
+              filter="blur(15px)"
+              pointerEvents="none"
+            />
+            <Text fontSize="sm" fontWeight="bold" color="white">
+              SPACE
+            </Text>
+            <Text
+              position="absolute"
+              bottom="-20px"
+              fontSize="xs"
+              color="rgba(255,255,255,0.5)"
+            >
+              {SPACE_KEY.hint}
+            </Text>
+          </Box>
+        </Box>
+
+        {/* Right controls (Action buttons) */}
+        <Box
+          position="absolute"
+          bottom="60px"
+          right="80px"
+          zIndex={10}
+          display="grid"
+          gridTemplateColumns="repeat(2, 1fr)"
+          gridTemplateRows="repeat(2, 1fr)"
+          gap={4}
+          w="160px"
+          h="160px"
+        >
+          {ACTION_KEYS.map((btn, idx) => (
+            <Box
+              key={btn.label}
+              as="button"
+              onClick={() => tap(btn)}
+              position="relative"
+              w="70px"
+              h="70px"
+              borderRadius="full"
+              bg={`linear-gradient(135deg, ${btn.color}33, ${btn.color}11)`}
+              border={`2px solid ${btn.color}66`}
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              cursor="pointer"
+              transition="all 0.1s"
+              gridColumn={idx % 2 === 0 ? 1 : 2}
+              gridRow={Math.floor(idx / 2) + 1}
+              _hover={{
+                bg: `${btn.color}44`,
+                boxShadow: `0 0 30px ${btn.color}88`,
+              }}
+              _active={{
+                transform: "scale(0.92)",
+                boxShadow: `0 0 40px ${btn.color}`,
+              }}
+            >
+              {/* Button glow */}
+              <Box
+                position="absolute"
+                inset={-10}
+                bg={`radial-gradient(circle, ${btn.color}33, transparent 60%)`}
+                filter="blur(15px)"
+                pointerEvents="none"
+              />
+
+              {/* Button label */}
+              <Text
+                fontSize="2xl"
+                fontWeight="black"
+                color={btn.color}
+                zIndex={1}
+                textShadow={`0 0 10px ${btn.color}`}
+              >
+                {btn.label}
+              </Text>
+
+              {/* Hint label */}
+              <Text
+                position="absolute"
+                bottom="-24px"
+                fontSize="xs"
+                color="rgba(255,255,255,0.5)"
+                whiteSpace="nowrap"
+              >
+                {btn.hint}
               </Text>
             </Box>
           ))}
