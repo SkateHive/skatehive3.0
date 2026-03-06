@@ -218,6 +218,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${baseUrl}/invite`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.4 },
         { url: `${baseUrl}/tricks`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
         { url: `${baseUrl}/map/near-me`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
+        { url: `${baseUrl}/games`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+        { url: `${baseUrl}/games/quest-for-stoken`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+        { url: `${baseUrl}/games/lougnar`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
         // Individual trick pages
         ...['kickflip', 'heelflip', 'ollie', 'pop-shove-it', 'varial-kickflip', 'tre-flip',
             'hardflip', 'laser-flip', 'nollie', 'manual', 'no-comply', 'boneless',

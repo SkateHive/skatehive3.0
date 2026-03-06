@@ -193,8 +193,42 @@ export default function GamesGallery() {
         ))}
       </SimpleGrid>
 
+      {/* SEO Content */}
+      <Box
+        maxW="800px"
+        mx="auto"
+        mt={12}
+        p={6}
+        bg="whiteAlpha.50"
+        borderRadius="lg"
+        fontSize="sm"
+        color="gray.400"
+        lineHeight="1.7"
+      >
+        <Heading as="h2" fontSize="lg" color="primary" mb={3}>
+          Free Skateboarding Games — Play Online
+        </Heading>
+        <Text mb={3}>
+          SkateHive brings you free browser-based skateboarding games built by
+          skaters, for skaters. No download required — just pick a cartridge
+          and start playing.
+        </Text>
+        <Text mb={3}>
+          <strong>Quest for Stoken</strong> is the OG SkateHive game, a
+          platformer-style skateboarding adventure where you control your skater
+          through challenging levels, land tricks, and collect STOKEN tokens.
+          Perfect for fans of arcade skate games and retro platformers.
+        </Text>
+        <Text>
+          <strong>Lougnar</strong> is the newest addition — a fresh take on
+          skateboarding games built with Excalibur.js. Both games are
+          completely free, run in your browser (HTML5), and work on any device.
+          No app store, no downloads, just instant skateboarding action.
+        </Text>
+      </Box>
+
       {/* Bottom CTA */}
-      <Box textAlign="center" mt={12}>
+      <Box textAlign="center" mt={8}>
         <Text color="gray.500" fontSize="sm">
           Want to build a skate game?{" "}
           <Text as="span" color="primary" fontWeight="bold">
