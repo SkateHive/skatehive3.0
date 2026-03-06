@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Text } from "@chakra-ui/react";
 
 interface QuestForStokenOverlayProps {
@@ -74,6 +74,35 @@ export default function QuestForStokenOverlay({
     { label: "K", key: "k", code: "KeyK", hint: "Action", color: "#ff00ff" },
     { label: "L", key: "l", code: "KeyL", hint: "Dash", color: "#ffaa00" },
   ];
+
+  // Track pressed keys for visual feedback
+  const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      setPressedKeys(prev => new Set(prev).add(key));
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      setPressedKeys(prev => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  const isPressed = (key: string) => pressedKeys.has(key.toLowerCase());
 
   return (
     <Box
@@ -184,24 +213,20 @@ export default function QuestForStokenOverlay({
               <Box
                 as="button"
                 onClick={() => tap(MOVE_KEYS[0])}
-                bg="linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"
+                bg={isPressed('w') ? "linear-gradient(135deg, rgba(167,255,0,0.6), rgba(138,43,226,0.8))" : "linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"}
                 borderRadius="md"
                 border="2px solid rgba(167,255,0,0.6)"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
                 cursor="pointer"
-                transition="all 0.1s"
-                boxShadow="0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"
+                transition="all 0.05s"
+                boxShadow={isPressed('w') ? "0 0 30px rgba(167,255,0,0.9), inset 0 0 30px rgba(167,255,0,0.3)" : "0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"}
+                transform={isPressed('w') ? "scale(0.95)" : "scale(1)"}
                 _hover={{
                   bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
                   borderColor: "rgba(167,255,0,0.9)",
                   boxShadow: "0 0 20px rgba(138,43,226,0.6)",
-                }}
-                _active={{
-                  bg: "rgba(138,43,226,0.7)",
-                  transform: "scale(0.95)",
-                  boxShadow: "0 0 30px rgba(167,255,0,0.8)",
                 }}
               >
                 <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
@@ -216,24 +241,20 @@ export default function QuestForStokenOverlay({
               <Box
                 as="button"
                 onClick={() => tap(MOVE_KEYS[1])}
-                bg="linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"
+                bg={isPressed('a') ? "linear-gradient(135deg, rgba(167,255,0,0.6), rgba(138,43,226,0.8))" : "linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"}
                 borderRadius="md"
                 border="2px solid rgba(167,255,0,0.6)"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
                 cursor="pointer"
-                transition="all 0.1s"
-                boxShadow="0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"
+                transition="all 0.05s"
+                boxShadow={isPressed('a') ? "0 0 30px rgba(167,255,0,0.9), inset 0 0 30px rgba(167,255,0,0.3)" : "0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"}
+                transform={isPressed('a') ? "scale(0.95)" : "scale(1)"}
                 _hover={{
                   bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
                   borderColor: "rgba(167,255,0,0.9)",
                   boxShadow: "0 0 20px rgba(138,43,226,0.6)",
-                }}
-                _active={{
-                  bg: "rgba(138,43,226,0.7)",
-                  transform: "scale(0.95)",
-                  boxShadow: "0 0 30px rgba(167,255,0,0.8)",
                 }}
               >
                 <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
@@ -245,24 +266,20 @@ export default function QuestForStokenOverlay({
               <Box
                 as="button"
                 onClick={() => tap(MOVE_KEYS[2])}
-                bg="linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"
+                bg={isPressed('s') ? "linear-gradient(135deg, rgba(167,255,0,0.6), rgba(138,43,226,0.8))" : "linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"}
                 borderRadius="md"
                 border="2px solid rgba(167,255,0,0.6)"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
                 cursor="pointer"
-                transition="all 0.1s"
-                boxShadow="0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"
+                transition="all 0.05s"
+                boxShadow={isPressed('s') ? "0 0 30px rgba(167,255,0,0.9), inset 0 0 30px rgba(167,255,0,0.3)" : "0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"}
+                transform={isPressed('s') ? "scale(0.95)" : "scale(1)"}
                 _hover={{
                   bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
                   borderColor: "rgba(167,255,0,0.9)",
                   boxShadow: "0 0 20px rgba(138,43,226,0.6)",
-                }}
-                _active={{
-                  bg: "rgba(138,43,226,0.7)",
-                  transform: "scale(0.95)",
-                  boxShadow: "0 0 30px rgba(167,255,0,0.8)",
                 }}
               >
                 <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
@@ -274,24 +291,20 @@ export default function QuestForStokenOverlay({
               <Box
                 as="button"
                 onClick={() => tap(MOVE_KEYS[3])}
-                bg="linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"
+                bg={isPressed('d') ? "linear-gradient(135deg, rgba(167,255,0,0.6), rgba(138,43,226,0.8))" : "linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"}
                 borderRadius="md"
                 border="2px solid rgba(167,255,0,0.6)"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
                 cursor="pointer"
-                transition="all 0.1s"
-                boxShadow="0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"
+                transition="all 0.05s"
+                boxShadow={isPressed('d') ? "0 0 30px rgba(167,255,0,0.9), inset 0 0 30px rgba(167,255,0,0.3)" : "0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"}
+                transform={isPressed('d') ? "scale(0.95)" : "scale(1)"}
                 _hover={{
                   bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
                   borderColor: "rgba(167,255,0,0.9)",
                   boxShadow: "0 0 20px rgba(138,43,226,0.6)",
-                }}
-                _active={{
-                  bg: "rgba(138,43,226,0.7)",
-                  transform: "scale(0.95)",
-                  boxShadow: "0 0 30px rgba(167,255,0,0.8)",
                 }}
               >
                 <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
@@ -307,25 +320,21 @@ export default function QuestForStokenOverlay({
             onClick={() => tap(SPACE_KEY)}
             w="140px"
             h="50px"
-            bg="linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"
+            bg={isPressed(' ') ? "linear-gradient(135deg, rgba(167,255,0,0.6), rgba(138,43,226,0.8))" : "linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"}
             borderRadius="lg"
             border="2px solid rgba(167,255,0,0.6)"
             display="flex"
             alignItems="center"
             justifyContent="center"
             cursor="pointer"
-            transition="all 0.1s"
+            transition="all 0.05s"
             position="relative"
-            boxShadow="0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"
+            boxShadow={isPressed(' ') ? "0 0 30px rgba(167,255,0,0.9), inset 0 0 30px rgba(167,255,0,0.3)" : "0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"}
+            transform={isPressed(' ') ? "scale(0.98)" : "scale(1)"}
             _hover={{
               bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
               borderColor: "rgba(167,255,0,0.9)",
               boxShadow: "0 0 20px rgba(138,43,226,0.6)",
-            }}
-            _active={{
-              bg: "rgba(138,43,226,0.7)",
-              transform: "scale(0.98)",
-              boxShadow: "0 0 30px rgba(167,255,0,0.8)",
             }}
           >
             <Box

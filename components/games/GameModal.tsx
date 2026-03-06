@@ -21,7 +21,7 @@ interface GameModalProps {
 }
 
 const GAME_URLS = {
-  "quest-for-stoken": "/games/quest-for-stoken/index.html",
+  "quest-for-stoken": "https://quest-for-stoken.vercel.app/QFS/index.html",
   lougnar: "https://quest-for-stoken.vercel.app/lougnar/index.html",
 };
 
