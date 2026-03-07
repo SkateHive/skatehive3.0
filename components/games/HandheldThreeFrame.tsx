@@ -18,27 +18,27 @@ function HandheldScene() {
       <group>
         {/* ──── MAIN CHASSIS ──── */}
         <RoundedBox args={[12, 5.2, 0.55]} radius={0.25} smoothness={4} position={[0, 0, 0]}>
-          <meshStandardMaterial color="#18181d" roughness={0.88} metalness={0.06} />
+          <meshStandardMaterial color="#252530" roughness={0.88} metalness={0.06} />
         </RoundedBox>
 
         {/* Front plate */}
         <RoundedBox args={[11.8, 5.0, 0.07]} radius={0.22} smoothness={4} position={[0, 0, 0.27]}>
-          <meshStandardMaterial color="#1f1f26" roughness={0.8} metalness={0.08} />
+          <meshStandardMaterial color="#2a2a34" roughness={0.8} metalness={0.08} />
         </RoundedBox>
 
         {/* ──── INTEGRATED GRIPS ──── */}
         <RoundedBox args={[2.2, 4.6, 0.85]} radius={0.45} smoothness={4} position={[-5.5, 0, -0.15]}>
-          <meshStandardMaterial color="#18181d" roughness={0.9} metalness={0.05} />
+          <meshStandardMaterial color="#252530" roughness={0.9} metalness={0.05} />
         </RoundedBox>
         <RoundedBox args={[1.6, 4.3, 0.12]} radius={0.3} smoothness={4} position={[-5.2, 0, 0.26]}>
-          <meshStandardMaterial color="#1c1c24" roughness={0.82} metalness={0.07} />
+          <meshStandardMaterial color="#282832" roughness={0.82} metalness={0.07} />
         </RoundedBox>
 
         <RoundedBox args={[2.2, 4.6, 0.85]} radius={0.45} smoothness={4} position={[5.5, 0, -0.15]}>
-          <meshStandardMaterial color="#18181d" roughness={0.9} metalness={0.05} />
+          <meshStandardMaterial color="#252530" roughness={0.9} metalness={0.05} />
         </RoundedBox>
         <RoundedBox args={[1.6, 4.3, 0.12]} radius={0.3} smoothness={4} position={[5.2, 0, 0.26]}>
-          <meshStandardMaterial color="#1c1c24" roughness={0.82} metalness={0.07} />
+          <meshStandardMaterial color="#282832" roughness={0.82} metalness={0.07} />
         </RoundedBox>
 
         {/* ──── SCREEN AREA (16:9 = 1.778) ──── */}
@@ -66,11 +66,11 @@ function HandheldScene() {
         {/* Cross */}
         <mesh position={[-5.3, 0, 0.36]}>
           <boxGeometry args={[0.13, 0.85, 0.025]} />
-          <meshStandardMaterial color="#28282f" roughness={0.72} metalness={0.08} />
+          <meshStandardMaterial color="#333340" roughness={0.72} metalness={0.08} />
         </mesh>
         <mesh position={[-5.3, 0, 0.36]}>
           <boxGeometry args={[0.85, 0.13, 0.025]} />
-          <meshStandardMaterial color="#28282f" roughness={0.72} metalness={0.08} />
+          <meshStandardMaterial color="#333340" roughness={0.72} metalness={0.08} />
         </mesh>
         {/* Shadow */}
         <group position={[-5.3, 0, 0.31]} rotation={[Math.PI / 2, 0, 0]}>
@@ -104,7 +104,7 @@ function HandheldScene() {
             <group position={[btn.pos[0], btn.pos[1], 0.34]} rotation={[Math.PI / 2, 0, 0]}>
               <mesh>
                 <cylinderGeometry args={[0.22, 0.22, 0.05, 24]} />
-                <meshStandardMaterial color="#28282f" roughness={0.65} metalness={0.08} />
+                <meshStandardMaterial color="#333340" roughness={0.65} metalness={0.08} />
               </mesh>
             </group>
             <group position={[btn.pos[0], btn.pos[1], 0.31]} rotation={[Math.PI / 2, 0, 0]}>
@@ -165,10 +165,10 @@ function HandheldScene() {
 
         {/* ──── SHOULDER BUTTONS ──── */}
         <RoundedBox args={[1.3, 0.18, 0.28]} radius={0.07} smoothness={4} position={[-3.8, 2.6, -0.05]}>
-          <meshStandardMaterial color="#222230" roughness={0.72} metalness={0.08} />
+          <meshStandardMaterial color="#2e2e3c" roughness={0.72} metalness={0.08} />
         </RoundedBox>
         <RoundedBox args={[1.3, 0.18, 0.28]} radius={0.07} smoothness={4} position={[3.8, 2.6, -0.05]}>
-          <meshStandardMaterial color="#222230" roughness={0.72} metalness={0.08} />
+          <meshStandardMaterial color="#2e2e3c" roughness={0.72} metalness={0.08} />
         </RoundedBox>
 
         {/* ──── USB-C ──── */}

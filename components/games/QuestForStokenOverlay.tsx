@@ -149,7 +149,7 @@ export default function QuestForStokenOverlay({
   return (
     <Box ref={gameContainerRef} position="relative" w="100%" h="100%" overflow="hidden">
       {/* Backdrop — blur + almost transparent */}
-      <Box position="absolute" inset={0} bg="rgba(0,0,0,0.45)" backdropFilter="blur(24px)" />
+      <Box position="absolute" inset={0} bg="rgba(0,0,0,0.25)" backdropFilter="blur(28px)" />
 
       {/* Frame container — 16:9 */}
       <Box position="relative" zIndex={1} w="min(1300px, 96vw)" aspectRatio="16/9" mx="auto" top="50%" transform="translateY(-50%)">
