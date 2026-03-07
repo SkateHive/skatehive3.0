@@ -101,9 +101,9 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
   const bodyMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#606070"),
+        color: new THREE.Color("#555560"),
         roughness: 0.72,
-        metalness: 0.12,
+        metalness: 0.1,
       }),
     [],
   );
@@ -179,14 +179,14 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
       <mesh geometry={bodyGeo} material={bodyMat} />
 
       {/* ── Label border (inset rectangle) ── */}
-      <mesh position={[0, -0.05, FRONT + 0.001]}>
-        <planeGeometry args={[1.95, 1.15]} />
+      <mesh position={[0, 0.0, FRONT + 0.001]}>
+        <planeGeometry args={[1.92, 1.85]} />
         <primitive object={labelBorderMat} attach="material" />
       </mesh>
 
-      {/* ── Label image (matches ~16:9 art aspect ratio) ── */}
-      <mesh position={[0, -0.05, FRONT + 0.003]}>
-        <planeGeometry args={[1.88, 1.05]} />
+      {/* ── Label image (full art, no crop, taller to fit) ── */}
+      <mesh position={[0, 0.0, FRONT + 0.003]}>
+        <planeGeometry args={[1.85, 1.78]} />
         <primitive object={labelMat} attach="material" />
       </mesh>
 
@@ -265,10 +265,6 @@ export default function Cartridge3D({ imageUrl, hovered }: CartridgeProps) {
       <directionalLight position={[3, 4, 5]} intensity={1.6} />
       <directionalLight position={[-3, 2, 3]} intensity={0.5} color="#a7ff00" />
       <pointLight position={[0, -2, 3]} intensity={0.3} color="#ffffff" />
-      {/* Rim lights — make edges visible against dark bg */}
-      <directionalLight position={[-5, 0, -2]} intensity={0.8} color="#555566" />
-      <directionalLight position={[5, 0, -2]} intensity={0.8} color="#555566" />
-      <directionalLight position={[0, 3, -2]} intensity={0.4} color="#666677" />
       <CartridgeMesh imageUrl={imageUrl} hovered={hovered} />
     </Canvas>
   );
