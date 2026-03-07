@@ -56,8 +56,8 @@ function GameIframeContainer({ children }: { children: React.ReactNode }) {
     <Box
       ref={containerRef}
       position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)"
-      w="55%" sx={{ aspectRatio: "16 / 9" }}
-      borderRadius="4px" zIndex={1} bg="#000" overflow="hidden"
+      w="88%" h="70%"
+      borderRadius="4px" zIndex={1} overflow="hidden"
     >
       <Box
         ref={innerRef}
