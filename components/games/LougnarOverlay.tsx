@@ -2,181 +2,178 @@
 
 import React from "react";
 import { Box, Text } from "@chakra-ui/react";
+import LougnarThreeFrame from "./LougnarThreeFrame";
 
 interface LougnarOverlayProps {
   children: React.ReactNode;
+  iframeRef?: React.RefObject<HTMLIFrameElement>;
   onClose?: () => void;
 }
 
-/**
- * ROG Ally / Steam Deck style overlay for Lougnar
- * Modern handheld gaming aesthetic with neon accents
- * Lougnar uses mouse/tap controls only (no keyboard)
- */
-export default function LougnarOverlay({ children, onClose }: LougnarOverlayProps) {
+export default function LougnarOverlay({ children, iframeRef, onClose }: LougnarOverlayProps) {
   return (
-    <Box
-      position="relative"
-      w="100%"
-      aspectRatio="16/9"
-      bgGradient="linear(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)"
-      display="flex"
-      alignItems="center"
-      justifyContent="center"
-      overflow="hidden"
-      borderRadius="lg"
-    >
-      {/* Ambient glow */}
+    <Box position="relative" w="100%" h="100%" overflow="hidden">
+      {/* Backdrop */}
       <Box
         position="absolute"
         inset={0}
-        bgGradient="radial(circle at 30% 50%, rgba(138,43,226,0.25), transparent 50%), radial(circle at 70% 50%, rgba(167,255,0,0.15), transparent 50%)"
+        bgGradient="radial(circle at 50% 35%, rgba(255,100,0,0.25), transparent 55%), radial(circle at 50% 75%, rgba(0,150,255,0.12), transparent 60%), linear-gradient(135deg, #08080e 0%, #0c0c14 50%, #08080e 100%)"
+      />
+      
+      {/* Vignette */}
+      <Box
+        position="absolute"
+        inset={0}
+        bgGradient="radial(circle at 50% 50%, transparent 35%, rgba(0,0,0,0.9) 90%)"
         pointerEvents="none"
       />
 
-      {/* Screen container */}
+      {/* Frame container */}
       <Box
         position="relative"
-        w="100%"
-        h="100%"
-        bg="#000"
-        borderRadius="md"
-        overflow="hidden"
-        boxShadow="0 0 60px rgba(138,43,226,0.3), 0 0 120px rgba(0,191,255,0.2)"
+        zIndex={1}
+        w="min(1280px, 94vw)"
+        aspectRatio="16/9"
+        mx="auto"
+        top="50%"
+        transform="translateY(-50%)"
       >
-        {/* Close button */}
+        {/* Layer 0: Three.js */}
+        <Box position="absolute" inset="-40px" zIndex={0} pointerEvents="none">
+          <LougnarThreeFrame />
+        </Box>
+
+        {/* Layer 1: Game iframe — LARGE */}
+        <Box
+          position="absolute"
+          top="50%"
+          left="50%"
+          transform="translate(-50%, -50%)"
+          w="72%"
+          h="82%"
+          borderRadius="12px"
+          overflow="hidden"
+          zIndex={1}
+          bg="#000"
+        >
+          {children}
+        </Box>
+
+        {/* Layer 2: Close button */}
         {onClose && (
           <Box
             as="button"
             onClick={onClose}
             position="absolute"
-            top="20px"
-            right="20px"
+            top="12px"
+            right="12px"
             zIndex={20}
-            w="50px"
-            h="50px"
+            w="44px"
+            h="44px"
             borderRadius="full"
-            bg="rgba(60,60,90,0.9)"
-            border="2px solid rgba(167,255,0,0.7)"
+            bg="rgba(60,60,70,0.9)"
+            border="2px solid rgba(255,140,0,0.7)"
             display="flex"
             alignItems="center"
             justifyContent="center"
             cursor="pointer"
             transition="all 0.2s"
-            boxShadow="0 0 20px rgba(138,43,226,0.4), inset 0 0 15px rgba(255,255,255,0.1)"
+            boxShadow="0 0 15px rgba(255,100,0,0.3)"
             _hover={{
-              bg: "rgba(138,43,226,0.6)",
-              borderColor: "rgba(167,255,0,1)",
-              boxShadow: "0 0 40px rgba(167,255,0,0.8)",
+              bg: "rgba(255,100,0,0.4)",
+              boxShadow: "0 0 30px rgba(255,100,0,0.6)",
               transform: "scale(1.08)",
             }}
-            _active={{
-              transform: "scale(0.92)",
-              boxShadow: "0 0 50px rgba(167,255,0,1)",
-            }}
           >
-            <Text fontSize="2xl" fontWeight="black" color="white" textShadow="0 0 10px rgba(167,255,0,0.9)">
+            <Text fontSize="xl" fontWeight="black" color="white">
               ✕
             </Text>
           </Box>
         )}
 
-        {/* Game iframe */}
-        <Box position="absolute" inset={0} zIndex={1}>
-          {children}
-        </Box>
-
-        {/* In-game control hint (top center) */}
+        {/* Layer 3: JUMP button — bottom center, large */}
         <Box
           position="absolute"
-          top="30px"
+          bottom="20px"
           left="50%"
           transform="translateX(-50%)"
-          zIndex={10}
-          bg="rgba(0,0,0,0.7)"
-          backdropFilter="blur(10px)"
-          px={6}
-          py={3}
-          borderRadius="full"
-          border="1px solid rgba(138,43,226,0.3)"
-          boxShadow="0 0 30px rgba(138,43,226,0.2)"
-        >
-          <Text
-            fontSize="lg"
-            fontWeight="bold"
-            color="white"
-            textAlign="center"
-            letterSpacing="wider"
-          >
-            🖱️ CLICK / TAP TO JUMP
-          </Text>
-        </Box>
-
-        {/* Right side: Large CLICK button (visual reference only) */}
-        <Box
-          position="absolute"
-          bottom="60px"
-          right="80px"
           zIndex={10}
           display="flex"
           flexDirection="column"
           alignItems="center"
-          gap={2}
+          gap={1}
         >
-          {/* Large circular button */}
           <Box
-            position="relative"
-            w="120px"
-            h="120px"
+            as="button"
+            w="160px"
+            h="56px"
             borderRadius="full"
-            bg="linear-gradient(135deg, rgba(0,212,255,0.3), rgba(138,43,226,0.15))"
-            border="3px solid rgba(0,212,255,0.5)"
+            bg="linear-gradient(135deg, rgba(255,100,0,0.4), rgba(255,140,0,0.2))"
+            border="2px solid rgba(255,140,0,0.6)"
             display="flex"
             alignItems="center"
             justifyContent="center"
-            pointerEvents="none"
-            animation="pulse 2s ease-in-out infinite"
-            sx={{
-              "@keyframes pulse": {
-                "0%, 100%": {
-                  boxShadow: "0 0 20px rgba(0,212,255,0.4), 0 0 40px rgba(138,43,226,0.2)",
-                },
-                "50%": {
-                  boxShadow: "0 0 40px rgba(0,212,255,0.6), 0 0 80px rgba(138,43,226,0.4)",
-                },
-              },
+            gap={2}
+            cursor="pointer"
+            transition="all 0.1s"
+            boxShadow="0 0 20px rgba(255,100,0,0.3), inset 0 0 20px rgba(255,255,255,0.05)"
+            _hover={{
+              bg: "rgba(255,100,0,0.5)",
+              boxShadow: "0 0 40px rgba(255,100,0,0.6)",
+            }}
+            _active={{
+              transform: "scale(0.95)",
+              boxShadow: "0 0 50px rgba(255,100,0,0.8)",
+            }}
+            onClick={() => {
+              // Send click event to iframe
+              if (iframeRef?.current?.contentWindow) {
+                try {
+                  const clickEvent = new MouseEvent("click", {
+                    bubbles: true,
+                    cancelable: true,
+                  });
+                  iframeRef.current.contentWindow.document.dispatchEvent(clickEvent);
+                } catch (e) {
+                  console.error("Click dispatch failed:", e);
+                }
+              }
             }}
           >
-            {/* Button glow */}
-            <Box
-              position="absolute"
-              inset={-20}
-              bg="radial-gradient(circle, rgba(0,212,255,0.3), transparent 60%)"
-              filter="blur(20px)"
-              pointerEvents="none"
-            />
-
-            {/* Click icon/label */}
             <Text
-              fontSize="4xl"
+              fontSize="xl"
               fontWeight="black"
-              color="#00d4ff"
-              zIndex={1}
-              textShadow="0 0 15px #00d4ff"
+              color="#ff8c00"
+              textShadow="0 0 10px rgba(255,100,0,0.8)"
             >
-              🖱️
+              🖱️ JUMP
             </Text>
           </Box>
+          <Text fontSize="xs" color="rgba(255,200,150,0.6)">
+            or click screen
+          </Text>
+        </Box>
 
-          {/* Hint text */}
+        {/* Layer 4: Top hint */}
+        <Box
+          position="absolute"
+          top="16px"
+          left="50%"
+          transform="translateX(-50%)"
+          zIndex={10}
+          bg="rgba(0,0,0,0.5)"
+          px={4}
+          py={2}
+          borderRadius="full"
+          border="1px solid rgba(255,140,0,0.2)"
+        >
           <Text
             fontSize="sm"
+            color="rgba(255,200,150,0.8)"
             fontWeight="bold"
-            color="rgba(255,255,255,0.7)"
-            textAlign="center"
             letterSpacing="wider"
           >
-            CLICK SCREEN
+            🚀 CLICK TO JUMP
           </Text>
         </Box>
       </Box>
