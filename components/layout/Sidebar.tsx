@@ -22,6 +22,8 @@ import {
   FiMail,
   FiAward,
   FiTarget,
+  FiPlay,
+  FiZap,
 } from "react-icons/fi";
 import { useTheme } from "@/app/themeProvider";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -208,6 +210,12 @@ export default function Sidebar() {
             </NavItem>
             <NavItem href="/bounties" icon={FiTarget} prefetch={false}>
               {t('bounties')}
+            </NavItem>
+            <NavItem href="/games" icon={FiPlay} prefetch={false}>
+              Games
+            </NavItem>
+            <NavItem href="/tricks" icon={FiZap} prefetch={false}>
+              Tricks
             </NavItem>
             {canUseAppFeatures && (
               <NavItem href="/notifications" icon={FiBell} prefetch={false}>

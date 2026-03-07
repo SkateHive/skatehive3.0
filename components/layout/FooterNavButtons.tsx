@@ -35,6 +35,8 @@ import {
   FiAward,
   FiTarget,
   FiTrendingUp,
+  FiPlay,
+  FiZap,
 } from "react-icons/fi";
 
 // Icon component for menu items - using the same icons as desktop sidebar
@@ -723,6 +725,16 @@ export default function FooterNavButtons() {
       icon: FiTarget,
       onClick: () => router.push("/bounties"),
       name: t('bounties'),
+    },
+    {
+      icon: FiPlay,
+      onClick: () => router.push("/games"),
+      name: "Games",
+    },
+    {
+      icon: FiZap,
+      onClick: () => router.push("/tricks"),
+      name: "Tricks",
     },
     // Only show auction button if not already on auction page
     ...(!pathname.startsWith("/auction")
