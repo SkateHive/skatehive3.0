@@ -80,9 +80,8 @@ export default function QuestForStokenOverlay({
 
   return (
     <Box position="relative" w="100%" h="100%" overflow="hidden">
-      {/* Backdrop */}
-      <Box position="absolute" inset={0} bg="linear-gradient(135deg, #060608 0%, #0a0a10 50%, #060608 100%)" />
-      <Box position="absolute" inset={0} bgGradient="radial(circle at 50% 50%, transparent 40%, rgba(0,0,0,0.85) 95%)" pointerEvents="none" />
+      {/* Backdrop — blur + almost transparent */}
+      <Box position="absolute" inset={0} bg="rgba(0,0,0,0.45)" backdropFilter="blur(24px)" />
 
       {/* Frame container — 16:9 */}
       <Box position="relative" zIndex={1} w="min(1300px, 96vw)" aspectRatio="16/9" mx="auto" top="50%" transform="translateY(-50%)">
@@ -92,11 +91,12 @@ export default function QuestForStokenOverlay({
           <HandheldThreeFrame />
         </Box>
 
-        {/* Game iframe — exact 16:9 (1280×720 canvas) matching 3D recess */}
+        {/* Game iframe — 16:9, sized to fill 3D screen recess without cropping */}
         <Box
           position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)"
-          w="52%" sx={{ aspectRatio: "16 / 9" }}
-          borderRadius="4px" overflow="hidden" zIndex={1} bg="#000"
+          w="55%" sx={{ aspectRatio: "16 / 9" }}
+          borderRadius="4px" zIndex={1} bg="#000"
+          css={{ "& iframe": { width: "100%", height: "100%", border: "none" } }}
         >
           {children}
         </Box>
