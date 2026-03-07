@@ -40,7 +40,7 @@ export default function GameCartridgeEmbed({ gameSlug }: GameCartridgeEmbedProps
         position="relative"
         w="100%"
         maxW="350px"
-        h="300px"
+        h="380px"
         mx="auto"
         my={4}
         cursor="pointer"

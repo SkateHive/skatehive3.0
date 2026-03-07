@@ -174,7 +174,7 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
   const FRONT = DEPTH / 2 + 0.026; // bevel offset
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={[0, -0.15, 0]}>
       {/* ── Cartridge body ── */}
       <mesh geometry={bodyGeo} material={bodyMat} />
 
@@ -254,7 +254,7 @@ export default function Cartridge3D({ imageUrl, hovered }: CartridgeProps) {
   return (
     <Canvas
       dpr={1}
-      camera={{ position: [0, 0.15, 4.6], fov: 32 }}
+      camera={{ position: [0, 0.1, 5.2], fov: 34 }}
       gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
       onCreated={({ gl }) => {
         gl.setClearColor(0x000000, 0);
