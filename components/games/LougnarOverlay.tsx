@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Box, Text } from "@chakra-ui/react";
-import LougnarThreeFrame from "./LougnarThreeFrame";
+import HandheldThreeFrame from "./HandheldThreeFrame";
 
 interface LougnarOverlayProps {
   children: React.ReactNode;
@@ -10,171 +10,152 @@ interface LougnarOverlayProps {
   onClose?: () => void;
 }
 
-export default function LougnarOverlay({ children, iframeRef, onClose }: LougnarOverlayProps) {
+/**
+ * Scales a 1280×720 iframe to fit container without cropping.
+ * Forces iframe to real 1280×720 viewport via DOM manipulation.
+ */
+function GameIframeContainer({ children }: { children: React.ReactNode }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.5);
+
+  useEffect(() => {
+    const update = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const sw = rect.width / 1280;
+      const sh = rect.height / 720;
+      setScale(Math.min(sw, sh));
+    };
+    update();
+    window.addEventListener("resize", update);
+    const ro = new ResizeObserver(update);
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => { window.removeEventListener("resize", update); ro.disconnect(); };
+  }, []);
+
+  // Force iframe to 1280×720 via DOM (bypasses inline styles)
+  useEffect(() => {
+    if (!innerRef.current) return;
+    const forceSize = () => {
+      const iframe = innerRef.current?.querySelector("iframe");
+      if (iframe) {
+        iframe.style.width = "1280px";
+        iframe.style.height = "720px";
+        iframe.style.border = "none";
+        iframe.style.display = "block";
+      }
+    };
+    const mo = new MutationObserver(forceSize);
+    mo.observe(innerRef.current, { childList: true, subtree: true });
+    forceSize();
+    return () => mo.disconnect();
+  }, []);
+
   return (
-    <Box position="relative" w="100%" h="100%" overflow="hidden">
-      {/* Backdrop */}
+    <Box
+      ref={containerRef}
+      position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)"
+      w="55%" sx={{ aspectRatio: "16 / 9" }}
+      borderRadius="4px" zIndex={1} bg="#000" overflow="hidden"
+    >
       <Box
+        ref={innerRef}
         position="absolute"
-        inset={0}
-        bgGradient="radial(circle at 50% 35%, rgba(255,100,0,0.25), transparent 55%), radial(circle at 50% 75%, rgba(0,150,255,0.12), transparent 60%), linear-gradient(135deg, #08080e 0%, #0c0c14 50%, #08080e 100%)"
-      />
-      
-      {/* Vignette */}
-      <Box
-        position="absolute"
-        inset={0}
-        bgGradient="radial(circle at 50% 50%, transparent 35%, rgba(0,0,0,0.9) 90%)"
-        pointerEvents="none"
-      />
-
-      {/* Frame container */}
-      <Box
-        position="relative"
-        zIndex={1}
-        w="min(1280px, 94vw)"
-        aspectRatio="16/9"
-        mx="auto"
-        top="50%"
-        transform="translateY(-50%)"
+        top="50%" left="50%"
+        w="1280px" h="720px"
+        style={{
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transformOrigin: "center center",
+        }}
       >
-        {/* Layer 0: Three.js */}
-        <Box position="absolute" inset="-40px" zIndex={0} pointerEvents="none">
-          <LougnarThreeFrame />
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * Lougnar Overlay — same industrial console as QFS
+ * Only control: mouse click (jump)
+ */
+export default function LougnarOverlay({
+  children,
+  iframeRef,
+  onClose,
+}: LougnarOverlayProps) {
+  const gameContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fullscreen — targets game container
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const toggleFullscreen = useCallback(() => {
+    const target = gameContainerRef.current || document.documentElement;
+    if (!document.fullscreenElement) {
+      target.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    const h = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", h);
+    return () => document.removeEventListener("fullscreenchange", h);
+  }, []);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "f" || e.key === "F") { e.preventDefault(); toggleFullscreen(); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [toggleFullscreen]);
+
+  return (
+    <Box ref={gameContainerRef} position="relative" w="100%" h="100%" overflow="hidden">
+      {/* Backdrop — blur + almost transparent */}
+      <Box position="absolute" inset={0} bg="rgba(0,0,0,0.25)" backdropFilter="blur(28px)" />
+
+      {/* Frame container — 16:9, expands on fullscreen */}
+      <Box position="relative" zIndex={1} w={isFullscreen ? "100vw" : "min(1300px, 96vw)"} aspectRatio="16/9" mx="auto" top="50%" transform="translateY(-50%)" transition="width 0.2s">
+
+        {/* Three.js Console */}
+        <Box position="absolute" inset={0} zIndex={0} pointerEvents="none">
+          <HandheldThreeFrame />
         </Box>
 
-        {/* Layer 1: Game iframe — LARGE */}
-        <Box
-          position="absolute"
-          top="50%"
-          left="50%"
-          transform="translate(-50%, -50%)"
-          w="72%"
-          h="82%"
-          borderRadius="12px"
-          overflow="hidden"
-          zIndex={1}
-          bg="#000"
-        >
+        {/* Game iframe — 1280×720 scaled */}
+        <GameIframeContainer>
           {children}
-        </Box>
+        </GameIframeContainer>
 
-        {/* Layer 2: Close button */}
+        {/* Close button */}
         {onClose && (
           <Box
-            as="button"
-            onClick={onClose}
-            position="absolute"
-            top="12px"
-            right="12px"
-            zIndex={20}
-            w="44px"
-            h="44px"
-            borderRadius="full"
-            bg="rgba(60,60,70,0.9)"
-            border="2px solid rgba(255,140,0,0.7)"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            cursor="pointer"
-            transition="all 0.2s"
-            boxShadow="0 0 15px rgba(255,100,0,0.3)"
-            _hover={{
-              bg: "rgba(255,100,0,0.4)",
-              boxShadow: "0 0 30px rgba(255,100,0,0.6)",
-              transform: "scale(1.08)",
-            }}
+            as="button" onClick={onClose}
+            position="absolute" top="10px" right="10px" zIndex={20}
+            w="32px" h="32px" borderRadius="full"
+            bg="rgba(30,30,40,0.75)" border="1px solid rgba(60,60,80,0.4)"
+            display="flex" alignItems="center" justifyContent="center"
+            cursor="pointer" transition="all 0.15s" opacity={0.6}
+            _hover={{ opacity: 1, bg: "rgba(60,60,80,0.7)" }}
           >
-            <Text fontSize="xl" fontWeight="black" color="white">
-              ✕
-            </Text>
+            <Text fontSize="sm" fontWeight="bold" color="rgba(200,200,210,0.85)">✕</Text>
           </Box>
         )}
 
-        {/* Layer 3: JUMP button — bottom center, large */}
+        {/* Fullscreen button */}
         <Box
-          position="absolute"
-          bottom="20px"
-          left="50%"
-          transform="translateX(-50%)"
-          zIndex={10}
-          display="flex"
-          flexDirection="column"
-          alignItems="center"
-          gap={1}
+          as="button" onClick={toggleFullscreen}
+          position="absolute" top="48px" right="10px" zIndex={20}
+          w="32px" h="32px" borderRadius="full"
+          bg="rgba(30,30,40,0.75)" border="1px solid rgba(60,60,80,0.4)"
+          display="flex" alignItems="center" justifyContent="center"
+          cursor="pointer" transition="all 0.15s" opacity={0.6}
+          _hover={{ opacity: 1, bg: "rgba(60,60,80,0.7)" }}
+          title={isFullscreen ? "Exit fullscreen (F)" : "Fullscreen (F)"}
         >
-          <Box
-            as="button"
-            w="160px"
-            h="56px"
-            borderRadius="full"
-            bg="linear-gradient(135deg, rgba(255,100,0,0.4), rgba(255,140,0,0.2))"
-            border="2px solid rgba(255,140,0,0.6)"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            gap={2}
-            cursor="pointer"
-            transition="all 0.1s"
-            boxShadow="0 0 20px rgba(255,100,0,0.3), inset 0 0 20px rgba(255,255,255,0.05)"
-            _hover={{
-              bg: "rgba(255,100,0,0.5)",
-              boxShadow: "0 0 40px rgba(255,100,0,0.6)",
-            }}
-            _active={{
-              transform: "scale(0.95)",
-              boxShadow: "0 0 50px rgba(255,100,0,0.8)",
-            }}
-            onClick={() => {
-              // Send click event to iframe
-              if (iframeRef?.current?.contentWindow) {
-                try {
-                  const clickEvent = new MouseEvent("click", {
-                    bubbles: true,
-                    cancelable: true,
-                  });
-                  iframeRef.current.contentWindow.document.dispatchEvent(clickEvent);
-                } catch (e) {
-                  console.error("Click dispatch failed:", e);
-                }
-              }
-            }}
-          >
-            <Text
-              fontSize="xl"
-              fontWeight="black"
-              color="#ff8c00"
-              textShadow="0 0 10px rgba(255,100,0,0.8)"
-            >
-              🖱️ JUMP
-            </Text>
-          </Box>
-          <Text fontSize="xs" color="rgba(255,200,150,0.6)">
-            or click screen
-          </Text>
-        </Box>
-
-        {/* Layer 4: Top hint */}
-        <Box
-          position="absolute"
-          top="16px"
-          left="50%"
-          transform="translateX(-50%)"
-          zIndex={10}
-          bg="rgba(0,0,0,0.5)"
-          px={4}
-          py={2}
-          borderRadius="full"
-          border="1px solid rgba(255,140,0,0.2)"
-        >
-          <Text
-            fontSize="sm"
-            color="rgba(255,200,150,0.8)"
-            fontWeight="bold"
-            letterSpacing="wider"
-          >
-            🚀 CLICK TO JUMP
-          </Text>
+          <Text fontSize="xs" color="rgba(200,200,210,0.85)">{isFullscreen ? "⊡" : "⛶"}</Text>
         </Box>
       </Box>
     </Box>

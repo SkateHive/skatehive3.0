@@ -151,8 +151,8 @@ export default function QuestForStokenOverlay({
       {/* Backdrop — blur + almost transparent */}
       <Box position="absolute" inset={0} bg="rgba(0,0,0,0.25)" backdropFilter="blur(28px)" />
 
-      {/* Frame container — 16:9 */}
-      <Box position="relative" zIndex={1} w="min(1300px, 96vw)" aspectRatio="16/9" mx="auto" top="50%" transform="translateY(-50%)">
+      {/* Frame container — 16:9, expands on fullscreen */}
+      <Box position="relative" zIndex={1} w={isFullscreen ? "100vw" : "min(1300px, 96vw)"} aspectRatio="16/9" mx="auto" top="50%" transform="translateY(-50%)" transition="width 0.2s">
 
         {/* Three.js Canvas */}
         <Box position="absolute" inset={0} zIndex={0} pointerEvents="none">
