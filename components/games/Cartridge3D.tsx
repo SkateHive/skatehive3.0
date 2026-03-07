@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useTexture } from "@react-three/drei";
+import { useTexture, Environment } from "@react-three/drei";
 import * as THREE from "three";
 
 /* ─── helpers ─── */
@@ -261,10 +261,47 @@ export default function Cartridge3D({ imageUrl, hovered }: CartridgeProps) {
       }}
       style={{ width: "100%", height: "100%" }}
     >
-      <ambientLight intensity={0.9} />
-      <directionalLight position={[3, 4, 5]} intensity={1.6} />
-      <directionalLight position={[-3, 2, 3]} intensity={0.5} color="#a7ff00" />
-      <pointLight position={[0, -2, 3]} intensity={0.3} color="#ffffff" />
+      {/* Soft ambient base — no pure black shadows */}
+      <ambientLight intensity={1.2} />
+
+      {/* Key light: soft, from top-front, with shadow */}
+      <directionalLight
+        position={[2, 4, 5]}
+        intensity={1.0}
+        color="#ffffff"
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-bias={-0.002}
+        shadow-normalBias={0.05}
+        shadow-camera-near={0.5}
+        shadow-camera-far={20}
+        shadow-camera-left={-3}
+        shadow-camera-right={3}
+        shadow-camera-top={3}
+        shadow-camera-bottom={-3}
+      />
+
+      {/* Fill light: opposite side, softer, no shadow */}
+      <directionalLight
+        position={[-3, 2, 4]}
+        intensity={0.6}
+        color="#dde0ff"
+      />
+
+      {/* Bottom fill — prevents dark underside */}
+      <directionalLight
+        position={[0, -2, 3]}
+        intensity={0.3}
+        color="#ffffff"
+      />
+
+      {/* Subtle green accent (brand color) */}
+      <pointLight position={[-2, 1, 3]} intensity={0.15} color="#a7ff00" />
+
+      {/* HDRI environment for realistic reflections + ambient fill */}
+      <Environment preset="city" environmentIntensity={0.3} />
+
       <CartridgeMesh imageUrl={imageUrl} hovered={hovered} />
     </Canvas>
   );
