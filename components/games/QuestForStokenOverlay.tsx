@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Box, Text } from "@chakra-ui/react";
+import HandheldThreeFrame from "./HandheldThreeFrame";
 
 interface QuestForStokenOverlayProps {
   children: React.ReactNode;
@@ -105,36 +106,54 @@ export default function QuestForStokenOverlay({
   const isPressed = (key: string) => pressedKeys.has(key.toLowerCase());
 
   return (
-    <Box
-      position="relative"
-      w="100%"
-      aspectRatio="16/9"
-      bgGradient="linear(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%)"
-      display="flex"
-      alignItems="center"
-      justifyContent="center"
-      overflow="hidden"
-      borderRadius="lg"
-    >
-      {/* Ambient glow */}
+    <Box position="relative" w="100%" h="100%" overflow="hidden">
+      {/* Backdrop */}
       <Box
         position="absolute"
         inset={0}
-        bgGradient="radial(circle at 30% 50%, rgba(138,43,226,0.25), transparent 50%), radial(circle at 70% 50%, rgba(167,255,0,0.15), transparent 50%)"
+        bgGradient="radial(circle at 50% 35%, rgba(138,43,226,0.35), transparent 55%), radial(circle at 50% 75%, rgba(0,212,255,0.18), transparent 60%), linear-gradient(135deg, #07070c 0%, #0b0b16 50%, #07070c 100%)"
+        filter="blur(0px)"
+      />
+      {/* Vignette */}
+      <Box
+        position="absolute"
+        inset={0}
+        bgGradient="radial(circle at 50% 50%, transparent 35%, rgba(0,0,0,0.9) 90%)"
         pointerEvents="none"
       />
 
-      {/* Screen container */}
+      {/* Centered handheld frame */}
       <Box
         position="relative"
-        w="100%"
-        h="100%"
-        bg="#000"
-        borderRadius="md"
-        overflow="hidden"
-        boxShadow="0 0 60px rgba(138,43,226,0.3), 0 0 120px rgba(0,191,255,0.2)"
+        zIndex={1}
+        w="min(1280px, 94vw)"
+        aspectRatio="16/9"
+        mx="auto"
+        top="50%"
+        transform="translateY(-50%)"
       >
-        {/* Close button */}
+        {/* Layer 0: Three.js Canvas — extends beyond frame for grips */}
+        <Box position="absolute" inset="-60px" zIndex={0} pointerEvents="none">
+          <HandheldThreeFrame />
+        </Box>
+
+        {/* Layer 1: Game iframe — centered, smaller to show more body */}
+        <Box
+          position="absolute"
+          top="50%"
+          left="50%"
+          transform="translate(-50%, -50%)"
+          w="62%"
+          h="72%"
+          borderRadius="12px"
+          overflow="hidden"
+          zIndex={1}
+          bg="#000"
+        >
+          {children}
+        </Box>
+
+        {/* Layer 2: Close button — top right of frame */}
         {onClose && (
           <Box
             as="button"
@@ -171,22 +190,13 @@ export default function QuestForStokenOverlay({
           </Box>
         )}
 
-        {/* Game iframe */}
-        <Box position="absolute" inset={0} zIndex={1}>
-          {children}
-        </Box>
-
-        {/* Left controls (D-pad + Space) */}
+        {/* Layer 3: D-pad — bottom-left */}
         <Box
           position="absolute"
-          bottom="40px"
-          left="60px"
+          bottom="30px"
+          left="50px"
           zIndex={10}
-          display="flex"
-          flexDirection="column"
-          gap={4}
         >
-          {/* D-pad */}
           <Box position="relative" w="140px" h="140px">
             {/* D-pad background glow */}
             <Box
@@ -313,8 +323,15 @@ export default function QuestForStokenOverlay({
               </Box>
             </Box>
           </Box>
+        </Box>
 
-          {/* Space button */}
+        {/* Layer 4: Space button */}
+        <Box
+          position="absolute"
+          bottom="30px"
+          left="200px"
+          zIndex={10}
+        >
           <Box
             as="button"
             onClick={() => tap(SPACE_KEY)}
@@ -359,11 +376,11 @@ export default function QuestForStokenOverlay({
           </Box>
         </Box>
 
-        {/* Right controls (Action buttons) */}
+        {/* Layer 5: Action buttons — bottom-right */}
         <Box
           position="absolute"
-          bottom="60px"
-          right="80px"
+          bottom="40px"
+          right="60px"
           zIndex={10}
           display="grid"
           gridTemplateColumns="repeat(2, 1fr)"
