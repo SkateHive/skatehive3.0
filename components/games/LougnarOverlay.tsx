@@ -56,7 +56,7 @@ function GameIframeContainer({ children }: { children: React.ReactNode }) {
     <Box
       ref={containerRef}
       position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)"
-      w="88%" h="70%"
+      w="55%" sx={{ aspectRatio: "16 / 9" }}
       borderRadius="4px" zIndex={1} overflow="hidden"
     >
       <Box
@@ -119,17 +119,15 @@ export default function LougnarOverlay({
       {/* Frame container — 16:9, expands on fullscreen */}
       <Box position="relative" zIndex={1} w={isFullscreen ? "100vw" : "min(1300px, 96vw)"} aspectRatio="16/9" mx="auto" top="50%" transform="translateY(-50%)" transition="width 0.2s">
 
-        {/* Game iframe — 1280×720 scaled, BELOW 3D console */}
-        <Box position="absolute" inset={0} zIndex={0}>
-          <GameIframeContainer>
-            {children}
-          </GameIframeContainer>
-        </Box>
-
-        {/* Three.js Console — ON TOP visually, clicks pass through */}
-        <Box position="absolute" inset={0} zIndex={1} pointerEvents="none">
+        {/* Three.js Console */}
+        <Box position="absolute" inset={0} zIndex={0} pointerEvents="none">
           <HandheldThreeFrame variant="1btn" />
         </Box>
+
+        {/* Game iframe — screen area */}
+        <GameIframeContainer>
+          {children}
+        </GameIframeContainer>
 
         {/* Close button */}
         {onClose && (
