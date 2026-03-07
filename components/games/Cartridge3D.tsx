@@ -111,9 +111,9 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
   const labelBorderMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#2a2a30"),
-        roughness: 0.95,
-        metalness: 0.0,
+        color: new THREE.Color("#44444d"),
+        roughness: 0.85,
+        metalness: 0.06,
       }),
     [],
   );
@@ -178,15 +178,15 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
       {/* ── Cartridge body ── */}
       <mesh geometry={bodyGeo} material={bodyMat} />
 
-      {/* ── Label border (inset rectangle, darker) ── */}
-      <mesh position={[0, -0.05, FRONT + 0.001]}>
-        <planeGeometry args={[1.85, 1.65]} />
+      {/* ── Label border (inset rectangle) ── */}
+      <mesh position={[0, 0.0, FRONT + 0.001]}>
+        <planeGeometry args={[1.92, 1.85]} />
         <primitive object={labelBorderMat} attach="material" />
       </mesh>
 
-      {/* ── Label image (full art, no crop) ── */}
-      <mesh position={[0, -0.05, FRONT + 0.003]}>
-        <planeGeometry args={[1.78, 1.58]} />
+      {/* ── Label image (full art, no crop, taller to fit) ── */}
+      <mesh position={[0, 0.0, FRONT + 0.003]}>
+        <planeGeometry args={[1.85, 1.78]} />
         <primitive object={labelMat} attach="material" />
       </mesh>
 
