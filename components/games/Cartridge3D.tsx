@@ -101,9 +101,9 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
   const bodyMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#3d3d3d"),
-        roughness: 0.78,
-        metalness: 0.08,
+        color: new THREE.Color("#555560"),
+        roughness: 0.72,
+        metalness: 0.1,
       }),
     [],
   );
@@ -111,7 +111,7 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
   const labelBorderMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#1a1a1a"),
+        color: new THREE.Color("#2a2a30"),
         roughness: 0.95,
         metalness: 0.0,
       }),
@@ -131,9 +131,9 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
   const ridgeMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#333333"),
-        roughness: 0.9,
-        metalness: 0.02,
+        color: new THREE.Color("#4a4a50"),
+        roughness: 0.85,
+        metalness: 0.05,
       }),
     [],
   );
@@ -179,14 +179,14 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
       <mesh geometry={bodyGeo} material={bodyMat} />
 
       {/* ── Label border (inset rectangle, darker) ── */}
-      <mesh position={[0, -0.08, FRONT + 0.001]}>
-        <planeGeometry args={[1.7, 1.5]} />
+      <mesh position={[0, -0.05, FRONT + 0.001]}>
+        <planeGeometry args={[1.85, 1.65]} />
         <primitive object={labelBorderMat} attach="material" />
       </mesh>
 
-      {/* ── Label image (smaller, sits inside border) ── */}
-      <mesh position={[0, -0.08, FRONT + 0.003]}>
-        <planeGeometry args={[1.58, 1.38]} />
+      {/* ── Label image (full art, no crop) ── */}
+      <mesh position={[0, -0.05, FRONT + 0.003]}>
+        <planeGeometry args={[1.78, 1.58]} />
         <primitive object={labelMat} attach="material" />
       </mesh>
 
@@ -240,7 +240,7 @@ function CartridgeMesh({ imageUrl, hovered }: CartridgeProps) {
       <mesh position={[0, -1.05, FRONT + 0.002]}>
         <planeGeometry args={[0.9, 0.1]} />
         <meshStandardMaterial
-          color="#333333"
+          color="#4a4a50"
           roughness={0.9}
           metalness={0.0}
         />
@@ -261,8 +261,8 @@ export default function Cartridge3D({ imageUrl, hovered }: CartridgeProps) {
       }}
       style={{ width: "100%", height: "100%" }}
     >
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[3, 4, 5]} intensity={1.4} />
+      <ambientLight intensity={0.9} />
+      <directionalLight position={[3, 4, 5]} intensity={1.6} />
       <directionalLight position={[-3, 2, 3]} intensity={0.5} color="#a7ff00" />
       <pointLight position={[0, -2, 3]} intensity={0.3} color="#ffffff" />
       <CartridgeMesh imageUrl={imageUrl} hovered={hovered} />
