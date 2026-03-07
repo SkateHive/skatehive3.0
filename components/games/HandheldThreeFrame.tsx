@@ -4,7 +4,7 @@ import React from "react";
 import { Canvas } from "@react-three/fiber";
 import { RoundedBox, Text } from "@react-three/drei";
 
-function HandheldScene() {
+function HandheldScene({ variant = "4btn" }: { variant?: "4btn" | "1btn" }) {
   return (
     <>
       {/* Lighting — clean, neutral, studio */}
@@ -93,31 +93,53 @@ function HandheldScene() {
           D
         </Text>
 
-        {/* ──── ACTION BUTTONS (right grip) with labels ──── */}
-        {[
-          { pos: [5.3, 0.4] as [number, number], label: "O" },
-          { pos: [5.7, 0] as [number, number], label: "J" },
-          { pos: [5.3, -0.4] as [number, number], label: "K" },
-          { pos: [4.9, 0] as [number, number], label: "L" },
-        ].map((btn, i) => (
-          <React.Fragment key={`btn-${i}`}>
-            <group position={[btn.pos[0], btn.pos[1], 0.34]} rotation={[Math.PI / 2, 0, 0]}>
+        {/* ──── ACTION BUTTONS (right grip) ──── */}
+        {variant === "4btn" ? (
+          // 4-button diamond layout (QFS: O/J/K/L)
+          [
+            { pos: [5.3, 0.4] as [number, number], label: "O" },
+            { pos: [5.7, 0] as [number, number], label: "J" },
+            { pos: [5.3, -0.4] as [number, number], label: "K" },
+            { pos: [4.9, 0] as [number, number], label: "L" },
+          ].map((btn, i) => (
+            <React.Fragment key={`btn-${i}`}>
+              <group position={[btn.pos[0], btn.pos[1], 0.34]} rotation={[Math.PI / 2, 0, 0]}>
+                <mesh>
+                  <cylinderGeometry args={[0.22, 0.22, 0.05, 24]} />
+                  <meshStandardMaterial color="#333340" roughness={0.65} metalness={0.08} />
+                </mesh>
+              </group>
+              <group position={[btn.pos[0], btn.pos[1], 0.31]} rotation={[Math.PI / 2, 0, 0]}>
+                <mesh>
+                  <cylinderGeometry args={[0.26, 0.26, 0.01, 24]} />
+                  <meshStandardMaterial color="#0a0a10" roughness={0.95} metalness={0.0} />
+                </mesh>
+              </group>
+              <Text position={[btn.pos[0], btn.pos[1], 0.38]} fontSize={0.14} color="#555560" anchorX="center" anchorY="middle">
+                {btn.label}
+              </Text>
+            </React.Fragment>
+          ))
+        ) : (
+          // Single large button (Lougnar: JUMP)
+          <>
+            <group position={[5.3, 0, 0.34]} rotation={[Math.PI / 2, 0, 0]}>
               <mesh>
-                <cylinderGeometry args={[0.22, 0.22, 0.05, 24]} />
+                <cylinderGeometry args={[0.45, 0.45, 0.06, 32]} />
                 <meshStandardMaterial color="#333340" roughness={0.65} metalness={0.08} />
               </mesh>
             </group>
-            <group position={[btn.pos[0], btn.pos[1], 0.31]} rotation={[Math.PI / 2, 0, 0]}>
+            <group position={[5.3, 0, 0.30]} rotation={[Math.PI / 2, 0, 0]}>
               <mesh>
-                <cylinderGeometry args={[0.26, 0.26, 0.01, 24]} />
+                <cylinderGeometry args={[0.5, 0.5, 0.01, 32]} />
                 <meshStandardMaterial color="#0a0a10" roughness={0.95} metalness={0.0} />
               </mesh>
             </group>
-            <Text position={[btn.pos[0], btn.pos[1], 0.38]} fontSize={0.14} color="#555560" anchorX="center" anchorY="middle">
-              {btn.label}
+            <Text position={[5.3, 0, 0.39]} fontSize={0.18} color="#555560" anchorX="center" anchorY="middle">
+              A
             </Text>
-          </React.Fragment>
-        ))}
+          </>
+        )}
 
         {/* ──── SPEAKER GRILLS ──── */}
         {[-0.35, -0.18, 0, 0.18, 0.35].map((x, i) =>
@@ -193,7 +215,7 @@ function HandheldScene() {
   );
 }
 
-export default function HandheldThreeFrame() {
+export default function HandheldThreeFrame({ variant = "4btn" }: { variant?: "4btn" | "1btn" }) {
   return (
     <Canvas
       dpr={[1, 2]}
@@ -201,7 +223,7 @@ export default function HandheldThreeFrame() {
       gl={{ antialias: true, alpha: true }}
       style={{ background: "transparent", width: "100%", height: "100%" }}
     >
-      <HandheldScene />
+      <HandheldScene variant={variant} />
     </Canvas>
   );
 }

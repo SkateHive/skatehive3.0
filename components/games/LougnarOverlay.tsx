@@ -121,7 +121,7 @@ export default function LougnarOverlay({
 
         {/* Three.js Console */}
         <Box position="absolute" inset={0} zIndex={0} pointerEvents="none">
-          <HandheldThreeFrame />
+          <HandheldThreeFrame variant="1btn" />
         </Box>
 
         {/* Game iframe — 1280×720 scaled */}
@@ -143,6 +143,30 @@ export default function LougnarOverlay({
             <Text fontSize="sm" fontWeight="bold" color="rgba(200,200,210,0.85)">✕</Text>
           </Box>
         )}
+
+        {/* JUMP button — right side, dispatches click to iframe */}
+        <Box
+          as="button"
+          onClick={() => {
+            if (iframeRef?.current?.contentWindow) {
+              try {
+                const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
+                iframeRef.current.contentWindow.document.dispatchEvent(ev);
+              } catch (e) { /* cross-origin */ }
+            }
+          }}
+          position="absolute" right="6%" top="50%" transform="translateY(-50%)" zIndex={10}
+          w="70px" h="70px" borderRadius="full"
+          bg="rgba(40,40,50,0.5)" border="2px solid rgba(100,100,120,0.4)"
+          display="flex" alignItems="center" justifyContent="center"
+          cursor="pointer" transition="all 0.1s"
+          _hover={{ bg: "rgba(60,60,80,0.6)" }}
+          _active={{ transform: "translateY(-50%) scale(0.92)", bg: "rgba(80,80,100,0.6)" }}
+        >
+          <Text fontSize="xs" fontWeight="bold" color="rgba(200,200,210,0.7)" textAlign="center" lineHeight="1.2">
+            🖱️{"\n"}JUMP
+          </Text>
+        </Box>
 
         {/* Fullscreen button */}
         <Box
