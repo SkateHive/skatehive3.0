@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Box, Text } from "@chakra-ui/react";
 import HandheldThreeFrame from "./HandheldThreeFrame";
 
@@ -14,440 +14,120 @@ type ControlKey = {
   label: string;
   key: string;
   code: string;
-  hint?: string;
-  color?: string;
 };
 
 /**
- * ROG Ally / Steam Deck style overlay for Quest for Stoken
- * Modern handheld gaming aesthetic with neon accents
+ * Console V6 — 3D-only controls, no overlay buttons
+ * Keyboard logic preserved for input dispatch
  */
 export default function QuestForStokenOverlay({
   children,
   iframeRef,
   onClose,
 }: QuestForStokenOverlayProps) {
-  const sendKey = (k: ControlKey, action: "down" | "up" = "down") => {
-    if (!iframeRef?.current?.contentWindow) {
-      console.warn('Iframe not ready');
-      return;
-    }
-
+  // Keyboard input dispatch to iframe
+  const sendKey = (code: string, key: string, action: "down" | "up") => {
+    if (!iframeRef?.current?.contentWindow) return;
     const event = new KeyboardEvent(action === "down" ? "keydown" : "keyup", {
-      key: k.key,
-      code: k.code,
-      bubbles: true,
-      cancelable: true,
+      key, code, bubbles: true, cancelable: true,
     });
-
-    // Try multiple targets for better compatibility
     try {
       iframeRef.current.contentWindow.document.dispatchEvent(event);
       iframeRef.current.contentWindow.dispatchEvent(event);
-      console.log(`Sent ${action} for key ${k.label}`);
-    } catch (e) {
-      console.error('Failed to send key:', e);
-    }
+    } catch (e) { /* cross-origin */ }
   };
 
-  const tap = (k: ControlKey) => {
-    sendKey(k, "down");
-    setTimeout(() => sendKey(k, "up"), 90);
-  };
-
-  const MOVE_KEYS: ControlKey[] = [
-    { label: "W", key: "w", code: "KeyW" },
-    { label: "A", key: "a", code: "KeyA" },
-    { label: "S", key: "s", code: "KeyS" },
-    { label: "D", key: "d", code: "KeyD" },
-  ];
-
-  const SPACE_KEY: ControlKey = {
-    label: "SPACE",
-    key: " ",
-    code: "Space",
-    hint: "Jump",
-  };
-
-  const ACTION_KEYS: ControlKey[] = [
-    { label: "O", key: "o", code: "KeyO", hint: "Block", color: "#a7ff00" },
-    { label: "J", key: "j", code: "KeyJ", hint: "Attack", color: "#00d4ff" },
-    { label: "K", key: "k", code: "KeyK", hint: "Action", color: "#ff00ff" },
-    { label: "L", key: "l", code: "KeyL", hint: "Dash", color: "#ffaa00" },
-  ];
-
-  // Track pressed keys for visual feedback
-  const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
-
+  // Forward keyboard events to iframe
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      setPressedKeys(prev => new Set(prev).add(key));
+    const forwardKeys = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "Space", "KeyO", "KeyJ", "KeyK", "KeyL"]);
+    const handleDown = (e: KeyboardEvent) => {
+      if (forwardKeys.has(e.code)) sendKey(e.code, e.key, "down");
     };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      setPressedKeys(prev => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
+    const handleUp = (e: KeyboardEvent) => {
+      if (forwardKeys.has(e.code)) sendKey(e.code, e.key, "up");
     };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
+    window.addEventListener("keydown", handleDown);
+    window.addEventListener("keyup", handleUp);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener("keydown", handleDown);
+      window.removeEventListener("keyup", handleUp);
     };
+  });
+
+  // Fullscreen toggle
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
   }, []);
 
-  const isPressed = (key: string) => pressedKeys.has(key.toLowerCase());
+  useEffect(() => {
+    const h = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", h);
+    return () => document.removeEventListener("fullscreenchange", h);
+  }, []);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "f" || e.key === "F") { e.preventDefault(); toggleFullscreen(); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [toggleFullscreen]);
 
   return (
     <Box position="relative" w="100%" h="100%" overflow="hidden">
       {/* Backdrop */}
-      <Box
-        position="absolute"
-        inset={0}
-        bgGradient="radial(circle at 50% 35%, rgba(138,43,226,0.35), transparent 55%), radial(circle at 50% 75%, rgba(0,212,255,0.18), transparent 60%), linear-gradient(135deg, #07070c 0%, #0b0b16 50%, #07070c 100%)"
-        filter="blur(0px)"
-      />
-      {/* Vignette */}
-      <Box
-        position="absolute"
-        inset={0}
-        bgGradient="radial(circle at 50% 50%, transparent 35%, rgba(0,0,0,0.9) 90%)"
-        pointerEvents="none"
-      />
+      <Box position="absolute" inset={0} bg="linear-gradient(135deg, #060608 0%, #0a0a10 50%, #060608 100%)" />
+      <Box position="absolute" inset={0} bgGradient="radial(circle at 50% 50%, transparent 40%, rgba(0,0,0,0.85) 95%)" pointerEvents="none" />
 
-      {/* Centered handheld frame */}
-      <Box
-        position="relative"
-        zIndex={1}
-        w="min(1280px, 94vw)"
-        aspectRatio="16/9"
-        mx="auto"
-        top="50%"
-        transform="translateY(-50%)"
-      >
-        {/* Layer 0: Three.js Canvas — extends beyond frame for grips */}
-        <Box position="absolute" inset="-60px" zIndex={0} pointerEvents="none">
+      {/* Frame container — 16:9 */}
+      <Box position="relative" zIndex={1} w="min(1300px, 96vw)" aspectRatio="16/9" mx="auto" top="50%" transform="translateY(-50%)">
+
+        {/* Three.js Canvas */}
+        <Box position="absolute" inset={0} zIndex={0} pointerEvents="none">
           <HandheldThreeFrame />
         </Box>
 
-        {/* Layer 1: Game iframe — centered, smaller to show more body */}
+        {/* Game iframe — exact 16:9 (1280×720 canvas) matching 3D recess */}
         <Box
-          position="absolute"
-          top="50%"
-          left="50%"
-          transform="translate(-50%, -50%)"
-          w="62%"
-          h="72%"
-          borderRadius="12px"
-          overflow="hidden"
-          zIndex={1}
-          bg="#000"
+          position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)"
+          w="52%" sx={{ aspectRatio: "16 / 9" }}
+          borderRadius="4px" overflow="hidden" zIndex={1} bg="#000"
         >
           {children}
         </Box>
 
-        {/* Layer 2: Close button — top right of frame */}
+        {/* Close button */}
         {onClose && (
           <Box
-            as="button"
-            onClick={onClose}
-            position="absolute"
-            top="20px"
-            right="20px"
-            zIndex={20}
-            w="50px"
-            h="50px"
-            borderRadius="full"
-            bg="rgba(60,60,90,0.9)"
-            border="2px solid rgba(167,255,0,0.7)"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            cursor="pointer"
-            transition="all 0.2s"
-            boxShadow="0 0 20px rgba(138,43,226,0.4), inset 0 0 15px rgba(255,255,255,0.1)"
-            _hover={{
-              bg: "rgba(138,43,226,0.6)",
-              borderColor: "rgba(167,255,0,1)",
-              boxShadow: "0 0 40px rgba(167,255,0,0.8)",
-              transform: "scale(1.08)",
-            }}
-            _active={{
-              transform: "scale(0.92)",
-              boxShadow: "0 0 50px rgba(167,255,0,1)",
-            }}
+            as="button" onClick={onClose}
+            position="absolute" top="10px" right="10px" zIndex={20}
+            w="32px" h="32px" borderRadius="full"
+            bg="rgba(30,30,40,0.75)" border="1px solid rgba(60,60,80,0.4)"
+            display="flex" alignItems="center" justifyContent="center"
+            cursor="pointer" transition="all 0.15s" opacity={0.6}
+            _hover={{ opacity: 1, bg: "rgba(60,60,80,0.7)" }}
           >
-            <Text fontSize="2xl" fontWeight="black" color="white" textShadow="0 0 10px rgba(167,255,0,0.9)">
-              ✕
-            </Text>
+            <Text fontSize="sm" fontWeight="bold" color="rgba(200,200,210,0.85)">✕</Text>
           </Box>
         )}
 
-        {/* Layer 3: D-pad — bottom-left */}
+        {/* Fullscreen button */}
         <Box
-          position="absolute"
-          bottom="30px"
-          left="50px"
-          zIndex={10}
+          as="button" onClick={toggleFullscreen}
+          position="absolute" top="48px" right="10px" zIndex={20}
+          w="32px" h="32px" borderRadius="full"
+          bg="rgba(30,30,40,0.75)" border="1px solid rgba(60,60,80,0.4)"
+          display="flex" alignItems="center" justifyContent="center"
+          cursor="pointer" transition="all 0.15s" opacity={0.6}
+          _hover={{ opacity: 1, bg: "rgba(60,60,80,0.7)" }}
+          title={isFullscreen ? "Exit fullscreen (F)" : "Fullscreen (F)"}
         >
-          <Box position="relative" w="140px" h="140px">
-            {/* D-pad background glow */}
-            <Box
-              position="absolute"
-              inset={0}
-              bg="radial-gradient(circle, rgba(138,43,226,0.2), transparent 70%)"
-              filter="blur(20px)"
-            />
-
-            {/* D-pad buttons */}
-            <Box
-              position="relative"
-              display="grid"
-              gridTemplateColumns="repeat(3, 1fr)"
-              gridTemplateRows="repeat(3, 1fr)"
-              gap="2px"
-              w="100%"
-              h="100%"
-            >
-              {/* Empty corner */}
-              <Box />
-
-              {/* W (Up) */}
-              <Box
-                as="button"
-                onClick={() => tap(MOVE_KEYS[0])}
-                bg={isPressed('w') ? "linear-gradient(135deg, rgba(167,255,0,0.6), rgba(138,43,226,0.8))" : "linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"}
-                borderRadius="md"
-                border="2px solid rgba(167,255,0,0.6)"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                cursor="pointer"
-                transition="all 0.05s"
-                boxShadow={isPressed('w') ? "0 0 30px rgba(167,255,0,0.9), inset 0 0 30px rgba(167,255,0,0.3)" : "0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"}
-                transform={isPressed('w') ? "scale(0.95)" : "scale(1)"}
-                _hover={{
-                  bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
-                  borderColor: "rgba(167,255,0,0.9)",
-                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
-                }}
-              >
-                <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
-                  W
-                </Text>
-              </Box>
-
-              {/* Empty corner */}
-              <Box />
-
-              {/* A (Left) */}
-              <Box
-                as="button"
-                onClick={() => tap(MOVE_KEYS[1])}
-                bg={isPressed('a') ? "linear-gradient(135deg, rgba(167,255,0,0.6), rgba(138,43,226,0.8))" : "linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"}
-                borderRadius="md"
-                border="2px solid rgba(167,255,0,0.6)"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                cursor="pointer"
-                transition="all 0.05s"
-                boxShadow={isPressed('a') ? "0 0 30px rgba(167,255,0,0.9), inset 0 0 30px rgba(167,255,0,0.3)" : "0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"}
-                transform={isPressed('a') ? "scale(0.95)" : "scale(1)"}
-                _hover={{
-                  bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
-                  borderColor: "rgba(167,255,0,0.9)",
-                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
-                }}
-              >
-                <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
-                  A
-                </Text>
-              </Box>
-
-              {/* S (Down) */}
-              <Box
-                as="button"
-                onClick={() => tap(MOVE_KEYS[2])}
-                bg={isPressed('s') ? "linear-gradient(135deg, rgba(167,255,0,0.6), rgba(138,43,226,0.8))" : "linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"}
-                borderRadius="md"
-                border="2px solid rgba(167,255,0,0.6)"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                cursor="pointer"
-                transition="all 0.05s"
-                boxShadow={isPressed('s') ? "0 0 30px rgba(167,255,0,0.9), inset 0 0 30px rgba(167,255,0,0.3)" : "0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"}
-                transform={isPressed('s') ? "scale(0.95)" : "scale(1)"}
-                _hover={{
-                  bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
-                  borderColor: "rgba(167,255,0,0.9)",
-                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
-                }}
-              >
-                <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
-                  S
-                </Text>
-              </Box>
-
-              {/* D (Right) */}
-              <Box
-                as="button"
-                onClick={() => tap(MOVE_KEYS[3])}
-                bg={isPressed('d') ? "linear-gradient(135deg, rgba(167,255,0,0.6), rgba(138,43,226,0.8))" : "linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"}
-                borderRadius="md"
-                border="2px solid rgba(167,255,0,0.6)"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                cursor="pointer"
-                transition="all 0.05s"
-                boxShadow={isPressed('d') ? "0 0 30px rgba(167,255,0,0.9), inset 0 0 30px rgba(167,255,0,0.3)" : "0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"}
-                transform={isPressed('d') ? "scale(0.95)" : "scale(1)"}
-                _hover={{
-                  bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
-                  borderColor: "rgba(167,255,0,0.9)",
-                  boxShadow: "0 0 20px rgba(138,43,226,0.6)",
-                }}
-              >
-                <Text fontSize="xl" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
-                  D
-                </Text>
-              </Box>
-            </Box>
-          </Box>
-        </Box>
-
-        {/* Layer 4: Space button */}
-        <Box
-          position="absolute"
-          bottom="30px"
-          left="200px"
-          zIndex={10}
-        >
-          <Box
-            as="button"
-            onClick={() => tap(SPACE_KEY)}
-            w="140px"
-            h="50px"
-            bg={isPressed(' ') ? "linear-gradient(135deg, rgba(167,255,0,0.6), rgba(138,43,226,0.8))" : "linear-gradient(135deg, rgba(80,80,120,0.8), rgba(138,43,226,0.4))"}
-            borderRadius="lg"
-            border="2px solid rgba(167,255,0,0.6)"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            cursor="pointer"
-            transition="all 0.05s"
-            position="relative"
-            boxShadow={isPressed(' ') ? "0 0 30px rgba(167,255,0,0.9), inset 0 0 30px rgba(167,255,0,0.3)" : "0 0 10px rgba(138,43,226,0.3), inset 0 0 20px rgba(255,255,255,0.1)"}
-            transform={isPressed(' ') ? "scale(0.98)" : "scale(1)"}
-            _hover={{
-              bg: "linear-gradient(135deg, rgba(120,120,180,0.9), rgba(138,43,226,0.6))",
-              borderColor: "rgba(167,255,0,0.9)",
-              boxShadow: "0 0 20px rgba(138,43,226,0.6)",
-            }}
-          >
-            <Box
-              position="absolute"
-              inset={0}
-              bg="radial-gradient(circle, rgba(167,255,0,0.15), transparent 70%)"
-              filter="blur(15px)"
-              pointerEvents="none"
-            />
-            <Text fontSize="sm" fontWeight="black" color="white" textShadow="0 0 8px rgba(167,255,0,0.8)">
-              SPACE
-            </Text>
-            <Text
-              position="absolute"
-              bottom="-20px"
-              fontSize="xs"
-              color="rgba(200,255,150,0.9)"
-              fontWeight="semibold"
-            >
-              {SPACE_KEY.hint}
-            </Text>
-          </Box>
-        </Box>
-
-        {/* Layer 5: Action buttons — bottom-right */}
-        <Box
-          position="absolute"
-          bottom="40px"
-          right="60px"
-          zIndex={10}
-          display="grid"
-          gridTemplateColumns="repeat(2, 1fr)"
-          gridTemplateRows="repeat(2, 1fr)"
-          gap={4}
-          w="160px"
-          h="160px"
-        >
-          {ACTION_KEYS.map((btn, idx) => (
-            <Box
-              key={btn.label}
-              as="button"
-              onClick={() => tap(btn)}
-              position="relative"
-              w="70px"
-              h="70px"
-              borderRadius="full"
-              bg={`linear-gradient(135deg, ${btn.color}33, ${btn.color}11)`}
-              border={`2px solid ${btn.color}66`}
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              cursor="pointer"
-              transition="all 0.1s"
-              gridColumn={idx % 2 === 0 ? 1 : 2}
-              gridRow={Math.floor(idx / 2) + 1}
-              _hover={{
-                bg: `${btn.color}44`,
-                boxShadow: `0 0 30px ${btn.color}88`,
-              }}
-              _active={{
-                transform: "scale(0.92)",
-                boxShadow: `0 0 40px ${btn.color}`,
-              }}
-            >
-              {/* Button glow */}
-              <Box
-                position="absolute"
-                inset={-10}
-                bg={`radial-gradient(circle, ${btn.color}33, transparent 60%)`}
-                filter="blur(15px)"
-                pointerEvents="none"
-              />
-
-              {/* Button label */}
-              <Text
-                fontSize="2xl"
-                fontWeight="black"
-                color={btn.color}
-                zIndex={1}
-                textShadow={`0 0 10px ${btn.color}`}
-              >
-                {btn.label}
-              </Text>
-
-              {/* Hint label */}
-              <Text
-                position="absolute"
-                bottom="-24px"
-                fontSize="xs"
-                color="rgba(255,255,255,0.5)"
-                whiteSpace="nowrap"
-              >
-                {btn.hint}
-              </Text>
-            </Box>
-          ))}
+          <Text fontSize="xs" color="rgba(200,200,210,0.85)">{isFullscreen ? "⊡" : "⛶"}</Text>
         </Box>
       </Box>
     </Box>
