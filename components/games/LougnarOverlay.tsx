@@ -119,15 +119,17 @@ export default function LougnarOverlay({
       {/* Frame container — 16:9, expands on fullscreen */}
       <Box position="relative" zIndex={1} w={isFullscreen ? "100vw" : "min(1300px, 96vw)"} aspectRatio="16/9" mx="auto" top="50%" transform="translateY(-50%)" transition="width 0.2s">
 
-        {/* Three.js Console */}
-        <Box position="absolute" inset={0} zIndex={0} pointerEvents="none">
-          <HandheldThreeFrame variant="1btn" />
+        {/* Game iframe — 1280×720 scaled, BELOW 3D console */}
+        <Box position="absolute" inset={0} zIndex={0}>
+          <GameIframeContainer>
+            {children}
+          </GameIframeContainer>
         </Box>
 
-        {/* Game iframe — 1280×720 scaled */}
-        <GameIframeContainer>
-          {children}
-        </GameIframeContainer>
+        {/* Three.js Console — ON TOP visually, clicks pass through */}
+        <Box position="absolute" inset={0} zIndex={1} pointerEvents="none">
+          <HandheldThreeFrame variant="1btn" />
+        </Box>
 
         {/* Close button */}
         {onClose && (

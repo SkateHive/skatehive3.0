@@ -135,8 +135,8 @@ function HandheldScene({ variant = "4btn" }: { variant?: "4btn" | "1btn" }) {
                 <meshStandardMaterial color="#0a0a10" roughness={0.95} metalness={0.0} />
               </mesh>
             </group>
-            <Text position={[5.3, 0, 0.39]} fontSize={0.18} color="#555560" anchorX="center" anchorY="middle">
-              A
+            <Text position={[5.3, 0, 0.39]} fontSize={0.13} color="#555560" anchorX="center" anchorY="middle">
+              JUMP
             </Text>
           </>
         )}
