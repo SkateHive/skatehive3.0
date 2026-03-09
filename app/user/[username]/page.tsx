@@ -46,6 +46,8 @@ async function getUserData(username: string, baseUrl: string) {
             about: user.bio || "",
             profileImage: user.avatar_url || FALLBACK_AVATAR,
             coverImage: user.cover_url || FALLBACK_BANNER,
+            website: "",
+            location: "",
             followers: 0,
             following: 0,
           };
@@ -129,6 +131,8 @@ async function getUserData(username: string, baseUrl: string) {
               about: user.bio || "",
               profileImage: user.avatar_url || FALLBACK_AVATAR,
               coverImage: user.cover_url || FALLBACK_BANNER,
+              website: "",
+              location: "",
               followers: 0,
               following: 0,
             };
