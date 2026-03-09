@@ -273,6 +273,30 @@ const SnapComposer = React.memo(function SnapComposer({
       });
       console.log('🖼️ [SnapComposer] Created file:', file.name, 'type:', file.type, 'size:', file.size);
       
+      // SEO: Prompt user for image description
+      const userDescription = window.prompt(
+        'Describe this image (for SEO & accessibility):\n\nTip: Be specific! Example: "Kickflip at Venice Skatepark"',
+        ''
+      );
+      
+      // Generate alt text (caption)
+      let caption = '';
+      if (userDescription && userDescription.trim()) {
+        caption = userDescription.trim();
+      } else {
+        // Fallback to cleaned filename
+        caption = (fileName || 'Skateboarding photo')
+          .replace(/\.[^.]+$/, '') // Remove extension
+          .replace(/[-_]/g, ' ')   // Dashes to spaces
+          .replace(/\d{8,}/g, '')  // Remove timestamps
+          .trim() || 'Skateboarding photo';
+      }
+      
+      // Ensure meaningful caption (min 10 chars)
+      if (caption.length < 10) {
+        caption = 'Skateboarding photo';
+      }
+      
       console.log('🖼️ [SnapComposer] Getting file signature...');
       const signature = await getFileSignature(file);
       console.log('🖼️ [SnapComposer] Got signature, uploading image...');
@@ -288,9 +312,9 @@ const SnapComposer = React.memo(function SnapComposer({
       if (uploadUrl) {
         setCompressedImages((prev) => [
           ...prev,
-          { url: uploadUrl, fileName: file.name, caption: "" },
+          { url: uploadUrl, fileName: file.name, caption },
         ]);
-        console.log('✅ [SnapComposer] Image added to compressedImages array');
+        console.log('✅ [SnapComposer] Image added with caption:', caption);
       }
     } catch (error) {
       console.error("❌ [SnapComposer] Error uploading compressed image:", error);
@@ -328,9 +352,15 @@ const SnapComposer = React.memo(function SnapComposer({
         setUploadProgress
       );
       if (uploadUrl) {
+        // Generate caption for GIF/WEBP (no prompt, just clean filename)
+        const caption = file.name
+          .replace(/\.[^.]+$/, '') // Remove extension
+          .replace(/[-_]/g, ' ')   // Dashes to spaces
+          .trim() || 'Skateboarding GIF';
+        
         setCompressedImages((prev) => [
           ...prev,
-          { url: uploadUrl, fileName: file.name, caption: "" },
+          { url: uploadUrl, fileName: file.name, caption },
         ]);
       }
     } catch (error) {
@@ -365,9 +395,15 @@ const SnapComposer = React.memo(function SnapComposer({
         setUploadProgress
       );
       if (uploadUrl) {
+        // Generate caption for GIF maker output
+        const caption = file.name
+          .replace(/\.[^.]+$/, '')
+          .replace(/[-_]/g, ' ')
+          .trim() || 'Skateboarding GIF';
+        
         setCompressedImages((prev) => [
           ...prev,
-          { url: uploadUrl, fileName: file.name, caption: "" },
+          { url: uploadUrl, fileName: file.name, caption },
         ]);
       }
       setGifMakerOpen(false); // Close the GIF maker
@@ -585,10 +621,15 @@ const SnapComposer = React.memo(function SnapComposer({
         // Build the final comment body with images and video appended
         let finalCommentBody = commentBody;
         
-        // Append image markdown for all uploaded images
+        // Append image markdown for all uploaded images with proper alt text
         if (compressedImages.length > 0) {
           const imageMarkdown = compressedImages
-            .map(img => `\n![${img.fileName}](${img.url})`)
+            .map(img => {
+              // Use caption (user description or cleaned filename) as alt text
+              const altText = img.caption || img.fileName || 'Skateboarding photo';
+              // Also add title attribute for hover tooltip
+              return `\n![${altText}](${img.url} "${altText}")`;
+            })
             .join('');
           finalCommentBody = finalCommentBody + imageMarkdown;
         }
