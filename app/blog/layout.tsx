@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { APP_CONFIG } from "@/config/app.config";
+import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 
@@ -51,5 +52,41 @@ export default function BlogLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    name: "Skatehive Blog",
+    description:
+      "Watch skate videos, learn new tricks, discover street spots, and read stories from the global skateboarding community.",
+    url: `${BASE_URL}/blog`,
+    publisher: {
+      "@type": "Organization",
+      name: "Skatehive",
+      url: BASE_URL,
+      logo: { "@type": "ImageObject", url: `${BASE_URL}/ogimage.png` },
+    },
+    inLanguage: "en",
+    isPartOf: {
+      "@type": "WebSite",
+      name: "Skatehive",
+      url: BASE_URL,
+    },
+    breadcrumb: {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: BASE_URL },
+        { "@type": "ListItem", position: 2, name: "Blog", item: `${BASE_URL}/blog` },
+      ],
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }}
+      />
+      {children}
+    </>
+  );
 }
