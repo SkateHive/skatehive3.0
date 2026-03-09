@@ -80,6 +80,8 @@ async function getUserData(username: string, baseUrl: string) {
     let coverImage = FALLBACK_BANNER;
     let about = "";
     let name = normalized;
+    let website = "";
+    let location = "";
 
     // Parse posting_json_metadata for profile info
     if (account?.posting_json_metadata) {
@@ -90,6 +92,8 @@ async function getUserData(username: string, baseUrl: string) {
         coverImage = profile.cover_image || coverImage;
         about = profile.about || "";
         name = profile.name || username;
+        website = profile.website || "";
+        location = profile.location || "";
       } catch (err) {
         console.warn("Failed to parse posting_json_metadata", err);
       }
@@ -101,6 +105,8 @@ async function getUserData(username: string, baseUrl: string) {
       about,
       profileImage,
       coverImage,
+      website,
+      location,
       followers: profileInfo?.stats?.followers || 0,
       following: profileInfo?.stats?.following || 0,
     };
@@ -236,6 +242,9 @@ export default async function UserProfilePage(props: Props) {
       ssrFollowers = userData.followers || 0;
       ssrFollowing = userData.following || 0;
 
+      const sameAs = [`https://hive.blog/@${username}`];
+      if (userData.website) sameAs.push(userData.website);
+
       personJsonLd = {
         "@context": "https://schema.org",
         "@type": "Person",
@@ -243,7 +252,8 @@ export default async function UserProfilePage(props: Props) {
         url: profileUrl,
         image: userData.profileImage,
         description: userData.about || undefined,
-        sameAs: [`https://hive.blog/@${username}`],
+        sameAs,
+        ...(userData.location ? { homeLocation: { "@type": "Place", name: userData.location } } : {}),
         mainEntityOfPage: {
           "@type": "ProfilePage",
           "@id": profileUrl,
@@ -282,7 +292,7 @@ export default async function UserProfilePage(props: Props) {
           <p>@{username} on Skatehive — the decentralized skateboarding community</p>
           {ssrAbout && <p>{ssrAbout}</p>}
           <p>{ssrFollowers} followers · {ssrFollowing} following</p>
-          <p>View skate videos, snaps, and posts by {ssrName} on Skatehive.</p>
+          <p>View skate videos, snaps, and posts by {ssrName} on Skatehive — the decentralized skateboarding community.</p>
         </div>
       )}
       <ProfilePage username={username} />
