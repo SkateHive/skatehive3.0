@@ -5,13 +5,16 @@ import {
   useToast,
   useDisclosure,
 } from "@chakra-ui/react";
+import dynamic from "next/dynamic";
 import { FaTwitter, FaLink, FaThumbsDown, FaCode, FaFacebook } from "react-icons/fa";
 import React, { useMemo, useCallback } from "react";
 import { useFarcasterContext } from "@/hooks/useFarcasterContext";
 import useHiveVote from "@/hooks/useHiveVote";
-import { CoinCreationModal } from "@/components/shared/CoinCreationModal";
-import DevMetadataDialog from "./DevMetadataDialog";
 import { APP_CONFIG } from "@/config/app.config";
+
+// Lazy load heavy modals
+const CoinCreationModal = dynamic(() => import("@/components/shared/CoinCreationModal").then(mod => ({ default: mod.CoinCreationModal })), { ssr: false });
+const DevMetadataDialog = dynamic(() => import("./DevMetadataDialog"), { ssr: false });
 
 // Regex patterns - defined outside component to prevent recreation on every render
 const IMAGE_REGEX = /!\[.*?\]\((.*?)\)/g;

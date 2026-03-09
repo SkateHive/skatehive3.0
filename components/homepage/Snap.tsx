@@ -14,6 +14,7 @@ import {
   MenuList,
   useToast,
 } from "@chakra-ui/react";
+import dynamic from "next/dynamic";
 import { DeleteIcon } from "@chakra-ui/icons";
 import { Discussion } from "@hiveio/dhive";
 import { FaRegComment } from "react-icons/fa";
@@ -25,7 +26,6 @@ import { EnhancedMarkdownRenderer } from "@/components/markdown/EnhancedMarkdown
 import { getPostDate } from "@/lib/utils/GetPostDate";
 import SnapComposer from "./SnapComposer";
 import { UpvoteButton } from "@/components/shared";
-import EditPostModal from "./EditPostModal";
 import ShareMenuButtons from "./ShareMenuButtons";
 import useHivePower from "@/hooks/useHivePower";
 import { useVoteWeightContext } from "@/contexts/VoteWeightContext";
@@ -46,8 +46,11 @@ import useSoftPostOverlay from "@/hooks/useSoftPostOverlay";
 import useSoftVoteOverlay from "@/hooks/useSoftVoteOverlay";
 import { extractSafeUser } from "@/lib/userbase/safeUserMetadata";
 import SponsorButton from "@/components/userbase/SponsorButton";
-import SponsorshipModal from "@/components/userbase/SponsorshipModal";
 import { useSponsorshipStatus } from "@/hooks/useSponsorshipStatus";
+
+// Lazy load heavy modals
+const EditPostModal = dynamic(() => import("./EditPostModal"), { ssr: false });
+const SponsorshipModal = dynamic(() => import("@/components/userbase/SponsorshipModal"), { ssr: false });
 import { useViewerHiveIdentity } from "@/hooks/useViewerHiveIdentity";
 import { FaGift } from "react-icons/fa";
 

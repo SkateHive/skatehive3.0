@@ -1,5 +1,8 @@
 import { Metadata } from "next";
-import GamesGallery from "./GamesGallery";
+import dynamic from "next/dynamic";
+
+// Lazy load games gallery (heavy game assets)
+const GamesGallery = dynamic(() => import("./GamesGallery"));
 
 const BASE_URL = "https://skatehive.app";
 

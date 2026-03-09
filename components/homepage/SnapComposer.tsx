@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useMemo, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "@/contexts/LocaleContext";
 import {
   Box,
@@ -22,8 +23,11 @@ import VideoUploader, {
   VideoUploaderRef,
   ErrorDemoPanel,
 } from "./VideoUploader";
-import VideoTrimModal, { type TrimmedVideoFile } from "./VideoTrimModal";
-import InstagramModal from "./InstagramModal";
+import { type TrimmedVideoFile } from "./VideoTrimModal";
+
+// Lazy load heavy modals
+const VideoTrimModal = dynamic(() => import("./VideoTrimModal"), { ssr: false });
+const InstagramModal = dynamic(() => import("./InstagramModal"), { ssr: false });
 import { IGif } from "@giphy/js-types";
 import { FaImage } from "react-icons/fa";
 import { FaInstagram } from "react-icons/fa";
