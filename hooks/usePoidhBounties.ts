@@ -104,9 +104,11 @@ export function usePoidhBounties(filter?: BountyFilter) {
     const chain = getChainConfig(chainId);
     if (!chain) return [];
 
+    // Use fallback RPC with higher rate limits
+    const rpcUrl = getRpcUrl(chainId);
     const client = createPublicClient({
       chain,
-      transport: http(),
+      transport: http(rpcUrl),
     });
 
     try {
@@ -120,19 +122,36 @@ export function usePoidhBounties(filter?: BountyFilter) {
       const count = Number(counter);
       if (count === 0) return [];
 
-      // Fetch recent bounties (last 100 max to avoid too many RPC calls)
-      const maxBounties = Math.min(count, 100);
+      // Fetch recent bounties (last 20 to avoid rate limits)
+      const maxBounties = Math.min(count, 20);
       const startId = Math.max(1, count - maxBounties + 1);
 
-      const promises = [];
-      for (let id = startId; id <= count; id++) {
-        promises.push(fetchBountyById(client, id, chainId));
+      // Fetch in batches of 5 to avoid rate limiting
+      const batchSize = 5;
+      const allBounties: PoidhBounty[] = [];
+
+      for (let i = startId; i <= count; i += batchSize) {
+        const batchEnd = Math.min(i + batchSize - 1, count);
+        const batchPromises = [];
+
+        for (let id = i; id <= batchEnd; id++) {
+          batchPromises.push(fetchBountyById(client, id, chainId));
+        }
+
+        const batchResults = await Promise.allSettled(batchPromises);
+        const batchBounties = batchResults
+          .filter((r) => r.status === "fulfilled")
+          .map((r) => (r as PromiseFulfilledResult<PoidhBounty>).value);
+
+        allBounties.push(...batchBounties);
+
+        // Small delay between batches to avoid rate limits
+        if (batchEnd < count) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
       }
 
-      const results = await Promise.allSettled(promises);
-      return results
-        .filter((r) => r.status === "fulfilled")
-        .map((r) => (r as PromiseFulfilledResult<PoidhBounty>).value);
+      return allBounties;
     } catch (err) {
       console.error(`Error fetching from chain ${chainId}:`, err);
       return [];
@@ -142,42 +161,61 @@ export function usePoidhBounties(filter?: BountyFilter) {
   const fetchBountyById = async (
     client: any,
     id: number,
-    chainId: number
+    chainId: number,
+    retries = 3
   ): Promise<PoidhBounty> => {
-    const bounty = (await client.readContract({
-      address: POIDH_CONTRACT_ADDRESS,
-      abi: POIDH_ABI,
-      functionName: "getBounty",
-      args: [BigInt(id)],
-    })) as any;
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const bounty = (await client.readContract({
+          address: POIDH_CONTRACT_ADDRESS,
+          abi: POIDH_ABI,
+          functionName: "getBounty",
+          args: [BigInt(id)],
+        })) as any;
 
-    // Try to fetch claim IDs (may fail if bounty has no claims)
-    let claimIds: number[] = [];
-    try {
-      const claims = (await client.readContract({
-        address: POIDH_CONTRACT_ADDRESS,
-        abi: POIDH_ABI,
-        functionName: "bountyClaims",
-        args: [BigInt(id)],
-      })) as bigint[];
-      claimIds = claims.map((c) => Number(c));
-    } catch {
-      // No claims yet
+        // Try to fetch claim IDs (may fail if bounty has no claims)
+        let claimIds: number[] = [];
+        try {
+          const claims = (await client.readContract({
+            address: POIDH_CONTRACT_ADDRESS,
+            abi: POIDH_ABI,
+            functionName: "bountyClaims",
+            args: [BigInt(id)],
+          })) as bigint[];
+          claimIds = claims.map((c) => Number(c));
+        } catch {
+          // No claims yet
+        }
+
+        return {
+          id,
+          issuer: bounty.issuer,
+          name: bounty.name,
+          description: bounty.description,
+          amount: bounty.amount,
+          createdAt: Number(bounty.createdAt),
+          isOpen: bounty.isOpen,
+          isCancelled: bounty.isCancelled,
+          hasActiveClaim: bounty.hasActiveClaim,
+          chainId,
+          claimIds,
+        };
+      } catch (err: any) {
+        // If rate limited, wait and retry
+        if (
+          attempt < retries - 1 &&
+          (err.message?.includes("429") || err.message?.includes("rate limit"))
+        ) {
+          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 1s, 2s, 4s
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+        throw err;
+      }
     }
 
-    return {
-      id,
-      issuer: bounty.issuer,
-      name: bounty.name,
-      description: bounty.description,
-      amount: bounty.amount,
-      createdAt: Number(bounty.createdAt),
-      isOpen: bounty.isOpen,
-      isCancelled: bounty.isCancelled,
-      hasActiveClaim: bounty.hasActiveClaim,
-      chainId,
-      claimIds,
-    };
+    // Should never reach here, but TypeScript needs a return
+    throw new Error(`Failed to fetch bounty ${id} after ${retries} retries`);
   };
 
   return {
@@ -186,6 +224,23 @@ export function usePoidhBounties(filter?: BountyFilter) {
     error,
     refetch: fetchBounties,
   };
+}
+
+// Helper: Get RPC URL with better rate limits
+function getRpcUrl(chainId: number): string {
+  switch (chainId) {
+    case arbitrum.id:
+      // Try Arbitrum public RPC first, fallback to default
+      return "https://arb1.arbitrum.io/rpc";
+    case base.id:
+      // Base public RPC
+      return "https://mainnet.base.org";
+    case degen.id:
+      // Degen chain
+      return "https://rpc.degen.tips";
+    default:
+      return "";
+  }
 }
 
 // Helper: Get chain config
