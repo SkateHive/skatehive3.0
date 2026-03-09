@@ -441,10 +441,13 @@ export default async function PostPageRoute({
   const decodedPermlink = decodeURIComponent(permlink);
   const cleanedAuthor = cleanUsername(decodedAuthor);
 
-  // Build JSON-LD structured data (Breadcrumb + Article + optional VideoObject)
+  // Build JSON-LD structured data + SSR content for SEO
   let breadcrumbJsonLd: Record<string, unknown> | null = null;
   let articleJsonLd: Record<string, unknown> | null = null;
   let videoJsonLd: Record<string, unknown> | null = null;
+  let ssrTitle = "";
+  let ssrDescription = "";
+  let ssrAuthor = "";
   try {
     const post = await getData(decodedAuthor, decodedPermlink);
     const cleanedBody = cleanTextForDescription(post.body || "");
@@ -516,6 +519,11 @@ export default async function PostPageRoute({
       },
     };
 
+    // SSR content for Google (post body text visible in initial HTML)
+    ssrTitle = post.title || "";
+    ssrDescription = cleanedBody.slice(0, 1000);
+    ssrAuthor = cleanedAuthor;
+
     // Build VideoObject schema if the post contains a video
     const videoUrl = await extractFirstVideoUrl(post.body || "");
     if (videoUrl) {
@@ -561,6 +569,28 @@ export default async function PostPageRoute({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(videoJsonLd) }}
         />
+      )}
+      {/* SSR content block — visible to Google crawler in initial HTML.
+          Hidden visually once client hydrates (PostPage renders on top). */}
+      {ssrDescription && (
+        <div
+          data-ssr-seo="true"
+          style={{
+            position: "absolute",
+            width: "1px",
+            height: "1px",
+            padding: 0,
+            margin: "-1px",
+            overflow: "hidden",
+            clip: "rect(0, 0, 0, 0)",
+            whiteSpace: "nowrap",
+            borderWidth: 0,
+          }}
+        >
+          <h1>{ssrTitle}</h1>
+          <p>By {ssrAuthor} on Skatehive</p>
+          <p>{ssrDescription}</p>
+        </div>
       )}
       <PostPage author={cleanedAuthor} permlink={decodedPermlink} />
     </>
