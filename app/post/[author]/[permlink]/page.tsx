@@ -459,6 +459,7 @@ export default async function PostPageRoute({
   let breadcrumbJsonLd: Record<string, unknown> | null = null;
   let articleJsonLd: Record<string, unknown> | null = null;
   let videoJsonLd: Record<string, unknown> | null = null;
+  let howToJsonLd: Record<string, unknown> | null = null;
   let ssrTitle = "";
   let ssrDescription = "";
   let ssrAuthor = "";
@@ -560,6 +561,54 @@ export default async function PostPageRoute({
         },
       };
     }
+
+    // Build HowTo schema if the post is a tutorial ("how to" in title)
+    const isHowTo = /how\s*to/i.test(post.title || "");
+    if (isHowTo && post.body) {
+      // Extract steps from markdown (look for numbered lists or headers)
+      const steps: Array<{ name: string; text: string }> = [];
+      const lines = post.body.split("\n");
+      let stepCounter = 0;
+      
+      for (const line of lines) {
+        // Numbered list pattern: "1. Step name" or "1) Step name"
+        const numberedMatch = line.match(/^\s*\d+[\.)]\s+(.+)$/);
+        if (numberedMatch) {
+          stepCounter++;
+          steps.push({
+            name: `Step ${stepCounter}`,
+            text: numberedMatch[1].trim(),
+          });
+          if (steps.length >= 10) break; // limit to 10 steps
+        }
+        // Or markdown headers: "## Step X: Do this"
+        const headerMatch = line.match(/^#{2,3}\s+(.+)$/);
+        if (headerMatch && /step/i.test(headerMatch[1])) {
+          stepCounter++;
+          steps.push({
+            name: headerMatch[1].trim(),
+            text: headerMatch[1].trim(),
+          });
+          if (steps.length >= 10) break;
+        }
+      }
+
+      // Only add HowTo if we found at least 2 steps
+      if (steps.length >= 2) {
+        howToJsonLd = {
+          "@context": "https://schema.org",
+          "@type": "HowTo",
+          name: post.title || "Skateboarding Tutorial",
+          description: cleanedBody.slice(0, 160) || "Learn how to skateboard",
+          image: bannerImage,
+          step: steps.map((step) => ({
+            "@type": "HowToStep",
+            name: step.name,
+            text: step.text,
+          })),
+        };
+      }
+    }
   } catch {
     // Silently fail - page will still render without JSON-LD
   }
@@ -582,6 +631,12 @@ export default async function PostPageRoute({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(videoJsonLd) }}
+        />
+      )}
+      {howToJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(howToJsonLd) }}
         />
       )}
       {/* SSR content block — visible to Google crawler in initial HTML.
