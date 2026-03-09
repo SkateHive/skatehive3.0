@@ -15,14 +15,17 @@ import {
   Image,
   Link as ChakraLink,
   Flex,
+  Icon,
 } from "@chakra-ui/react";
 import { Discussion } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
-import { extractImageUrls } from "@/lib/utils/extractImageUrls";
+import { extractImageUrls } from "@/lib/utils/extractImages";
 import NextLink from "next/link";
 import HubNavigation from "@/components/shared/HubNavigation";
+import { FaYoutube, FaVideo } from "react-icons/fa";
+import { SiIpfs } from "react-icons/si";
 
-export default function SkateshopsContent() {
+export default function VideosContent() {
   const [posts, setPosts] = useState<Discussion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -38,23 +41,32 @@ export default function SkateshopsContent() {
   const loadPosts = async () => {
     setIsLoading(true);
     try {
-      const result = await HiveClient.database.getDiscussions("created", {
-        tag: "skateshop",
-        limit: POSTS_PER_PAGE,
+      // Fetch from hive-173115 community (sorted by created)
+      const result = await HiveClient.call("bridge", "get_ranked_posts", {
+        sort: "created",
+        tag: "hive-173115",
+        limit: POSTS_PER_PAGE + 10, // fetch extra to filter for videos
         start_author: page > 0 ? posts[posts.length - 1]?.author : undefined,
         start_permlink: page > 0 ? posts[posts.length - 1]?.permlink : undefined,
       });
 
       if (result && result.length > 0) {
-        // Filter duplicates (first item in pagination is the last from previous page)
-        const newPosts = page > 0 ? result.slice(1) : result;
-        setPosts((prev) => [...prev, ...newPosts]);
-        setHasMore(result.length === POSTS_PER_PAGE);
+        // Filter only posts that have video content
+        const videoPosts = (page > 0 ? result.slice(1) : result).filter((p: Discussion) =>
+          hasVideoContent(p.body)
+        );
+
+        if (videoPosts.length > 0) {
+          setPosts((prev) => [...prev, ...videoPosts.slice(0, POSTS_PER_PAGE)]);
+          setHasMore(result.length === POSTS_PER_PAGE + 10);
+        } else {
+          setHasMore(false);
+        }
       } else {
         setHasMore(false);
       }
     } catch (error) {
-      console.error("Error loading skateshop posts:", error);
+      console.error("Error loading video posts:", error);
       setHasMore(false);
     } finally {
       setIsLoading(false);
@@ -65,6 +77,28 @@ export default function SkateshopsContent() {
     if (!isLoading && hasMore) {
       setPage((p) => p + 1);
     }
+  };
+
+  // Helper: detect if post body contains video content
+  const hasVideoContent = (body: string): boolean => {
+    if (!body) return false;
+    // YouTube
+    if (/youtu\.?be/i.test(body)) return true;
+    // 3Speak
+    if (/3speak\.tv/i.test(body)) return true;
+    // IPFS video (rough heuristic — links to IPFS gateways with video-like paths)
+    if (/ipfs\.(skatehive\.app|io|pinata\.cloud).*\/(video|mp4|webm|mov)/i.test(body)) return true;
+    // iframe with src containing video platforms
+    if (/<iframe[^>]*src=["']https?:\/\/(www\.)?(youtube|3speak)/i.test(body)) return true;
+    return false;
+  };
+
+  // Helper: extract video platform icon
+  const getVideoPlatform = (body: string): "youtube" | "3speak" | "ipfs" | "other" => {
+    if (/youtu\.?be/i.test(body)) return "youtube";
+    if (/3speak\.tv/i.test(body)) return "3speak";
+    if (/ipfs\./i.test(body)) return "ipfs";
+    return "other";
   };
 
   return (
@@ -83,18 +117,18 @@ export default function SkateshopsContent() {
             color="primary"
             letterSpacing="wider"
           >
-            Skate Shops Directory
+            Skate Videos
           </Heading>
           <Text fontSize={{ base: "md", md: "lg" }} color="gray.400" maxW="2xl">
-            Discover skateboard shops from around the world. From Bless Skate Shop in Brazil to your local spot —
-            support the shops that keep skateboarding alive.
+            Watch skateboarding videos from the Skatehive community — street skating clips,
+            park sessions, full edits, and raw footage from skaters worldwide.
           </Text>
           <Badge colorScheme="green" fontSize="sm" px={3} py={1}>
-            Community Submitted
+            3Speak • YouTube • IPFS
           </Badge>
         </VStack>
 
-        {/* SEO Content — visible, not hidden */}
+        {/* SEO Content */}
         <Box
           mb={8}
           p={6}
@@ -104,19 +138,20 @@ export default function SkateshopsContent() {
           borderRadius="lg"
         >
           <Heading as="h2" fontSize="xl" mb={3} color="primary">
-            Support Your Local Skate Shop
+            Skateboarding Videos from the Community
           </Heading>
           <Text fontSize="sm" color="gray.300" mb={2}>
-            Skateboard shops are the heart of every skate scene. Whether you&apos;re looking for the perfect deck, wheels,
-            trucks, or just want to connect with your local community — your skate shop is where it all happens.
+            Discover skateboarding videos posted by real skaters from around the world.
+            From raw street skating clips to polished full edits — all hosted on decentralized
+            platforms like 3Speak, IPFS, and YouTube.
           </Text>
           <Text fontSize="sm" color="gray.300">
-            Browse shops shared by the Skatehive community, from iconic spots like <strong>Bless Skate Shop</strong> to
-            hidden gems in your city. Find gear, watch videos, and support the businesses that support skateboarding.
+            Upload your own videos to Skatehive and share your skating with the global community.
+            Every video you watch supports the skater who posted it through blockchain-based rewards.
           </Text>
         </Box>
 
-        {/* Posts Grid */}
+        {/* Videos Grid */}
         <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={6} mb={8}>
           {posts.map((post) => {
             const images = extractImageUrls(post.body);
@@ -124,6 +159,7 @@ export default function SkateshopsContent() {
             const cleanAuthor = post.author.startsWith("@")
               ? post.author.slice(1)
               : post.author;
+            const platform = getVideoPlatform(post.body);
 
             return (
               <NextLink
@@ -156,7 +192,7 @@ export default function SkateshopsContent() {
                   >
                     <Image
                       src={thumbnail}
-                      alt={post.title || "Skate shop post"}
+                      alt={post.title || "Skate video"}
                       position="absolute"
                       top={0}
                       left={0}
@@ -166,6 +202,55 @@ export default function SkateshopsContent() {
                       transition="transform 0.3s"
                       _groupHover={{ transform: "scale(1.05)" }}
                     />
+                    {/* Platform badge */}
+                    <Badge
+                      position="absolute"
+                      top={2}
+                      right={2}
+                      colorScheme={
+                        platform === "youtube"
+                          ? "red"
+                          : platform === "3speak"
+                          ? "purple"
+                          : "blue"
+                      }
+                      fontSize="xs"
+                      px={2}
+                      py={1}
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                    >
+                      <Icon
+                        as={
+                          platform === "youtube"
+                            ? FaYoutube
+                            : platform === "ipfs"
+                            ? SiIpfs
+                            : FaVideo
+                        }
+                        boxSize={3}
+                      />
+                      {platform === "youtube"
+                        ? "YT"
+                        : platform === "3speak"
+                        ? "3Speak"
+                        : "IPFS"}
+                    </Badge>
+                    {/* Play button overlay */}
+                    <Flex
+                      position="absolute"
+                      top="50%"
+                      left="50%"
+                      transform="translate(-50%, -50%)"
+                      bg="rgba(0,0,0,0.7)"
+                      borderRadius="full"
+                      p={3}
+                      transition="all 0.3s"
+                      _groupHover={{ bg: "primary", transform: "translate(-50%, -50%) scale(1.1)" }}
+                    >
+                      <Icon as={FaVideo} boxSize={6} color="white" _groupHover={{ color: "background" }} />
+                    </Flex>
                   </Box>
                   <Box p={4}>
                     <Heading
@@ -213,7 +298,7 @@ export default function SkateshopsContent() {
               color="primary"
               _hover={{ bg: "primary", color: "background" }}
             >
-              Load More Shops
+              Load More Videos
             </Button>
           </Center>
         )}
@@ -222,7 +307,7 @@ export default function SkateshopsContent() {
         {!isLoading && !hasMore && posts.length > 0 && (
           <Center>
             <Text color="gray.500" fontSize="sm">
-              End of skate shops list
+              End of videos list
             </Text>
           </Center>
         )}
@@ -232,10 +317,10 @@ export default function SkateshopsContent() {
           <Center py={20}>
             <VStack spacing={4}>
               <Text color="gray.500" fontSize="lg">
-                No skate shops found yet.
+                No skate videos found yet.
               </Text>
               <Text color="gray.600" fontSize="sm">
-                Be the first to share your local shop!
+                Be the first to share a video!
               </Text>
             </VStack>
           </Center>
