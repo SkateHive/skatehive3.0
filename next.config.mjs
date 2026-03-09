@@ -59,24 +59,26 @@ const nextConfig = {
 
     // Image optimization domains
     images: {
+        // Allow any external domain (Next.js will optimize them)
         remotePatterns: [
             {
                 protocol: 'https',
-                hostname: 'images.hive.blog',
+                hostname: '**',
             },
             {
-                protocol: 'https',
-                hostname: 'ipfs.skatehive.app',
-            },
-            {
-                protocol: 'https',
-                hostname: '**.supabase.co',
-            },
-            {
-                protocol: 'https',
-                hostname: 'i.ibb.co',
+                protocol: 'http',
+                hostname: '**',
             },
         ],
+        // Increase allowed image sizes for high-res skate photos
+        deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+        imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+        // Use Next.js default loader (optimizes all images)
+        loader: 'default',
+        // Formats supported
+        formats: ['image/webp', 'image/avif'],
+        // Allow longer cache (images don't change)
+        minimumCacheTTL: 31536000,
     },
 
     experimental: {
