@@ -24,6 +24,7 @@ import NextLink from "next/link";
 import HubNavigation from "@/components/shared/HubNavigation";
 import { FaYoutube, FaVideo } from "react-icons/fa";
 import { SiIpfs } from "react-icons/si";
+import { trackLandingPageVisit } from "@/lib/analytics/events";
 
 export default function VideosContent() {
   const [posts, setPosts] = useState<Discussion[]>([]);
@@ -32,6 +33,11 @@ export default function VideosContent() {
   const [hasMore, setHasMore] = useState(true);
 
   const POSTS_PER_PAGE = 12;
+
+  // Track landing page visit on mount
+  useEffect(() => {
+    trackLandingPageVisit({ page: 'videos' });
+  }, []);
 
   useEffect(() => {
     loadPosts();

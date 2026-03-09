@@ -17,6 +17,8 @@ import { Discussion } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
 import { extractImageUrls } from "@/lib/utils/extractImages";
 import NextLink from "next/link";
+import { trackInternalLinkClick } from "@/lib/analytics/events";
+import { usePathname } from "next/navigation";
 
 interface RelatedPostsProps {
   currentAuthor: string;
@@ -33,6 +35,16 @@ export default function RelatedPosts({
 }: RelatedPostsProps) {
   const [posts, setPosts] = useState<Discussion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const pathname = usePathname();
+
+  const handleLinkClick = (targetAuthor: string, targetPermlink: string, position: number) => {
+    trackInternalLinkClick({
+      linkType: 'related_post',
+      sourceUrl: pathname || '',
+      targetUrl: `/post/${targetAuthor}/${targetPermlink}`,
+      position,
+    });
+  };
 
   useEffect(() => {
     loadRelatedPosts();
@@ -94,7 +106,7 @@ export default function RelatedPosts({
         Related Posts
       </Heading>
       <SimpleGrid columns={{ base: 1, sm: 2, md: 4 }} spacing={4}>
-        {posts.map((post) => {
+        {posts.map((post, index) => {
           const images = extractImageUrls(post.body);
           const thumbnail = images[0] || "/ogimage.png";
           const cleanAuthor = post.author.startsWith("@")
@@ -109,6 +121,7 @@ export default function RelatedPosts({
               legacyBehavior
             >
               <ChakraLink
+                onClick={() => handleLinkClick(cleanAuthor, post.permlink, index + 1)}
                 _hover={{ textDecoration: "none" }}
                 display="block"
                 bg="rgba(20,20,20,0.4)"

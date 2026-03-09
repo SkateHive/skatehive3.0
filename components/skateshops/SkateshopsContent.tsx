@@ -21,6 +21,7 @@ import HiveClient from "@/lib/hive/hiveclient";
 import { extractImageUrls } from "@/lib/utils/extractImageUrls";
 import NextLink from "next/link";
 import HubNavigation from "@/components/shared/HubNavigation";
+import { trackLandingPageVisit } from "@/lib/analytics/events";
 
 export default function SkateshopsContent() {
   const [posts, setPosts] = useState<Discussion[]>([]);
@@ -29,6 +30,11 @@ export default function SkateshopsContent() {
   const [hasMore, setHasMore] = useState(true);
 
   const POSTS_PER_PAGE = 12;
+
+  // Track landing page visit on mount
+  useEffect(() => {
+    trackLandingPageVisit({ page: 'skateshops' });
+  }, []);
 
   useEffect(() => {
     loadPosts();
