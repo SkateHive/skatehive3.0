@@ -296,6 +296,36 @@ const nextConfig = {
                     },
                 ],
             },
+            {
+                // Cache static assets (images, fonts) for 1 year
+                source: '/(.*)\\.(jpg|jpeg|png|gif|webp|svg|woff|woff2|ttf|eot|ico)$',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'public, max-age=31536000, immutable',
+                    },
+                ],
+            },
+            {
+                // Cache JS and CSS chunks for 1 year (Next.js adds hash to filenames)
+                source: '/_next/static/:path*',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'public, max-age=31536000, immutable',
+                    },
+                ],
+            },
+            {
+                // Cache public folder assets for 1 day
+                source: '/public/:path*',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'public, max-age=86400, stale-while-revalidate=604800',
+                    },
+                ],
+            },
         ];
     },
 }
