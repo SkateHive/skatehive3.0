@@ -2,6 +2,8 @@ import { useState } from "react";
 import imageCompression from "browser-image-compression";
 import { uploadToIpfs, generateVideoIframeMarkdown } from "@/lib/markdown/composeUtils";
 import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
+import { extractExif, exifToAltText } from "@/lib/utils/exifExtractor";
+import { cleanFilename } from "@/lib/seo/metadataGenerator";
 
 // Optimized hook with better error handling and progress tracking
 export const useImageUpload = (insertAtCursor: (content: string) => void) => {
@@ -9,7 +11,7 @@ export const useImageUpload = (insertAtCursor: (content: string) => void) => {
     const [isCompressingImage, setIsCompressingImage] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
 
-    const handleImageUpload = async (url: string | null, fileName?: string) => {
+    const handleImageUpload = async (url: string | null, fileName?: string, originalFile?: File) => {
         if (!url) {
             setIsUploading(false);
             setIsCompressingImage(false);
@@ -24,12 +26,42 @@ export const useImageUpload = (insertAtCursor: (content: string) => void) => {
         try {
             const blob = await fetch(url).then((res) => res.blob());
             
+            // Extract EXIF data (if original file available)
+            let exifData = null;
+            if (originalFile) {
+                exifData = await extractExif(originalFile);
+            }
+            
             // Progress tracking for IPFS upload
             const ipfsUrl = await uploadToIpfs(blob, fileName || "compressed-image.jpg");
             
-            // Only include caption if it's meaningful
-            const meaningfulCaption = fileName && fileName.trim() && fileName.trim() !== "image" ? fileName : "";
-            insertAtCursor(`\n![${meaningfulCaption}](${ipfsUrl})\n`);
+            // Generate smart alt text
+            let altText = '';
+            
+            // 1. Try to get user description (SEO + accessibility)
+            const userDescription = window.prompt(
+                'Describe this image (for SEO & accessibility):\n\nTip: Be specific! Example: "Kickflip at Venice Skatepark"',
+                ''
+            );
+            
+            if (userDescription && userDescription.trim()) {
+                altText = userDescription.trim();
+            } else if (exifData) {
+                // 2. Use EXIF data to generate alt text
+                altText = exifToAltText(exifData, 'Skateboarding photo');
+            } else {
+                // 3. Fallback to cleaned filename
+                const cleaned = cleanFilename(fileName || '');
+                altText = cleaned || 'Skateboarding photo';
+            }
+            
+            // Ensure alt text is meaningful (min 10 chars)
+            if (altText.length < 10) {
+                altText = 'Skateboarding photo';
+            }
+            
+            // Insert markdown with proper alt text and title attribute
+            insertAtCursor(`\n![${altText}](${ipfsUrl} "${altText}")\n`);
             
             setUploadProgress(100);
         } catch (error) {
@@ -155,9 +187,25 @@ export const useFileDropUpload = (insertAtCursor: (content: string) => void) => 
                 const url = await uploadToIpfs(fileToUpload, fileName);
                 
                 if (fileToUpload.type.startsWith("image/")) {
-                    const meaningfulCaption = fileName && fileName.trim() &&
-                        !fileName.match(/\.(jpg|jpeg|png|gif|webp|mp4|mov|avi)$/i) ? fileName : "";
-                    insertAtCursor(`\n![${meaningfulCaption}](${url})\n`);
+                    // Extract EXIF for better alt text
+                    const exifData = await extractExif(fileToUpload);
+                    
+                    // Generate smart alt text
+                    let altText = '';
+                    const cleaned = cleanFilename(fileName);
+                    
+                    if (exifData) {
+                        altText = exifToAltText(exifData, 'Skateboarding photo');
+                    } else {
+                        altText = cleaned || 'Skateboarding photo';
+                    }
+                    
+                    // Ensure meaningful alt text
+                    if (altText.length < 10) {
+                        altText = 'Skateboarding photo';
+                    }
+                    
+                    insertAtCursor(`\n![${altText}](${url} "${altText}")\n`);
                 } else if (file.type.startsWith("video/")) {
                     // Insert video as iframe using utility function
                     insertAtCursor(generateVideoIframeMarkdown(url));

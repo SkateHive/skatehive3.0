@@ -62,20 +62,41 @@ export const generatePermlink = (title: string): string => {
 };
 
 /**
- * Generate iframe HTML for a video from IPFS URL
- * Extracts the IPFS hash and creates a properly formatted iframe
+ * Generate iframe HTML for a video from IPFS URL with SEO metadata
+ * Extracts the IPFS hash and creates a properly formatted iframe with Schema.org VideoObject
  */
-export const generateVideoIframeMarkdown = (url: string): string => {
+export const generateVideoIframeMarkdown = (url: string, title?: string): string => {
     // Extract video ID from IPFS URL
     const hashMatch = url.match(/\/ipfs\/([\w-]+)/);
     const videoId = hashMatch ? hashMatch[1] : null;
     
-    // Create iframe HTML for video
-    if (videoId) {
-        return `\n<iframe src="https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${videoId}" width="100%" height="400" frameborder="0" allowfullscreen></iframe>\n`;
-    } else {
-        return `\n<iframe src="${url}" width="100%" height="400" frameborder="0" allowfullscreen></iframe>\n`;
-    }
+    // Prompt for video title if not provided (for SEO)
+    const videoTitle = title || (typeof window !== 'undefined' 
+        ? window.prompt('Video title (for SEO):', 'Skateboarding video') || 'Skateboarding video'
+        : 'Skateboarding video');
+    
+    const uploadDate = new Date().toISOString();
+    const videoUrl = videoId 
+        ? `https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${videoId}` 
+        : url;
+    
+    // Create iframe HTML with Schema.org VideoObject metadata
+    return `
+<div itemscope itemtype="https://schema.org/VideoObject">
+  <meta itemprop="name" content="${videoTitle}">
+  <meta itemprop="description" content="${videoTitle}">
+  <meta itemprop="uploadDate" content="${uploadDate}">
+  <iframe src="${videoUrl}" 
+    title="${videoTitle}"
+    width="100%" 
+    height="400"
+    frameborder="0"
+    loading="lazy"
+    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+    allowfullscreen>
+  </iframe>
+</div>
+`;
 };
 
 export const insertAtCursor = (
@@ -133,6 +154,29 @@ export const uploadToIpfs = async (
 ): Promise<string> => {
     const formData = new FormData();
     formData.append("file", blob, fileName);
+    
+    // Add Pinata metadata for better file management
+    const fileType = blob.type.startsWith('image/') ? 'image' : 
+                     blob.type.startsWith('video/') ? 'video' : 'file';
+    
+    const pinataMetadata = {
+        name: fileName,
+        keyvalues: {
+            app: 'skatehive',
+            type: fileType,
+            uploadedAt: new Date().toISOString(),
+            size: blob.size.toString(),
+        }
+    };
+    
+    formData.append("pinataMetadata", JSON.stringify(pinataMetadata));
+    
+    // Add Pinata options for better CDN performance
+    const pinataOptions = {
+        cidVersion: 1, // Use CIDv1 for better gateway compatibility
+    };
+    
+    formData.append("pinataOptions", JSON.stringify(pinataOptions));
 
     const response = await fetch("/api/pinata", {
         method: "POST",

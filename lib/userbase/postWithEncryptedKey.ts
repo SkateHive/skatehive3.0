@@ -8,6 +8,13 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { getPostingMethod } from './postingMethod';
 import { getDecryptedKey } from './keyManagement';
 import { SPONSORSHIP_CONFIG } from '@/config/app.config';
+import {
+  generateDescription,
+  extractImages,
+  extractVideos,
+  detectCategory,
+  extractTrickKeywords,
+} from '@/lib/seo/metadataGenerator';
 
 const client = new Client(SPONSORSHIP_CONFIG.HIVE_API_NODES);
 
@@ -66,10 +73,43 @@ export async function postToHive(
   // 2. Generate permlink
   const permlink = generatePermlink(content.title || 'post');
 
-  // 3. Build metadata
+  // 3. Build metadata with SEO enhancements
+  const tags = content.tags || [];
+  const images = extractImages(content.body);
+  const videos = extractVideos(content.body);
+  const trickKeywords = extractTrickKeywords(content.body);
+  
   const metadata = {
-    tags: content.tags || [],
+    tags,
     app: 'skatehive/1.0',
+    format: 'markdown',
+    
+    // SEO essentials
+    description: generateDescription(content.body),
+    image: images,
+    
+    // Content classification
+    type: content.parent_permlink === 'hive-173115' ? 'article' : 'snap',
+    category: detectCategory(tags),
+    
+    // Enhanced keywords (original tags + detected tricks)
+    keywords: [...new Set([...tags, ...trickKeywords])],
+    
+    // Timestamps
+    published: new Date().toISOString(),
+    
+    // Video metadata (if present)
+    ...(videos.length > 0 && {
+      video: videos.map(v => ({
+        url: v.url,
+        type: v.type,
+        thumbnailUrl: images[0] || '', // Use first image as thumbnail
+      })),
+    }),
+    
+    // Author info (would need to fetch from profile, skipping for now to avoid extra queries)
+    
+    // Merge any additional metadata provided
     ...content.json_metadata,
   };
 
