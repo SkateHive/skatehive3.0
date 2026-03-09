@@ -72,13 +72,17 @@ export async function GET(request: NextRequest) {
     // Fetch from each chain
     for (const chainId of chainIds) {
       try {
+        console.log(`[POIDH API] Fetching from chain ${chainId}...`);
         const chainBounties = await fetchBountiesFromChain(chainId);
+        console.log(`[POIDH API] Chain ${chainId}: found ${chainBounties.length} bounties`);
         allBounties.push(...chainBounties);
       } catch (err) {
-        console.error(`Error fetching from chain ${chainId}:`, err);
+        console.error(`[POIDH API] Error fetching from chain ${chainId}:`, err);
         // Continue with other chains
       }
     }
+
+    console.log(`[POIDH API] Total bounties before filter: ${allBounties.length}`);
 
     // Filter by skate keywords
     const skateBounties = allBounties.filter((bounty: any) => {
