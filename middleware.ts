@@ -3,9 +3,73 @@ import type { NextRequest } from 'next/server';
 
 const CANONICAL_HOST = 'skatehive.app';
 
+// Known malicious bot patterns (legitimate crawlers are allowed)
+const MALICIOUS_BOTS = [
+  'scrapy', 'scraper', 'python-requests', 'curl', 'wget',
+  'headless', 'phantom', 'selenium', 'puppeteer',
+  'beautifulsoup', 'mechanize', 'httpclient'
+];
+
+// Legitimate search engine bots (ALLOW these)
+const ALLOWED_BOTS = [
+  'googlebot', 'bingbot', 'slurp', 'duckduckbot',
+  'baiduspider', 'yandexbot', 'facebookexternalhit',
+  'twitterbot', 'linkedinbot', 'discordbot'
+];
+
+function isBot(userAgent: string): boolean {
+  const ua = userAgent.toLowerCase();
+  
+  // Allow legitimate search engines
+  if (ALLOWED_BOTS.some(bot => ua.includes(bot))) {
+    return false; // Not blocking, it's legitimate
+  }
+  
+  // Block known malicious bots
+  if (MALICIOUS_BOTS.some(bot => ua.includes(bot))) {
+    return true; // Block this
+  }
+  
+  return false;
+}
+
+function isSuspiciousBehavior(request: NextRequest): boolean {
+  const userAgent = request.headers.get('user-agent') || '';
+  const accept = request.headers.get('accept') || '';
+  
+  // Real browsers always send Accept header with HTML
+  if (accept && !accept.includes('text/html') && !accept.includes('*/*')) {
+    return true; // Likely a scraper
+  }
+  
+  // Real browsers have complex user agents
+  if (userAgent && userAgent.length < 50) {
+    return true; // Too simple, likely fake
+  }
+  
+  // Empty user agent = bot
+  if (!userAgent) {
+    return true;
+  }
+  
+  return false;
+}
+
 export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     const host = request.headers.get('host') || '';
+    const userAgent = request.headers.get('user-agent') || '';
+
+    // 0. Bot protection (runs first)
+    if (isBot(userAgent)) {
+        console.log(`[BOT BLOCKED] ${userAgent.substring(0, 100)} from ${request.geo?.country}`);
+        return new NextResponse('Forbidden', { status: 403 });
+    }
+
+    // Log suspicious traffic (but don't block)
+    if (isSuspiciousBehavior(request)) {
+        console.log(`[SUSPICIOUS] UA: ${userAgent.substring(0, 50)}, Country: ${request.geo?.country}`);
+    }
 
     // 1. Redirect www → non-www (fixes 174 redirect issues in Search Console)
     if (host.startsWith('www.')) {
