@@ -235,6 +235,30 @@ export default async function TrickPage({ params }: Props) {
     // Fetch real posts from Hive
     const posts = await fetchTrickPosts(tags);
 
+    // FAQ Schema — targets featured snippets for "what is [trick]" / "how to [trick]"
+    const faqJsonLd = trickData ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: [
+            {
+                "@type": "Question",
+                name: `What is a ${displayName} in skateboarding?`,
+                acceptedAnswer: {
+                    "@type": "Answer",
+                    text: trickData.description,
+                },
+            },
+            {
+                "@type": "Question",
+                name: `How do you do a ${displayName}?`,
+                acceptedAnswer: {
+                    "@type": "Answer",
+                    text: `To learn the ${displayName}, watch real clips from skaters on Skatehive. ${trickData.description} Practice on flat ground first before taking it to obstacles.`,
+                },
+            },
+        ],
+    } : null;
+
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -268,6 +292,12 @@ export default async function TrickPage({ params }: Props) {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }}
             />
+            {faqJsonLd && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(faqJsonLd) }}
+                />
+            )}
             <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "24px 16px", minHeight: "100vh" }}>
                 {/* Breadcrumb */}
                 <nav style={{ marginBottom: "16px", fontSize: "0.85rem", color: "#888" }}>

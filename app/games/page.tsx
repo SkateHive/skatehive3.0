@@ -123,6 +123,29 @@ export default function GamesPage() {
   return (
     <>
       <GamesJsonLd />
+      {/* SSR content block — Google sees this in initial HTML */}
+      <div
+        data-ssr-seo="true"
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          padding: 0,
+          margin: "-1px",
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          whiteSpace: "nowrap",
+          borderWidth: 0,
+        }}
+      >
+        <h1>Skate Games — Play Free Skateboarding Games Online</h1>
+        <p>Play free browser-based skateboarding games built by the SkateHive community. No download needed.</p>
+        <h2>Quest for Stoken</h2>
+        <p>The OG SkateHive game. Control your skater through challenging levels, collect STOKEN tokens, and compete for high scores. Built by webgnar.</p>
+        <h2>Lougnar</h2>
+        <p>The newest skateboarding game from SkateHive. A fresh take on skate gaming built with Excalibur.js. Click to jump and dodge obstacles.</p>
+        <p>All games are free to play in your browser — no downloads, no signups. Just click and skate.</p>
+      </div>
       <GamesGallery />
     </>
   );
