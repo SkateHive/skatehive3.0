@@ -11,6 +11,7 @@ const HUB_LINKS = [
   { href: "/tricks", label: "🛹 Tricks", keywords: "kickflip, ollie, grind" },
   { href: "/skateshops", label: "🛍️ Shops", keywords: "gear, decks" },
   { href: "/videos", label: "🎥 Videos", keywords: "clips, edits" },
+  { href: "/skaters", label: "👥 Skaters", keywords: "community, profiles" },
 ];
 
 export default function HubNavigation() {
