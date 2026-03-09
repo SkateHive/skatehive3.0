@@ -10,9 +10,16 @@ import {
   AccordionButton,
   AccordionPanel,
   AccordionIcon,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Badge,
 } from "@chakra-ui/react";
 import BountyComposer from "./BountyComposer";
 import BountyList from "./BountyList";
+import PoidhBountyList from "./PoidhBountyList";
 import SkateModal from "@/components/shared/SkateModal";
 import { Discussion } from "@hiveio/dhive";
 import Image from "next/image";
@@ -148,10 +155,64 @@ export default function BountiesClient() {
           </Accordion>
         )}
       </Box>
-      <BountyList
-        newBounty={newBounty as any}
-        refreshTrigger={refreshTrigger}
-      />
+
+      {/* Bounty Source Tabs */}
+      <Tabs variant="soft-rounded" colorScheme="primary" mb={6}>
+        <TabList mb={4} flexWrap="wrap">
+          <Tab>
+            Hive Bounties
+            <Badge ml={2} colorScheme="green" fontSize="xs">
+              On-chain
+            </Badge>
+          </Tab>
+          <Tab>
+            POIDH Bounties
+            <Badge ml={2} colorScheme="purple" fontSize="xs">
+              Multi-chain
+            </Badge>
+          </Tab>
+          <Tab>
+            All Bounties
+            <Badge ml={2} colorScheme="blue" fontSize="xs">
+              Combined
+            </Badge>
+          </Tab>
+        </TabList>
+
+        <TabPanels>
+          {/* Hive Bounties */}
+          <TabPanel px={0}>
+            <BountyList
+              newBounty={newBounty as any}
+              refreshTrigger={refreshTrigger}
+            />
+          </TabPanel>
+
+          {/* POIDH Bounties */}
+          <TabPanel px={0}>
+            <PoidhBountyList initialFilter={["active"]} />
+          </TabPanel>
+
+          {/* All Bounties */}
+          <TabPanel px={0}>
+            <Box mb={6}>
+              <Text fontSize="lg" fontWeight="bold" color="primary" mb={4}>
+                Hive Bounties
+              </Text>
+              <BountyList
+                newBounty={newBounty as any}
+                refreshTrigger={refreshTrigger}
+              />
+            </Box>
+            <Box mt={8}>
+              <Text fontSize="lg" fontWeight="bold" color="primary" mb={4}>
+                POIDH Bounties (Arbitrum, Base, Degen)
+              </Text>
+              <PoidhBountyList initialFilter={["active"]} />
+            </Box>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
       <SkateModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
