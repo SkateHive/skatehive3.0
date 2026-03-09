@@ -4,6 +4,7 @@ import React from "react";
 import { Box, Flex, Link as ChakraLink, Text } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { usePathname } from "next/navigation";
+import { trackInternalLinkClick } from "@/lib/analytics/events";
 
 const HUB_LINKS = [
   { href: "/map", label: "🗺️ Map", keywords: "spots, skateparks" },
@@ -14,6 +15,14 @@ const HUB_LINKS = [
 
 export default function HubNavigation() {
   const pathname = usePathname();
+
+  const handleHubClick = (targetHref: string) => {
+    trackInternalLinkClick({
+      linkType: 'hub_nav',
+      sourceUrl: pathname || '',
+      targetUrl: targetHref,
+    });
+  };
 
   return (
     <Box
@@ -38,6 +47,7 @@ export default function HubNavigation() {
           return (
             <NextLink key={link.href} href={link.href} passHref legacyBehavior>
               <ChakraLink
+                onClick={() => handleHubClick(link.href)}
                 px={{ base: 3, md: 4 }}
                 py={2}
                 fontSize={{ base: "xs", md: "sm" }}
