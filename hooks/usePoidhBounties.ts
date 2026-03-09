@@ -1,43 +1,5 @@
 import { useState, useEffect } from "react";
-import { createPublicClient, http } from "viem";
-import { arbitrum, base } from "viem/chains";
-import { POIDH_ABI, POIDH_CONTRACT_ADDRESS } from "@/lib/contracts/poidhAbi";
 import type { PoidhBounty, BountyFilter, BountyStatus } from "@/types/poidh";
-
-// Degen chain config
-const degen = {
-  id: 666666666,
-  name: "Degen",
-  network: "degen",
-  nativeCurrency: { name: "Degen", symbol: "DEGEN", decimals: 18 },
-  rpcUrls: {
-    default: { http: ["https://rpc.degen.tips"] },
-    public: { http: ["https://rpc.degen.tips"] },
-  },
-  blockExplorers: {
-    default: { name: "Degen Explorer", url: "https://explorer.degen.tips" },
-  },
-} as const;
-
-// Skate-related keywords for filtering
-const SKATE_KEYWORDS = [
-  "skate",
-  "skateboard",
-  "trick",
-  "kickflip",
-  "ollie",
-  "grind",
-  "rail",
-  "ledge",
-  "park",
-  "street",
-  "vert",
-  "bowl",
-  "ramp",
-  "deck",
-  "board",
-  "skatehive",
-];
 
 export function usePoidhBounties(filter?: BountyFilter) {
   const [bounties, setBounties] = useState<PoidhBounty[]>([]);
@@ -53,41 +15,39 @@ export function usePoidhBounties(filter?: BountyFilter) {
     setError(null);
 
     try {
-      const chains = filter?.chains || [arbitrum.id, base.id, degen.id];
-      const allBounties: PoidhBounty[] = [];
-
-      // Fetch from each chain
-      for (const chainId of chains) {
-        const chainBounties = await fetchBountiesFromChain(chainId);
-        allBounties.push(...chainBounties);
+      // Build query params
+      const params = new URLSearchParams();
+      if (filter?.chains && filter.chains.length > 0) {
+        params.append("chainId", filter.chains[0].toString());
       }
-
-      // Filter by skate keywords
-      const skateBounties = allBounties.filter((bounty) => {
-        const text = `${bounty.name} ${bounty.description}`.toLowerCase();
-        return SKATE_KEYWORDS.some((keyword) => text.includes(keyword));
-      });
-
-      // Filter by status if specified
-      let filtered = skateBounties;
       if (filter?.status && filter.status.length > 0) {
-        filtered = skateBounties.filter((bounty) => {
-          const status = getBountyStatus(bounty);
-          return filter.status!.includes(status);
-        });
+        params.append("status", filter.status[0]);
       }
+
+      // Fetch from API route (server-side to avoid CORS)
+      const response = await fetch(`/api/poidh/bounties?${params}`);
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Convert string amounts back to bigint
+      const bountiesWithBigInt = data.bounties.map((b: any) => ({
+        ...b,
+        amount: BigInt(b.amount),
+      }));
 
       // Filter by search term if specified
+      let filtered = bountiesWithBigInt;
       if (filter?.searchTerm) {
         const searchLower = filter.searchTerm.toLowerCase();
-        filtered = filtered.filter((bounty) => {
+        filtered = filtered.filter((bounty: PoidhBounty) => {
           const text = `${bounty.name} ${bounty.description}`.toLowerCase();
           return text.includes(searchLower);
         });
       }
-
-      // Sort by creation date (newest first)
-      filtered.sort((a, b) => b.createdAt - a.createdAt);
 
       setBounties(filtered);
     } catch (err) {
@@ -98,126 +58,6 @@ export function usePoidhBounties(filter?: BountyFilter) {
     }
   };
 
-  const fetchBountiesFromChain = async (
-    chainId: number
-  ): Promise<PoidhBounty[]> => {
-    const chain = getChainConfig(chainId);
-    if (!chain) return [];
-
-    // Use fallback RPC with higher rate limits
-    const rpcUrl = getRpcUrl(chainId);
-    const client = createPublicClient({
-      chain,
-      transport: http(rpcUrl),
-    });
-
-    try {
-      // Get total bounty count
-      const counter = (await client.readContract({
-        address: POIDH_CONTRACT_ADDRESS,
-        abi: POIDH_ABI,
-        functionName: "bountyCounter",
-      })) as bigint;
-
-      const count = Number(counter);
-      if (count === 0) return [];
-
-      // Fetch recent bounties (last 20 to avoid rate limits)
-      const maxBounties = Math.min(count, 20);
-      const startId = Math.max(1, count - maxBounties + 1);
-
-      // Fetch in batches of 5 to avoid rate limiting
-      const batchSize = 5;
-      const allBounties: PoidhBounty[] = [];
-
-      for (let i = startId; i <= count; i += batchSize) {
-        const batchEnd = Math.min(i + batchSize - 1, count);
-        const batchPromises = [];
-
-        for (let id = i; id <= batchEnd; id++) {
-          batchPromises.push(fetchBountyById(client, id, chainId));
-        }
-
-        const batchResults = await Promise.allSettled(batchPromises);
-        const batchBounties = batchResults
-          .filter((r) => r.status === "fulfilled")
-          .map((r) => (r as PromiseFulfilledResult<PoidhBounty>).value);
-
-        allBounties.push(...batchBounties);
-
-        // Small delay between batches to avoid rate limits
-        if (batchEnd < count) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
-        }
-      }
-
-      return allBounties;
-    } catch (err) {
-      console.error(`Error fetching from chain ${chainId}:`, err);
-      return [];
-    }
-  };
-
-  const fetchBountyById = async (
-    client: any,
-    id: number,
-    chainId: number,
-    retries = 3
-  ): Promise<PoidhBounty> => {
-    for (let attempt = 0; attempt < retries; attempt++) {
-      try {
-        const bounty = (await client.readContract({
-          address: POIDH_CONTRACT_ADDRESS,
-          abi: POIDH_ABI,
-          functionName: "getBounty",
-          args: [BigInt(id)],
-        })) as any;
-
-        // Try to fetch claim IDs (may fail if bounty has no claims)
-        let claimIds: number[] = [];
-        try {
-          const claims = (await client.readContract({
-            address: POIDH_CONTRACT_ADDRESS,
-            abi: POIDH_ABI,
-            functionName: "bountyClaims",
-            args: [BigInt(id)],
-          })) as bigint[];
-          claimIds = claims.map((c) => Number(c));
-        } catch {
-          // No claims yet
-        }
-
-        return {
-          id,
-          issuer: bounty.issuer,
-          name: bounty.name,
-          description: bounty.description,
-          amount: bounty.amount,
-          createdAt: Number(bounty.createdAt),
-          isOpen: bounty.isOpen,
-          isCancelled: bounty.isCancelled,
-          hasActiveClaim: bounty.hasActiveClaim,
-          chainId,
-          claimIds,
-        };
-      } catch (err: any) {
-        // If rate limited, wait and retry
-        if (
-          attempt < retries - 1 &&
-          (err.message?.includes("429") || err.message?.includes("rate limit"))
-        ) {
-          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 1s, 2s, 4s
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          continue;
-        }
-        throw err;
-      }
-    }
-
-    // Should never reach here, but TypeScript needs a return
-    throw new Error(`Failed to fetch bounty ${id} after ${retries} retries`);
-  };
-
   return {
     bounties,
     isLoading,
@@ -226,52 +66,14 @@ export function usePoidhBounties(filter?: BountyFilter) {
   };
 }
 
-// Helper: Get RPC URL with better rate limits
-function getRpcUrl(chainId: number): string {
-  switch (chainId) {
-    case arbitrum.id:
-      // Try Arbitrum public RPC first, fallback to default
-      return "https://arb1.arbitrum.io/rpc";
-    case base.id:
-      // Base public RPC
-      return "https://mainnet.base.org";
-    case degen.id:
-      // Degen chain
-      return "https://rpc.degen.tips";
-    default:
-      return "";
-  }
-}
-
-// Helper: Get chain config
-function getChainConfig(chainId: number) {
-  switch (chainId) {
-    case arbitrum.id:
-      return arbitrum;
-    case base.id:
-      return base;
-    case degen.id:
-      return degen;
-    default:
-      return null;
-  }
-}
-
-// Helper: Determine bounty status
-function getBountyStatus(bounty: PoidhBounty): BountyStatus {
-  if (bounty.isCancelled) return "cancelled";
-  if (bounty.hasActiveClaim || bounty.amount === 0n) return "completed";
-  return "active";
-}
-
 // Helper: Get chain name
 export function getChainName(chainId: number): string {
   switch (chainId) {
-    case arbitrum.id:
+    case 42161:
       return "Arbitrum";
-    case base.id:
+    case 8453:
       return "Base";
-    case degen.id:
+    case 666666666:
       return "Degen";
     default:
       return `Chain ${chainId}`;

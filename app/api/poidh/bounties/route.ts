@@ -1,0 +1,241 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createPublicClient, http } from "viem";
+import { arbitrum, base } from "viem/chains";
+import { POIDH_ABI, POIDH_CONTRACT_ADDRESS } from "@/lib/contracts/poidhAbi";
+
+// Degen chain config
+const degen = {
+  id: 666666666,
+  name: "Degen",
+  network: "degen",
+  nativeCurrency: { name: "Degen", symbol: "DEGEN", decimals: 18 },
+  rpcUrls: {
+    default: { http: ["https://rpc.degen.tips"] },
+    public: { http: ["https://rpc.degen.tips"] },
+  },
+} as const;
+
+const SKATE_KEYWORDS = [
+  "skate",
+  "skateboard",
+  "trick",
+  "kickflip",
+  "ollie",
+  "grind",
+  "rail",
+  "ledge",
+  "park",
+  "street",
+  "vert",
+  "bowl",
+  "ramp",
+  "deck",
+  "board",
+  "skatehive",
+];
+
+// Cache in memory (resets on server restart)
+let cache: {
+  bounties: any[];
+  timestamp: number;
+} | null = null;
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const chainIdParam = searchParams.get("chainId");
+    const statusParam = searchParams.get("status");
+    const forceRefresh = searchParams.get("refresh") === "true";
+
+    // Check cache
+    if (
+      !forceRefresh &&
+      cache &&
+      Date.now() - cache.timestamp < CACHE_TTL
+    ) {
+      return NextResponse.json({
+        bounties: cache.bounties,
+        cached: true,
+        cachedAt: new Date(cache.timestamp).toISOString(),
+      });
+    }
+
+    // Determine which chains to fetch
+    const chainIds = chainIdParam
+      ? [parseInt(chainIdParam)]
+      : [arbitrum.id, base.id, degen.id];
+
+    const allBounties = [];
+
+    // Fetch from each chain
+    for (const chainId of chainIds) {
+      try {
+        const chainBounties = await fetchBountiesFromChain(chainId);
+        allBounties.push(...chainBounties);
+      } catch (err) {
+        console.error(`Error fetching from chain ${chainId}:`, err);
+        // Continue with other chains
+      }
+    }
+
+    // Filter by skate keywords
+    const skateBounties = allBounties.filter((bounty: any) => {
+      const text = `${bounty.name} ${bounty.description}`.toLowerCase();
+      return SKATE_KEYWORDS.some((keyword) => text.includes(keyword));
+    });
+
+    // Filter by status if provided
+    let filtered = skateBounties;
+    if (statusParam) {
+      filtered = skateBounties.filter((bounty: any) => {
+        if (statusParam === "active")
+          return !bounty.isCancelled && bounty.amount > 0;
+        if (statusParam === "completed")
+          return bounty.hasActiveClaim || bounty.amount === 0n;
+        if (statusParam === "cancelled") return bounty.isCancelled;
+        return true;
+      });
+    }
+
+    // Sort by creation date
+    filtered.sort((a: any, b: any) => b.createdAt - a.createdAt);
+
+    // Update cache
+    cache = {
+      bounties: filtered,
+      timestamp: Date.now(),
+    };
+
+    return NextResponse.json({
+      bounties: filtered,
+      cached: false,
+      count: filtered.length,
+    });
+  } catch (error: any) {
+    console.error("Error in /api/poidh/bounties:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to fetch POIDH bounties",
+        message: error.message,
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function fetchBountiesFromChain(chainId: number): Promise<any[]> {
+  const chain = getChainConfig(chainId);
+  if (!chain) return [];
+
+  const rpcUrl = getRpcUrl(chainId);
+  const client = createPublicClient({
+    chain,
+    transport: http(rpcUrl),
+  });
+
+  try {
+    // Get total bounty count
+    const counter = (await client.readContract({
+      address: POIDH_CONTRACT_ADDRESS,
+      abi: POIDH_ABI,
+      functionName: "bountyCounter",
+    })) as bigint;
+
+    const count = Number(counter);
+    if (count === 0) return [];
+
+    // Fetch only last 10 bounties per chain (reduced to minimize rate limits)
+    const maxBounties = Math.min(count, 10);
+    const startId = Math.max(1, count - maxBounties + 1);
+
+    const bounties = [];
+
+    // Fetch one by one with delay to avoid rate limits
+    for (let id = startId; id <= count; id++) {
+      try {
+        const bounty = await fetchBountyById(client, id, chainId);
+        bounties.push(bounty);
+
+        // Small delay between requests
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      } catch (err) {
+        console.error(`Error fetching bounty ${id}:`, err);
+        // Continue with next bounty
+      }
+    }
+
+    return bounties;
+  } catch (err) {
+    console.error(`Error fetching from chain ${chainId}:`, err);
+    return [];
+  }
+}
+
+async function fetchBountyById(
+  client: any,
+  id: number,
+  chainId: number
+): Promise<any> {
+  const bounty = (await client.readContract({
+    address: POIDH_CONTRACT_ADDRESS,
+    abi: POIDH_ABI,
+    functionName: "getBounty",
+    args: [BigInt(id)],
+  })) as any;
+
+  // Try to fetch claims (optional)
+  let claimIds: number[] = [];
+  try {
+    const claims = (await client.readContract({
+      address: POIDH_CONTRACT_ADDRESS,
+      abi: POIDH_ABI,
+      functionName: "bountyClaims",
+      args: [BigInt(id)],
+    })) as bigint[];
+    claimIds = claims.map((c: bigint) => Number(c));
+  } catch {
+    // No claims
+  }
+
+  return {
+    id,
+    issuer: bounty.issuer,
+    name: bounty.name,
+    description: bounty.description,
+    amount: bounty.amount.toString(), // Convert bigint to string for JSON
+    createdAt: Number(bounty.createdAt),
+    isOpen: bounty.isOpen,
+    isCancelled: bounty.isCancelled,
+    hasActiveClaim: bounty.hasActiveClaim,
+    chainId,
+    claimIds,
+  };
+}
+
+function getRpcUrl(chainId: number): string {
+  switch (chainId) {
+    case arbitrum.id:
+      return "https://arb1.arbitrum.io/rpc";
+    case base.id:
+      return "https://mainnet.base.org";
+    case degen.id:
+      return "https://rpc.degen.tips";
+    default:
+      return "";
+  }
+}
+
+function getChainConfig(chainId: number) {
+  switch (chainId) {
+    case arbitrum.id:
+      return arbitrum;
+    case base.id:
+      return base;
+    case degen.id:
+      return degen;
+    default:
+      return null;
+  }
+}
