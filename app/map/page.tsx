@@ -1,6 +1,9 @@
 import dynamic from "next/dynamic";
 import { Metadata } from "next";
 import { APP_CONFIG } from "@/config/app.config";
+import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
+
+const BASE_URL = APP_CONFIG.BASE_URL;
 
 export const metadata: Metadata = {
   title: "Skate Spot Map — Find Skateparks & Street Spots Near You",
@@ -55,5 +58,42 @@ export const metadata: Metadata = {
 const EmbeddedMap = dynamic(() => import("@/components/spotmap/EmbeddedMap"), { ssr: true });
 
 export default function MapPage() {
-  return <EmbeddedMap />;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: "Skate Spot Map — Find Skateparks & Street Spots",
+    description:
+      "Find skateparks, street spots, and DIY spots worldwide on the Skatehive community-built map.",
+    url: `${BASE_URL}/map`,
+    isPartOf: {
+      "@type": "WebSite",
+      name: "Skatehive",
+      url: BASE_URL,
+    },
+    mainEntity: {
+      "@type": "Map",
+      name: "Skatehive Skate Spot Map",
+      description:
+        "Community-built map of skateparks, street spots, and DIY spots worldwide. Submitted by skaters, for skaters.",
+      url: `${BASE_URL}/map`,
+      mapType: "https://schema.org/VenueMap",
+    },
+    breadcrumb: {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: BASE_URL },
+        { "@type": "ListItem", position: 2, name: "Skate Map", item: `${BASE_URL}/map` },
+      ],
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }}
+      />
+      <EmbeddedMap />
+    </>
+  );
 }
