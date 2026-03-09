@@ -149,6 +149,30 @@ interface Props {
     params: Promise<{ trick: string }>;
 }
 
+// Helper to get related tricks based on category
+function getRelatedTricks(currentTrick: string): Array<{ slug: string; name: string }> {
+    const flipTricks = ["kickflip", "heelflip", "varial-kickflip", "tre-flip", "hardflip", "laser-flip"];
+    const flatgroundTricks = ["ollie", "pop-shove-it", "nollie", "manual", "no-comply", "boneless"];
+    const grindTricks = ["50-50", "boardslide", "nosegrind", "smith-grind", "feeble", "crooked-grind"];
+    const transitionTricks = ["blunt-stall", "wallride", "drop-in", "rock-to-fakie", "axle-stall", "frontside-air", "backside-air"];
+
+    let relatedSlugs: string[] = [];
+    if (flipTricks.includes(currentTrick)) {
+        relatedSlugs = flipTricks.filter(t => t !== currentTrick).slice(0, 5);
+    } else if (flatgroundTricks.includes(currentTrick)) {
+        relatedSlugs = flatgroundTricks.filter(t => t !== currentTrick).slice(0, 5);
+    } else if (grindTricks.includes(currentTrick)) {
+        relatedSlugs = grindTricks.filter(t => t !== currentTrick).slice(0, 5);
+    } else if (transitionTricks.includes(currentTrick)) {
+        relatedSlugs = transitionTricks.filter(t => t !== currentTrick).slice(0, 5);
+    }
+
+    return relatedSlugs.map(slug => ({
+        slug,
+        name: TRICK_MAP[slug]?.name || slug,
+    }));
+}
+
 async function fetchTrickPosts(tags: string[]): Promise<HivePost[]> {
     const allPosts: HivePost[] = [];
     const seen = new Set<string>();
@@ -401,6 +425,48 @@ export default async function TrickPage({ params }: Props) {
                         </p>
                     </div>
                 )}
+
+                {/* Related Tricks Cross-Links */}
+                <div style={{ 
+                    marginBottom: "32px", 
+                    padding: "20px", 
+                    background: "rgba(20,20,20,0.4)", 
+                    borderRadius: "12px",
+                    border: "1px solid rgba(255,255,255,0.1)"
+                }}>
+                    <h2 style={{ fontSize: "1.2rem", color: "#a7ff00", marginBottom: "16px" }}>
+                        Related Tricks
+                    </h2>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "12px" }}>
+                        {getRelatedTricks(trick).map((relatedTrick) => (
+                            <Link
+                                key={relatedTrick.slug}
+                                href={`/tricks/${relatedTrick.slug}`}
+                                style={{
+                                    padding: "12px",
+                                    background: "rgba(0,0,0,0.3)",
+                                    borderRadius: "8px",
+                                    border: "1px solid rgba(167,255,0,0.2)",
+                                    color: "#fff",
+                                    textDecoration: "none",
+                                    transition: "all 0.3s",
+                                    textAlign: "center",
+                                    fontSize: "0.9rem",
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = "#a7ff00";
+                                    e.currentTarget.style.background = "rgba(167,255,0,0.1)";
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = "rgba(167,255,0,0.2)";
+                                    e.currentTarget.style.background = "rgba(0,0,0,0.3)";
+                                }}
+                            >
+                                {relatedTrick.name}
+                            </Link>
+                        ))}
+                    </div>
+                </div>
 
                 {/* SEO footer content */}
                 <footer style={{ borderTop: "1px solid #333", paddingTop: "24px", color: "#aaa", lineHeight: 1.7 }}>

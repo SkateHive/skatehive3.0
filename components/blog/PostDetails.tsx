@@ -23,7 +23,9 @@ import {
   HStack,
   Textarea,
   Tooltip,
+  Container,
 } from "@chakra-ui/react";
+import RelatedPosts from "./RelatedPosts";
 import React, {
   useState,
   useRef,
@@ -68,6 +70,20 @@ export default function PostDetails({
     () => extractSafeUser(post.json_metadata),
     [post.json_metadata],
   );
+
+  // Extract tags for related posts
+  const postTags = useMemo(() => {
+    try {
+      let meta = post.json_metadata;
+      if (typeof meta === "string") meta = JSON.parse(meta);
+      if (Array.isArray(meta?.tags)) {
+        return meta.tags.filter((t: any) => typeof t === "string" && t.length > 1);
+      }
+    } catch {
+      // Silent fail
+    }
+    return [];
+  }, [post.json_metadata]);
 
   const softPost = useSoftPostOverlay(post.author, post.permlink, safeUser);
   const softVote = useSoftVoteOverlay(post.author, post.permlink);
@@ -877,6 +893,16 @@ export default function PostDetails({
           />
         )}
       </Box>
+
+      {/* Related Posts Section */}
+      <Container maxW="container.xl" px={4}>
+        <RelatedPosts
+          currentAuthor={post.author}
+          currentPermlink={post.permlink}
+          tags={postTags}
+          limit={4}
+        />
+      </Container>
 
       {/* Markdown Coin Modal - Only render when needed */}
       {isMarkdownCoinModalOpen && (
