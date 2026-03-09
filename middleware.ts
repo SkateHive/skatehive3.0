@@ -62,13 +62,15 @@ export function middleware(request: NextRequest) {
 
     // 0. Bot protection (runs first)
     if (isBot(userAgent)) {
-        console.log(`[BOT BLOCKED] ${userAgent.substring(0, 100)} from ${request.geo?.country}`);
+        const country = (request as any).geo?.country || 'unknown';
+        console.log(`[BOT BLOCKED] ${userAgent.substring(0, 100)} from ${country}`);
         return new NextResponse('Forbidden', { status: 403 });
     }
 
     // Log suspicious traffic (but don't block)
     if (isSuspiciousBehavior(request)) {
-        console.log(`[SUSPICIOUS] UA: ${userAgent.substring(0, 50)}, Country: ${request.geo?.country}`);
+        const country = (request as any).geo?.country || 'unknown';
+        console.log(`[SUSPICIOUS] UA: ${userAgent.substring(0, 50)}, Country: ${country}`);
     }
 
     // 1. Redirect www → non-www (fixes 174 redirect issues in Search Console)
