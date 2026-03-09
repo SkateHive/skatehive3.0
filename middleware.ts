@@ -60,6 +60,11 @@ export function middleware(request: NextRequest) {
     const host = request.headers.get('host') || '';
     const userAgent = request.headers.get('user-agent') || '';
 
+    // Skip bot protection for API routes (allows server-side calls)
+    if (url.pathname.startsWith('/api/')) {
+        return NextResponse.next();
+    }
+
     // 0. Bot protection (runs first)
     if (isBot(userAgent)) {
         const country = (request as any).geo?.country || 'unknown';
