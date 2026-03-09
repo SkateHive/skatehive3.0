@@ -294,7 +294,7 @@ export default function HiveLoginModal({
                 size="xs"
                 fontFamily="mono"
                 color="gray.500"
-                onClick={() => window.open("https://docs.skatehive.app/docs/hive-wallets", "_blank")}
+                onClick={() => window.open("https://docs.skatehive.app/docs/Get%20Started/hive-wallets", "_blank")}
                 _hover={{ color: "primary", bg: "whiteAlpha.50" }}
                 w="full"
                 justifyContent="center"
