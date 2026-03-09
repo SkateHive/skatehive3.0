@@ -220,13 +220,22 @@ export default async function UserProfilePage(props: Props) {
   const params = await props.params;
   const username = cleanUsername(params.username);
 
-  // Build Person JSON-LD
+  // Build Person JSON-LD + SSR content for SEO
   let personJsonLd: Record<string, unknown> | null = null;
+  let ssrName = "";
+  let ssrAbout = "";
+  let ssrFollowers = 0;
+  let ssrFollowing = 0;
   try {
     const baseUrl = await getBaseUrl();
     const userData = await getUserData(username, baseUrl);
     if (userData) {
       const profileUrl = `${DOMAIN_URL}/user/${username}`;
+      ssrName = userData.name || username;
+      ssrAbout = userData.about || "";
+      ssrFollowers = userData.followers || 0;
+      ssrFollowing = userData.following || 0;
+
       personJsonLd = {
         "@context": "https://schema.org",
         "@type": "Person",
@@ -252,6 +261,29 @@ export default async function UserProfilePage(props: Props) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(personJsonLd) }}
         />
+      )}
+      {/* SSR content block — visible to Google in initial HTML */}
+      {ssrName && (
+        <div
+          data-ssr-seo="true"
+          style={{
+            position: "absolute",
+            width: "1px",
+            height: "1px",
+            padding: 0,
+            margin: "-1px",
+            overflow: "hidden",
+            clip: "rect(0, 0, 0, 0)",
+            whiteSpace: "nowrap",
+            borderWidth: 0,
+          }}
+        >
+          <h1>{ssrName} — Skatehive Profile</h1>
+          <p>@{username} on Skatehive — the decentralized skateboarding community</p>
+          {ssrAbout && <p>{ssrAbout}</p>}
+          <p>{ssrFollowers} followers · {ssrFollowing} following</p>
+          <p>View skate videos, snaps, and posts by {ssrName} on Skatehive.</p>
+        </div>
       )}
       <ProfilePage username={username} />
     </>
