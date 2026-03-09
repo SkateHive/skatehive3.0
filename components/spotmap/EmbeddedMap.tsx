@@ -528,6 +528,60 @@ export default function EmbeddedMap({
             hasMore={hasMore}
             onLoadMore={loadNextPage}
           />
+
+          {/* SEO FAQ Section */}
+          <Box
+            mt={10}
+            p={6}
+            bg="rgba(20,20,20,0.4)"
+            border="1px solid"
+            borderColor="whiteAlpha.200"
+            borderRadius="lg"
+            maxW="4xl"
+            mx="auto"
+          >
+            <Heading as="h2" fontSize="2xl" mb={4} color="primary">
+              Skate Map FAQ
+            </Heading>
+            <Box as="dl" fontSize="sm" color="gray.300">
+              <Box mb={4}>
+                <Text as="dt" fontWeight="bold" color="white" mb={1}>
+                  What is the Skatehive Skate Map?
+                </Text>
+                <Text as="dd">
+                  The Skatehive Skate Map is a community-built interactive map of skateparks, street spots,
+                  and DIY spots worldwide. Skaters can add new spots, browse by location, and discover places to skate.
+                </Text>
+              </Box>
+              <Box mb={4}>
+                <Text as="dt" fontWeight="bold" color="white" mb={1}>
+                  How do I find skate spots near me?
+                </Text>
+                <Text as="dd">
+                  Click the &quot;📍 Near Me&quot; button to use your device&apos;s location and see spots in your area.
+                  You can also zoom and pan the map to explore spots in any city worldwide.
+                </Text>
+              </Box>
+              <Box mb={4}>
+                <Text as="dt" fontWeight="bold" color="white" mb={1}>
+                  Can I add my local skate spot?
+                </Text>
+                <Text as="dd">
+                  Yes! Click &quot;+ Add a Spot&quot; to submit a new skatepark, street spot, or DIY spot.
+                  All submissions are stored on the Hive blockchain and shared with the global skate community.
+                </Text>
+              </Box>
+              <Box>
+                <Text as="dt" fontWeight="bold" color="white" mb={1}>
+                  Is the Skate Map free to use?
+                </Text>
+                <Text as="dd">
+                  Absolutely! The Skatehive Skate Map is free and open to all skaters. It&apos;s built by
+                  skaters, for skaters — no ads, no paywalls.
+                </Text>
+              </Box>
+            </Box>
+          </Box>
         </Box>
       </Box>
     </>

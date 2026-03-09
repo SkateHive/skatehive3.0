@@ -217,6 +217,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${baseUrl}/magazine`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
         { url: `${baseUrl}/invite`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.4 },
         { url: `${baseUrl}/tricks`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+        { url: `${baseUrl}/skateshops`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
         { url: `${baseUrl}/map/near-me`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
         { url: `${baseUrl}/games`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
         { url: `${baseUrl}/games/quest-for-stoken`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },

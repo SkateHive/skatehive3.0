@@ -296,7 +296,21 @@ export async function generateMetadata({
     const decodedAuthor = decodeURIComponent(author);
     const post = await getData(decodedAuthor, permlink);
     const cleanedAuthor = cleanUsername(post.author);
-    const title = post.title || "Skatehive Snap";
+    let title = post.title || "Skatehive Snap";
+
+    // SEO enhancement: enrich titles for trick/gif posts
+    const lowerTitle = title.toLowerCase();
+    const lowerPermlink = permlink.toLowerCase();
+    const isTrickPost = /\b(kickflip|ollie|shove|heelflip|treflip|varial|hardflip|impossible|nollie|fakie|switch|boardslide|noseslide|tailslide|grind|manual)\b/i.test(title + " " + permlink);
+    const isGifPost = lowerTitle.includes("gif") || lowerPermlink.includes("gif");
+
+    if (isGifPost && !lowerTitle.includes("how to") && !lowerTitle.includes("skateboard")) {
+      // Add "Skateboard" keyword for GIF posts
+      title = `${title} — Skateboard Trick GIF`;
+    } else if (isTrickPost && !lowerTitle.includes("how to")) {
+      // Add "How to" context for trick posts without it
+      title = `${title} — Skateboarding Trick`;
+    }
 
     // Clean the post body of markdown and HTML syntax before creating description
     const cleanedBody = cleanTextForDescription(post.body || "");
