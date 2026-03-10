@@ -438,7 +438,7 @@ export default async function TrickPage({ params }: Props) {
                         Related Tricks
                     </h2>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "12px" }}>
-                        {getRelatedTricks(trick).map((relatedTrick) => (
+                        {getRelatedTricks(trickSlug).map((relatedTrick) => (
                             <Link
                                 key={relatedTrick.slug}
                                 href={`/tricks/${relatedTrick.slug}`}

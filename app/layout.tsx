@@ -188,8 +188,15 @@ export default function RootLayout({
             gtag('config', '${GA_MEASUREMENT_ID}');
           `}
         </Script>
-        {/* Preconnect to IPFS gateway for faster video loading */}
+        {/* Preconnect to critical origins for faster loading */}
         <link rel="preconnect" href={`https://${APP_CONFIG.IPFS_GATEWAY}`} />
+        <link rel="preconnect" href="https://images.hive.blog" />
+        <link rel="dns-prefetch" href="https://api.hive.blog" />
+        <link rel="dns-prefetch" href="https://rpc.ecency.com" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Preload critical fonts */}
+        <link rel="preload" href="/fonts/joystix.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         {/* JSON-LD structured data */}
         <script
           type="application/ld+json"

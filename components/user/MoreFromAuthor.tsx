@@ -15,7 +15,7 @@ import {
 } from "@chakra-ui/react";
 import { Discussion } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
-import { extractImageUrls } from "@/lib/utils/extractImages";
+import { extractImageUrls } from "@/lib/utils/extractImageUrls";
 import NextLink from "next/link";
 
 interface MoreFromAuthorProps {

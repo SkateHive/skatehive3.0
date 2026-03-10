@@ -56,6 +56,13 @@ const nextConfig = {
     compress: true,
     poweredByHeader: false,
     reactStrictMode: true,
+    
+    // Performance optimizations
+    compiler: {
+        removeConsole: process.env.NODE_ENV === 'production' ? {
+            exclude: ['error', 'warn'],
+        } : false,
+    },
 
     // Image optimization domains
     images: {

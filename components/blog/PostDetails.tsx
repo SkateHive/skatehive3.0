@@ -74,7 +74,7 @@ export default function PostDetails({
   // Extract tags for related posts
   const postTags = useMemo(() => {
     try {
-      let meta = post.json_metadata;
+      let meta: any = post.json_metadata;
       if (typeof meta === "string") meta = JSON.parse(meta);
       if (Array.isArray(meta?.tags)) {
         return meta.tags.filter((t: any) => typeof t === "string" && t.length > 1);

@@ -239,7 +239,7 @@ export default function SkatersContent() {
                 key={country}
                 cursor="pointer"
                 colorScheme={selectedCountry === country ? "green" : "gray"}
-                onClick={() => setSelectedCountry(selectedCountry === country ? null : country)}
+                onClick={() => setSelectedCountry(selectedCountry === country ? null : (country || null))}
                 fontSize="xs"
                 px={3}
                 py={1}
