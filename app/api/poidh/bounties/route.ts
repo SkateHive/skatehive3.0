@@ -155,30 +155,34 @@ async function fetchBountiesFromChain(chainId: number): Promise<any[]> {
     const count = Number(counter);
     if (count === 0) return [];
 
-    // Try to fetch up to 10 valid bounties
-    // Search in last 30 to account for cancelled/deleted ones
-    const searchRange = Math.min(count, 30);
+    // Try to fetch up to 5 valid bounties (reduced to minimize rate limits)
+    // Search in last 20 to account for cancelled/deleted ones
+    const searchRange = Math.min(count, 20);
     const startId = Math.max(1, count - searchRange + 1);
 
     const bounties = [];
 
-    // Fetch one by one, stop when we have 10 valid bounties
-    for (let id = count; id >= startId && bounties.length < 10; id--) {
+    // Fetch one by one, stop when we have 5 valid bounties
+    for (let id = count; id >= startId && bounties.length < 5; id--) {
       try {
         const bounty = await fetchBountyById(client, id, chainId);
         bounties.push(bounty);
         console.log(`[POIDH API] Successfully fetched bounty ${id}`);
 
-        // Small delay between requests
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Delay between requests to avoid rate limits (500ms)
+        await new Promise((resolve) => setTimeout(resolve, 500));
       } catch (err: any) {
         // Skip cancelled/non-existent bounties silently
         if (err.message?.includes("reverted")) {
           console.log(`[POIDH API] Bounty ${id} reverted (likely cancelled), skipping`);
+        } else if (err.message?.includes("429") || err.message?.includes("rate limit")) {
+          console.log(`[POIDH API] Rate limited on bounty ${id}, stopping search on this chain`);
+          break; // Stop searching this chain if rate limited
         } else {
           console.error(`[POIDH API] Error fetching bounty ${id}:`, err.message);
         }
-        // Continue with next bounty
+        // Delay even on errors to avoid hammering RPC
+        await new Promise((resolve) => setTimeout(resolve, 300));
       }
     }
 
