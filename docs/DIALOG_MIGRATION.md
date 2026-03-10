@@ -37,23 +37,23 @@ await alert("Success!");
    - ✅ Migrado window.prompt → SkateDialog
    - Prompt de SEO para imagens
 
+2. **AccountLinkingModal.tsx** (linhas 348, 530)
+   - ✅ Migrado 2x window.confirm → SkateDialog
+   - Merge de contas (Hive + Farcaster)
+
+3. **UserbaseIdentityLinker.tsx** (linha 189)
+   - ✅ Migrado window.confirm → SkateDialog
+   - Merge de identidades
+
 ### 🔄 Em Progresso
 
-Nenhum no momento
+Testando funcionalidade
 
 ### ⏳ Pendente
 
-2. **useFileUpload.ts** (linha 42)
+4. **useFileUpload.ts** (linha 42)
    - window.prompt (SEO prompt duplicado)
    - **Solução:** Aceitar função de prompt como parâmetro do hook
-
-3. **AccountLinkingModal.tsx** (linhas 348, 530)
-   - 2x window.confirm (merge de contas)
-   - **Prioridade:** Alta (UX crítica de autenticação)
-
-4. **UserbaseIdentityLinker.tsx** (linha 189)
-   - window.confirm (merge de identidades)
-   - **Prioridade:** Alta (UX crítica de autenticação)
 
 ### 📊 Chakra AlertDialog/Modal (auditoria pendente)
 
@@ -82,9 +82,9 @@ Arquivos que usam AlertDialog/Modal do Chakra:
 
 | Status | Count |
 |---------|-------|
-| ✅ Concluído | 1 |
-| 🔄 Em Progresso | 0 |
-| ⏳ Pendente | 3 |
+| ✅ Concluído | 3 |
+| 🔄 Em Progresso | 1 |
+| ⏳ Pendente | 1 |
 | 📊 Auditoria | ~18 |
 
 ## Próximos Passos

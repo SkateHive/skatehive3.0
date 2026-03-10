@@ -16,6 +16,7 @@ import { useAccount, useDisconnect, useSignMessage } from "wagmi";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { useTranslations } from "@/lib/i18n/hooks";
+import { useSkateDialog } from "@/hooks/useSkateDialog";
 
 interface IdentityRow {
   id: string;
@@ -51,6 +52,7 @@ export default function UserbaseIdentityLinker({
     profile: farcasterProfile,
     clearSession,
   } = useFarcasterSession();
+  const { confirm, SkateDialogComponent } = useSkateDialog();
 
   const [identities, setIdentities] = useState<IdentityRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -186,7 +188,12 @@ export default function UserbaseIdentityLinker({
       const data = await response.json();
       if (!response.ok) {
         if (response.status === 409 && data?.merge_required && data?.existing_user_id) {
-          const shouldMerge = window.confirm(t("mergeConfirm"));
+          const shouldMerge = await confirm(t("mergeConfirm"), {
+            title: "Merge Accounts",
+            confirmText: "Merge",
+            cancelText: "Cancel",
+            confirmColor: "orange.500",
+          });
           if (shouldMerge) {
             const mergeResponse = await fetch("/api/userbase/merge", {
               method: "POST",
@@ -396,6 +403,7 @@ export default function UserbaseIdentityLinker({
           </Box>
         ))}
       </VStack>
+      <SkateDialogComponent />
     </Box>
   );
 }

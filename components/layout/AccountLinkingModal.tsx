@@ -25,6 +25,7 @@ import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import {
   LinkingOpportunity,
 } from "@/hooks/useAccountLinkingOpportunities";
+import { useSkateDialog } from "@/hooks/useSkateDialog";
 
 const pulse = keyframes`
   0%, 100% { opacity: 1; }
@@ -139,6 +140,7 @@ export default function AccountLinkingModal({
   const { signMessageAsync } = useSignMessage();
   const { profile: farcasterProfile } = useFarcasterSession();
   const { bumpIdentitiesVersion, refresh: refreshUserbase, user: userbaseUser } = useUserbaseAuth();
+  const { confirm, SkateDialogComponent } = useSkateDialog();
   const refresh = useCallback(async () => {
     if (onRefresh) {
       await onRefresh();
@@ -345,8 +347,14 @@ export default function AccountLinkingModal({
       if (!verifyRes.ok) {
         if (verifyRes.status === 409 && verifyData?.merge_required) {
           // Show merge confirmation
-          const shouldMerge = window.confirm(
-            `@${handle} is already linked to another account. Merge accounts?\n\nThis will combine all identities into your current account.`
+          const shouldMerge = await confirm(
+            `@${handle} is already linked to another account. Merge accounts?\n\nThis will combine all identities into your current account.`,
+            {
+              title: "Merge Accounts",
+              confirmText: "Merge",
+              cancelText: "Cancel",
+              confirmColor: "orange.500",
+            }
           );
 
           if (!shouldMerge) {
@@ -527,8 +535,14 @@ export default function AccountLinkingModal({
       // Handle merge if needed (same pattern as Hive)
       if (!res.ok) {
         if (res.status === 409 && data?.merge_required) {
-          const shouldMerge = window.confirm(
-            `@${displayHandle} (FID: ${externalId}) is already linked to another account. Merge accounts?\n\nThis will combine all identities into your current account.`
+          const shouldMerge = await confirm(
+            `@${displayHandle} (FID: ${externalId}) is already linked to another account. Merge accounts?\n\nThis will combine all identities into your current account.`,
+            {
+              title: "Merge Accounts",
+              confirmText: "Merge",
+              cancelText: "Cancel",
+              confirmColor: "orange.500",
+            }
           );
 
           if (!shouldMerge) {
@@ -849,6 +863,7 @@ export default function AccountLinkingModal({
           </VStack>
         </Box>
       )}
+      <SkateDialogComponent />
     </SkateModal>
   );
 }
