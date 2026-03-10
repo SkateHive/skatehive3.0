@@ -61,8 +61,13 @@ export const POIDH_ABI = [
   },
 ] as const;
 
-export const POIDH_CONTRACT_ADDRESS =
-  "0xdffe8a4a4103f968ffd61fd082d08c41dcf9b940" as const;
+// POIDH v3 Contract Addresses (deployed Jan-19-2026)
+// Source: https://docs.poidh.xyz/deployment.html#mainnet
+export const POIDH_CONTRACT_ADDRESSES = {
+  42161: "0x5555Fa783936C260f77385b4E153B9725feF1719", // Arbitrum
+  8453: "0x5555Fa783936C260f77385b4E153B9725feF1719", // Base
+  666666666: "0x18E5585ca7cE31b90Bc8BB7aAf84152857cE243f", // Degen Chain
+} as const;
 
 export const POIDH_CHAINS = {
   arbitrum: 42161,

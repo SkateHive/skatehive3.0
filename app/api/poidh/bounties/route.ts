@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
 import { arbitrum, base } from "viem/chains";
-import { POIDH_ABI, POIDH_CONTRACT_ADDRESS } from "@/lib/contracts/poidhAbi";
+import { POIDH_ABI, POIDH_CONTRACT_ADDRESSES } from "@/lib/contracts/poidhAbi";
 
 // Degen chain config
 const degen = {
@@ -140,9 +140,14 @@ async function fetchBountiesFromChain(chainId: number): Promise<any[]> {
   });
 
   try {
+    // Get contract address for this chain
+    const contractAddress = POIDH_CONTRACT_ADDRESSES[
+      chainId as keyof typeof POIDH_CONTRACT_ADDRESSES
+    ];
+
     // Get total bounty count
     const counter = (await client.readContract({
-      address: POIDH_CONTRACT_ADDRESS,
+      address: contractAddress as `0x${string}`,
       abi: POIDH_ABI,
       functionName: "bountyCounter",
     })) as bigint;
@@ -182,8 +187,12 @@ async function fetchBountyById(
   id: number,
   chainId: number
 ): Promise<any> {
+  const contractAddress = POIDH_CONTRACT_ADDRESSES[
+    chainId as keyof typeof POIDH_CONTRACT_ADDRESSES
+  ] as `0x${string}`;
+
   const bounty = (await client.readContract({
-    address: POIDH_CONTRACT_ADDRESS,
+    address: contractAddress,
     abi: POIDH_ABI,
     functionName: "getBounty",
     args: [BigInt(id)],
@@ -193,7 +202,7 @@ async function fetchBountyById(
   let claimIds: number[] = [];
   try {
     const claims = (await client.readContract({
-      address: POIDH_CONTRACT_ADDRESS,
+      address: contractAddress,
       abi: POIDH_ABI,
       functionName: "bountyClaims",
       args: [BigInt(id)],
