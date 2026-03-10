@@ -6,9 +6,9 @@ import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 const BASE_URL = APP_CONFIG.BASE_URL;
 
 export const metadata: Metadata = {
-  title: "Skate Spot Map — Find Skateparks & Street Spots Near You",
+  title: "Find Skateparks Near You | Interactive Skate Spot Map 🛹",
   description:
-    "Find skateparks, street spots, and DIY spots worldwide on the Skatehive Skate Map. Community-built by skaters, for skaters. Add your local spots and discover new ones to shred.",
+    "Free interactive map of 1000+ skateparks, street spots & DIY spots worldwide. Search by city, see photos, add your local spots. Built by skaters, for skaters. Find your next session now!",
   keywords: [
     "skate spot map",
     "skate map",

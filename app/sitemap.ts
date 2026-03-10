@@ -220,6 +220,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${baseUrl}/skateshops`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
         { url: `${baseUrl}/videos`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
         { url: `${baseUrl}/skaters`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+        { url: `${baseUrl}/spots`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+        { url: `${baseUrl}/dao`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 },
         { url: `${baseUrl}/map/near-me`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
         { url: `${baseUrl}/games`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
         { url: `${baseUrl}/games/quest-for-stoken`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
