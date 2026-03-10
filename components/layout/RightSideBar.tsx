@@ -7,6 +7,8 @@ import {
   Skeleton,
   SkeletonCircle,
   Spinner,
+  Text,
+  Link as ChakraLink,
 } from "@chakra-ui/react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Discussion } from "@hiveio/dhive";
@@ -15,6 +17,7 @@ import PostGrid from "@/components/blog/PostGrid";
 import { filterAutoComments } from "@/lib/utils/postUtils";
 import { CommunityTotalPayout } from "../shared";
 import { getHiveTagForQuery } from "@/lib/hive/tag-utils";
+import NextLink from "next/link";
 
 export default function RightSideBar() {
   const [allPosts, setAllPosts] = useState<Discussion[]>([]);
@@ -165,6 +168,39 @@ export default function RightSideBar() {
       }}
     >
       <CommunityTotalPayout />
+      <Divider my={2} borderColor="muted" />
+      
+      {/* Skate Map CTA */}
+      <NextLink href="/map" passHref legacyBehavior>
+        <ChakraLink
+          display="block"
+          bg="rgba(167, 255, 0, 0.05)"
+          border="1px solid"
+          borderColor="primary"
+          borderRadius="lg"
+          p={4}
+          mb={4}
+          textDecoration="none"
+          transition="all 0.3s"
+          _hover={{
+            bg: "rgba(167, 255, 0, 0.15)",
+            borderColor: "accent",
+            transform: "translateY(-2px)",
+            boxShadow: "0 4px 12px rgba(167, 255, 0, 0.2)",
+          }}
+        >
+          <Flex align="center" mb={2}>
+            <Text fontSize="2xl" mr={2}>🗺️</Text>
+            <Text fontWeight="bold" color="primary" fontSize="lg">
+              Find Skate Spots
+            </Text>
+          </Flex>
+          <Text fontSize="sm" color="gray.400">
+            Discover skateparks, street spots &amp; DIY spots near you. Community-built map with 1000+ locations worldwide.
+          </Text>
+        </ChakraLink>
+      </NextLink>
+      
       <Divider my={2} borderColor="muted" />
       {allPosts.length > 0 ? (
         <PostGrid posts={allPosts} columns={1} />
