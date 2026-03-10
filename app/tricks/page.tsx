@@ -3,6 +3,7 @@ import Link from "next/link";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import HiveClient from "@/lib/hive/hiveclient";
+import TricksPageWrapper from "@/components/tricks/TricksPageWrapper";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 
@@ -174,14 +175,15 @@ export default async function TricksPage() {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }}
             />
-            <div
-                style={{
-                    maxWidth: "1000px",
-                    margin: "0 auto",
-                    padding: "24px 16px",
-                    minHeight: "100vh",
-                }}
-            >
+            <TricksPageWrapper>
+                <div
+                    style={{
+                        maxWidth: "1000px",
+                        margin: "0 auto",
+                        padding: "24px 16px",
+                        minHeight: "100vh",
+                    }}
+                >
                 <header style={{ textAlign: "center", marginBottom: "32px" }}>
                     <h1
                         style={{
@@ -301,6 +303,7 @@ export default async function TricksPage() {
                     </p>
                 </section>
             </div>
+            </TricksPageWrapper>
         </>
     );
 }

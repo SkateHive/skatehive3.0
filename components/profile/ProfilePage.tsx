@@ -39,6 +39,7 @@ import { useViewerHiveIdentity } from "@/hooks/useViewerHiveIdentity";
 import { useTranslations } from "@/lib/i18n/hooks";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { Discussion } from "@hiveio/dhive";
+import MoreFromAuthor from "@/components/user/MoreFromAuthor";
 
 // Memoized SnapsGrid to prevent unnecessary re-renders
 const MemoizedSnapsGrid = memo(function MemoizedSnapsGrid({
@@ -737,6 +738,11 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               farcasterFid={farcasterIdentityFid ? parseInt(farcasterIdentityFid, 10) : null}
               farcasterUsername={farcasterIdentityHandle}
             />
+
+            {/* More From Author - Show on posts view */}
+            {viewMode === 'posts' && (canShowHiveViews || hasSoftSnaps) && (
+              <MoreFromAuthor author={hivePostsHandle || username} limit={6} />
+            )}
           </Box>
         </Container>
       </Center>
