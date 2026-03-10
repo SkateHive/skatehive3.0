@@ -155,22 +155,29 @@ async function fetchBountiesFromChain(chainId: number): Promise<any[]> {
     const count = Number(counter);
     if (count === 0) return [];
 
-    // Fetch only last 10 bounties per chain (reduced to minimize rate limits)
-    const maxBounties = Math.min(count, 10);
-    const startId = Math.max(1, count - maxBounties + 1);
+    // Try to fetch up to 10 valid bounties
+    // Search in last 30 to account for cancelled/deleted ones
+    const searchRange = Math.min(count, 30);
+    const startId = Math.max(1, count - searchRange + 1);
 
     const bounties = [];
 
-    // Fetch one by one with delay to avoid rate limits
-    for (let id = startId; id <= count; id++) {
+    // Fetch one by one, stop when we have 10 valid bounties
+    for (let id = count; id >= startId && bounties.length < 10; id--) {
       try {
         const bounty = await fetchBountyById(client, id, chainId);
         bounties.push(bounty);
+        console.log(`[POIDH API] Successfully fetched bounty ${id}`);
 
         // Small delay between requests
         await new Promise((resolve) => setTimeout(resolve, 100));
-      } catch (err) {
-        console.error(`Error fetching bounty ${id}:`, err);
+      } catch (err: any) {
+        // Skip cancelled/non-existent bounties silently
+        if (err.message?.includes("reverted")) {
+          console.log(`[POIDH API] Bounty ${id} reverted (likely cancelled), skipping`);
+        } else {
+          console.error(`[POIDH API] Error fetching bounty ${id}:`, err.message);
+        }
         // Continue with next bounty
       }
     }
