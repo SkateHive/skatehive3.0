@@ -3,6 +3,7 @@
 import React, { useState, useRef, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { useSkateDialog } from "@/hooks/useSkateDialog";
 import {
   Box,
   Textarea,
@@ -91,6 +92,7 @@ const SnapComposer = React.memo(function SnapComposer({
   const linkedHiveHandle = userbaseHiveIdentity?.handle || null;
   const toast = useToast();
   const t = useTranslations();
+  const { prompt, SkateDialogComponent } = useSkateDialog();
   const postBodyRef = useRef<HTMLTextAreaElement>(null);
   const [selectedGif, setSelectedGif] = useState<IGif | null>(null);
   const [isGiphyModalOpen, setGiphyModalOpen] = useState(false);
@@ -274,9 +276,14 @@ const SnapComposer = React.memo(function SnapComposer({
       console.log('🖼️ [SnapComposer] Created file:', file.name, 'type:', file.type, 'size:', file.size);
       
       // SEO: Prompt user for image description
-      const userDescription = window.prompt(
-        'Describe this image (for SEO & accessibility):\n\nTip: Be specific! Example: "Kickflip at Venice Skatepark"',
-        ''
+      const userDescription = await prompt(
+        'Describe this image (for SEO & accessibility):',
+        {
+          tip: 'Tip: Be specific! Example: "Kickflip at Venice Skatepark"',
+          placeholder: 'Type your description here...',
+          confirmText: 'OK',
+          confirmColor: 'limegreen',
+        }
       );
       
       // Generate alt text (caption)
@@ -1348,6 +1355,9 @@ const SnapComposer = React.memo(function SnapComposer({
         onMediaDownloaded={handleInstagramMediaDownloaded}
         healthStatus={instagramHealth}
       />
+
+      {/* SkateDialog Component */}
+      <SkateDialogComponent />
 
       {/* Matrix Overlay and login prompt if not logged in */}
       {!effectiveUser && <></>}

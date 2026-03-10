@@ -1,5 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Fetch NFTs from Basescan API (Base chain only)
+async function fetchBaseNFTs(address: string, apiKey: string) {
+  try {
+    const url = `https://api.basescan.org/api?module=account&action=addresstokennftinventory&address=${address}&apikey=${apiKey}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (data.status !== '1' || !Array.isArray(data.result)) {
+      return [];
+    }
+
+    // Transform Basescan NFT format to KeepKey format
+    return data.result.map((nft: any) => ({
+      tokenId: nft.TokenId,
+      rarityRank: null,
+      token: {
+        name: nft.TokenName || '',
+        medias: [],
+        estimatedValueEth: '0',
+        collection: {
+          name: nft.TokenName || 'Unknown Collection',
+          address: nft.ContractAddress?.toLowerCase() || '',
+          network: 'base',
+          floorPriceEth: '0',
+        },
+      },
+    }));
+  } catch (error) {
+    console.error('Error fetching Base NFTs from Basescan:', error);
+    return [];
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ address: string }> }
@@ -14,6 +47,9 @@ export async function GET(
   }
 
   try {
+    const basescanApiKey = process.env.BASESCAN_API_KEY;
+
+    // Fetch from KeepKey (tokens + other chains)
     const apiUrl = `https://api.keepkey.info/api/v1/zapper/portfolio/${address}`;
     
     const response = await fetch(apiUrl, {
@@ -35,6 +71,12 @@ export async function GET(
     }
 
     const rawData = await response.json();
+
+    // Fetch Base NFTs from Basescan if API key is available
+    let baseNFTs: any[] = [];
+    if (basescanApiKey) {
+      baseNFTs = await fetchBaseNFTs(address, basescanApiKey);
+    }
 
     const addressLower = address.toLowerCase();
     const rawBalances = Array.isArray(rawData.balances) ? rawData.balances : [];
@@ -108,8 +150,11 @@ export async function GET(
       return symbol === "eth" && tokenPrice > 0 ? tokenPrice : 0;
     }, 0);
 
+    // Merge KeepKey NFTs with Basescan NFTs
     const rawNfts = Array.isArray(rawData.nfts) ? rawData.nfts : [];
-    const transformedNfts = rawNfts.map((nft: any) => {
+    const allNfts = [...rawNfts, ...baseNFTs];
+    
+    const transformedNfts = allNfts.map((nft: any) => {
       const estimatedUsd = Number(nft.estimatedValue?.valueUsd ?? 0);
       const estimatedEth = ethPriceUsd > 0 ? estimatedUsd / ethPriceUsd : 0;
       const estimatedEthString = estimatedEth.toString();
