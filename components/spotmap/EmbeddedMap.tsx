@@ -293,31 +293,6 @@ export default function EmbeddedMap({
           </Box>
         </Box>
 
-        {/* SEO Content Section — visible text for search engines */}
-        <Box
-          p={{ base: 3, md: 4 }}
-          pt={2}
-          maxW="4xl"
-          mx="auto"
-          mb={4}
-        >
-          <Box
-            bg="rgba(20,20,20,0.3)"
-            border="1px solid"
-            borderColor="whiteAlpha.100"
-            borderRadius="lg"
-            p={{ base: 3, md: 4 }}
-          >
-            <Text fontSize={{ base: "sm", md: "md" }} color="gray.300" lineHeight="tall">
-              <Text as="strong" color="primary">The Skatehive Skate Map</Text> is your ultimate guide to finding skateparks, 
-              street spots, and DIY skate spots worldwide. Built by skaters, for skaters — our community-powered map helps you 
-              discover new places to skate in your city or anywhere around the globe. Search by location, browse nearby spots, 
-              or add your local skatepark to share with the global skating community. Free, open, and constantly growing with 
-              contributions from skaters everywhere. Find your next session spot now!
-            </Text>
-          </Box>
-        </Box>
-
         {/* Map Section — full width */}
         <Box
           p={{ base: 2, md: 4 }}
