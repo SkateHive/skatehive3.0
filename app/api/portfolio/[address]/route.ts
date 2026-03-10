@@ -1,34 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Fetch NFTs from Basescan API (Base chain only)
-async function fetchBaseNFTs(address: string, apiKey: string) {
+// Fetch NFTs from Alchemy API (Base chain only)
+async function fetchAlchemyNFTs(address: string, apiKey: string) {
   try {
-    const url = `https://api.basescan.org/api?module=account&action=addresstokennftinventory&address=${address}&apikey=${apiKey}`;
+    const url = `https://base-mainnet.g.alchemy.com/nft/v3/${apiKey}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=100`;
     const response = await fetch(url);
-    const data = await response.json();
     
-    if (data.status !== '1' || !Array.isArray(data.result)) {
+    if (!response.ok) {
+      console.error(`Alchemy API error: ${response.status}`);
       return [];
     }
 
-    // Transform Basescan NFT format to KeepKey format
-    return data.result.map((nft: any) => ({
-      tokenId: nft.TokenId,
+    const data = await response.json();
+    
+    if (!data.ownedNfts || !Array.isArray(data.ownedNfts)) {
+      return [];
+    }
+
+    // Transform Alchemy NFT format to KeepKey format
+    return data.ownedNfts.map((nft: any) => ({
+      tokenId: nft.tokenId || '0',
       rarityRank: null,
       token: {
-        name: nft.TokenName || '',
-        medias: [],
+        name: nft.name || nft.title || '',
+        medias: nft.image?.cachedUrl ? [{ url: nft.image.cachedUrl }] : [],
         estimatedValueEth: '0',
         collection: {
-          name: nft.TokenName || 'Unknown Collection',
-          address: nft.ContractAddress?.toLowerCase() || '',
+          name: nft.contract?.name || nft.contract?.openSeaMetadata?.collectionName || 'Unknown Collection',
+          address: nft.contract?.address?.toLowerCase() || '',
           network: 'base',
-          floorPriceEth: '0',
+          floorPriceEth: nft.contract?.openSeaMetadata?.floorPrice?.toString() || '0',
         },
       },
     }));
   } catch (error) {
-    console.error('Error fetching Base NFTs from Basescan:', error);
+    console.error('Error fetching Base NFTs from Alchemy:', error);
     return [];
   }
 }
@@ -47,7 +53,7 @@ export async function GET(
   }
 
   try {
-    const basescanApiKey = process.env.BASESCAN_API_KEY;
+    const alchemyApiKey = process.env.NEXT_PUBLIC_ALCHEMY_KEY;
 
     // Fetch from KeepKey (tokens + other chains)
     const apiUrl = `https://api.keepkey.info/api/v1/zapper/portfolio/${address}`;
@@ -72,10 +78,14 @@ export async function GET(
 
     const rawData = await response.json();
 
-    // Fetch Base NFTs from Basescan if API key is available
+    // Fetch Base NFTs from Alchemy if API key is available
     let baseNFTs: any[] = [];
-    if (basescanApiKey) {
-      baseNFTs = await fetchBaseNFTs(address, basescanApiKey);
+    if (alchemyApiKey) {
+      console.log(`[Portfolio API] Fetching Base NFTs for ${address} via Alchemy`);
+      baseNFTs = await fetchAlchemyNFTs(address, alchemyApiKey);
+      console.log(`[Portfolio API] Alchemy returned ${baseNFTs.length} NFTs`);
+    } else {
+      console.warn('[Portfolio API] NEXT_PUBLIC_ALCHEMY_KEY not found in env');
     }
 
     const addressLower = address.toLowerCase();
