@@ -63,9 +63,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Determine which chains to fetch
+    // Default: Base only (most active, less rate limit issues)
+    // Use ?chains=all for all chains
     const chainIds = chainIdParam
       ? [parseInt(chainIdParam)]
-      : [arbitrum.id, base.id, degen.id];
+      : [base.id]; // Base only by default
 
     const allBounties = [];
 
