@@ -45,15 +45,21 @@ await alert("Success!");
    - ✅ Migrado window.confirm → SkateDialog
    - Merge de identidades
 
+4. **useFileUpload.ts** (linha 42)
+   - ✅ Refatorado para aceitar callback `onRequestDescription`
+   - Fallback para window.prompt (compatibilidade)
+
+5. **app/compose/page.tsx**
+   - ✅ Migrado para usar SkateDialog via useImageUpload + callback
+   - Prompt de SEO para imagens
+
 ### 🔄 Em Progresso
 
-Testando funcionalidade
+Nenhum no momento
 
 ### ⏳ Pendente
 
-4. **useFileUpload.ts** (linha 42)
-   - window.prompt (SEO prompt duplicado)
-   - **Solução:** Aceitar função de prompt como parâmetro do hook
+Nenhum (window.* dialogs totalmente migrados!)
 
 ### 📊 Chakra AlertDialog/Modal (auditoria pendente)
 
@@ -82,10 +88,12 @@ Arquivos que usam AlertDialog/Modal do Chakra:
 
 | Status | Count |
 |---------|-------|
-| ✅ Concluído | 3 |
-| 🔄 Em Progresso | 1 |
-| ⏳ Pendente | 1 |
-| 📊 Auditoria | ~18 |
+| ✅ Concluído | 5 |
+| 🔄 Em Progresso | 0 |
+| ⏳ Pendente | 0 |
+| 📊 Auditoria | ~18 (optional) |
+
+**🎉 Todos os window.* dialogs nativos migrados para SkateDialog!**
 
 ## Próximos Passos
 

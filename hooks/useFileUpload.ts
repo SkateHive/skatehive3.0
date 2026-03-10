@@ -6,7 +6,16 @@ import { extractExif, exifToAltText } from "@/lib/utils/exifExtractor";
 import { cleanFilename } from "@/lib/seo/metadataGenerator";
 
 // Optimized hook with better error handling and progress tracking
-export const useImageUpload = (insertAtCursor: (content: string) => void) => {
+export const useImageUpload = (
+    insertAtCursor: (content: string) => void,
+    options?: {
+        onRequestDescription?: (message: string, config?: {
+            tip?: string;
+            placeholder?: string;
+            defaultValue?: string;
+        }) => Promise<string | null>;
+    }
+) => {
     const [isUploading, setIsUploading] = useState(false);
     const [isCompressingImage, setIsCompressingImage] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -39,10 +48,25 @@ export const useImageUpload = (insertAtCursor: (content: string) => void) => {
             let altText = '';
             
             // 1. Try to get user description (SEO + accessibility)
-            const userDescription = window.prompt(
-                'Describe this image (for SEO & accessibility):\n\nTip: Be specific! Example: "Kickflip at Venice Skatepark"',
-                ''
-            );
+            let userDescription: string | null = null;
+            
+            if (options?.onRequestDescription) {
+                // Use custom dialog (e.g., SkateDialog)
+                userDescription = await options.onRequestDescription(
+                    'Describe this image (for SEO & accessibility):',
+                    {
+                        tip: 'Tip: Be specific! Example: "Kickflip at Venice Skatepark"',
+                        placeholder: 'Type your description here...',
+                        defaultValue: '',
+                    }
+                );
+            } else {
+                // Fallback to native prompt
+                userDescription = window.prompt(
+                    'Describe this image (for SEO & accessibility):\n\nTip: Be specific! Example: "Kickflip at Venice Skatepark"',
+                    ''
+                );
+            }
             
             if (userDescription && userDescription.trim()) {
                 altText = userDescription.trim();

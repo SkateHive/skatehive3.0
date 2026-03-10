@@ -32,9 +32,11 @@ import { useDropzone } from "react-dropzone";
 import { APP_CONFIG } from "@/config/app.config";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
+import { useSkateDialog } from "@/hooks/useSkateDialog";
 
 export default function Composer() {
   const t = useTranslations();
+  const { prompt, SkateDialogComponent } = useSkateDialog();
   const {
     markdown,
     setMarkdown,
@@ -115,7 +117,9 @@ export default function Composer() {
     isCompressingImage,
     createImageTrigger,
     setIsUploading: setIsImageUploading,
-  } = useImageUpload(insertAtCursorWrapper);
+  } = useImageUpload(insertAtCursorWrapper, {
+    onRequestDescription: prompt,
+  });
 
   const {
     isCompressingVideo,
@@ -516,6 +520,7 @@ export default function Composer() {
           </Button>
         </Tooltip>
       </Flex>
+      <SkateDialogComponent />
     </Flex>
   );
 }
