@@ -740,7 +740,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
             />
 
             {/* More From Author - Show on posts view */}
-            {viewMode === 'posts' && (canShowHiveViews || hasSoftSnaps) && (
+            {viewMode === 'snaps' && (canShowHiveViews || hasSoftSnaps) && (
               <MoreFromAuthor author={hivePostsHandle || username} limit={6} />
             )}
           </Box>
