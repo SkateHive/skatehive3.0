@@ -20,7 +20,7 @@ import {
 import { usePoidhBounties } from '@/hooks/usePoidhBounties';
 import { PoidhBountyCard } from './PoidhBountyCard';
 
-function BountyListContent({ status }: { status: 'open' | 'past' }) {
+function BountyListContent({ status, embedded }: { status: 'open' | 'past'; embedded?: boolean }) {
   const { bounties, loading, error, hasMore, loadMore } = usePoidhBounties({
     status,
     filterSkate: true
@@ -81,21 +81,24 @@ function BountyListContent({ status }: { status: 'open' | 'past' }) {
   return (
     <VStack gap={6} align="stretch">
       {/* Header */}
-      <HStack justify="space-between" align="center">
-        <Text fontSize="md" color="textSecondary">
-          Showing <Text as="span" fontWeight="bold" color="text">{bounties.length}</Text> {bounties.length === 1 ? 'bounty' : 'bounties'}
-        </Text>
-        <Button
-          as="a"
-          href="https://poidh.xyz"
-          target="_blank"
-          size="sm"
-          variant="ghost"
-          colorScheme="brand"
-        >
-          + Create Bounty
-        </Button>
-      </HStack>
+      {!embedded && (
+        <HStack justify="space-between" align="center">
+          <Text fontSize="md" color="textSecondary">
+            Showing <Text as="span" fontWeight="bold" color="text">{bounties.length}</Text>{' '}
+            {bounties.length === 1 ? 'bounty' : 'bounties'}
+          </Text>
+          <Button
+            as="a"
+            href="https://poidh.xyz"
+            target="_blank"
+            size="sm"
+            variant="ghost"
+            colorScheme="brand"
+          >
+            + Create Bounty
+          </Button>
+        </HStack>
+      )}
 
       {/* Grid */}
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={6}>
@@ -130,7 +133,7 @@ function BountyListContent({ status }: { status: 'open' | 'past' }) {
   );
 }
 
-export function PoidhBountyList() {
+export function PoidhBountyList({ embedded = false }: { embedded?: boolean }) {
   return (
     <Tabs variant="unstyled">
       <TabList
@@ -175,10 +178,10 @@ export function PoidhBountyList() {
 
       <TabPanels>
         <TabPanel px={0} pt={6}>
-          <BountyListContent status="open" />
+          <BountyListContent status="open" embedded={embedded} />
         </TabPanel>
         <TabPanel px={0} pt={6}>
-          <BountyListContent status="past" />
+          <BountyListContent status="past" embedded={embedded} />
         </TabPanel>
       </TabPanels>
     </Tabs>

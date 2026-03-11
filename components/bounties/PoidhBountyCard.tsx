@@ -6,10 +6,29 @@ interface PoidhBountyCardProps {
   bounty: PoidhBounty;
 }
 
+const CHAIN_LABEL: Record<number, string> = {
+  8453: 'Base',
+  42161: 'Arbitrum',
+};
+
+const CHAIN_PATH: Record<number, string> = {
+  8453: 'base',
+  42161: 'arbitrum',
+};
+
+function getPoidhUrl(bounty: PoidhBounty) {
+  const chainId = bounty.chainId;
+  if (!chainId) return `https://poidh.xyz`; // fallback
+  const path = CHAIN_PATH[chainId];
+  if (!path) return `https://poidh.xyz`;
+  return `https://poidh.xyz/${path}/bounty/${bounty.id}`;
+}
+
 export function PoidhBountyCard({ bounty }: PoidhBountyCardProps) {
   const amountInEth = formatEther(BigInt(bounty.amount));
   const isActive = !bounty.claimer;
   const createdDate = new Date(bounty.createdAt * 1000).toLocaleDateString();
+  const chainId = bounty.chainId;
 
   return (
     <Box
@@ -18,10 +37,10 @@ export function PoidhBountyCard({ bounty }: PoidhBountyCardProps) {
       borderRadius="xl"
       p={5}
       bg="background"
-      _hover={{ 
-        borderColor: 'primary', 
+      _hover={{
+        borderColor: 'primary',
         transform: 'translateY(-4px)',
-        shadow: 'lg'
+        shadow: 'lg',
       }}
       transition="all 0.2s"
       height="100%"
@@ -31,15 +50,22 @@ export function PoidhBountyCard({ bounty }: PoidhBountyCardProps) {
       <VStack align="stretch" gap={4} flex="1">
         {/* Header */}
         <HStack justify="space-between">
-          <Badge 
-            colorScheme={isActive ? 'green' : 'gray'} 
-            fontSize="xs"
-            px={2}
-            py={1}
-            borderRadius="md"
-          >
-            {isActive ? '🟢 Active' : '✅ Claimed'}
-          </Badge>
+          <HStack gap={2}>
+            <Badge
+              colorScheme={isActive ? 'green' : 'gray'}
+              fontSize="xs"
+              px={2}
+              py={1}
+              borderRadius="md"
+            >
+              {isActive ? '🟢 Active' : '✅ Claimed'}
+            </Badge>
+            {chainId && CHAIN_LABEL[chainId] && (
+              <Badge fontSize="xs" px={2} py={1} borderRadius="md" colorScheme="purple">
+                {CHAIN_LABEL[chainId]}
+              </Badge>
+            )}
+          </HStack>
           <Text fontSize="xs" color="textSecondary">
             {createdDate}
           </Text>
@@ -56,13 +82,7 @@ export function PoidhBountyCard({ bounty }: PoidhBountyCardProps) {
         </Text>
 
         {/* Reward */}
-        <Box 
-          bg="surfaceVariant" 
-          p={3} 
-          borderRadius="lg"
-          borderWidth="1px"
-          borderColor="border"
-        >
+        <Box bg="surfaceVariant" p={3} borderRadius="lg" borderWidth="1px" borderColor="border">
           <VStack align="start" gap={1}>
             <Text fontSize="xs" color="textSecondary" fontWeight="medium">
               Reward
@@ -72,7 +92,7 @@ export function PoidhBountyCard({ bounty }: PoidhBountyCardProps) {
                 {parseFloat(amountInEth).toFixed(4)}
               </Text>
               <Text fontSize="sm" color="textSecondary" fontWeight="medium">
-                ETH (Base)
+                ETH
               </Text>
             </HStack>
           </VStack>
@@ -90,7 +110,7 @@ export function PoidhBountyCard({ bounty }: PoidhBountyCardProps) {
 
           <Button
             as={Link}
-            href={`https://poidh.xyz/bounty/${bounty.id}`}
+            href={getPoidhUrl(bounty)}
             isExternal
             size="sm"
             colorScheme="brand"

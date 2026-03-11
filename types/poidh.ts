@@ -9,6 +9,7 @@ export interface PoidhBounty {
   createdAt: number;
   claimId: number;
   isOpenBounty: boolean;
+  chainId?: number; // 8453 Base, 42161 Arbitrum
   participants?: {
     addresses: string[];
     amounts: string[];
