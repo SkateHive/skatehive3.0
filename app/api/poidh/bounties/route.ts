@@ -24,9 +24,14 @@ const SKATE_KEYWORDS = [
   'halfpipe'
 ];
 
+const ALCHEMY_KEY = process.env.NEXT_PUBLIC_ALCHEMY_KEY;
+const RPC_URL = ALCHEMY_KEY 
+  ? `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`
+  : 'https://mainnet.base.org';
+
 const client = createPublicClient({
   chain: base,
-  transport: http('https://mainnet.base.org', {
+  transport: http(RPC_URL, {
     timeout: 10_000, // 10 second timeout
     retryCount: 2
   })
