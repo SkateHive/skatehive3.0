@@ -453,14 +453,7 @@ export default async function TrickPage({ params }: Props) {
                                     textAlign: "center",
                                     fontSize: "0.9rem",
                                 }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.borderColor = "#a7ff00";
-                                    e.currentTarget.style.background = "rgba(167,255,0,0.1)";
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.borderColor = "rgba(167,255,0,0.2)";
-                                    e.currentTarget.style.background = "rgba(0,0,0,0.3)";
-                                }}
+
                             >
                                 {relatedTrick.name}
                             </Link>
