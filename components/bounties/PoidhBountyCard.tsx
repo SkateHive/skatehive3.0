@@ -1,4 +1,4 @@
-import { Box, Text, Badge, HStack, VStack, Link, Tooltip } from '@chakra-ui/react';
+import { Box, Text, Badge, HStack, VStack, Link, Tooltip, Button } from '@chakra-ui/react';
 import { formatEther } from 'viem';
 import type { PoidhBounty } from '@/types/poidh';
 
@@ -13,18 +13,32 @@ export function PoidhBountyCard({ bounty }: PoidhBountyCardProps) {
 
   return (
     <Box
-      borderWidth="1px"
-      borderRadius="lg"
-      p={4}
-      bg={isActive ? 'bg' : 'gray.50'}
-      _hover={{ borderColor: 'primary', transform: 'translateY(-2px)' }}
+      borderWidth="2px"
+      borderColor="border"
+      borderRadius="xl"
+      p={5}
+      bg="background"
+      _hover={{ 
+        borderColor: 'primary', 
+        transform: 'translateY(-4px)',
+        shadow: 'lg'
+      }}
       transition="all 0.2s"
+      height="100%"
+      display="flex"
+      flexDirection="column"
     >
-      <VStack align="stretch" gap={3}>
+      <VStack align="stretch" gap={4} flex="1">
         {/* Header */}
         <HStack justify="space-between">
-          <Badge colorScheme={isActive ? 'green' : 'gray'} fontSize="xs">
-            {isActive ? 'Active' : 'Claimed'}
+          <Badge 
+            colorScheme={isActive ? 'green' : 'gray'} 
+            fontSize="xs"
+            px={2}
+            py={1}
+            borderRadius="md"
+          >
+            {isActive ? '🟢 Active' : '✅ Claimed'}
           </Badge>
           <Text fontSize="xs" color="textSecondary">
             {createdDate}
@@ -32,50 +46,60 @@ export function PoidhBountyCard({ bounty }: PoidhBountyCardProps) {
         </HStack>
 
         {/* Title */}
-        <Text fontWeight="bold" fontSize="lg" noOfLines={2}>
+        <Text fontWeight="bold" fontSize="xl" noOfLines={2} color="text">
           {bounty.name}
         </Text>
 
         {/* Description */}
-        <Text fontSize="sm" color="textSecondary" noOfLines={3}>
+        <Text fontSize="sm" color="textSecondary" noOfLines={4} flex="1">
           {bounty.description}
         </Text>
 
-        {/* Footer */}
-        <HStack justify="space-between" pt={2} borderTopWidth="1px">
-          <VStack align="start" gap={0}>
-            <Text fontSize="xs" color="textSecondary">
+        {/* Reward */}
+        <Box 
+          bg="surfaceVariant" 
+          p={3} 
+          borderRadius="lg"
+          borderWidth="1px"
+          borderColor="border"
+        >
+          <VStack align="start" gap={1}>
+            <Text fontSize="xs" color="textSecondary" fontWeight="medium">
               Reward
             </Text>
             <HStack>
-              <Text fontWeight="bold" fontSize="md" color="primary">
-                {parseFloat(amountInEth).toFixed(4)} ETH
+              <Text fontWeight="bold" fontSize="2xl" color="primary">
+                {parseFloat(amountInEth).toFixed(4)}
               </Text>
-              <Text fontSize="xs" color="textSecondary">
-                (Base)
+              <Text fontSize="sm" color="textSecondary" fontWeight="medium">
+                ETH (Base)
               </Text>
             </HStack>
           </VStack>
+        </Box>
 
+        {/* Footer */}
+        <HStack justify="space-between" pt={2}>
           {bounty.claimCount !== undefined && bounty.claimCount > 0 && (
             <Tooltip label={`${bounty.claimCount} claim${bounty.claimCount > 1 ? 's' : ''} submitted`}>
-              <Badge colorScheme="blue" fontSize="xs">
-                {bounty.claimCount} {bounty.claimCount === 1 ? 'claim' : 'claims'}
+              <Badge colorScheme="blue" fontSize="xs" px={2} py={1}>
+                📋 {bounty.claimCount} {bounty.claimCount === 1 ? 'claim' : 'claims'}
               </Badge>
             </Tooltip>
           )}
-        </HStack>
 
-        {/* Link to POIDH */}
-        <Link
-          href={`https://poidh.xyz/bounty/${bounty.id}`}
-          isExternal
-          fontSize="sm"
-          color="primary"
-          textDecor="underline"
-        >
-          View on POIDH →
-        </Link>
+          <Button
+            as={Link}
+            href={`https://poidh.xyz/bounty/${bounty.id}`}
+            isExternal
+            size="sm"
+            colorScheme="brand"
+            variant="outline"
+            _hover={{ textDecor: 'none' }}
+          >
+            View on POIDH →
+          </Button>
+        </HStack>
       </VStack>
     </Box>
   );
