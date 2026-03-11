@@ -26,7 +26,10 @@ const SKATE_KEYWORDS = [
 
 const client = createPublicClient({
   chain: base,
-  transport: http()
+  transport: http('https://mainnet.base.org', {
+    timeout: 10_000, // 10 second timeout
+    retryCount: 2
+  })
 });
 
 function isSkateRelated(name: string, description: string): boolean {
@@ -55,14 +58,14 @@ export async function GET(req: NextRequest) {
       args: [BigInt(offset)]
     })) as any[];
 
-    // Filter skate-related bounties
-    const skateBounties = bountiesRaw.filter((bounty) =>
-      isSkateRelated(bounty.name, bounty.description)
-    );
+    // NO FILTER - show all bounties for now
+    // const skateBounties = bountiesRaw.filter((bounty) =>
+    //   isSkateRelated(bounty.name, bounty.description)
+    // );
 
     // Transform and enrich bounties
     const enrichedBounties = await Promise.all(
-      skateBounties.slice(0, limit).map(async (bounty) => {
+      bountiesRaw.slice(0, limit).map(async (bounty) => {
         // Get claims for this bounty
         let claimCount = 0;
         try {
@@ -95,7 +98,7 @@ export async function GET(req: NextRequest) {
 
     const response: PoidhBountiesResponse = {
       bounties: enrichedBounties,
-      total: skateBounties.length,
+      total: bountiesRaw.length,
       offset,
       limit
     };
