@@ -1,5 +1,5 @@
 import { Container, Heading, VStack } from '@chakra-ui/react';
-import { PoidhBountyList } from '@/components/Bounties/PoidhBountyList';
+import { PoidhBountyList } from '@/components/bounties/PoidhBountyList';
 
 export default function PoidhBountiesPage() {
   return (
