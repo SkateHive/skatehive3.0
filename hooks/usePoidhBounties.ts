@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { PoidhBounty } from '@/types/poidh';
 
+interface UsePoidhBountiesOptions {
+  status?: 'open' | 'past' | 'progress';
+  filterSkate?: boolean;
+}
+
 interface UsePoidhBountiesReturn {
   bounties: PoidhBounty[];
   loading: boolean;
@@ -10,7 +15,9 @@ interface UsePoidhBountiesReturn {
   refresh: () => Promise<void>;
 }
 
-export function usePoidhBounties(): UsePoidhBountiesReturn {
+export function usePoidhBounties(options: UsePoidhBountiesOptions = {}): UsePoidhBountiesReturn {
+  const { status = 'past', filterSkate = true } = options;
+  
   const [bounties, setBounties] = useState<PoidhBounty[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +30,14 @@ export function usePoidhBounties(): UsePoidhBountiesReturn {
         setLoading(true);
         setError(null);
 
-        const res = await fetch(`/api/poidh/bounties?offset=${currentOffset}&limit=20`);
+        const params = new URLSearchParams({
+          offset: currentOffset.toString(),
+          limit: '20',
+          status,
+          filterSkate: filterSkate.toString()
+        });
+
+        const res = await fetch(`/api/poidh/bounties?${params}`);
 
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -46,7 +60,7 @@ export function usePoidhBounties(): UsePoidhBountiesReturn {
         setLoading(false);
       }
     },
-    []
+    [status, filterSkate]
   );
 
   const loadMore = useCallback(async () => {

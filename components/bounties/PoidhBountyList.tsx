@@ -10,20 +10,28 @@ import {
   Alert, 
   AlertIcon,
   HStack,
-  IconButton
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Badge
 } from '@chakra-ui/react';
 import { usePoidhBounties } from '@/hooks/usePoidhBounties';
 import { PoidhBountyCard } from './PoidhBountyCard';
 
-export function PoidhBountyList() {
-  const { bounties, loading, error, hasMore, loadMore } = usePoidhBounties();
+function BountyListContent({ status }: { status: 'open' | 'past' }) {
+  const { bounties, loading, error, hasMore, loadMore } = usePoidhBounties({
+    status,
+    filterSkate: true
+  });
 
   if (loading && bounties.length === 0) {
     return (
       <VStack py={12} gap={4}>
         <Spinner size="xl" color="primary" thickness="4px" />
         <Text color="textSecondary" fontSize="lg">
-          Loading POIDH bounties from Base...
+          Loading skateboarding bounties from Base & Arbitrum...
         </Text>
       </VStack>
     );
@@ -48,10 +56,13 @@ export function PoidhBountyList() {
           🎯
         </Text>
         <Text fontSize="xl" fontWeight="bold" color="text" mb={2}>
-          No bounties found
+          No skateboarding bounties found
         </Text>
         <Text fontSize="md" color="textSecondary">
-          Be the first to create a skate bounty on POIDH!
+          {status === 'open' 
+            ? 'No active skateboarding bounties at the moment'
+            : 'No past skateboarding bounties found'
+          }
         </Text>
         <Button
           as="a"
@@ -72,7 +83,7 @@ export function PoidhBountyList() {
       {/* Header */}
       <HStack justify="space-between" align="center">
         <Text fontSize="md" color="textSecondary">
-          Showing <Text as="span" fontWeight="bold" color="text">{bounties.length}</Text> {bounties.length === 1 ? 'bounty' : 'bounties'} from Base
+          Showing <Text as="span" fontWeight="bold" color="text">{bounties.length}</Text> {bounties.length === 1 ? 'bounty' : 'bounties'}
         </Text>
         <Button
           as="a"
@@ -116,5 +127,60 @@ export function PoidhBountyList() {
         </HStack>
       )}
     </VStack>
+  );
+}
+
+export function PoidhBountyList() {
+  return (
+    <Tabs variant="unstyled">
+      <TabList
+        bg="surface"
+        borderWidth={1}
+        borderColor="border"
+        borderRadius="full"
+        p={1}
+        w="fit-content"
+      >
+        <Tab
+          px={5}
+          py={2}
+          borderRadius="full"
+          fontWeight="bold"
+          color="textSecondary"
+          _selected={{
+            bg: 'primary',
+            color: 'background',
+            boxShadow: 'md'
+          }}
+          _hover={{ color: 'text' }}
+        >
+          Active Bounties
+        </Tab>
+        <Tab
+          px={5}
+          py={2}
+          borderRadius="full"
+          fontWeight="bold"
+          color="textSecondary"
+          _selected={{
+            bg: 'primary',
+            color: 'background',
+            boxShadow: 'md'
+          }}
+          _hover={{ color: 'text' }}
+        >
+          Past Bounties
+        </Tab>
+      </TabList>
+
+      <TabPanels>
+        <TabPanel px={0} pt={6}>
+          <BountyListContent status="open" />
+        </TabPanel>
+        <TabPanel px={0} pt={6}>
+          <BountyListContent status="past" />
+        </TabPanel>
+      </TabPanels>
+    </Tabs>
   );
 }

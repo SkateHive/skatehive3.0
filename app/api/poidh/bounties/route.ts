@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createPublicClient, http, formatEther } from 'viem';
-import { base } from 'viem/chains';
-import { POIDH_ABI, POIDH_CONTRACT_ADDRESS } from '@/lib/poidh-abi';
 import type { PoidhBountiesResponse } from '@/types/poidh';
 
 const CACHE_TTL = 15 * 60; // 15 minutes
@@ -24,18 +21,7 @@ const SKATE_KEYWORDS = [
   'halfpipe'
 ];
 
-const ALCHEMY_KEY = process.env.NEXT_PUBLIC_ALCHEMY_KEY;
-const RPC_URL = ALCHEMY_KEY 
-  ? `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`
-  : 'https://mainnet.base.org';
-
-const client = createPublicClient({
-  chain: base,
-  transport: http(RPC_URL, {
-    timeout: 10_000, // 10 second timeout
-    retryCount: 2
-  })
-});
+const ALLOWED_CHAINS = [8453, 42161]; // Base and Arbitrum only
 
 function isSkateRelated(name: string, description: string): boolean {
   const text = `${name} ${description}`.toLowerCase();
@@ -47,63 +33,64 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const status = searchParams.get('status') || 'past'; // 'open' | 'past' | 'progress'
+    const filterSkate = searchParams.get('filterSkate') === 'true';
 
-    // Get total bounties count
-    const totalBounties = (await client.readContract({
-      address: POIDH_CONTRACT_ADDRESS,
-      abi: POIDH_ABI,
-      functionName: 'bountyCounter'
-    })) as bigint;
-
-    // Get bounties batch (contract returns 10 at a time)
-    const bountiesRaw = (await client.readContract({
-      address: POIDH_CONTRACT_ADDRESS,
-      abi: POIDH_ABI,
-      functionName: 'getBounties',
-      args: [BigInt(offset)]
-    })) as any[];
-
-    // NO FILTER - show all bounties for now
-    // const skateBounties = bountiesRaw.filter((bounty) =>
-    //   isSkateRelated(bounty.name, bounty.description)
-    // );
-
-    // Transform and enrich bounties
-    const enrichedBounties = await Promise.all(
-      bountiesRaw.slice(0, limit).map(async (bounty) => {
-        // Get claims for this bounty
-        let claimCount = 0;
-        try {
-          const claims = (await client.readContract({
-            address: POIDH_CONTRACT_ADDRESS,
-            abi: POIDH_ABI,
-            functionName: 'getClaimsByBountyId',
-            args: [bounty.id, BigInt(0)]
-          })) as any[];
-          claimCount = claims.length;
-        } catch (err) {
-          // Claims might not exist, that's ok
-          console.warn(`No claims for bounty ${bounty.id}`);
-        }
-
-        return {
-          id: bounty.id.toString(),
-          issuer: bounty.issuer,
-          name: bounty.name,
-          description: bounty.description,
-          amount: bounty.amount.toString(),
-          claimer: bounty.claimer === '0x0000000000000000000000000000000000000000' ? null : bounty.claimer,
-          createdAt: Number(bounty.createdAt),
-          claimId: Number(bounty.claimId),
-          isOpenBounty: false, // Will need to detect this from contract
-          claimCount
-        };
+    // Fetch from Poidh TRPC API (server-side)
+    const params = encodeURIComponent(
+      JSON.stringify({
+        json: { status, sortType: 'date', limit: 100 },
       })
     );
 
+    const res = await fetch(
+      `https://poidh.xyz/api/trpc/bounties.fetchAll?input=${params}`,
+      {
+        next: { revalidate: CACHE_TTL } // Next.js 15 cache
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(`Poidh API returned ${res.status}`);
+    }
+
+    const data = await res.json();
+    let bounties = data.result.data.json.items;
+
+    // Filter: Base + Arbitrum only
+    bounties = bounties.filter((b: any) => ALLOWED_CHAINS.includes(b.chainId));
+
+    // Filter: Skate-related only (if requested)
+    if (filterSkate) {
+      const beforeFilter = bounties.length;
+      bounties = bounties.filter((b: any) =>
+        isSkateRelated(b.title || '', b.description || '')
+      );
+      console.log(`[POIDH API] Skate filter: ${beforeFilter} -> ${bounties.length} bounties`);
+    }
+
+    // Pagination
+    const paginatedBounties = bounties.slice(offset, offset + limit);
+
+    // Transform to our format
+    const transformedBounties = paginatedBounties.map((b: any) => ({
+      id: b.id.toString(),
+      issuer: b.issuer,
+      name: b.title,
+      description: b.description,
+      amount: b.amount,
+      claimer: b.inProgress ? null : (b.claimer || null),
+      createdAt: b.createdAt,
+      claimId: b.claimId || 0,
+      isOpenBounty: b.isMultiplayer || false,
+      claimCount: b.hasClaims ? 1 : 0,
+      chainId: b.chainId,
+      inProgress: b.inProgress
+    }));
+
     const response: PoidhBountiesResponse = {
-      bounties: enrichedBounties,
-      total: bountiesRaw.length,
+      bounties: transformedBounties,
+      total: bounties.length,
       offset,
       limit
     };
