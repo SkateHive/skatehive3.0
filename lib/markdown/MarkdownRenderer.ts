@@ -101,6 +101,12 @@ export function processMediaContent(content: string): string {
     }
 
     let processedContent = content;
+    // Remove Schema.org VideoObject wrapper div and meta tags from legacy posts
+    // This wrapper causes visual issues and is now handled by JSON-LD in the page head
+    processedContent = processedContent.replace(
+        /<div[^>]*itemtype=["']https:\/\/schema\.org\/VideoObject["'][^>]*>[\s\S]*?(<iframe[\s\S]*?<\/iframe>)[\s\S]*?<\/div>/gi,
+        '$1'
+    );
     // Handle 3Speak videos with better validation - use placeholder
     processedContent = processedContent.replace(
         /\[!\[.*?\]\(.*?\)\]\((https?:\/\/3speak\.tv\/watch\?v=([\w\-/]+))\)/g,
@@ -399,14 +405,12 @@ function createSimpleVideoTag(videoID: string): string {
             height="auto" 
             controls 
             preload="metadata" 
-            autoplay
             playsinline 
             webkit-playsinline 
-            muted>
+            >
             <source src="https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${videoID}" type="video/mp4">
             <source src="https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${videoID}" type="video/webm">
             Your browser doesn't support HTML5 video.
         </video>
     </div>`;
 }
-
