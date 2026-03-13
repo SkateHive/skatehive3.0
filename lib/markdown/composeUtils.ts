@@ -75,27 +75,21 @@ export const generateVideoIframeMarkdown = (url: string, title?: string): string
         ? window.prompt('Video title (for SEO):', 'Skateboarding video') || 'Skateboarding video'
         : 'Skateboarding video');
     
-    const uploadDate = new Date().toISOString();
     const videoUrl = videoId 
         ? `https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${videoId}` 
         : url;
     
-    // Create iframe HTML with Schema.org VideoObject metadata
+    // Create iframe HTML (Schema.org VideoObject metadata is handled via JSON-LD in PostPage)
     return `
-<div itemscope itemtype="https://schema.org/VideoObject">
-  <meta itemprop="name" content="${videoTitle}">
-  <meta itemprop="description" content="${videoTitle}">
-  <meta itemprop="uploadDate" content="${uploadDate}">
-  <iframe src="${videoUrl}" 
+<iframe src="${videoUrl}" 
     title="${videoTitle}"
     width="100%" 
     height="400"
     frameborder="0"
     loading="lazy"
-    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+    allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
     allowfullscreen>
-  </iframe>
-</div>
+</iframe>
 `;
 };
 
