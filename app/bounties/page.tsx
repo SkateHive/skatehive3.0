@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import BountiesClient from "@/components/bounties/bountiesClient";
+import BountiesHubClient from "@/components/bounties/BountiesHubClient";
 import { APP_CONFIG } from "@/config/app.config";
 
 export const metadata: Metadata = {
@@ -46,5 +46,5 @@ export const metadata: Metadata = {
 };
 
 export default function BountiesPage() {
-  return <BountiesClient />;
-} 
+  return <BountiesHubClient />;
+}

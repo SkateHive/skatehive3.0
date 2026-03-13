@@ -24,11 +24,9 @@ export function migrateLegacyMetadata(data: any): SkatehiveJsonMetadata {
 
   const ext: any = metadata.extensions;
 
-  // Wallet migrations - keep eth_address in same location for legacy compatibility
   if (ext.eth_address) {
     ext.wallets = ext.wallets || {};
     ext.wallets.primary_wallet = ext.eth_address;
-    // Keep the original eth_address for legacy compatibility
   }
   if (ext.btc_address) {
     ext.wallets = ext.wallets || {};
@@ -42,9 +40,7 @@ export function migrateLegacyMetadata(data: any): SkatehiveJsonMetadata {
       default_voting_weight: DEFAULT_VOTE_WEIGHT * 100,
       enable_slider: true
     };
-    ext.settings.voteSettings.default_voting_weight = Math.round(
-      Number(ext.vote_weight) * 100
-    );
+    ext.settings.voteSettings.default_voting_weight = Math.round(Number(ext.vote_weight) * 100);
     delete ext.vote_weight;
   }
 
@@ -74,7 +70,6 @@ export function migrateLegacyMetadata(data: any): SkatehiveJsonMetadata {
   delete ext.staticXp;
   delete ext.cumulativeXp;
 
-  // Ensure substructures exist
   ext.wallets = ext.wallets || {};
   ext.wallets.additional = ext.wallets.additional || [];
 

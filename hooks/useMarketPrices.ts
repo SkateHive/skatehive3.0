@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 interface MarketPrices {
   hivePrice: number | null;
   hbdPrice: number | null;
+  ethPrice: number | null;
   isPriceLoading: boolean;
   error: string | null;
   lastUpdated: Date | null;
@@ -34,6 +35,7 @@ export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPri
 
   const [hivePrice, setHivePrice] = useState<number | null>(null);
   const [hbdPrice, setHbdPrice] = useState<number | null>(null);
+  const [ethPrice, setEthPrice] = useState<number | null>(null);
   const [isPriceLoading, setIsPriceLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -44,7 +46,7 @@ export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPri
       setError(null);
 
       const response = await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=hive,hive_dollar&vs_currencies=usd"
+        "https://api.coingecko.com/api/v3/simple/price?ids=hive,hive_dollar,ethereum&vs_currencies=usd"
       );
 
       if (!response.ok) {
@@ -52,33 +54,31 @@ export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPri
       }
 
       const data = await response.json();
-      
+
       // Set prices with fallbacks
-      const newHivePrice = data["hive"]?.usd || 0.21; // Reasonable fallback based on recent prices
-      const newHbdPrice = data["hive_dollar"]?.usd || 1.0; // HBD should be close to $1
+      const newHivePrice = data["hive"]?.usd || 0.21;
+      const newHbdPrice = data["hive_dollar"]?.usd || 1.0;
+      const newEthPrice = data["ethereum"]?.usd || 2500;
 
       setHivePrice(newHivePrice);
       setHbdPrice(newHbdPrice);
+      setEthPrice(newEthPrice);
       setLastUpdated(new Date());
 
-      console.log(`💰 Market prices updated - HIVE: $${newHivePrice}, HBD: $${newHbdPrice}`);
-      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.error("❌ Error fetching market prices:", errorMessage);
-      
       setError(errorMessage);
-      
+
       // Set fallback prices if we don't have any prices yet
-      if (hivePrice === null || hbdPrice === null) {
+      if (hivePrice === null || hbdPrice === null || ethPrice === null) {
         setHivePrice(0.21);
         setHbdPrice(1.0);
-        console.log("🔄 Using fallback prices - HIVE: $0.21, HBD: $1.00");
+        setEthPrice(2500);
       }
     } finally {
       setIsPriceLoading(false);
     }
-  }, [hivePrice, hbdPrice]);
+  }, [hivePrice, hbdPrice, ethPrice]);
 
   // Initial price fetch
   useEffect(() => {
@@ -96,6 +96,7 @@ export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPri
   return {
     hivePrice,
     hbdPrice,
+    ethPrice,
     isPriceLoading,
     error,
     lastUpdated,
