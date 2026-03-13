@@ -1,90 +1,100 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { PoidhBounty } from '@/types/poidh';
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { PoidhApiStatus, PoidhBounty } from "@/types/poidh";
 
 interface UsePoidhBountiesOptions {
-  status?: 'open' | 'past' | 'progress';
-  filterSkate?: boolean;
+  status: PoidhApiStatus;
 }
 
-interface UsePoidhBountiesReturn {
-  bounties: PoidhBounty[];
-  loading: boolean;
-  error: string | null;
-  hasMore: boolean;
-  loadMore: () => Promise<void>;
-  refresh: () => Promise<void>;
+interface ApiResponse {
+  items: PoidhBounty[];
+  count?: number;
 }
 
-export function usePoidhBounties(options: UsePoidhBountiesOptions = {}): UsePoidhBountiesReturn {
-  const { status = 'past', filterSkate = true } = options;
-  
+export function usePoidhBounties({ status }: UsePoidhBountiesOptions) {
   const [bounties, setBounties] = useState<PoidhBounty[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [offset, setOffset] = useState(0);
 
-  const loadBounties = useCallback(
-    async (currentOffset: number, append: boolean = false) => {
-      try {
-        setLoading(true);
-        setError(null);
+  const fetchBounties = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
 
-        const params = new URLSearchParams({
-          offset: currentOffset.toString(),
-          limit: '20',
-          status,
-          filterSkate: filterSkate.toString()
-        });
+    try {
+      const response = await fetch(`/api/poidh/bounties?status=${status}&filterSkate=true`, {
+        cache: "no-store",
+      });
 
-        const res = await fetch(`/api/poidh/bounties?${params}`);
-
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-
-        const data = await res.json();
-
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        setBounties((prev) => (append ? [...prev, ...data.bounties] : data.bounties));
-        const nextOffset = currentOffset + data.bounties.length;
-        setHasMore(nextOffset < data.total);
-        setOffset(nextOffset);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load POIDH bounties';
-        setError(message);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(`Failed to load POIDH bounties (${response.status})`);
       }
-    },
-    [status, filterSkate]
-  );
 
-  const loadMore = useCallback(async () => {
-    if (!loading && hasMore) {
-      await loadBounties(offset, true);
+      const data = (await response.json()) as ApiResponse;
+      setBounties(data.items || []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load POIDH bounties");
+    } finally {
+      setIsLoading(false);
     }
-  }, [loading, hasMore, offset, loadBounties]);
+  }, [status]);
 
-  const refresh = useCallback(async () => {
-    setOffset(0);
-    await loadBounties(0, false);
-  }, [loadBounties]);
-
-  // Initial load
   useEffect(() => {
-    loadBounties(0);
-  }, [loadBounties]);
+    fetchBounties();
+  }, [fetchBounties]);
+
+  const stats = useMemo(() => {
+    const totalRewardEth = bounties.reduce((sum, bounty) => sum + parsePoidhAmountToEth(bounty.amount), 0);
+    return {
+      count: bounties.length,
+      totalRewardEth,
+    };
+  }, [bounties]);
 
   return {
     bounties,
-    loading,
+    isLoading,
     error,
-    hasMore,
-    loadMore,
-    refresh
+    refetch: fetchBounties,
+    stats,
   };
+}
+
+export function getPoidhChainName(chainId: number) {
+  if (chainId === 8453) return "Base";
+  if (chainId === 42161) return "Arbitrum";
+  return `Chain ${chainId}`;
+}
+
+export function getPoidhChainColor(chainId: number) {
+  if (chainId === 8453) return "blue";
+  if (chainId === 42161) return "purple";
+  return "gray";
+}
+
+export function parsePoidhAmountToEth(amount: string) {
+  const value = Number(amount) / 1e18;
+  if (!Number.isFinite(value)) return 0;
+  return value;
+}
+
+export function formatPoidhAmount(amount: string) {
+  const value = parsePoidhAmountToEth(amount);
+  if (!Number.isFinite(value)) return "—";
+  if (value >= 1) return `${value.toFixed(2)} ETH`;
+  if (value >= 0.01) return `${value.toFixed(3)} ETH`;
+  return `${value.toFixed(4)} ETH`;
+}
+
+export function formatPoidhDate(timestamp: number | null | undefined) {
+  if (!timestamp) return "—";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(timestamp * 1000));
+}
+
+export function getPoidhUrl(bounty: Pick<PoidhBounty, "chainId" | "id">) {
+  return `https://poidh.xyz/bounty/${bounty.chainId}/${bounty.id}`;
 }

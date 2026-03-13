@@ -1,40 +1,26 @@
-// POIDH v3 Contract Types (Base Chain)
-export interface PoidhBounty {
-  id: string;
-  issuer: string;
-  name: string;
-  description: string;
-  amount: string; // in wei, convert to ETH for display
-  claimer: string | null;
-  createdAt: number;
-  claimId: number;
-  isOpenBounty: boolean;
-  chainId?: number; // 8453 Base, 42161 Arbitrum
-  participants?: {
-    addresses: string[];
-    amounts: string[];
-  };
-  claimCount?: number;
-  claims?: PoidhClaim[];
-  imageUrl?: string | null;
-  inProgress?: boolean;
-  isActive?: boolean; // True when fetched from status='open' endpoint
-}
+export type PoidhApiStatus = "open" | "past" | "progress";
 
-export interface PoidhClaim {
-  id: string;
-  bountyId: string;
-  issuer: string;
-  bountyIssuer: string;
-  name: string;
+export interface PoidhBounty {
+  id: number;
+  onChainId: number;
+  chainId: number;
+  title: string;
   description: string;
+  amount: string;
+  issuer: string;
   createdAt: number;
-  accepted: boolean;
+  inProgress: boolean;
+  isJoinedBounty: boolean;
+  isCanceled: boolean;
+  isMultiplayer: boolean;
+  isVoting: boolean;
+  deadline: number | null;
+  amountSort?: number;
+  hasClaims: boolean;
+  hasParticipants: boolean;
 }
 
 export interface PoidhBountiesResponse {
-  bounties: PoidhBounty[];
-  total: number;
-  offset: number;
-  limit: number;
+  items: PoidhBounty[];
+  nextCursor?: number | null;
 }

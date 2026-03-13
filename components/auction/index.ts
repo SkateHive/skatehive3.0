@@ -1,6 +1,6 @@
-// Export all auction components from a single entry point
-export { default as AuctionCard } from './AuctionCard';
-export { AuctionBid } from './AuctionBid';
-export { BidsModal } from './BidsModal';
-export { default as AuctionPage } from './AuctionPage';
-export { AdminAuctionPage } from './AdminAuctionPage';
+/**
+ * @deprecated This path is deprecated. Use @/components/dao/auction instead.
+ * Keeping for backward compatibility during migration.
+ */
+
+export * from '../dao/auction';

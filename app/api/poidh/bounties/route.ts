@@ -1,113 +1,161 @@
-import { NextRequest, NextResponse } from 'next/server';
-import type { PoidhBountiesResponse } from '@/types/poidh';
-import { extractFirstImage, toUnixSeconds } from '@/lib/poidh-utils';
-import { ALLOWED_CHAINS } from '@/lib/poidh-constants';
+import { NextRequest, NextResponse } from "next/server";
+import type { PoidhApiStatus, PoidhBounty } from "@/types/poidh";
 
-const CACHE_TTL = 15 * 60; // 15 minutes
+const POIDH_API_URL = "https://poidh.xyz/api/trpc/bounties.fetchAll";
+const CACHE_SECONDS = 60 * 15;
+const ALLOWED_STATUSES: PoidhApiStatus[] = ["open", "past", "progress"];
+const ALLOWED_CHAINS = new Set([8453, 42161]);
 
-// Strong keywords: unmistakably skateboarding
-const SKATE_KEYWORDS = [
-  // Identity terms
-  'skate', 'skateboard', 'skateboarding', 'skating', 'skater', 'skateboarder',
-  'skatehive',
-  // Specific trick names only — no generic words
-  'kickflip', 'heelflip', 'hardflip', 'inward heel',
-  'tre flip', '360 flip', 'laser flip',
-  'varial flip', 'varial heel', 'pressure flip',
-  'ollie', 'nollie',
-  'pop shove', 'shove-it', 'shuv-it',
-  'boardslide', 'lipslide', 'tailslide', 'noseslide', 'bluntslide',
-  'smith grind', 'feeble grind', 'crooked grind',
-  '50-50', 'nosegrind', 'overcrooks',
-  'nose manual',
-  'halfpipe', 'mini ramp', 'quarter pipe',
-  // Skate culture
-  'skatepark', 'skate spot', 'skate trick',
+const STRONG_SKATE_KEYWORDS = [
+  "skateboard",
+  "skateboarding",
+  "skate clip",
+  "skate video",
+  "skate spot",
+  "skatepark",
+  "skate park",
+  "kickflip",
+  "heelflip",
+  "treflip",
+  "360 flip",
+  "ollie",
+  "nollie",
+  "pop shuv",
+  "pop shove",
+  "shuvit",
+  "shove it",
+  "boardslide",
+  "lipslide",
+  "tailslide",
+  "noseslide",
+  "crook",
+  "smith",
+  "feeble",
+  "grind",
+  "manual",
+  "nose manual",
+  "skater",
+  "skatehive",
+  "trey flip",
 ];
 
-function isSkateRelated(name: string, description: string): boolean {
-  const text = `${name} ${description}`.toLowerCase();
-  return SKATE_KEYWORDS.some((kw) => text.includes(kw));
+const TITLE_ONLY_SKATE_KEYWORDS = [
+  "skate",
+  "skating",
+  "skate jam",
+  "skate session",
+  "bail",
+  "ledge",
+  "rail",
+  "gap",
+  "line",
+  "vert",
+  "street part",
+];
+
+const EXCLUDED_KEYWORDS = [
+  "snowboard",
+  "ski",
+  "ai",
+  "agent",
+  "workspace",
+  "stewardship",
+  "garden",
+  "public space",
+  "clean & document",
+  "word of the day",
+  "soccer",
+  "basketball",
+  "surf",
+];
+
+function parseStatus(value: string | null): PoidhApiStatus {
+  if (value && ALLOWED_STATUSES.includes(value as PoidhApiStatus)) {
+    return value as PoidhApiStatus;
+  }
+  return "open";
 }
 
-export async function GET(req: NextRequest) {
+function countMatches(haystack: string, keywords: string[]) {
+  return keywords.reduce((count, keyword) => count + (haystack.includes(keyword) ? 1 : 0), 0);
+}
+
+function isSkateBounty(bounty: PoidhBounty) {
+  const title = bounty.title.toLowerCase();
+  const description = (bounty.description || "").toLowerCase();
+  const haystack = `${title} ${description}`;
+
+  if (EXCLUDED_KEYWORDS.some((keyword) => haystack.includes(keyword))) {
+    return false;
+  }
+
+  const strongMatches = countMatches(haystack, STRONG_SKATE_KEYWORDS);
+  const titleMatches = countMatches(title, TITLE_ONLY_SKATE_KEYWORDS);
+
+  if (strongMatches >= 1) return true;
+  if (titleMatches >= 1 && strongMatches >= 1) return true;
+
+  return false;
+}
+
+async function fetchPoidhBounties(status: PoidhApiStatus, limit: number, offset: number) {
+  const input = encodeURIComponent(
+    JSON.stringify({
+      json: { status, limit, offset },
+    })
+  );
+
+  const response = await fetch(`${POIDH_API_URL}?input=${input}`, {
+    next: { revalidate: CACHE_SECONDS },
+    headers: {
+      accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`POIDH API error: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  return payload?.result?.data?.json?.items ?? [];
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const searchParams = req.nextUrl.searchParams;
-    const offset = parseInt(searchParams.get('offset') || '0', 10);
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
-    const status = searchParams.get('status') || 'past'; // 'open' | 'past' | 'progress'
-    const filterSkate = searchParams.get('filterSkate') === 'true';
+    const { searchParams } = new URL(request.url);
+    const status = parseStatus(searchParams.get("status"));
+    const limit = Math.min(Number(searchParams.get("limit") || "60"), 100);
+    const offset = Math.max(Number(searchParams.get("offset") || "0"), 0);
+    const filterSkate = searchParams.get("filterSkate") !== "false";
 
-    // Fetch from Poidh TRPC API (server-side)
-    const params = encodeURIComponent(
-      JSON.stringify({
-        json: { status, sortType: 'date', limit: 100 },
-      })
-    );
+    const items = (await fetchPoidhBounties(status, limit, offset)) as PoidhBounty[];
 
-    const res = await fetch(
-      `https://poidh.xyz/api/trpc/bounties.fetchAll?input=${params}`,
-      {
-        next: { revalidate: CACHE_TTL } // Next.js 15 cache
-      }
-    );
-
-    if (!res.ok) {
-      throw new Error(`Poidh API returned ${res.status}`);
-    }
-
-    const data = await res.json();
-    let bounties = data.result.data.json.items;
-
-    // Filter: Base + Arbitrum only
-    bounties = bounties.filter((b: any) => ALLOWED_CHAINS.includes(b.chainId));
-
-    // Filter: Skate-related only (if requested)
-    if (filterSkate) {
-      bounties = bounties.filter((b: any) =>
-        isSkateRelated(b.title || '', b.description || '')
-      );
-    }
-
-    // Pagination
-    const paginatedBounties = bounties.slice(offset, offset + limit);
-
-    // Transform to our format
-    const transformedBounties = paginatedBounties.map((b: any) => ({
-      id: b.id.toString(),
-      issuer: b.issuer,
-      name: b.title,
-      description: b.description,
-      amount: b.amount,
-      // Use the status from the request — don't re-derive active state from claimer
-      // A bounty is "active" when the list was fetched with status='open'
-      claimer: b.claimer || null,
-      createdAt: toUnixSeconds(b.createdAt),
-      claimId: b.claimId || 0,
-      isOpenBounty: b.isMultiplayer || false,
-      claimCount: b.claimCount || (b.hasClaims ? 1 : 0),
-      chainId: b.chainId,
-      inProgress: b.inProgress || false,
-      // status='open' from Poidh means it's truly open; pass it through so the card knows
-      isActive: status === 'open',
-      imageUrl: extractFirstImage(b.description || ''),
-    }));
-
-    const response: PoidhBountiesResponse = {
-      bounties: transformedBounties,
-      total: bounties.length,
-      offset,
-      limit
-    };
-
-    return NextResponse.json(response, {
-      headers: {
-        'Cache-Control': `public, s-maxage=${CACHE_TTL}, stale-while-revalidate`
-      }
+    const filtered = items.filter((bounty) => {
+      if (!ALLOWED_CHAINS.has(bounty.chainId)) return false;
+      if (!filterSkate) return true;
+      return isSkateBounty(bounty);
     });
-  } catch {
+
     return NextResponse.json(
-      { error: 'Failed to fetch POIDH bounties' },
+      {
+        items: filtered,
+        count: filtered.length,
+        status,
+        chains: Array.from(ALLOWED_CHAINS),
+        filterSkate,
+      },
+      {
+        headers: {
+          "Cache-Control": `public, s-maxage=${CACHE_SECONDS}, stale-while-revalidate=${CACHE_SECONDS}`,
+        },
+      }
+    );
+  } catch (error: unknown) {
+    return NextResponse.json(
+      {
+        error: "Failed to fetch POIDH bounties",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

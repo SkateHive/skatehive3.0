@@ -7,9 +7,6 @@ export interface ImageUploadResult {
   filename?: string;
 }
 
-/**
- * Convert data URL to Blob
- */
 export function dataURLtoBlob(dataURL: string): Blob {
   const arr = dataURL.split(',');
   const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
@@ -24,16 +21,10 @@ export function dataURLtoBlob(dataURL: string): Blob {
   return new Blob([u8arr], { type: mime });
 }
 
-/**
- * Convert Blob to File
- */
 export function blobToFile(blob: Blob, filename: string): File {
   return new File([blob], filename, { type: blob.type });
 }
 
-/**
- * Upload image to Hive Images service using proper Hive authentication
- */
 export async function uploadToHiveImages(imageDataUrl: string, filename?: string): Promise<ImageUploadResult> {
   try {
     const blob = dataURLtoBlob(imageDataUrl);
@@ -54,9 +45,6 @@ export async function uploadToHiveImages(imageDataUrl: string, filename?: string
   }
 }
 
-/**
- * Upload image to IPFS as fallback
- */
 export async function uploadToIPFSFallback(imageDataUrl: string, filename?: string): Promise<ImageUploadResult> {
   try {
     const blob = dataURLtoBlob(imageDataUrl);
@@ -75,9 +63,6 @@ export async function uploadToIPFSFallback(imageDataUrl: string, filename?: stri
   }
 }
 
-/**
- * Upload image with retry logic and IPFS fallback
- */
 export async function uploadToHiveImagesWithRetry(
   imageDataUrl: string,
   filename?: string,
