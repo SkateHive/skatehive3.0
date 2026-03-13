@@ -37,8 +37,9 @@ function renderContentWithVideos(
   processed: ProcessedMarkdown
 ): React.ReactNode[] {
   // Split on supported video, social media, Zora coin, Snapshot, SkateHive game, and Builder proposal placeholders
+  // Use [\s\S] instead of [^\]] to handle newlines inside placeholders
   const parts = processed.contentWithPlaceholders.split(
-    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL):([^\]]+)\]\])/g
+    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL):[\s\S]+?\]\])/g
   );
 
   return parts
@@ -46,50 +47,50 @@ function renderContentWithVideos(
       // Guard against undefined parts
       if (!part) return null;
 
-      // Handle video placeholders
+      // Handle video placeholders (allowing newlines)
       const videoMatch = part.match(
-        /^\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO):([^\]]+)\]\]$/
+        /^\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO):([\s\S]+?)\]\]$/
       );
       if (videoMatch) {
         const type = videoMatch[1] as "VIDEO" | "ODYSEE" | "YOUTUBE" | "VIMEO";
-        const id = videoMatch[2];
+        const id = videoMatch[2].trim(); // Trim whitespace/newlines
         return (
           <VideoEmbed key={`video-${idx}`} type={type} id={id} index={idx} />
         );
       }
 
       // Handle Instagram placeholders
-      const instagramMatch = part.match(/^\[\[INSTAGRAM:([^\]]+)\]\]$/);
+      const instagramMatch = part.match(/^\[\[INSTAGRAM:([\s\S]+?)\]\]$/);
       if (instagramMatch) {
-        const url = instagramMatch[1];
+        const url = instagramMatch[1].trim();
         return <InstagramEmbed key={`instagram-${idx}`} url={url} />;
       }
 
       // Handle Zora coin placeholders
-      const zoraCoinMatch = part.match(/^\[\[ZORACOIN:([^\]]+)\]\]$/);
+      const zoraCoinMatch = part.match(/^\[\[ZORACOIN:([\s\S]+?)\]\]$/);
       if (zoraCoinMatch) {
-        const address = zoraCoinMatch[1];
+        const address = zoraCoinMatch[1].trim();
         return <ZoraCoinPreview key={`zora-${idx}`} address={address} />;
       }
 
       // Handle Snapshot proposal placeholders
-      const snapshotMatch = part.match(/^\[\[SNAPSHOT:([^\]]+)\]\]$/);
+      const snapshotMatch = part.match(/^\[\[SNAPSHOT:([\s\S]+?)\]\]$/);
       if (snapshotMatch) {
-        const url = snapshotMatch[1];
+        const url = snapshotMatch[1].trim();
         return <SnapshotPreview key={`snapshot-${idx}`} url={url} />;
       }
 
       // Handle SkateHive game placeholders
-      const gameMatch = part.match(/^\[\[SKATEHIVEGAME:([^\]]+)\]\]$/);
+      const gameMatch = part.match(/^\[\[SKATEHIVEGAME:([\s\S]+?)\]\]$/);
       if (gameMatch) {
-        const slug = gameMatch[1] as "quest-for-stoken" | "lougnar";
+        const slug = gameMatch[1].trim() as "quest-for-stoken" | "lougnar";
         return <GameCartridgeEmbed key={`game-${idx}`} gameSlug={slug} />;
       }
 
-      // Handle Builder DAO proposal placeholders
-      const proposalMatch = part.match(/^\[\[BUILDERPROPOSAL:([^\]]+)\]\]$/);
+      // Handle Builder DAO proposal placeholders (allowing newlines)
+      const proposalMatch = part.match(/^\[\[BUILDERPROPOSAL:([\s\S]+?)\]\]$/);
       if (proposalMatch) {
-        const url = proposalMatch[1];
+        const url = proposalMatch[1].trim(); // Trim any whitespace/newlines
         return <ProposalPreview key={`proposal-${idx}`} url={url} />;
       }
 
@@ -142,6 +143,8 @@ function cleanMarkdownPart(part: string): string {
     .replace(/^https?:\/\/(?:www\.)?worldmappin\.com\/.*$/gm, "")
     .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/games\/.*$/gm, "") // SkateHive games
     .replace(/^https?:\/\/(?:www\.)?[^\/\s]+\/(?:proposals|vote)\/\d+$/gm, "") // Builder DAO proposals
+    // Remove any leftover placeholders that weren't split properly
+    .replace(/\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL):[^\]]+\]\]/g, "")
     .replace(
       /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL)\s*$/gm,
       ""
