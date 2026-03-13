@@ -96,6 +96,18 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [hasRewarded, setHasRewarded] = useState(false);
 
+  // Detect if bounty was already rewarded by checking replies for the reward marker
+  useEffect(() => {
+    if (comments && comments.length > 0) {
+      const rewardReply = comments.find(
+        (c: any) =>
+          c.author === post.author &&
+          c.body?.includes('\u{1F3C6} Bounty Winners! \u{1F3C6}')
+      );
+      if (rewardReply) setHasRewarded(true);
+    }
+  }, [comments, post.author]);
+
   const challengeName = useMemo(() => {
     const match = body.match(/Trick\/Challenge:\s*(.*)/);
     return match && match[1]
@@ -277,18 +289,6 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
                   </Text>
                 )}
               </HStack>
-
-              {/* Title */}
-              <Text
-                fontWeight="900"
-                fontSize={{ base: "xl", md: "2xl" }}
-                fontFamily="mono"
-                color="text"
-                textTransform="uppercase"
-                lineHeight="short"
-              >
-                {challengeName}
-              </Text>
 
               {/* Description panel */}
               <Box border="1px solid" borderColor="border" bg="muted">
