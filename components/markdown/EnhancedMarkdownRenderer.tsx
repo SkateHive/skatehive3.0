@@ -141,8 +141,9 @@ function cleanMarkdownPart(part: string): string {
     )
     .replace(/^https?:\/\/(?:www\.)?worldmappin\.com\/.*$/gm, "")
     .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/games\/.*$/gm, "") // SkateHive games
+    .replace(/^https?:\/\/(?:www\.)?[^\/\s]+\/(?:proposals|vote)\/\d+$/gm, "") // Builder DAO proposals
     .replace(
-      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME)\s*$/gm,
+      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL)\s*$/gm,
       ""
     )
     .replace(/^[a-zA-Z0-9_-]{11}$/gm, "") // YouTube video IDs

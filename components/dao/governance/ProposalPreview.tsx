@@ -10,16 +10,34 @@ import {
   Badge,
   Skeleton,
   Divider,
+  Image,
 } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchProposalByNumber } from "@/lib/dao/governance";
 import { useVotingPower } from "@/hooks/dao/useVotingPower";
 import { useVote, type VoteSupport } from "@/hooks/dao/useVote";
-import { useAccount } from "wagmi";
+import { useAccount, useEnsName } from "wagmi";
 import { getDaoByDomain, parseProposalUrl } from "@/lib/dao/config";
 import { getProposalStatus } from "@/lib/dao/governance";
 import { useMemo } from "react";
 import type { Address } from "viem";
+import { mainnet } from "viem/chains";
+
+/**
+ * Extract banner image from proposal description markdown
+ */
+function extractBannerImage(description: string): string | null {
+  // Match ![Banner](url) or similar markdown image syntax
+  const imageMatch = description.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/);
+  return imageMatch ? imageMatch[1] : null;
+}
+
+/**
+ * Strip markdown image syntax from description
+ */
+function stripImageMarkdown(description: string): string {
+  return description.replace(/!\[.*?\]\([^\)]+\)/g, '').trim();
+}
 
 interface ProposalPreviewProps {
   url: string; // Full URL like "https://www.gnars.com/proposals/118"
@@ -82,6 +100,22 @@ function ProposalPreviewContent({ daoUrl, dao, proposalId }: ProposalPreviewCont
   const { vote, isPending, isConfirming, isConfirmed } = useVote(
     dao.addresses.governor as Address
   );
+
+  // Resolve ENS name for proposer
+  const { data: ensName } = useEnsName({
+    address: proposal?.proposer as Address,
+    chainId: mainnet.id,
+  });
+
+  // Extract banner image from description
+  const bannerImage = useMemo(() => {
+    return proposal?.description ? extractBannerImage(proposal.description) : null;
+  }, [proposal?.description]);
+
+  // Clean description (remove image markdown)
+  const cleanDescription = useMemo(() => {
+    return proposal?.description ? stripImageMarkdown(proposal.description) : '';
+  }, [proposal?.description]);
 
   // Calculate vote percentages
   const { forPercent, againstPercent, abstainPercent, totalVotes } = useMemo(() => {
@@ -189,6 +223,20 @@ function ProposalPreviewContent({ daoUrl, dao, proposalId }: ProposalPreviewCont
           </Badge>
         </HStack>
 
+        {/* Banner Image */}
+        {bannerImage && (
+          <Box width="full" overflow="hidden" borderRadius="none">
+            <Image
+              src={bannerImage}
+              alt="Proposal banner"
+              width="100%"
+              height="auto"
+              maxH="300px"
+              objectFit="cover"
+            />
+          </Box>
+        )}
+
         {/* Title */}
         <Text fontWeight="semibold" fontSize="md">
           {proposal.title}
@@ -196,7 +244,7 @@ function ProposalPreviewContent({ daoUrl, dao, proposalId }: ProposalPreviewCont
 
         {/* Proposer */}
         <Text fontSize="sm" color="gray.400">
-          👤 Proposer: {proposal.proposer.slice(0, 6)}...{proposal.proposer.slice(-4)}
+          👤 Proposer: {ensName || `${proposal.proposer.slice(0, 6)}...${proposal.proposer.slice(-4)}`}
         </Text>
 
         <Divider />
@@ -223,70 +271,77 @@ function ProposalPreviewContent({ daoUrl, dao, proposalId }: ProposalPreviewCont
         </VStack>
 
         {/* Description Preview */}
-        {proposal.description && (
+        {cleanDescription && (
           <Text fontSize="sm" color="gray.300" noOfLines={3}>
-            {proposal.description}
+            {cleanDescription}
           </Text>
         )}
 
         <Divider />
 
-        {/* Voting Buttons (if eligible) */}
-        {canVote ? (
-          <VStack width="full" spacing={2}>
+        {/* Voting Buttons (always shown) */}
+        <VStack width="full" spacing={2}>
+          {address && votingPower !== undefined && (
             <Text fontSize="xs" color="gray.400">
-              Your voting power: {votingPower?.toString()} votes
+              Your voting power: {votingPower.toString()} votes
             </Text>
-            <HStack width="full" spacing={2}>
-              <Button
-                size="sm"
-                colorScheme="green"
-                onClick={() => handleVote(1)}
-                isLoading={isPending || isConfirming}
-                isDisabled={isConfirmed}
-                flex={1}
-                borderRadius="none"
-              >
-                For
-              </Button>
-              <Button
-                size="sm"
-                colorScheme="red"
-                onClick={() => handleVote(0)}
-                isLoading={isPending || isConfirming}
-                isDisabled={isConfirmed}
-                flex={1}
-                borderRadius="none"
-              >
-                Against
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleVote(2)}
-                isLoading={isPending || isConfirming}
-                isDisabled={isConfirmed}
-                flex={1}
-                borderRadius="none"
-              >
-                Abstain
-              </Button>
-            </HStack>
-            {isConfirmed && (
-              <Text fontSize="xs" color="green.400">
-                ✅ Vote submitted successfully!
-              </Text>
-            )}
-          </VStack>
-        ) : !address ? (
-          <Text fontSize="xs" color="gray.500">
-            Connect wallet to vote
-          </Text>
-        ) : votingPower === 0n ? (
-          <Text fontSize="xs" color="gray.500">
-            You need voting power to participate
-          </Text>
-        ) : null}
+          )}
+          <HStack width="full" spacing={2}>
+            <Button
+              size="sm"
+              colorScheme="green"
+              onClick={() => handleVote(1)}
+              isLoading={isPending || isConfirming}
+              isDisabled={!canVote || isConfirmed}
+              flex={1}
+              borderRadius="none"
+            >
+              For
+            </Button>
+            <Button
+              size="sm"
+              colorScheme="red"
+              onClick={() => handleVote(0)}
+              isLoading={isPending || isConfirming}
+              isDisabled={!canVote || isConfirmed}
+              flex={1}
+              borderRadius="none"
+            >
+              Against
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleVote(2)}
+              isLoading={isPending || isConfirming}
+              isDisabled={!canVote || isConfirmed}
+              flex={1}
+              borderRadius="none"
+            >
+              Abstain
+            </Button>
+          </HStack>
+          {isConfirmed && (
+            <Text fontSize="xs" color="green.400">
+              ✅ Vote submitted successfully!
+            </Text>
+          )}
+          {!canVote && !address && (
+            <Text fontSize="xs" color="gray.500">
+              Connect wallet to vote
+            </Text>
+          )}
+          {!canVote && address && votingPower === 0n && (
+            <Text fontSize="xs" color="gray.500">
+              You need voting power to participate
+            </Text>
+          )}
+          {!canVote && address && votingPower && votingPower > 0n && status !== 'Active' && (
+            <Text fontSize="xs" color="gray.500">
+              Voting is not active for this proposal
+            </Text>
+          )}
+        </VStack>
 
         {/* View Full Link */}
         <Button
