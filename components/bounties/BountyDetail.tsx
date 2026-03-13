@@ -2,31 +2,34 @@
 
 import {
   Box,
+  Container,
   Text,
   Avatar,
   Flex,
   Button,
   Link,
-  Divider,
-  Badge,
-  useTheme,
-  useDisclosure,
+  HStack,
+  VStack,
+  SimpleGrid,
+  GridItem,
+  Icon,
   Tooltip,
+  useDisclosure,
 } from "@chakra-ui/react";
 import React, { useMemo, useState, useEffect } from "react";
+import NextLink from "next/link";
 import { Discussion } from "@hiveio/dhive";
 import { getPostDate } from "@/lib/utils/GetPostDate";
 import { useComments } from "@/hooks/useComments";
 import { parse, isAfter, isValid } from "date-fns";
+import { FaHive, FaCalendar, FaArrowLeft, FaBolt, FaTrophy, FaUsers } from "react-icons/fa";
 import HiveMarkdown from "@/components/shared/HiveMarkdown";
 import SnapList from "@/components/homepage/SnapList";
 import SnapComposer from "@/components/homepage/SnapComposer";
-import MatrixOverlay from "@/components/graphics/MatrixOverlay";
 import useHiveVote from "@/hooks/useHiveVote";
-import useHivePower from "@/hooks/useHivePower";
-import BountyRewarder from "./BountyRewarder";
 import useVoteWeight from "@/hooks/useVoteWeight";
 import useSoftVoteOverlay from "@/hooks/useSoftVoteOverlay";
+import BountyRewarder from "./BountyRewarder";
 
 interface BountyDetailProps {
   post: Discussion;
@@ -35,10 +38,8 @@ interface BountyDetailProps {
 const getDeadlineFromBody = (body: string): Date | null => {
   const deadlineMatch = body.match(/Deadline:\s*([^\n]+)/);
   if (deadlineMatch && deadlineMatch[1]) {
-    // Try MM-dd-yyyy
     let date = parse(deadlineMatch[1], "MM-dd-yyyy", new Date());
     if (!isValid(date)) {
-      // Try M/d/yyyy
       date = parse(deadlineMatch[1], "M/d/yyyy", new Date());
     }
     return isValid(date) ? date : null;
@@ -49,7 +50,6 @@ const getDeadlineFromBody = (body: string): Date | null => {
 const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
   const { author, created, body, title: postTitle } = post;
   const postDate = getPostDate(created);
-  const theme = useTheme();
   const { comments, isLoading, addComment } = useComments(
     post.author,
     post.permlink,
@@ -57,11 +57,9 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
   );
   const [newComment, setNewComment] = useState<Discussion | null>(null);
 
-  // Voting state
   const { vote, effectiveUser, canVote } = useHiveVote();
   const userVoteWeight = useVoteWeight(effectiveUser || "");
   const [sliderValue, setSliderValue] = useState(userVoteWeight);
-  const [showSlider, setShowSlider] = useState(false);
   const [activeVotes, setActiveVotes] = useState(post.active_votes || []);
   const softVote = useSoftVoteOverlay(post.author, post.permlink);
   const hasSoftVote =
@@ -73,7 +71,6 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
       )
   );
 
-  // Update slider value when user's vote weight changes
   useEffect(() => {
     setSliderValue(userVoteWeight);
   }, [userVoteWeight]);
@@ -89,7 +86,6 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
     );
   }, [post, effectiveUser, hasSoftVote]);
 
-  // Claim state
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const hasClaimed = useMemo(
@@ -97,31 +93,32 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
     [activeVotes, effectiveUser]
   );
 
-  // Reward Modal State
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [hasRewarded, setHasRewarded] = useState(false); // TODO: Replace with real check
+  const [hasRewarded, setHasRewarded] = useState(false);
 
-  // Extract bounty fields
   const challengeName = useMemo(() => {
     const match = body.match(/Trick\/Challenge:\s*(.*)/);
     return match && match[1]
       ? match[1].trim()
       : postTitle || "Bounty Submission";
   }, [body, postTitle]);
+
   const rules = useMemo(() => {
     const match = body.match(/Bounty Rules:\s*([\s\S]*?)(?:\n|$)/);
     return match && match[1] ? match[1].trim() : "";
   }, [body]);
+
   const reward = useMemo(() => {
     const match = body.match(/Reward:\s*([^\n]*)/);
     return match && match[1] ? match[1].trim() : "N/A";
   }, [body]);
+
   const deadline = getDeadlineFromBody(body);
   const now = new Date();
   const isActive = deadline ? isAfter(deadline, now) : true;
+  const statusColor = isActive ? "success" : "error";
+  const statusLabel = isActive ? "OPEN" : "CLOSED";
 
-  // TEMP/ADMIN override: allow bounty author to reward winners before deadline
-  // Enable via URL: ?forceReward=1 (or localStorage SKATEHIVE_FORCE_BOUNTY_REWARD=true)
   const forceReward = useMemo(() => {
     if (typeof window === "undefined") return false;
     const params = new URLSearchParams(window.location.search);
@@ -131,24 +128,15 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
     );
   }, []);
 
-  // Get unique commenters (exclude bounty creator)
   const uniqueCommenters = useMemo(() => {
     if (!comments) return [];
     const commenters = comments
       .map((c) => c.author)
-      .filter((author) => author !== post.author);
+      .filter((a) => a !== post.author);
     return Array.from(new Set(commenters));
   }, [comments, post.author]);
 
-  // Calculate reward per winner
-  const totalReward = useMemo(() => {
-    const match = body.match(/Reward:\s*([0-9.]+)/);
-    return match && match[1] ? parseFloat(match[1]) : 0;
-  }, [body]);
-
-  // Parse reward amount and currency from body
   const rewardInfo = useMemo(() => {
-    // Match e.g. "Reward: 10 HIVE" or "Reward: 5.5 HBD"
     const match = body.match(/Reward:\s*([0-9.]+)\s*(HIVE|HBD)?/i);
     if (match) {
       return {
@@ -159,32 +147,6 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
     return { amount: 0, currency: "HIVE" };
   }, [body]);
 
-  // function handleHeartClick() {
-  //   setShowSlider(!showSlider);
-  // }
-
-  async function handleVote() {
-    if (!canVote) return;
-    try {
-      const voteResult = await vote(
-        post.author,
-        post.permlink,
-        sliderValue * 100
-      );
-      if (voteResult.success) {
-        setVoted(true);
-        if (effectiveUser) {
-          setActiveVotes([...activeVotes, { voter: effectiveUser, percent: sliderValue * 100 }]);
-        }
-      }
-    } catch (error: any) {
-      setClaimError(error?.message || "Failed to vote on bounty.");
-    } finally {
-      setShowSlider(false);
-    }
-  }
-
-  // Handler for claiming the bounty
   async function handleClaimBounty() {
     if (!canVote) {
       setClaimError("You must be logged in to claim a bounty.");
@@ -193,10 +155,8 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
     setIsClaiming(true);
     setClaimError(null);
     try {
-      // Use a 100% vote to claim the bounty
       const result = await vote(post.author, post.permlink, 10000);
       if (result.success) {
-        // Optimistically update the votes list
         if (effectiveUser) {
           setActiveVotes((prev) => [
             ...prev,
@@ -204,75 +164,15 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
           ]);
         }
       } else {
-        setClaimError("Failed to claim bounty. Your vote was not successful.");
+        setClaimError("Failed to claim bounty.");
       }
     } catch (err: any) {
-      setClaimError(
-        err.message || "An error occurred while claiming the bounty."
-      );
+      setClaimError(err.message || "An error occurred while claiming.");
     } finally {
       setIsClaiming(false);
     }
   }
 
-  const renderComposerOrBlocker = () => {
-    if (!isActive) {
-      return null;
-    }
-
-    if (!canVote) {
-      return (
-        <Box textAlign="center" p={4} bg="gray.800" borderRadius="md">
-          <Text>Please log in to submit.</Text>
-        </Box>
-      );
-    }
-
-    if (effectiveUser === post.author) {
-      return null;
-    }
-
-    if (!hasClaimed) {
-      return (
-        <Box
-          position="relative"
-          p={4}
-          borderRadius="none"
-          bg="gray.800"
-          textAlign="center"
-          height="150px"
-          display="flex"
-          flexDirection="column"
-          justifyContent="center"
-          alignItems="center"
-          overflow="hidden"
-        >
-          <MatrixOverlay />
-          <Box position="relative" zIndex={1}>
-            <Text fontWeight="bold" fontSize="lg" color="white">
-              Claim Bounty to Submit
-            </Text>
-            <Text color="gray.300">
-              Click &quot;Claim Bounty&quot; on the left to unlock submissions.
-            </Text>
-          </Box>
-        </Box>
-      );
-    }
-
-    return (
-      <SnapComposer
-        pa={post.author}
-        pp={post.permlink}
-        onNewComment={
-          setNewComment as (newComment: Partial<Discussion>) => void
-        }
-        onClose={() => null}
-      />
-    );
-  };
-
-  // Claimed users (exclude post author, dedupe, sorted by time desc)
   const claimedUsers = useMemo(() => {
     if (!activeVotes) return [];
     const seen = new Set();
@@ -283,7 +183,6 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
         seen.add(v.voter);
         return true;
       });
-    // Sort by time descending (most recent first)
     return filtered.sort((a, b) => {
       const ta = a.time ? new Date(a.time).getTime() : 0;
       const tb = b.time ? new Date(b.time).getTime() : 0;
@@ -291,343 +190,485 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
     });
   }, [activeVotes, post.author]);
 
+  const deadlineStr = deadline
+    ? deadline.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase()
+    : null;
+
+  const createdStr = postDate
+    ? String(postDate).toUpperCase()
+    : null;
+
   return (
-    <Box bg="background" color="text" minH="100vh">
-      <Flex
-        direction={{ base: "column", md: "row" }}
-        h={{ base: "auto", md: "100vh" }}
-        gap={4}
-      >
-        {/* Left: Bounty Details */}
+    <Box bg="background" minH="100vh">
+      <Container maxW="container.lg" py={{ base: 4, md: 6 }}>
+        {/* ── Header bar ──────────────────────── */}
         <Box
-          flex={1}
-          h={{ base: "auto", md: "100vh" }}
-          overflowY="auto"
-          sx={{
-            "&::-webkit-scrollbar": { display: "none" },
-            scrollbarWidth: "none",
-          }}
+          border="1px solid"
+          borderColor="primary"
+          bg="muted"
+          px={{ base: 3, md: 6 }}
+          py={3}
+          mb={6}
         >
-          <Box
-            data-component="BountyDetail"
-            borderRadius="base"
-            overflow="hidden"
-            bg="muted"
-            mb={3}
-            p={2}
-            w="100%"
-            mt={{ base: "0px", md: "10px" }}
-            boxShadow={theme.shadows.md}
-          >
-            {/* Header */}
-            <Flex
-              direction="column"
-              boxShadow={theme.shadows.md}
-              bg={
-                theme.colors.primary
-                  ? `linear-gradient(to bottom, ${theme.colors.primary}, ${theme.colors.accent})`
-                  : undefined
-              }
-              p={2}
-              mb={4}
-              borderRadius="lg"
-            >
-              {/* Challenge Name at the top */}
-              <Text
-                fontSize={{ base: "xl", md: "2xl" }}
+          <HStack justify="space-between" align="center">
+            <HStack spacing={2} align="center">
+              <Link
+                as={NextLink}
+                href="/bounties"
+                color="dim"
+                _hover={{ color: "primary" }}
+                fontFamily="mono"
+                fontSize="xs"
                 fontWeight="bold"
-                color={theme.colors.background}
-                mb={4}
-                textAlign="center"
+                textTransform="uppercase"
+              >
+                BOUNTIES
+              </Link>
+              <Text color="dim" fontFamily="mono" fontSize="xs">/</Text>
+              <Text
+                color="primary"
+                fontFamily="mono"
+                fontSize="xs"
+                fontWeight="bold"
+                noOfLines={1}
+                maxW={{ base: "180px", md: "400px" }}
+              >
+                {challengeName.toUpperCase()}
+              </Text>
+            </HStack>
+            <HStack spacing={2}>
+              <Icon as={FaHive} boxSize="14px" color="#E31337" />
+              <Text fontSize="xs" fontFamily="mono" color="dim" fontWeight="bold">
+                HIVE
+              </Text>
+            </HStack>
+          </HStack>
+        </Box>
+
+        <SimpleGrid columns={{ base: 1, md: 3 }} gap={6}>
+          {/* ── Main content ──────────────────── */}
+          <GridItem colSpan={{ base: 1, md: 2 }}>
+            <VStack align="stretch" spacing={5}>
+              {/* Status + meta badges */}
+              <HStack spacing={3} flexWrap="wrap">
+                <Box border="1px solid" borderColor={statusColor} px={2.5} py={0.5}>
+                  <Text
+                    fontSize="2xs"
+                    fontWeight="bold"
+                    fontFamily="mono"
+                    color={statusColor}
+                    textTransform="uppercase"
+                    letterSpacing="wider"
+                  >
+                    {statusLabel}
+                  </Text>
+                </Box>
+                {deadlineStr && (
+                  <HStack spacing={1}>
+                    <Icon as={FaCalendar} boxSize="10px" color="dim" />
+                    <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">
+                      DEADLINE: {deadlineStr}
+                    </Text>
+                  </HStack>
+                )}
+                {createdStr && (
+                  <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">
+                    POSTED: {createdStr}
+                  </Text>
+                )}
+              </HStack>
+
+              {/* Title */}
+              <Text
+                fontWeight="900"
+                fontSize={{ base: "xl", md: "2xl" }}
+                fontFamily="mono"
+                color="text"
+                textTransform="uppercase"
+                lineHeight="short"
               >
                 {challengeName}
               </Text>
 
-              <Flex
-                direction={{ base: "column", md: "row" }}
-                alignItems="center"
-                justify="space-between"
-                w="100%"
-                gap={4}
-              >
-                {/* Left Section: Avatar and User Info */}
-                <Flex
-                  alignItems="center"
-                  gap={4}
-                  minW={0}
-                  flex={{ base: "1", md: "0 0 auto" }}
-                >
-                  <Avatar
-                    size={{ base: "md", md: "lg" }}
-                    name={author}
-                    src={`https://images.hive.blog/u/${author}/avatar/sm`}
-                    border="3px solid"
-                    borderColor={theme.colors.background}
-                    boxShadow="0 4px 12px rgba(0,0,0,0.15)"
-                  />
-                  <Box minW={0} flex="1">
-                    <Text
-                      fontWeight="bold"
-                      fontSize={{ base: "md", md: "lg" }}
-                      color={theme.colors.background}
-                      mb={1}
-                      isTruncated
-                    >
-                      <Link
-                        href={`/user/${author}`}
-                        color={theme.colors.background}
-                        _hover={{ textDecoration: "underline" }}
-                      >
-                        @{author}
-                      </Link>
-                    </Text>
-                    <Text
-                      fontSize="sm"
-                      color={theme.colors.background}
-                      opacity={0.8}
-                    >
-                      {postDate}
-                    </Text>
-                  </Box>
-                </Flex>
-
-                {/* Divider for desktop */}
-                <Divider
-                  orientation="vertical"
-                  h="60px"
-                  borderColor={theme.colors.background}
-                  opacity={0.3}
-                  display={{ base: "none", md: "block" }}
-                />
-
-                {/* Divider for mobile */}
-                <Divider
-                  orientation="horizontal"
-                  borderColor={theme.colors.background}
-                  opacity={0.3}
-                  display={{ base: "block", md: "none" }}
-                  w="100%"
-                />
-
-                {/* Right Section: Bounty Status */}
-                <Box
-                  textAlign="center"
-                  flex={{ base: "1", md: "0 0 auto" }}
-                  minW={0}
-                  display="flex"
-                  flexDirection="column"
-                  alignItems="center"
-                  justifyContent="center"
-                >
+              {/* Description panel */}
+              <Box border="1px solid" borderColor="border" bg="muted">
+                <Box borderBottom="1px solid" borderColor="primary" px={4} py={2}>
                   <Text
-                    fontSize={{ base: "xl", md: "2xl", lg: "3xl" }}
-                    fontWeight="extrabold"
-                    color={
-                      isActive
-                        ? theme.colors.background
-                        : theme.colors.background
-                    }
-                    letterSpacing="tight"
-                    textShadow="0 2px 8px rgba(0,0,0,0.25)"
-                    lineHeight="1.1"
-                    opacity={isActive ? 1 : 0.7}
-                    mb={3}
+                    fontSize="xs"
+                    fontWeight="bold"
+                    fontFamily="mono"
+                    color="text"
+                    textTransform="uppercase"
+                    letterSpacing="wider"
                   >
-                    {isActive ? "Active Bounty" : "Closed Bounty"}
+                    RULES & DESCRIPTION
                   </Text>
-
-                  {/* Reward Badge */}
-                  <Badge
-                    colorScheme={isActive ? "green" : "gray"}
-                    variant="solid"
-                    fontSize={{ base: "md", md: "lg" }}
-                    px={4}
-                    py={2}
-                    borderRadius="full"
-                    boxShadow="0 4px 12px rgba(0,0,0,0.15)"
-                  >
-                    Reward: {reward}
-                  </Badge>
-
-                  {!isActive && (
-                    <Text
-                      fontSize="sm"
-                      color={theme.colors.background}
-                      opacity={0.6}
-                      mt={2}
-                    >
-                      No longer accepting submissions
-                    </Text>
-                  )}
                 </Box>
-              </Flex>
-            </Flex>
-            {/* Bounty Details */}
-            <Box mb={4}>
-              <Text fontWeight="bold" color="orange.300" fontSize="lg">
-                Reward: {reward}
-              </Text>
-              <Text color="gray.500" fontSize="md">
-                Deadline: {deadline ? deadline.toLocaleDateString() : "N/A"}
-              </Text>
-            </Box>
-            <Divider />
-            {/* Rules/Description */}
-            <Box my={4}>
-              <Text fontWeight="bold" mb={1}>
-                Rules:
-              </Text>
-              <HiveMarkdown
-                markdown={body
-                  .replace(/^Trick\/Challenge:.*$/gim, "")
-                  .replace(/^Reward:.*$/gim, "")
-                  .replace(/^Deadline:.*$/gim, "")
-                  .replace(/^Bounty Rules: ?/gim, "")
-                  .trim()}
-              />
-            </Box>
-            {/* Claimed Users Section (moved from right panel) */}
-            {claimedUsers.length > 0 && (
-              <Box mb={4}>
-                <Text fontWeight="bold" fontSize="lg" mb={2} color="text">
-                  Claimed By{" "}
-                  <Tooltip
-                    label="People who want to attempt this bounty"
-                    placement="top"
-                  >
-                    <Text as="span" color="accent" cursor="help">
-                      ({claimedUsers.length})
-                    </Text>
-                  </Tooltip>
-                  :
-                </Text>
-                <Flex wrap="wrap" gap={3}>
-                  {claimedUsers.map((vote) => (
-                    <Flex
-                      key={`${vote.voter}-${vote.time || ""}`}
-                      align="center"
-                      gap={2}
-                      bg="muted"
-                      p={2}
-                      borderRadius="none"
-                      border="1px solid"
-                      borderColor="border"
-                      flex="0 0 calc(50% - 6px)"
-                      minW="0"
-                    >
-                      <Avatar
-                        size="sm"
-                        name={vote.voter}
-                        src={`https://images.hive.blog/u/${vote.voter}/avatar/sm`}
-                      />
-                      <Box minW="0" flex="1">
-                        <Text noOfLines={1}>
-                          <Link
-                            href={`/user/${vote.voter}`}
-                            _hover={{ textDecoration: "underline" }}
-                          >
-                            @{vote.voter}
-                          </Link>
-                        </Text>
-                        {vote.time && (
-                          <Text fontSize="xs" color="accent" noOfLines={1}>
-                            {new Date(vote.time).toLocaleString()}
-                          </Text>
-                        )}
-                      </Box>
-                    </Flex>
-                  ))}
-                </Flex>
+                <Box px={4} py={4}>
+                  <HiveMarkdown
+                    markdown={body
+                      .replace(/^Trick\/Challenge:.*$/gim, "")
+                      .replace(/^Reward:.*$/gim, "")
+                      .replace(/^Deadline:.*$/gim, "")
+                      .replace(/^Bounty Rules: ?/gim, "")
+                      .trim()}
+                  />
+                </Box>
               </Box>
-            )}
-            {/* Claim Bounty Button */}
-            {isActive &&
-              effectiveUser &&
-              effectiveUser !== post.author &&
-              !hasClaimed && (
-              <Flex justify="center" my={4}>
+
+              {/* Claimed users */}
+              {claimedUsers.length > 0 && (
+                <Box border="1px solid" borderColor="border" bg="muted">
+                  <Box borderBottom="1px solid" borderColor="primary" px={4} py={2}>
+                    <HStack spacing={2} align="center">
+                      <Icon as={FaUsers} boxSize="12px" color="dim" />
+                      <Text
+                        fontSize="xs"
+                        fontWeight="bold"
+                        fontFamily="mono"
+                        color="text"
+                        textTransform="uppercase"
+                        letterSpacing="wider"
+                      >
+                        CLAIMED BY ({claimedUsers.length})
+                      </Text>
+                    </HStack>
+                  </Box>
+                  <Flex wrap="wrap" gap={3} px={4} py={3}>
+                    {claimedUsers.map((v) => (
+                      <HStack
+                        key={`${v.voter}-${v.time || ""}`}
+                        spacing={2}
+                        bg="background"
+                        border="1px solid"
+                        borderColor="border"
+                        px={3}
+                        py={2}
+                        flex="0 0 calc(50% - 6px)"
+                        minW="0"
+                      >
+                        <Avatar
+                          size="xs"
+                          name={v.voter}
+                          src={`https://images.hive.blog/u/${v.voter}/avatar/sm`}
+                          borderRadius="none"
+                          border="1px solid"
+                          borderColor="border"
+                        />
+                        <Box minW="0" flex="1">
+                          <Link
+                            as={NextLink}
+                            href={`/skater/${v.voter}`}
+                            fontFamily="mono"
+                            fontSize="xs"
+                            fontWeight="bold"
+                            color="text"
+                            _hover={{ color: "primary" }}
+                            noOfLines={1}
+                          >
+                            @{v.voter}
+                          </Link>
+                          {v.time && (
+                            <Text fontSize="2xs" color="dim" fontFamily="mono" noOfLines={1}>
+                              {new Date(v.time).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              }).toUpperCase()}
+                            </Text>
+                          )}
+                        </Box>
+                      </HStack>
+                    ))}
+                  </Flex>
+                </Box>
+              )}
+
+              {/* Claim button */}
+              {isActive && effectiveUser && effectiveUser !== post.author && !hasClaimed && (
                 <Button
-                  colorScheme="green"
                   onClick={handleClaimBounty}
                   isLoading={isClaiming}
+                  loadingText="CLAIMING..."
+                  bg="primary"
+                  color="background"
+                  borderRadius="none"
+                  fontFamily="mono"
+                  fontWeight="bold"
+                  fontSize="sm"
+                  textTransform="uppercase"
+                  letterSpacing="wider"
+                  _hover={{ bg: "accent", color: "background" }}
+                  leftIcon={<Icon as={FaBolt} boxSize="12px" />}
                 >
-                  Claim Bounty (100% Vote)
+                  CLAIM BOUNTY
                 </Button>
-              </Flex>
-            )}
-            {isActive && effectiveUser === post.author && (
-              <Box textAlign="center" my={4}>
-                <Text color="gray.400">You cannot claim your own bounty.</Text>
-              </Box>
-            )}
-            {claimError && (
-              <Text color="red.400" textAlign="center">
-                {claimError}
-              </Text>
-            )}
-            {/* Media Section */}
-            {/* Media Section removed, as full body is now shown above */}
-            <Divider />
-            {/* Submission Composer Removed */}
-            {!isActive && (
-              <Text color="red.400" fontWeight="bold" textAlign="center" my={4}>
-                Submissions are closed for this bounty.
-              </Text>
-            )}
-            {/* Reward Bounty Hunters Button */}
-            {effectiveUser === post.author && !hasRewarded && (!isActive || forceReward) && (
-              <Flex justify="center" my={2} flexDir="column" align="center" gap={2}>
-                {isActive && forceReward && (
-                  <Text fontSize="sm" color="orange.300" textAlign="center">
-                    Test mode enabled: rewarding before deadline.
+              )}
+              {isActive && effectiveUser === post.author && (
+                <Box
+                  border="1px solid"
+                  borderColor="border"
+                  px={4}
+                  py={2}
+                  bg="muted"
+                >
+                  <Text fontSize="xs" color="dim" fontFamily="mono">
+                    YOU CANNOT CLAIM YOUR OWN BOUNTY.
                   </Text>
-                )}
-                <Button colorScheme="orange" onClick={onOpen} fontWeight="bold">
-                  Reward Bounty Hunters
-                </Button>
-              </Flex>
-            )}
+                </Box>
+              )}
+              {claimError && (
+                <Box border="1px solid" borderColor="error" px={4} py={2}>
+                  <Text fontSize="xs" color="error" fontFamily="mono" fontWeight="bold">
+                    {claimError}
+                  </Text>
+                </Box>
+              )}
+
+              {/* Closed notice */}
+              {!isActive && (
+                <Box
+                  border="1px solid"
+                  borderColor="error"
+                  px={4}
+                  py={3}
+                  bg="rgba(255, 0, 0, 0.03)"
+                >
+                  <Text
+                    fontSize="xs"
+                    color="error"
+                    fontFamily="mono"
+                    fontWeight="bold"
+                    textTransform="uppercase"
+                  >
+                    SUBMISSIONS ARE CLOSED FOR THIS BOUNTY.
+                  </Text>
+                </Box>
+              )}
+
+              {/* Reward button for bounty author */}
+              {effectiveUser === post.author && !hasRewarded && (!isActive || forceReward) && (
+                <VStack spacing={2}>
+                  {isActive && forceReward && (
+                    <Text fontSize="2xs" color="warning" fontFamily="mono">
+                      TEST MODE: REWARDING BEFORE DEADLINE
+                    </Text>
+                  )}
+                  <Button
+                    onClick={onOpen}
+                    bg="warning"
+                    color="background"
+                    borderRadius="none"
+                    fontFamily="mono"
+                    fontWeight="bold"
+                    fontSize="sm"
+                    textTransform="uppercase"
+                    letterSpacing="wider"
+                    _hover={{ opacity: 0.9 }}
+                    leftIcon={<Icon as={FaTrophy} boxSize="12px" />}
+                  >
+                    REWARD BOUNTY HUNTERS
+                  </Button>
+                </VStack>
+              )}
+            </VStack>
+          </GridItem>
+
+          {/* ── Sidebar ────────────────────────── */}
+          <GridItem colSpan={1}>
+            <VStack align="stretch" spacing={5}>
+              {/* Reward box */}
+              <Box border="1px solid" borderColor="border" bg="muted">
+                <Box borderBottom="1px solid" borderColor="primary" px={4} py={2}>
+                  <Text
+                    fontSize="xs"
+                    fontWeight="bold"
+                    fontFamily="mono"
+                    color="text"
+                    textTransform="uppercase"
+                    letterSpacing="wider"
+                  >
+                    REWARD
+                  </Text>
+                </Box>
+                <Box px={4} py={4}>
+                  <Box
+                    border="1px solid"
+                    borderColor="primary"
+                    px={4}
+                    py={3}
+                    bg="rgba(167, 255, 0, 0.03)"
+                    textAlign="center"
+                  >
+                    <HStack spacing={2} justify="center" align="center">
+                      <Icon as={FaHive} boxSize="18px" color="#E31337" />
+                      <Text
+                        fontWeight="900"
+                        fontSize="2xl"
+                        color="primary"
+                        fontFamily="mono"
+                        lineHeight="1"
+                      >
+                        {rewardInfo.amount}
+                      </Text>
+                      <Text fontSize="sm" color="dim" fontWeight="bold" fontFamily="mono">
+                        {rewardInfo.currency}
+                      </Text>
+                    </HStack>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Details table */}
+              <Box border="1px solid" borderColor="border" bg="muted">
+                <Box borderBottom="1px solid" borderColor="primary" px={4} py={2}>
+                  <Text
+                    fontSize="xs"
+                    fontWeight="bold"
+                    fontFamily="mono"
+                    color="text"
+                    textTransform="uppercase"
+                    letterSpacing="wider"
+                  >
+                    DETAILS
+                  </Text>
+                </Box>
+                <VStack align="stretch" spacing={0} px={4} py={2}>
+                  <HStack py={2} borderBottom="1px solid" borderColor="border" justify="space-between">
+                    <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">AUTHOR</Text>
+                    <Link
+                      as={NextLink}
+                      href={`/skater/${author}`}
+                      display="flex"
+                      alignItems="center"
+                      gap={2}
+                      _hover={{ textDecoration: "none" }}
+                    >
+                      <Avatar
+                        size="2xs"
+                        name={author}
+                        src={`https://images.hive.blog/u/${author}/avatar/sm`}
+                        borderRadius="none"
+                        border="1px solid"
+                        borderColor="border"
+                      />
+                      <Text fontSize="xs" fontFamily="mono" color="primary" fontWeight="bold">
+                        @{author}
+                      </Text>
+                    </Link>
+                  </HStack>
+                  <HStack py={2} borderBottom="1px solid" borderColor="border" justify="space-between">
+                    <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">CHAIN</Text>
+                    <HStack spacing={1}>
+                      <Icon as={FaHive} boxSize="10px" color="#E31337" />
+                      <Text fontSize="xs" fontFamily="mono" color="text" fontWeight="bold">HIVE</Text>
+                    </HStack>
+                  </HStack>
+                  <HStack py={2} borderBottom="1px solid" borderColor="border" justify="space-between">
+                    <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">STATUS</Text>
+                    <Text fontSize="xs" fontFamily="mono" color={statusColor} fontWeight="bold">
+                      {statusLabel}
+                    </Text>
+                  </HStack>
+                  {deadlineStr && (
+                    <HStack py={2} borderBottom="1px solid" borderColor="border" justify="space-between">
+                      <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">DEADLINE</Text>
+                      <Text fontSize="xs" fontFamily="mono" color="text" fontWeight="bold">
+                        {deadlineStr}
+                      </Text>
+                    </HStack>
+                  )}
+                  <HStack py={2} justify="space-between">
+                    <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">SUBMISSIONS</Text>
+                    <Text fontSize="xs" fontFamily="mono" color="text" fontWeight="bold">
+                      {post.children || 0}
+                    </Text>
+                  </HStack>
+                </VStack>
+              </Box>
+            </VStack>
+          </GridItem>
+        </SimpleGrid>
+
+        {/* ── Submissions section ────────────── */}
+        <Box mt={8}>
+          <Box border="1px solid" borderColor="border" bg="muted">
+            <Box borderBottom="1px solid" borderColor="primary" px={4} py={2}>
+              <Text
+                fontSize="sm"
+                fontWeight="bold"
+                fontFamily="mono"
+                color="text"
+                textTransform="uppercase"
+                letterSpacing="wider"
+              >
+                SUBMISSIONS ({post.children || 0})
+              </Text>
+            </Box>
+            <Box px={4} py={4}>
+              {/* Composer for active bounties */}
+              {isActive && canVote && effectiveUser !== post.author && hasClaimed && (
+                <Box mb={4}>
+                  <SnapComposer
+                    pa={post.author}
+                    pp={post.permlink}
+                    onNewComment={
+                      setNewComment as (newComment: Partial<Discussion>) => void
+                    }
+                    onClose={() => null}
+                  />
+                </Box>
+              )}
+              {isActive && canVote && effectiveUser !== post.author && !hasClaimed && (
+                <Box
+                  border="1px dashed"
+                  borderColor="border"
+                  px={4}
+                  py={6}
+                  textAlign="center"
+                  mb={4}
+                >
+                  <Text fontSize="xs" fontFamily="mono" color="dim" fontWeight="bold" textTransform="uppercase">
+                    CLAIM THIS BOUNTY TO SUBMIT YOUR PROOF
+                  </Text>
+                </Box>
+              )}
+              {isActive && !canVote && (
+                <Box
+                  border="1px dashed"
+                  borderColor="border"
+                  px={4}
+                  py={6}
+                  textAlign="center"
+                  mb={4}
+                >
+                  <Text fontSize="xs" fontFamily="mono" color="dim" fontWeight="bold" textTransform="uppercase">
+                    LOG IN TO SUBMIT
+                  </Text>
+                </Box>
+              )}
+
+              <SnapList
+                author={post.author}
+                permlink={post.permlink}
+                setConversation={() => {}}
+                onOpen={() => {}}
+                setReply={() => {}}
+                newComment={newComment}
+                setNewComment={setNewComment}
+                post={true}
+                data={{
+                  comments,
+                  loadNextPage: () => {},
+                  isLoading,
+                  hasMore: false,
+                }}
+                hideComposer={true}
+              />
+            </Box>
           </Box>
         </Box>
-        {/* Right: Submissions List */}
-        <Box
-          flex={1}
-          h={{ base: "auto", md: "100vh" }}
-          overflowY="auto"
-          bg="muted"
-          borderRadius="base"
-          boxShadow={theme.shadows.md}
-          p={4}
-          sx={{
-            "&::-webkit-scrollbar": { display: "none" },
-            scrollbarWidth: "none",
-          }}
-        >
-          {/* Claimed Users Section removed from here */}
-          <Text fontWeight="bold" fontSize="2xl" textAlign="left" mb={2} mt={2}>
-            Submissions: {post.children || 0}
-          </Text>
-          {renderComposerOrBlocker()}
-          {isActive && <Divider my={4} />}
-          <SnapList
-            author={post.author}
-            permlink={post.permlink}
-            setConversation={() => {}}
-            onOpen={() => {}}
-            setReply={() => {}}
-            newComment={newComment}
-            setNewComment={setNewComment}
-            post={true}
-            data={{
-              comments,
-              loadNextPage: () => {},
-              isLoading,
-              hasMore: false,
-            }}
-            hideComposer={true}
-          />
-        </Box>
-      </Flex>
+      </Container>
+
       <BountyRewarder
         isOpen={isOpen}
         onClose={onClose}
