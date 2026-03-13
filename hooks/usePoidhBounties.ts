@@ -50,8 +50,9 @@ export function usePoidhBounties(options: UsePoidhBountiesOptions = {}): UsePoid
         }
 
         setBounties((prev) => (append ? [...prev, ...data.bounties] : data.bounties));
-        setHasMore(data.bounties.length === data.limit);
-        setOffset(currentOffset + data.bounties.length);
+        const nextOffset = currentOffset + data.bounties.length;
+        setHasMore(nextOffset < data.total);
+        setOffset(nextOffset);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load POIDH bounties';
         setError(message);

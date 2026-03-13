@@ -1,13 +1,13 @@
 'use client';
 
-import { 
-  Box, 
-  Button, 
-  SimpleGrid, 
-  Spinner, 
-  Text, 
-  VStack, 
-  Alert, 
+import {
+  Box,
+  Button,
+  SimpleGrid,
+  Spinner,
+  Text,
+  VStack,
+  Alert,
   AlertIcon,
   HStack,
   Tabs,
@@ -15,23 +15,29 @@ import {
   TabPanels,
   Tab,
   TabPanel,
-  Badge
+  Link,
 } from '@chakra-ui/react';
+import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { usePoidhBounties } from '@/hooks/usePoidhBounties';
 import { PoidhBountyCard } from './PoidhBountyCard';
 
-function BountyListContent({ status, embedded }: { status: 'open' | 'past'; embedded?: boolean }) {
+interface BountyListContentProps {
+  status: 'open' | 'past';
+  embedded?: boolean;
+}
+
+function BountyListContent({ status, embedded }: BountyListContentProps) {
   const { bounties, loading, error, hasMore, loadMore } = usePoidhBounties({
     status,
-    filterSkate: true
+    filterSkate: true,
   });
 
   if (loading && bounties.length === 0) {
     return (
-      <VStack py={12} gap={4}>
-        <Spinner size="xl" color="primary" thickness="4px" />
-        <Text color="textSecondary" fontSize="lg">
-          Loading skateboarding bounties from Base & Arbitrum...
+      <VStack py={12} gap={3}>
+        <Spinner size="lg" color="primary" thickness="3px" />
+        <Text color="dim" fontSize="sm">
+          Searching for skate bounties on Base &amp; Arbitrum...
         </Text>
       </VStack>
     );
@@ -39,11 +45,11 @@ function BountyListContent({ status, embedded }: { status: 'open' | 'past'; embe
 
   if (error) {
     return (
-      <Alert status="error" borderRadius="md" variant="left-accent">
+      <Alert status="error" borderRadius="lg" variant="left-accent">
         <AlertIcon />
-        <VStack align="start" gap={1}>
-          <Text fontWeight="bold">Failed to load bounties</Text>
-          <Text fontSize="sm">{error}</Text>
+        <VStack align="start" gap={0}>
+          <Text fontWeight="bold" fontSize="sm">Failed to load bounties</Text>
+          <Text fontSize="xs" color="textSecondary">{error}</Text>
         </VStack>
       </Alert>
     );
@@ -51,82 +57,105 @@ function BountyListContent({ status, embedded }: { status: 'open' | 'past'; embe
 
   if (bounties.length === 0) {
     return (
-      <Box textAlign="center" py={16} px={4}>
-        <Text fontSize="3xl" mb={2}>
-          🎯
+      <Box
+        textAlign="center"
+        py={16}
+        px={4}
+        borderRadius="2xl"
+        border="2px dashed"
+        borderColor="border"
+      >
+        <Text fontSize="3xl" mb={3}>🛹</Text>
+        <Text fontSize="lg" fontWeight="bold" color="text" mb={1}>
+          No skate bounties found
         </Text>
-        <Text fontSize="xl" fontWeight="bold" color="text" mb={2}>
-          No skateboarding bounties found
+        <Text fontSize="sm" color="dim" mb={6}>
+          {status === 'open'
+            ? 'No active skateboarding bounties at the moment — be the first!'
+            : 'No past skateboarding bounties matched our filter.'}
         </Text>
-        <Text fontSize="md" color="textSecondary">
-          {status === 'open' 
-            ? 'No active skateboarding bounties at the moment'
-            : 'No past skateboarding bounties found'
-          }
-        </Text>
-        <Button
-          as="a"
-          href="https://poidh.xyz"
-          target="_blank"
-          mt={6}
-          colorScheme="brand"
-          size="lg"
-        >
-          Create Bounty on POIDH
-        </Button>
+        <HStack justify="center" gap={3} flexWrap="wrap">
+          <Button
+            as={Link}
+            href="https://poidh.xyz"
+            isExternal
+            size="sm"
+            bg="primary"
+            color="background"
+            _hover={{ bg: 'accent', textDecor: 'none' }}
+            rightIcon={<ExternalLinkIcon />}
+          >
+            Create on POIDH
+          </Button>
+          <Button
+            as={Link}
+            href={`https://poidh.xyz/explore?tab=bounties`}
+            isExternal
+            size="sm"
+            variant="ghost"
+            color="textSecondary"
+            _hover={{ color: 'text', textDecor: 'none' }}
+            rightIcon={<ExternalLinkIcon />}
+          >
+            Browse all on POIDH
+          </Button>
+        </HStack>
       </Box>
     );
   }
 
   return (
     <VStack gap={6} align="stretch">
-      {/* Header */}
+      {/* Header — only when not embedded in the hub */}
       {!embedded && (
-        <HStack justify="space-between" align="center">
-          <Text fontSize="md" color="textSecondary">
-            Showing <Text as="span" fontWeight="bold" color="text">{bounties.length}</Text>{' '}
+        <HStack justify="space-between" align="center" flexWrap="wrap" gap={2}>
+          <Text fontSize="sm" color="dim">
+            <Text as="span" fontWeight="bold" color="text">{bounties.length}</Text>
+            {' skate '}
             {bounties.length === 1 ? 'bounty' : 'bounties'}
           </Text>
-          <Button
-            as="a"
-            href="https://poidh.xyz"
-            target="_blank"
-            size="sm"
-            variant="ghost"
-            colorScheme="brand"
+          <Link
+            href={`https://poidh.xyz/explore?tab=bounties`}
+            isExternal
+            fontSize="xs"
+            color="dim"
+            _hover={{ color: 'primary' }}
           >
-            + Create Bounty
-          </Button>
+            Show all on POIDH <ExternalLinkIcon mx="1px" />
+          </Link>
         </HStack>
       )}
 
       {/* Grid */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={6}>
+      <SimpleGrid columns={{ base: 1, sm: 2, md: 3, xl: 4 }} gap={5}>
         {bounties.map((bounty) => (
           <PoidhBountyCard key={bounty.id} bounty={bounty} />
         ))}
       </SimpleGrid>
 
-      {/* Pagination */}
+      {/* Load more */}
       {hasMore && (
-        <HStack justify="center" pt={4}>
-          <Button 
-            onClick={loadMore} 
+        <HStack justify="center" pt={2}>
+          <Button
+            onClick={loadMore}
             isLoading={loading}
-            loadingText="Loading more..."
-            colorScheme="brand"
-            size="lg"
+            loadingText="Loading..."
+            size="md"
+            variant="outline"
+            borderColor="border"
+            color="text"
+            _hover={{ borderColor: 'primary', color: 'primary' }}
             px={8}
           >
-            Load More Bounties
+            Load more
           </Button>
         </HStack>
       )}
 
       {loading && bounties.length > 0 && (
-        <HStack justify="center" py={4}>
-          <Spinner size="md" color="primary" />
-          <Text color="textSecondary">Loading more...</Text>
+        <HStack justify="center" py={2} gap={2}>
+          <Spinner size="sm" color="primary" />
+          <Text fontSize="sm" color="dim">Loading more...</Text>
         </HStack>
       )}
     </VStack>
@@ -143,44 +172,30 @@ export function PoidhBountyList({ embedded = false }: { embedded?: boolean }) {
         borderRadius="full"
         p={1}
         w="fit-content"
+        mb={6}
       >
-        <Tab
-          px={5}
-          py={2}
-          borderRadius="full"
-          fontWeight="bold"
-          color="textSecondary"
-          _selected={{
-            bg: 'primary',
-            color: 'background',
-            boxShadow: 'md'
-          }}
-          _hover={{ color: 'text' }}
-        >
-          Active Bounties
-        </Tab>
-        <Tab
-          px={5}
-          py={2}
-          borderRadius="full"
-          fontWeight="bold"
-          color="textSecondary"
-          _selected={{
-            bg: 'primary',
-            color: 'background',
-            boxShadow: 'md'
-          }}
-          _hover={{ color: 'text' }}
-        >
-          Past Bounties
-        </Tab>
+        {(['Active', 'Past'] as const).map((label) => (
+          <Tab
+            key={label}
+            px={5}
+            py={2}
+            borderRadius="full"
+            fontWeight="bold"
+            fontSize="sm"
+            color="textSecondary"
+            _selected={{ bg: 'primary', color: 'background', boxShadow: 'md' }}
+            _hover={{ color: 'text' }}
+          >
+            {label}
+          </Tab>
+        ))}
       </TabList>
 
       <TabPanels>
-        <TabPanel px={0} pt={6}>
+        <TabPanel px={0} pt={0}>
           <BountyListContent status="open" embedded={embedded} />
         </TabPanel>
-        <TabPanel px={0} pt={6}>
+        <TabPanel px={0} pt={0}>
           <BountyListContent status="past" embedded={embedded} />
         </TabPanel>
       </TabPanels>

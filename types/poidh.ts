@@ -16,6 +16,9 @@ export interface PoidhBounty {
   };
   claimCount?: number;
   claims?: PoidhClaim[];
+  imageUrl?: string | null;
+  inProgress?: boolean;
+  isActive?: boolean; // True when fetched from status='open' endpoint
 }
 
 export interface PoidhClaim {

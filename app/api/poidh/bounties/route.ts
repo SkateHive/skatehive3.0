@@ -3,29 +3,42 @@ import type { PoidhBountiesResponse } from '@/types/poidh';
 
 const CACHE_TTL = 15 * 60; // 15 minutes
 
+// Strong keywords: unmistakably skateboarding
 const SKATE_KEYWORDS = [
-  'skate',
-  'skateboard',
-  'skating',
-  'trick',
-  'kickflip',
-  'ollie',
-  'grind',
-  'rail',
-  'ledge',
-  'park',
-  'street',
-  'vert',
-  'bowl',
-  'ramp',
-  'halfpipe'
+  // Identity terms
+  'skate', 'skateboard', 'skateboarding', 'skating', 'skater', 'skateboarder',
+  'skatehive',
+  // Specific trick names only — no generic words
+  'kickflip', 'heelflip', 'hardflip', 'inward heel',
+  'tre flip', '360 flip', 'laser flip',
+  'varial flip', 'varial heel', 'pressure flip',
+  'ollie', 'nollie',
+  'pop shove', 'shove-it', 'shuv-it',
+  'boardslide', 'lipslide', 'tailslide', 'noseslide', 'bluntslide',
+  'smith grind', 'feeble grind', 'crooked grind',
+  '50-50', 'nosegrind', 'overcrooks',
+  'nose manual',
+  'halfpipe', 'mini ramp', 'quarter pipe',
+  // Skate culture
+  'skatepark', 'skate spot', 'skate trick',
 ];
 
 const ALLOWED_CHAINS = [8453, 42161]; // Base and Arbitrum only
 
+// Extract the first image URL from a markdown or plain-text description
+function extractFirstImage(description: string): string | null {
+  // Match markdown image: ![alt](url)
+  const mdMatch = description.match(/!\[[^\]]*\]\(([^)]+)\)/);
+  if (mdMatch) return mdMatch[1];
+  // Match bare http image URLs ending in image extension
+  const urlMatch = description.match(/https?:\/\/\S+\.(?:jpg|jpeg|png|gif|webp|svg)(\?\S*)?/i);
+  if (urlMatch) return urlMatch[0];
+  return null;
+}
+
 function isSkateRelated(name: string, description: string): boolean {
   const text = `${name} ${description}`.toLowerCase();
-  return SKATE_KEYWORDS.some((keyword) => text.includes(keyword));
+  return SKATE_KEYWORDS.some((kw) => text.includes(kw));
 }
 
 export async function GET(req: NextRequest) {
@@ -79,13 +92,18 @@ export async function GET(req: NextRequest) {
       name: b.title,
       description: b.description,
       amount: b.amount,
-      claimer: b.inProgress ? null : (b.claimer || null),
+      // Use the status from the request — don't re-derive active state from claimer
+      // A bounty is "active" when the list was fetched with status='open'
+      claimer: b.claimer || null,
       createdAt: b.createdAt,
       claimId: b.claimId || 0,
       isOpenBounty: b.isMultiplayer || false,
-      claimCount: b.hasClaims ? 1 : 0,
+      claimCount: b.claimCount || (b.hasClaims ? 1 : 0),
       chainId: b.chainId,
-      inProgress: b.inProgress
+      inProgress: b.inProgress || false,
+      // status='open' from Poidh means it's truly open; pass it through so the card knows
+      isActive: status === 'open',
+      imageUrl: extractFirstImage(b.description || ''),
     }));
 
     const response: PoidhBountiesResponse = {
