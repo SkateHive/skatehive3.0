@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { PoidhBountiesResponse } from '@/types/poidh';
+import { extractFirstImage, toUnixSeconds } from '@/lib/poidh-utils';
+import { ALLOWED_CHAINS } from '@/lib/poidh-constants';
 
 const CACHE_TTL = 15 * 60; // 15 minutes
 
@@ -22,19 +24,6 @@ const SKATE_KEYWORDS = [
   // Skate culture
   'skatepark', 'skate spot', 'skate trick',
 ];
-
-const ALLOWED_CHAINS = [8453, 42161]; // Base and Arbitrum only
-
-// Extract the first image URL from a markdown or plain-text description
-function extractFirstImage(description: string): string | null {
-  // Match markdown image: ![alt](url)
-  const mdMatch = description.match(/!\[[^\]]*\]\(([^)]+)\)/);
-  if (mdMatch) return mdMatch[1];
-  // Match bare http image URLs ending in image extension
-  const urlMatch = description.match(/https?:\/\/\S+\.(?:jpg|jpeg|png|gif|webp|svg)(\?\S*)?/i);
-  if (urlMatch) return urlMatch[0];
-  return null;
-}
 
 function isSkateRelated(name: string, description: string): boolean {
   const text = `${name} ${description}`.toLowerCase();
@@ -95,7 +84,7 @@ export async function GET(req: NextRequest) {
       // Use the status from the request — don't re-derive active state from claimer
       // A bounty is "active" when the list was fetched with status='open'
       claimer: b.claimer || null,
-      createdAt: b.createdAt,
+      createdAt: toUnixSeconds(b.createdAt),
       claimId: b.claimId || 0,
       isOpenBounty: b.isMultiplayer || false,
       claimCount: b.claimCount || (b.hasClaims ? 1 : 0),
@@ -121,10 +110,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Error fetching POIDH bounties:', error);
     return NextResponse.json(
-      {
-        error: 'Failed to fetch POIDH bounties',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to fetch POIDH bounties' },
       { status: 500 }
     );
   }

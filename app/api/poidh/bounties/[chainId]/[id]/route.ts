@@ -1,26 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { PoidhBounty, PoidhClaim } from '@/types/poidh';
+import { extractFirstImage, toUnixSeconds } from '@/lib/poidh-utils';
 
 const CACHE_TTL = 5 * 60;
-
-// Safely convert a createdAt field that may be ISO string or unix seconds
-function toUnixSeconds(value: unknown): number {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    const ms = Date.parse(value);
-    if (!isNaN(ms)) return Math.floor(ms / 1000);
-  }
-  return 0;
-}
-
-// Extract the first image URL from markdown or plain text
-function extractFirstImage(description: string): string | null {
-  const mdMatch = description.match(/!\[[^\]]*\]\(([^)]+)\)/);
-  if (mdMatch) return mdMatch[1];
-  const urlMatch = description.match(/https?:\/\/\S+\.(?:jpg|jpeg|png|gif|webp|svg)(\?\S*)?/i);
-  if (urlMatch) return urlMatch[0];
-  return null;
-}
 
 export async function GET(
   req: NextRequest,
@@ -31,6 +13,13 @@ export async function GET(
 
     const bountyId = parseInt(id, 10);
     const numericChainId = parseInt(chainId, 10);
+
+    if (isNaN(bountyId) || isNaN(numericChainId)) {
+      return NextResponse.json(
+        { error: 'Invalid chainId or bounty id' },
+        { status: 400 }
+      );
+    }
 
     // 1. Fetch Bounty Details (using batched TRPC format)
     const bountyInput = JSON.stringify({
@@ -92,7 +81,7 @@ export async function GET(
         bountyIssuer: b.issuer,
         name: c.title || '',
         description: c.description || '',
-        createdAt: new Date(c.createdAt).getTime() / 1000,
+        createdAt: toUnixSeconds(c.createdAt),
         accepted: c.accepted || (b.claimId && b.claimId.toString() === c.id.toString()) || false,
       }));
     }
@@ -123,10 +112,7 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching POIDH bounty detail:', error);
     return NextResponse.json(
-      {
-        error: 'Failed to fetch POIDH bounty detail',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to fetch POIDH bounty detail' },
       { status: 500 }
     );
   }
