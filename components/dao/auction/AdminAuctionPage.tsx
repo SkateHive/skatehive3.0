@@ -18,7 +18,7 @@ import { ExternalLinkIcon } from "@chakra-ui/icons";
 import { useEffect, useState } from "react";
 import { useReadContract } from "wagmi";
 import { DAO_ADDRESSES, SKATEHIVE_HOT_ADDRESS } from "@/lib/utils/constants";
-import { AuctionHeader } from "@/components/auction/AuctionHeader";
+import { AuctionHeader } from "./AuctionHeader";
 
 interface AdminAuctionPageProps {
   tokenId: number;

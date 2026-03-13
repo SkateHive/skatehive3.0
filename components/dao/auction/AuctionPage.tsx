@@ -1,9 +1,9 @@
 "use client";
 
-import { AuctionBid, BidsModal } from "@/components/auction";
-import { AuctionHeader } from "@/components/auction/AuctionHeader";
-import { AdminAuctionPage } from "@/components/auction/AdminAuctionPage";
-import AuctionMobileNavbar from "@/components/auction/AuctionMobileNavbar";
+import { AuctionBid, BidsModal } from "./";
+import { AuctionHeader } from "./AuctionHeader";
+import { AdminAuctionPage } from "./AdminAuctionPage";
+import AuctionMobileNavbar from "./AuctionMobileNavbar";
 import { fetchAuctionByTokenId, fetchAuction } from "@/services/auction";
 import { useQuery } from "@tanstack/react-query";
 import { DAO_ADDRESSES } from "@/lib/utils/constants";
@@ -86,7 +86,7 @@ export default function AuctionPage({
     queryKey: tokenId ? ["auction", tokenId] : ["auction", "latest"],
     queryFn: async () => {
       if (tokenId !== undefined) {
-        const result = await fetchAuctionByTokenId(tokenId);
+        const result = await fetchAuctionByTokenId(DAO_ADDRESSES.token, tokenId);
         return result;
       } else {
         // Fetch latest auction for main page

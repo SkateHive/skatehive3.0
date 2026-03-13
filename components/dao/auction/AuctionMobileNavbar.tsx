@@ -13,7 +13,7 @@ import {
 } from "@chakra-ui/react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import { Name, Avatar, Identity } from "@coinbase/onchainkit/identity";
-import { CustomConnectButton } from "../shared/CustomConnectButton";
+import { CustomConnectButton } from "../../shared/CustomConnectButton";
 import { useRouter } from "next/navigation";
 
 export default function AuctionMobileNavbar() {

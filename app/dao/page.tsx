@@ -1,30 +1,24 @@
 import { Metadata } from "next";
-import { Box } from "@chakra-ui/react";
-import DAOAssets from "@/components/dao/DAOAssets";
+import DAOPageClient from "@/components/dao/DAOPageClient";
 
 export const metadata: Metadata = {
-  title: "DAO - Under Construction",
+  title: "DAO - Skatehive Governance",
   description:
-    "The Skatehive DAO is currently under construction. Stay tuned for updates!",
+    "Explore Skatehive DAO governance, proposals, auctions, and treasury.",
   openGraph: {
-    title: "DAO - Under Construction | Skatehive",
+    title: "DAO - Skatehive Governance",
     description:
-      "The Skatehive DAO is currently under construction. Stay tuned for updates!",
+      "Explore Skatehive DAO governance, proposals, auctions, and treasury.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "DAO - Under Construction | Skatehive",
+    title: "DAO - Skatehive Governance",
     description:
-      "The Skatehive DAO is currently under construction. Stay tuned for updates!",
+      "Explore Skatehive DAO governance, proposals, auctions, and treasury.",
   },
 };
 
 export default function DAOPage() {
-  return (
-    <Box minH="100vh">
-      {/* DAO Assets Panel */}
-      <DAOAssets />
-    </Box>
-  );
+  return <DAOPageClient />;
 }

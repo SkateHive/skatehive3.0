@@ -10,6 +10,7 @@ import InstagramEmbed from "./InstagramEmbed";
 import ZoraCoinPreview from "../zora/ZoraCoinPreview";
 import SnapshotPreview from "../shared/SnapshotPreview";
 import GameCartridgeEmbed from "../games/GameCartridgeEmbed";
+import ProposalPreview from "../dao/governance/ProposalPreview";
 import HiveMarkdown from "@/components/shared/HiveMarkdown";
 
 interface EnhancedMarkdownRendererProps {
@@ -35,9 +36,9 @@ export function EnhancedMarkdownRenderer({
 function renderContentWithVideos(
   processed: ProcessedMarkdown
 ): React.ReactNode[] {
-  // Split on supported video, social media, Zora coin, Snapshot, and SkateHive game placeholders
+  // Split on supported video, social media, Zora coin, Snapshot, SkateHive game, and Builder proposal placeholders
   const parts = processed.contentWithPlaceholders.split(
-    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME):([^\]]+)\]\])/g
+    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL):([^\]]+)\]\])/g
   );
 
   return parts
@@ -83,6 +84,13 @@ function renderContentWithVideos(
       if (gameMatch) {
         const slug = gameMatch[1] as "quest-for-stoken" | "lougnar";
         return <GameCartridgeEmbed key={`game-${idx}`} gameSlug={slug} />;
+      }
+
+      // Handle Builder DAO proposal placeholders
+      const proposalMatch = part.match(/^\[\[BUILDERPROPOSAL:([^\]]+)\]\]$/);
+      if (proposalMatch) {
+        const url = proposalMatch[1];
+        return <ProposalPreview key={`proposal-${idx}`} url={url} />;
       }
 
       // Skip empty parts or parts that are just whitespace

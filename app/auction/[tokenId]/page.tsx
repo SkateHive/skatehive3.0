@@ -6,6 +6,7 @@ import {
   formatBidAmount,
   DEFAULT_AUCTION_METADATA,
 } from "@/lib/utils/metadata";
+import { DAO_ADDRESSES } from "@/lib/utils/constants";
 
 interface PageProps {
   params: Promise<{
@@ -29,7 +30,7 @@ export async function generateMetadata({
       };
     }
 
-    const auction = await fetchAuctionByTokenId(tokenId);
+    const auction = await fetchAuctionByTokenId(DAO_ADDRESSES.token, tokenId);
 
     if (!auction) {
       // Check if this might be a missing admin/referral auction
