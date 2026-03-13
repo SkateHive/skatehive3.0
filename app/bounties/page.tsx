@@ -24,10 +24,10 @@ export const metadata: Metadata = {
     url: `${APP_CONFIG.BASE_URL}/bounties`,
     images: [
       {
-        url: `${APP_CONFIG.BASE_URL}/ogimage.png`,
+        url: `${APP_CONFIG.BASE_URL}/api/og/bounty?title=Skatehive+Bounties&amount=ETH+%2B+HIVE&currency=&status=OPEN&source=poidh&chain=BASE+%2F+ARB+%2F+HIVE`,
         width: 1200,
         height: 630,
-        alt: "Skatehive Bounties Open Graph Image",
+        alt: "Skatehive Bounties — Land Tricks, Earn Rewards",
       },
     ],
     siteName: "Skatehive",
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     title: "Skate Trick Bounties — Land Tricks, Earn Rewards | Skatehive",
     description:
       "Take on skate trick challenges and earn crypto rewards. Post a bounty, submit your clip, get paid.",
-    images: [`${APP_CONFIG.BASE_URL}/ogimage.png`],
+    images: [`${APP_CONFIG.BASE_URL}/api/og/bounty?title=Skatehive+Bounties&amount=ETH+%2B+HIVE&currency=&status=OPEN`],
   },
   alternates: {
     canonical: `${APP_CONFIG.BASE_URL}/bounties`,

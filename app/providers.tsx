@@ -8,7 +8,7 @@ import { ThemeProvider } from "./themeProvider";
 import { OnchainKitProvider } from "@coinbase/onchainkit";
 import { getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { WagmiProvider, http } from "wagmi";
-import { base, mainnet } from "wagmi/chains";
+import { base, mainnet, arbitrum } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { UserProvider } from "@/contexts/UserContext";
 import { UserbaseAuthProvider } from "@/contexts/UserbaseAuthContext";
@@ -45,10 +45,11 @@ function getWagmiConfig() {
     wagmiConfigInstance = getDefaultConfig({
       appName: APP_CONFIG.NAME,
       projectId: APP_CONFIG.WALLETCONNECT_PROJECT_ID,
-      chains: [base, mainnet],
+      chains: [base, mainnet, arbitrum],
       transports: {
         [base.id]: http(),
         [mainnet.id]: http(),
+        [arbitrum.id]: http(),
       },
       ssr: true,
     });

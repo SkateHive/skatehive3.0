@@ -64,11 +64,9 @@ export async function GET(req: NextRequest) {
 
     // Filter: Skate-related only (if requested)
     if (filterSkate) {
-      const beforeFilter = bounties.length;
       bounties = bounties.filter((b: any) =>
         isSkateRelated(b.title || '', b.description || '')
       );
-      console.log(`[POIDH API] Skate filter: ${beforeFilter} -> ${bounties.length} bounties`);
     }
 
     // Pagination
@@ -107,8 +105,7 @@ export async function GET(req: NextRequest) {
         'Cache-Control': `public, s-maxage=${CACHE_TTL}, stale-while-revalidate`
       }
     });
-  } catch (error) {
-    console.error('Error fetching POIDH bounties:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Failed to fetch POIDH bounties' },
       { status: 500 }

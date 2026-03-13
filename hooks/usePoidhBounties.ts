@@ -56,7 +56,6 @@ export function usePoidhBounties(options: UsePoidhBountiesOptions = {}): UsePoid
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load POIDH bounties';
         setError(message);
-        console.error('usePoidhBounties error:', err);
       } finally {
         setLoading(false);
       }

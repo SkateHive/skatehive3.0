@@ -12,18 +12,18 @@ import {
   Flex,
   Avatar,
 } from '@chakra-ui/react';
-import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { FaHive, FaEthereum, FaPen, FaFolder, FaCheckCircle, FaTrophy } from 'react-icons/fa';
 import useIsMobile from '@/hooks/useIsMobile';
 import useEffectiveHiveUser from '@/hooks/useEffectiveHiveUser';
 import SkateModal from '@/components/shared/SkateModal';
 import BountyComposer from '@/components/bounties/BountyComposer';
+import PoidhBountyComposer from '@/components/bounties/PoidhBountyComposer';
 import UnifiedBountyList from '@/components/bounties/UnifiedBountyList';
 import type { SourceFilter } from '@/components/bounties/UnifiedBountyList';
 import type { Discussion } from '@hiveio/dhive';
 import type { UnifiedBounty } from '@/types/unified-bounty';
 
-type ModalStep = 'choice' | 'hive-form';
+type ModalStep = 'choice' | 'hive-form' | 'eth-form';
 
 const SOURCE_FILTERS: { key: SourceFilter; label: string }[] = [
   { key: 'all', label: 'ALL' },
@@ -80,8 +80,7 @@ export default function BountiesHubClient() {
   };
 
   const handleChooseEth = () => {
-    handleCloseModal();
-    window.open('https://poidh.xyz', '_blank');
+    setModalStep('eth-form');
   };
 
   return (
@@ -366,10 +365,18 @@ export default function BountiesHubClient() {
       <SkateModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title={modalStep === 'choice' ? 'choose-your-chain' : 'create-bounty'}
+        title={modalStep === 'choice' ? 'choose-your-chain' : modalStep === 'eth-form' ? 'create-eth-bounty' : 'create-bounty'}
         size={modalStep === 'choice' ? 'lg' : (isMobile ? 'full' : '2xl')}
       >
-        {modalStep === 'choice' ? (
+        {modalStep === 'eth-form' ? (
+          /* ── ETH/POIDH native bounty form ────── */
+          <PoidhBountyComposer
+            onSuccess={() => {
+              setRefreshTrigger((prev) => prev + 1);
+            }}
+            onClose={handleCloseModal}
+          />
+        ) : modalStep === 'choice' ? (
           /* ── Chain choice: Matrix pill style ──── */
           <VStack spacing={{ base: 4, md: 6 }} py={{ base: 4, md: 6 }} px={{ base: 2, md: 4 }}>
             <Text
@@ -478,9 +485,8 @@ export default function BountiesHubClient() {
                     ETH
                   </Text>
                   <Text fontSize="2xs" fontFamily="mono" color="dim" textAlign="center">
-                    CREATE ON POIDH.XYZ
+                    ONCHAIN VIA POIDH
                   </Text>
-                  <Icon as={ExternalLinkIcon} boxSize="10px" color="dim" />
                 </VStack>
               </Box>
             </Flex>

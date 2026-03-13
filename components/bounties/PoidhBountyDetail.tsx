@@ -13,15 +13,21 @@ import {
   Tooltip,
   Link,
   Icon,
+  Input,
+  Textarea,
 } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import Image from 'next/image';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
-import { FaEthereum, FaCalendar, FaArrowLeft, FaBolt, FaFolder } from 'react-icons/fa';
+import { FaEthereum, FaCalendar, FaArrowLeft, FaBolt, FaUsers, FaTrophy, FaVoteYea, FaTimes, FaCheck } from 'react-icons/fa';
 import { formatEther } from 'viem';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useAccount } from 'wagmi';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import type { PoidhBounty } from '@/types/poidh';
 import { CHAIN_LABEL, CHAIN_PATH } from '@/lib/poidh-constants';
+import { usePoidhWrite } from '@/hooks/usePoidhWrite';
+import { usePoidhParticipants, usePoidhVotingState, usePoidhParticipantAmount, usePoidhIsOpenBounty } from '@/hooks/usePoidhRead';
 
 interface PoidhBountyDetailProps {
   chainId: string;
@@ -46,6 +52,32 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Wallet
+  const { address, isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const poidh = usePoidhWrite();
+
+  // Form states
+  const [showContributeForm, setShowContributeForm] = useState(false);
+  const [contributeAmount, setContributeAmount] = useState('');
+  const [showClaimForm, setShowClaimForm] = useState(false);
+  const [claimTitle, setClaimTitle] = useState('');
+  const [claimDescription, setClaimDescription] = useState('');
+  const [claimUri, setClaimUri] = useState('');
+
+  const numericChainId = parseInt(chainId, 10);
+  const bountyIdBigInt = bounty ? BigInt(bounty.id) : undefined;
+
+  // On-chain reads
+  const { participants, participantsLoading } = usePoidhParticipants(numericChainId, bountyIdBigInt);
+  const votingState = usePoidhVotingState(numericChainId, bountyIdBigInt);
+  const { isOpenBounty } = usePoidhIsOpenBounty(numericChainId, bountyIdBigInt);
+  const { amount: userContribution } = usePoidhParticipantAmount(
+    numericChainId,
+    bountyIdBigInt,
+    address as `0x${string}` | undefined,
+  );
+
   useEffect(() => {
     async function fetchBounty() {
       try {
@@ -66,6 +98,120 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
     fetchBounty();
   }, [chainId, id]);
 
+  const amountInEth = bounty ? safeFormatEther(bounty.amount) : '0';
+  const amountFloat = parseFloat(amountInEth);
+  const isActive = bounty ? (bounty.isActive ?? !bounty.claimer) : false;
+  const createdDate = bounty && bounty.createdAt > 0
+    ? new Date(bounty.createdAt * 1000).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric',
+      }).toUpperCase()
+    : null;
+  const poidhUrl = bounty ? `https://poidh.xyz/${CHAIN_PATH[numericChainId]}/bounty/${bounty.id}` : '';
+  const chainLabel = CHAIN_LABEL[numericChainId] ?? 'Unknown';
+  const statusColor = isActive ? 'success' : 'error';
+  const statusLabel = isActive ? 'OPEN' : 'CLOSED';
+
+  const isIssuer = useMemo(() => {
+    if (!bounty || !address) return false;
+    return bounty.issuer.toLowerCase() === address.toLowerCase();
+  }, [bounty, address]);
+
+  const isContributor = parseFloat(userContribution) > 0;
+  const hasVotingClaim = votingState.currentVotingClaimId > 0;
+  const votingActive = votingState.votingDeadline > 0 && votingState.votingDeadline * 1000 > Date.now();
+  const votingExpired = votingState.votingDeadline > 0 && votingState.votingDeadline * 1000 <= Date.now();
+
+  // Participant amounts — read from API participants data if available
+  const participantEntries = useMemo(() => {
+    if (!bounty?.participants) return [];
+    const { addresses, amounts } = bounty.participants;
+    if (!addresses || !amounts) return [];
+    return addresses.map((addr, i) => ({
+      address: addr,
+      amount: safeFormatEther(amounts[i] || '0'),
+    }));
+  }, [bounty?.participants]);
+
+  const isBusy = poidh.status === 'switching-chain' || poidh.status === 'pending-approval' || poidh.status === 'pending-tx';
+
+  const handleContribute = async () => {
+    if (!isConnected) { openConnectModal?.(); return; }
+    if (!bountyIdBigInt || !contributeAmount) return;
+    try {
+      await poidh.joinOpenBounty(numericChainId, bountyIdBigInt, contributeAmount);
+      setShowContributeForm(false);
+      setContributeAmount('');
+      // Refresh bounty data
+      window.location.reload();
+    } catch { /* handled by hook */ }
+  };
+
+  const handleWithdrawContribution = async () => {
+    if (!bountyIdBigInt) return;
+    try {
+      await poidh.withdrawFromOpenBounty(numericChainId, bountyIdBigInt);
+      window.location.reload();
+    } catch { /* handled by hook */ }
+  };
+
+  const handleSubmitClaim = async () => {
+    if (!isConnected) { openConnectModal?.(); return; }
+    if (!bountyIdBigInt || !claimTitle.trim()) return;
+    try {
+      await poidh.createClaim(numericChainId, bountyIdBigInt, claimTitle, claimDescription, claimUri);
+      setShowClaimForm(false);
+      setClaimTitle('');
+      setClaimDescription('');
+      setClaimUri('');
+      window.location.reload();
+    } catch { /* handled by hook */ }
+  };
+
+  const handleAcceptClaim = async (claimId: string) => {
+    if (!bountyIdBigInt) return;
+    try {
+      await poidh.acceptClaim(numericChainId, bountyIdBigInt, BigInt(claimId));
+      window.location.reload();
+    } catch { /* handled by hook */ }
+  };
+
+  const handleSubmitForVote = async (claimId: string) => {
+    if (!bountyIdBigInt) return;
+    try {
+      await poidh.submitClaimForVote(numericChainId, bountyIdBigInt, BigInt(claimId));
+      window.location.reload();
+    } catch { /* handled by hook */ }
+  };
+
+  const handleVote = async (vote: boolean) => {
+    if (!bountyIdBigInt) return;
+    try {
+      await poidh.voteClaim(numericChainId, bountyIdBigInt, vote);
+      window.location.reload();
+    } catch { /* handled by hook */ }
+  };
+
+  const handleResolveVote = async () => {
+    if (!bountyIdBigInt) return;
+    try {
+      await poidh.resolveVote(numericChainId, bountyIdBigInt);
+      window.location.reload();
+    } catch { /* handled by hook */ }
+  };
+
+  const handleCancelBounty = async () => {
+    if (!bountyIdBigInt) return;
+    try {
+      if (isOpenBounty) {
+        await poidh.cancelOpenBounty(numericChainId, bountyIdBigInt);
+      } else {
+        await poidh.cancelSoloBounty(numericChainId, bountyIdBigInt);
+      }
+      window.location.reload();
+    } catch { /* handled by hook */ }
+  };
+
+  // ── Loading / Error states ──────────────────────────────────
   if (loading) {
     return (
       <Box minH="60vh" display="flex" alignItems="center" justifyContent="center">
@@ -101,20 +247,6 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
       </Container>
     );
   }
-
-  const amountInEth = safeFormatEther(bounty.amount);
-  const amountFloat = parseFloat(amountInEth);
-  const isActive = bounty.isActive ?? !bounty.claimer;
-  const createdDate = bounty.createdAt > 0
-    ? new Date(bounty.createdAt * 1000).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric',
-      }).toUpperCase()
-    : null;
-  const numericChainId = parseInt(chainId, 10);
-  const poidhUrl = `https://poidh.xyz/${CHAIN_PATH[numericChainId]}/bounty/${bounty.id}`;
-  const chainLabel = CHAIN_LABEL[numericChainId] ?? 'Unknown';
-  const statusColor = isActive ? 'success' : 'error';
-  const statusLabel = isActive ? 'OPEN' : 'CLOSED';
 
   return (
     <Box bg="background" minH="100vh">
@@ -183,6 +315,11 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                 </Box>
                 <Box border="1px solid" borderColor="border" px={2.5} py={0.5}>
                   <Text fontSize="2xs" fontWeight="bold" fontFamily="mono" color="dim">
+                    {isOpenBounty ? 'OPEN BOUNTY' : 'SOLO BOUNTY'}
+                  </Text>
+                </Box>
+                <Box border="1px solid" borderColor="border" px={2.5} py={0.5}>
+                  <Text fontSize="2xs" fontWeight="bold" fontFamily="mono" color="dim">
                     POIDH #{bounty.id}
                   </Text>
                 </Box>
@@ -196,18 +333,6 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                 )}
               </HStack>
 
-              {/* Title */}
-              <Text
-                fontWeight="900"
-                fontSize={{ base: 'xl', md: '2xl' }}
-                color="text"
-                lineHeight="shorter"
-                textTransform="uppercase"
-                fontFamily="mono"
-              >
-                {bounty.name}
-              </Text>
-
               {/* Thumbnail */}
               {bounty.imageUrl && (
                 <Box
@@ -215,25 +340,21 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                   overflow="hidden"
                   border="1px solid"
                   borderColor="border"
-                  h="240px"
-                  position="relative"
+                  bg="background"
                 >
                   <Image
                     src={bounty.imageUrl}
                     alt={bounty.name}
-                    fill
-                    style={{ objectFit: 'cover' }}
+                    width={800}
+                    height={600}
+                    style={{ width: '100%', height: 'auto', maxHeight: '500px', objectFit: 'contain' }}
                     unoptimized
                   />
                 </Box>
               )}
 
               {/* Description */}
-              <Box
-                border="1px solid"
-                borderColor="border"
-                bg="muted"
-              >
+              <Box border="1px solid" borderColor="border" bg="muted">
                 <Box borderBottom="1px solid" borderColor="primary" px={4} py={2}>
                   <Text
                     fontSize="xs"
@@ -253,7 +374,291 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                 </Box>
               </Box>
 
-              {/* Claims / Proofs */}
+              {/* ── Contributors panel (open bounties) ──── */}
+              {(isOpenBounty || participantEntries.length > 0 || participants.length > 0) && (
+                <Box border="1px solid" borderColor="border" bg="muted">
+                  <Box borderBottom="1px solid" borderColor="primary" px={4} py={2}>
+                    <HStack spacing={2} align="center">
+                      <Icon as={FaUsers} boxSize="12px" color="dim" />
+                      <Text
+                        fontSize="xs"
+                        fontWeight="bold"
+                        fontFamily="mono"
+                        color="text"
+                        textTransform="uppercase"
+                        letterSpacing="wider"
+                      >
+                        CONTRIBUTORS ({participantEntries.length || participants.length})
+                      </Text>
+                    </HStack>
+                  </Box>
+                  <VStack align="stretch" spacing={0} px={4} py={2}>
+                    {participantEntries.length > 0 ? (
+                      participantEntries.map((p, idx) => {
+                        const ethAmt = parseFloat(p.amount);
+                        const pct = amountFloat > 0 ? ((ethAmt / amountFloat) * 100).toFixed(1) : '0';
+                        return (
+                          <HStack
+                            key={p.address}
+                            py={2}
+                            borderBottom={idx < participantEntries.length - 1 ? '1px solid' : 'none'}
+                            borderColor="border"
+                            justify="space-between"
+                          >
+                            <Tooltip label={p.address} placement="top">
+                              <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="primary" cursor="default">
+                                {shortenAddress(p.address)}
+                              </Text>
+                            </Tooltip>
+                            <HStack spacing={2}>
+                              <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="text">
+                                {ethAmt < 0.001 ? ethAmt.toFixed(6) : ethAmt.toFixed(4)} ETH
+                              </Text>
+                              <Text fontSize="2xs" fontFamily="mono" color="dim">
+                                ({pct}%)
+                              </Text>
+                            </HStack>
+                          </HStack>
+                        );
+                      })
+                    ) : participants.length > 0 ? (
+                      participants.map((addr, idx) => (
+                        <HStack
+                          key={addr}
+                          py={2}
+                          borderBottom={idx < participants.length - 1 ? '1px solid' : 'none'}
+                          borderColor="border"
+                          justify="space-between"
+                        >
+                          <Tooltip label={addr} placement="top">
+                            <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="primary" cursor="default">
+                              {shortenAddress(addr)}
+                            </Text>
+                          </Tooltip>
+                        </HStack>
+                      ))
+                    ) : (
+                      <Text fontSize="xs" fontFamily="mono" color="dim" py={2}>
+                        No contributors yet.
+                      </Text>
+                    )}
+                  </VStack>
+
+                  {/* Contribute button */}
+                  {isActive && isOpenBounty && (
+                    <Box px={4} pb={3}>
+                      {showContributeForm ? (
+                        <VStack spacing={2} align="stretch">
+                          <HStack>
+                            <Input
+                              type="number"
+                              step="0.001"
+                              min="0.001"
+                              value={contributeAmount}
+                              onChange={(e) => setContributeAmount(e.target.value)}
+                              placeholder="0.01"
+                              bg="background"
+                              border="1px solid"
+                              borderColor="border"
+                              borderRadius="none"
+                              fontFamily="mono"
+                              fontSize="sm"
+                              color="text"
+                              _placeholder={{ color: 'dim' }}
+                              _focus={{ borderColor: 'primary', boxShadow: 'none' }}
+                            />
+                            <Button
+                              onClick={handleContribute}
+                              isLoading={isBusy}
+                              bg="primary"
+                              color="background"
+                              borderRadius="none"
+                              fontFamily="mono"
+                              fontWeight="bold"
+                              fontSize="xs"
+                              _hover={{ bg: 'accent' }}
+                              isDisabled={!contributeAmount || parseFloat(contributeAmount) < 0.001}
+                            >
+                              SEND
+                            </Button>
+                            <Button
+                              onClick={() => setShowContributeForm(false)}
+                              variant="ghost"
+                              borderRadius="none"
+                              fontFamily="mono"
+                              fontSize="xs"
+                              color="dim"
+                            >
+                              CANCEL
+                            </Button>
+                          </HStack>
+                        </VStack>
+                      ) : (
+                        <Button
+                          onClick={() => {
+                            if (!isConnected) { openConnectModal?.(); return; }
+                            setShowContributeForm(true);
+                          }}
+                          w="100%"
+                          bg="transparent"
+                          border="1px solid"
+                          borderColor="primary"
+                          color="primary"
+                          borderRadius="none"
+                          fontFamily="mono"
+                          fontWeight="bold"
+                          fontSize="xs"
+                          textTransform="uppercase"
+                          letterSpacing="wider"
+                          _hover={{ bg: 'rgba(167, 255, 0, 0.05)' }}
+                          leftIcon={<Icon as={FaEthereum} boxSize="10px" />}
+                        >
+                          CONTRIBUTE ETH
+                        </Button>
+                      )}
+                    </Box>
+                  )}
+
+                  {/* Withdraw contribution */}
+                  {isActive && isContributor && !isIssuer && !hasVotingClaim && (
+                    <Box px={4} pb={3}>
+                      <Button
+                        onClick={handleWithdrawContribution}
+                        isLoading={isBusy}
+                        w="100%"
+                        bg="transparent"
+                        border="1px solid"
+                        borderColor="error"
+                        color="error"
+                        borderRadius="none"
+                        fontFamily="mono"
+                        fontWeight="bold"
+                        fontSize="xs"
+                        textTransform="uppercase"
+                        _hover={{ bg: 'rgba(255, 0, 0, 0.05)' }}
+                      >
+                        WITHDRAW MY CONTRIBUTION ({userContribution} ETH)
+                      </Button>
+                    </Box>
+                  )}
+                </Box>
+              )}
+
+              {/* ── Voting panel ──────────────────── */}
+              {hasVotingClaim && (
+                <Box border="1px solid" borderColor="warning" bg="muted">
+                  <Box borderBottom="1px solid" borderColor="warning" px={4} py={2}>
+                    <HStack spacing={2} align="center">
+                      <Icon as={FaVoteYea} boxSize="12px" color="warning" />
+                      <Text
+                        fontSize="xs"
+                        fontWeight="bold"
+                        fontFamily="mono"
+                        color="warning"
+                        textTransform="uppercase"
+                        letterSpacing="wider"
+                      >
+                        VOTING IN PROGRESS
+                      </Text>
+                    </HStack>
+                  </Box>
+                  <VStack align="stretch" spacing={3} px={4} py={3}>
+                    <HStack justify="space-between">
+                      <Text fontSize="xs" fontFamily="mono" color="dim">CLAIM #{votingState.currentVotingClaimId}</Text>
+                      <Text fontSize="xs" fontFamily="mono" color="dim">ROUND {votingState.voteRound}</Text>
+                    </HStack>
+
+                    {/* Vote tally */}
+                    <Box>
+                      <HStack justify="space-between" mb={1}>
+                        <Text fontSize="2xs" fontFamily="mono" color="success" fontWeight="bold">
+                          YES: {votingState.yesVotes} ETH
+                        </Text>
+                        <Text fontSize="2xs" fontFamily="mono" color="error" fontWeight="bold">
+                          NO: {votingState.noVotes} ETH
+                        </Text>
+                      </HStack>
+                      <Box bg="border" h="8px" w="100%">
+                        <Box
+                          bg="success"
+                          h="100%"
+                          w={`${
+                            parseFloat(votingState.yesVotes) + parseFloat(votingState.noVotes) > 0
+                              ? (parseFloat(votingState.yesVotes) / (parseFloat(votingState.yesVotes) + parseFloat(votingState.noVotes))) * 100
+                              : 50
+                          }%`}
+                          transition="width 0.3s"
+                        />
+                      </Box>
+                    </Box>
+
+                    {/* Deadline */}
+                    {votingState.votingDeadline > 0 && (
+                      <Text fontSize="2xs" fontFamily="mono" color="dim">
+                        {votingActive
+                          ? `ENDS: ${new Date(votingState.votingDeadline * 1000).toLocaleString()}`
+                          : 'VOTING PERIOD ENDED'}
+                      </Text>
+                    )}
+
+                    {/* Vote buttons (for contributors who aren't the issuer) */}
+                    {votingActive && isContributor && !isIssuer && (
+                      <HStack spacing={2}>
+                        <Button
+                          onClick={() => handleVote(true)}
+                          isLoading={isBusy}
+                          flex={1}
+                          bg="success"
+                          color="background"
+                          borderRadius="none"
+                          fontFamily="mono"
+                          fontWeight="bold"
+                          fontSize="xs"
+                          _hover={{ opacity: 0.9 }}
+                          leftIcon={<Icon as={FaCheck} boxSize="10px" />}
+                        >
+                          VOTE YES
+                        </Button>
+                        <Button
+                          onClick={() => handleVote(false)}
+                          isLoading={isBusy}
+                          flex={1}
+                          bg="error"
+                          color="background"
+                          borderRadius="none"
+                          fontFamily="mono"
+                          fontWeight="bold"
+                          fontSize="xs"
+                          _hover={{ opacity: 0.9 }}
+                          leftIcon={<Icon as={FaTimes} boxSize="10px" />}
+                        >
+                          VOTE NO
+                        </Button>
+                      </HStack>
+                    )}
+
+                    {/* Resolve button */}
+                    {votingExpired && (
+                      <Button
+                        onClick={handleResolveVote}
+                        isLoading={isBusy}
+                        bg="warning"
+                        color="background"
+                        borderRadius="none"
+                        fontFamily="mono"
+                        fontWeight="bold"
+                        fontSize="xs"
+                        _hover={{ opacity: 0.9 }}
+                        leftIcon={<Icon as={FaTrophy} boxSize="10px" />}
+                      >
+                        RESOLVE VOTE
+                      </Button>
+                    )}
+                  </VStack>
+                </Box>
+              )}
+
+              {/* ── Claims / Proofs ──────────────── */}
               <Box>
                 <HStack justify="space-between" align="center" mb={4}>
                   <HStack spacing={2}>
@@ -297,24 +702,69 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                           borderBottom="1px solid"
                           borderColor="border"
                         >
-                          <Tooltip label={claim.issuer} placement="top">
-                            <Text
-                              fontWeight="bold"
-                              fontSize="xs"
-                              color="primary"
-                              fontFamily="mono"
-                              cursor="default"
-                            >
-                              {shortenAddress(claim.issuer)}
-                            </Text>
-                          </Tooltip>
-                          {claim.accepted && (
-                            <Box border="1px solid" borderColor="success" px={2} py={0.5}>
-                              <Text fontSize="2xs" fontWeight="bold" fontFamily="mono" color="success">
-                                ACCEPTED
+                          <HStack spacing={2}>
+                            <Tooltip label={claim.issuer} placement="top">
+                              <Text
+                                fontWeight="bold"
+                                fontSize="xs"
+                                color="primary"
+                                fontFamily="mono"
+                                cursor="default"
+                              >
+                                {shortenAddress(claim.issuer)}
                               </Text>
-                            </Box>
-                          )}
+                            </Tooltip>
+                            {claim.name && (
+                              <Text fontSize="xs" fontFamily="mono" color="text" fontWeight="bold" noOfLines={1}>
+                                {claim.name}
+                              </Text>
+                            )}
+                          </HStack>
+                          <HStack spacing={2}>
+                            {claim.accepted && (
+                              <Box border="1px solid" borderColor="success" px={2} py={0.5}>
+                                <Text fontSize="2xs" fontWeight="bold" fontFamily="mono" color="success">
+                                  ACCEPTED
+                                </Text>
+                              </Box>
+                            )}
+                            {/* Issuer actions on claims */}
+                            {isIssuer && isActive && !claim.accepted && (
+                              <>
+                                {!isOpenBounty ? (
+                                  <Button
+                                    onClick={() => handleAcceptClaim(claim.id)}
+                                    isLoading={isBusy}
+                                    size="xs"
+                                    bg="success"
+                                    color="background"
+                                    borderRadius="none"
+                                    fontFamily="mono"
+                                    fontWeight="bold"
+                                    fontSize="2xs"
+                                    _hover={{ opacity: 0.9 }}
+                                  >
+                                    ACCEPT
+                                  </Button>
+                                ) : !hasVotingClaim && (
+                                  <Button
+                                    onClick={() => handleSubmitForVote(claim.id)}
+                                    isLoading={isBusy}
+                                    size="xs"
+                                    bg="warning"
+                                    color="background"
+                                    borderRadius="none"
+                                    fontFamily="mono"
+                                    fontWeight="bold"
+                                    fontSize="2xs"
+                                    _hover={{ opacity: 0.9 }}
+                                  >
+                                    NOMINATE
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </HStack>
                         </HStack>
                         <Box px={4} py={3}>
                           {claim.description && (
@@ -344,30 +794,138 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                     <Text color="dim" fontSize="sm" fontFamily="mono">
                       No claims submitted yet.
                     </Text>
-                    {isActive && (
+                  </Box>
+                )}
+
+                {/* ── Submit claim form ──────────── */}
+                {isActive && (
+                  <Box mt={3}>
+                    {showClaimForm ? (
+                      <Box border="1px solid" borderColor="primary" bg="muted" p={4}>
+                        <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="text" mb={3} textTransform="uppercase">
+                          SUBMIT YOUR PROOF
+                        </Text>
+                        <VStack spacing={3} align="stretch">
+                          <Input
+                            value={claimTitle}
+                            onChange={(e) => setClaimTitle(e.target.value)}
+                            placeholder="Claim title"
+                            bg="background"
+                            border="1px solid"
+                            borderColor="border"
+                            borderRadius="none"
+                            fontFamily="mono"
+                            fontSize="sm"
+                            color="text"
+                            _placeholder={{ color: 'dim' }}
+                            _focus={{ borderColor: 'primary', boxShadow: 'none' }}
+                          />
+                          <Textarea
+                            value={claimDescription}
+                            onChange={(e) => setClaimDescription(e.target.value)}
+                            placeholder="Describe your proof..."
+                            bg="background"
+                            border="1px solid"
+                            borderColor="border"
+                            borderRadius="none"
+                            fontFamily="mono"
+                            fontSize="sm"
+                            color="text"
+                            rows={3}
+                            _placeholder={{ color: 'dim' }}
+                            _focus={{ borderColor: 'primary', boxShadow: 'none' }}
+                          />
+                          <Input
+                            value={claimUri}
+                            onChange={(e) => setClaimUri(e.target.value)}
+                            placeholder="Proof URL (image/video link or IPFS URI)"
+                            bg="background"
+                            border="1px solid"
+                            borderColor="border"
+                            borderRadius="none"
+                            fontFamily="mono"
+                            fontSize="sm"
+                            color="text"
+                            _placeholder={{ color: 'dim' }}
+                            _focus={{ borderColor: 'primary', boxShadow: 'none' }}
+                          />
+                          <HStack spacing={2}>
+                            <Button
+                              onClick={handleSubmitClaim}
+                              isLoading={isBusy}
+                              flex={1}
+                              bg="primary"
+                              color="background"
+                              borderRadius="none"
+                              fontFamily="mono"
+                              fontWeight="bold"
+                              fontSize="xs"
+                              textTransform="uppercase"
+                              _hover={{ bg: 'accent' }}
+                              isDisabled={!claimTitle.trim()}
+                            >
+                              SUBMIT CLAIM
+                            </Button>
+                            <Button
+                              onClick={() => setShowClaimForm(false)}
+                              variant="ghost"
+                              borderRadius="none"
+                              fontFamily="mono"
+                              fontSize="xs"
+                              color="dim"
+                            >
+                              CANCEL
+                            </Button>
+                          </HStack>
+                        </VStack>
+                      </Box>
+                    ) : (
                       <Button
-                        as="a"
-                        href={poidhUrl}
-                        target="_blank"
-                        mt={4}
-                        size="sm"
+                        onClick={() => {
+                          if (!isConnected) { openConnectModal?.(); return; }
+                          setShowClaimForm(true);
+                        }}
+                        w="100%"
                         bg="primary"
                         color="background"
                         borderRadius="none"
-                        _hover={{ bg: 'accent', textDecor: 'none' }}
-                        rightIcon={<ExternalLinkIcon />}
-                        textTransform="uppercase"
-                        fontWeight="bold"
                         fontFamily="mono"
-                        fontSize="xs"
+                        fontWeight="bold"
+                        fontSize="sm"
+                        textTransform="uppercase"
                         letterSpacing="wider"
+                        _hover={{ bg: 'accent' }}
+                        leftIcon={<Icon as={FaBolt} boxSize="12px" />}
                       >
-                        Submit on POIDH
+                        SUBMIT PROOF
                       </Button>
                     )}
                   </Box>
                 )}
               </Box>
+
+              {/* ── TX Status feedback ────────────── */}
+              {poidh.status !== 'idle' && poidh.status !== 'confirmed' && (
+                <Box
+                  border="1px solid"
+                  borderColor={poidh.status === 'error' ? 'error' : 'primary'}
+                  px={4}
+                  py={2}
+                >
+                  <Text
+                    fontSize="xs"
+                    fontFamily="mono"
+                    fontWeight="bold"
+                    color={poidh.status === 'error' ? 'error' : 'primary'}
+                    textAlign="center"
+                  >
+                    {poidh.status === 'switching-chain' && `SWITCHING TO ${chainLabel.toUpperCase()}...`}
+                    {poidh.status === 'pending-approval' && 'CONFIRM IN WALLET...'}
+                    {poidh.status === 'pending-tx' && 'WAITING FOR CONFIRMATION...'}
+                    {poidh.status === 'error' && (poidh.error || 'TRANSACTION FAILED')}
+                  </Text>
+                </Box>
+              )}
             </VStack>
           </GridItem>
 
@@ -375,12 +933,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
           <GridItem>
             <VStack align="stretch" gap={4} position="sticky" top="80px">
               {/* Reward card */}
-              <Box
-                border="1px solid"
-                borderColor="primary"
-                bg="muted"
-                overflow="hidden"
-              >
+              <Box border="1px solid" borderColor="primary" bg="muted" overflow="hidden">
                 <Box borderBottom="1px solid" borderColor="primary" px={4} py={2}>
                   <Text
                     fontSize="xs"
@@ -414,35 +967,26 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                     </HStack>
                   </Box>
 
-                  <Button
-                    as="a"
-                    href={poidhUrl}
-                    target="_blank"
-                    w="100%"
-                    size="md"
-                    bg="primary"
-                    color="background"
-                    borderRadius="none"
-                    fontWeight="bold"
-                    fontFamily="mono"
-                    textTransform="uppercase"
-                    letterSpacing="wider"
-                    fontSize="xs"
-                    _hover={{ bg: 'accent', textDecor: 'none' }}
-                    _active={{ transform: 'scale(0.98)' }}
-                    rightIcon={<ExternalLinkIcon />}
-                  >
-                    {isActive ? 'SUBMIT PROOF' : 'VIEW ON POIDH'}
-                  </Button>
+                  {/* Your contribution */}
+                  {isContributor && (
+                    <Box
+                      border="1px dashed"
+                      borderColor="border"
+                      px={3}
+                      py={2}
+                      mb={3}
+                    >
+                      <Text fontSize="2xs" fontFamily="mono" color="dim" mb={1}>YOUR CONTRIBUTION</Text>
+                      <Text fontSize="sm" fontFamily="mono" fontWeight="bold" color="primary">
+                        {userContribution} ETH
+                      </Text>
+                    </Box>
+                  )}
                 </Box>
               </Box>
 
               {/* Meta card */}
-              <Box
-                border="1px solid"
-                borderColor="border"
-                bg="muted"
-              >
+              <Box border="1px solid" borderColor="border" bg="muted">
                 <Box borderBottom="1px solid" borderColor="primary" px={4} py={2}>
                   <Text
                     fontSize="xs"
@@ -456,12 +1000,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                   </Text>
                 </Box>
                 <VStack align="stretch" spacing={0} px={4} py={3}>
-                  <HStack
-                    justify="space-between"
-                    py={2}
-                    borderBottom="1px solid"
-                    borderColor="border"
-                  >
+                  <HStack justify="space-between" py={2} borderBottom="1px solid" borderColor="border">
                     <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">ISSUER</Text>
                     <Tooltip label={bounty.issuer} placement="top">
                       <Text fontSize="2xs" fontFamily="mono" color="primary" fontWeight="bold" cursor="default">
@@ -469,12 +1008,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                       </Text>
                     </Tooltip>
                   </HStack>
-                  <HStack
-                    justify="space-between"
-                    py={2}
-                    borderBottom="1px solid"
-                    borderColor="border"
-                  >
+                  <HStack justify="space-between" py={2} borderBottom="1px solid" borderColor="border">
                     <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">CHAIN</Text>
                     <HStack spacing={1}>
                       <Icon as={FaEthereum} boxSize="10px" color="#627EEA" />
@@ -483,26 +1017,78 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                       </Text>
                     </HStack>
                   </HStack>
-                  <HStack
-                    justify="space-between"
-                    py={2}
-                    borderBottom="1px solid"
-                    borderColor="border"
-                  >
+                  <HStack justify="space-between" py={2} borderBottom="1px solid" borderColor="border">
+                    <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">TYPE</Text>
+                    <Text fontSize="2xs" fontFamily="mono" color="text" fontWeight="bold">
+                      {isOpenBounty ? 'OPEN' : 'SOLO'}
+                    </Text>
+                  </HStack>
+                  <HStack justify="space-between" py={2} borderBottom="1px solid" borderColor="border">
                     <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">BOUNTY ID</Text>
                     <Text fontSize="2xs" fontFamily="mono" color="text" fontWeight="bold">#{bounty.id}</Text>
                   </HStack>
-                  <HStack
-                    justify="space-between"
-                    py={2}
-                  >
+                  <HStack justify="space-between" py={2} borderBottom="1px solid" borderColor="border">
                     <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">CLAIMS</Text>
                     <Text fontSize="2xs" fontFamily="mono" color="primary" fontWeight="bold">
                       {bounty.claims?.length ?? 0}
                     </Text>
                   </HStack>
+                  {participants.length > 0 && (
+                    <HStack justify="space-between" py={2}>
+                      <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">CONTRIBUTORS</Text>
+                      <Text fontSize="2xs" fontFamily="mono" color="primary" fontWeight="bold">
+                        {participants.length}
+                      </Text>
+                    </HStack>
+                  )}
                 </VStack>
               </Box>
+
+              {/* Issuer actions */}
+              {isIssuer && isActive && (
+                <Button
+                  onClick={handleCancelBounty}
+                  isLoading={isBusy}
+                  w="100%"
+                  size="sm"
+                  bg="transparent"
+                  border="1px solid"
+                  borderColor="error"
+                  color="error"
+                  borderRadius="none"
+                  fontFamily="mono"
+                  fontWeight="bold"
+                  fontSize="xs"
+                  textTransform="uppercase"
+                  _hover={{ bg: 'rgba(255, 0, 0, 0.05)' }}
+                >
+                  CANCEL BOUNTY
+                </Button>
+              )}
+
+              {/* Explorer link */}
+              <Link
+                href={poidhUrl}
+                isExternal
+                display="block"
+              >
+                <Button
+                  w="100%"
+                  variant="outline"
+                  size="sm"
+                  borderRadius="none"
+                  borderColor="border"
+                  fontFamily="mono"
+                  fontWeight="bold"
+                  fontSize="xs"
+                  textTransform="uppercase"
+                  letterSpacing="wider"
+                  rightIcon={<ExternalLinkIcon />}
+                  _hover={{ borderColor: 'primary', color: 'primary' }}
+                >
+                  VIEW ON POIDH.XYZ
+                </Button>
+              </Link>
 
               {/* Back button */}
               <Button

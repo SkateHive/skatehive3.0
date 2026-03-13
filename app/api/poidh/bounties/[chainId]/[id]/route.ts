@@ -61,10 +61,6 @@ export async function GET(
     if (claimsRes.ok) {
       const claimsData = await claimsRes.json();
       const rawJson = claimsData[0]?.result?.data?.json;
-      // The API may return an array directly, or an object wrapping the array
-      if (rawJson !== undefined && !Array.isArray(rawJson)) {
-        console.warn('[poidh claims] rawJson is not an array – actual shape:', JSON.stringify(rawJson).slice(0, 300));
-      }
       const rawClaims: any[] = Array.isArray(rawJson)
         ? rawJson
         : Array.isArray(rawJson?.claims)
@@ -109,8 +105,7 @@ export async function GET(
         'Cache-Control': `public, s-maxage=${CACHE_TTL}, stale-while-revalidate`
       }
     });
-  } catch (error) {
-    console.error('Error fetching POIDH bounty detail:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Failed to fetch POIDH bounty detail' },
       { status: 500 }
