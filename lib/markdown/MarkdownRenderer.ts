@@ -138,8 +138,9 @@ export function processMediaContent(content: string): string {
         }
     );
     // Replace iframes with embedded video if an IPFS hash is found
+    // Use [\s\S]*? instead of .*? to match multi-line iframes (e.g. Schema.org wrapped snaps)
     processedContent = processedContent.replace(
-        /<iframe.*?src=["']([^"']+)["'].*?<\/iframe>/g,
+        /<iframe[\s\S]*?src=["']([^"']+)["'][\s\S]*?<\/iframe>/g,
         (match, url) => {
             const ipfsHash = url.match(/\/ipfs\/([\w-]+)/)?.[1];
             return ipfsHash ? createSimpleVideoTag(ipfsHash) : match;
