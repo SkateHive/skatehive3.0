@@ -341,12 +341,14 @@ export async function uploadImage(file: File, signature: string, index?: number,
 
   const formData = new FormData();
   formData.append("file", file, file.name);
-  formData.append("signature", signature);
+
+  // Upload directly to images.hive.blog (supports CORS)
+  // Bypasses Vercel's 4.5MB serverless body size limit
+  const directUrl = `https://images.hive.blog/${HIVE_CONFIG.APP_ACCOUNT}/${signature}`;
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    // Use API proxy route to avoid CORS issues
-    xhr.open('POST', '/api/upload-image', true);
+    xhr.open('POST', directUrl, true);
 
     if (index && setUploadProgress) {
       xhr.upload.onprogress = (event) => {

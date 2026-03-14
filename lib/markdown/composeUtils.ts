@@ -148,11 +148,11 @@ export const uploadToIpfs = async (
 ): Promise<string> => {
     const formData = new FormData();
     formData.append("file", blob, fileName);
-    
+
     // Add Pinata metadata for better file management
-    const fileType = blob.type.startsWith('image/') ? 'image' : 
+    const fileType = blob.type.startsWith('image/') ? 'image' :
                      blob.type.startsWith('video/') ? 'video' : 'file';
-    
+
     const pinataMetadata = {
         name: fileName,
         keyvalues: {
@@ -162,15 +162,21 @@ export const uploadToIpfs = async (
             size: blob.size.toString(),
         }
     };
-    
+
     formData.append("pinataMetadata", JSON.stringify(pinataMetadata));
-    
+
     // Add Pinata options for better CDN performance
     const pinataOptions = {
         cidVersion: 1, // Use CIDv1 for better gateway compatibility
     };
-    
+
     formData.append("pinataOptions", JSON.stringify(pinataOptions));
+
+    // For files over 4MB, upload directly to Pinata to bypass Vercel's body size limit
+    const VERCEL_BODY_LIMIT = 4 * 1024 * 1024; // 4MB
+    if (blob.size > VERCEL_BODY_LIMIT) {
+        return uploadToIpfsDirect(blob, fileName, pinataMetadata, pinataOptions);
+    }
 
     const response = await fetch("/api/pinata", {
         method: "POST",
@@ -178,13 +184,59 @@ export const uploadToIpfs = async (
     });
 
     if (!response.ok) {
+        // If proxy fails with 413, try direct upload as fallback
+        if (response.status === 413) {
+            return uploadToIpfsDirect(blob, fileName, pinataMetadata, pinataOptions);
+        }
         throw new Error("Failed to upload file to IPFS");
     }
 
     const result = await response.json();
     const ipfsUrl = `https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${result.IpfsHash}`;
-    
+
     // Automatically add file extension to the IPFS URL
+    return ensureImageFilename(ipfsUrl, blob.type, fileName);
+};
+
+/**
+ * Upload directly to Pinata, bypassing our API proxy.
+ * Gets a temporary JWT from our server, then uploads directly to Pinata's API.
+ */
+const uploadToIpfsDirect = async (
+    blob: Blob,
+    fileName: string,
+    pinataMetadata: any,
+    pinataOptions: any
+): Promise<string> => {
+    // Get a temporary JWT for direct upload
+    const keyRes = await fetch('/api/pinata/signed-url');
+    if (!keyRes.ok) {
+        throw new Error('Failed to get upload credentials');
+    }
+    const { jwt } = await keyRes.json();
+    if (!jwt) {
+        throw new Error('No upload credentials returned');
+    }
+
+    // Upload directly to Pinata (no Vercel body limit)
+    const formData = new FormData();
+    formData.append('file', blob, fileName);
+    formData.append('pinataMetadata', JSON.stringify(pinataMetadata));
+    formData.append('pinataOptions', JSON.stringify(pinataOptions));
+
+    const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${jwt}` },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Direct IPFS upload failed (${response.status}): ${errorText}`);
+    }
+
+    const result = await response.json();
+    const ipfsUrl = `https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${result.IpfsHash}`;
     return ensureImageFilename(ipfsUrl, blob.type, fileName);
 };
 
