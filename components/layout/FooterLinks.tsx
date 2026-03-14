@@ -84,7 +84,7 @@ export default function FooterLinks() {
         </VStack>
       </SimpleGrid>
 
-      {/* Copyright / Legal */}
+      {/* Footer Credit */}
       <Text
         textAlign="center"
         fontSize="xs"
@@ -94,7 +94,7 @@ export default function FooterLinks() {
         borderTop="1px solid"
         borderColor="borderColor"
       >
-        © {new Date().getFullYear()} Skatehive. {t("allRightsReserved") || "All rights reserved."}
+        Built with Hash
       </Text>
     </Box>
   );
