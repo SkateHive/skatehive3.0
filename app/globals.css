@@ -27,13 +27,39 @@ body {
       transparent,
       rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
   /* Removed overflow-y: hidden !important; to allow scrolling on mobile */
-  /* Hide scrollbar for all browsers */
+  /* Hide scrollbar by default */
   scrollbar-width: none;
   /* Firefox */
   /* Prevent zoom on mobile devices */
   -webkit-text-size-adjust: 100%;
   -moz-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+
+/* Show scrollbar on hover (desktop only) */
+@media (min-width: 768px) {
+  body:hover {
+    scrollbar-width: thin;
+    scrollbar-color: #7fff00 transparent;
+  }
+  
+  body:hover::-webkit-scrollbar {
+    display: block;
+    width: 8px;
+  }
+  
+  body:hover::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  body:hover::-webkit-scrollbar-thumb {
+    background-color: #7fff00;
+    border-radius: 4px;
+  }
+  
+  body:hover::-webkit-scrollbar-thumb:hover {
+    background-color: #9fff40;
+  }
 }
 
 html::-webkit-scrollbar,
@@ -89,6 +115,33 @@ body::-webkit-scrollbar {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
   /* Chrome, Safari, Opera */
+}
+
+/* Show scrollbar on hover (desktop only) */
+@media (min-width: 768px) {
+  .hide-scrollbar:hover {
+    scrollbar-width: thin;
+    scrollbar-color: #7fff00 transparent;
+  }
+  
+  .hide-scrollbar:hover::-webkit-scrollbar {
+    display: block;
+    width: 8px;
+    height: 8px;
+  }
+  
+  .hide-scrollbar:hover::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .hide-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: #7fff00;
+    border-radius: 4px;
+  }
+  
+  .hide-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+    background-color: #9fff40;
+  }
 }
 
 body.show-splash #app-root {
@@ -491,7 +544,7 @@ div[class*="aioha"],
   border-radius: 0 !important;
 }
 
-/* Hide scrollbars for table containers - more targeted approach */
+/* Hide scrollbars for table containers - show on hover (desktop only) */
 .chakra-table__container {
   scrollbar-width: none;
   /* Firefox */
@@ -504,6 +557,33 @@ div[class*="aioha"],
   /* Chrome, Safari, Opera */
   width: 0;
   height: 0;
+}
+
+/* Show scrollbar on hover (desktop only) */
+@media (min-width: 768px) {
+  .chakra-table__container:hover {
+    scrollbar-width: thin;
+    scrollbar-color: #7fff00 transparent;
+  }
+  
+  .chakra-table__container:hover::-webkit-scrollbar {
+    display: block;
+    width: 8px;
+    height: 8px;
+  }
+  
+  .chakra-table__container:hover::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .chakra-table__container:hover::-webkit-scrollbar-thumb {
+    background-color: #7fff00;
+    border-radius: 4px;
+  }
+  
+  .chakra-table__container:hover::-webkit-scrollbar-thumb:hover {
+    background-color: #9fff40;
+  }
 }
 
 .css-8qd2dv::-webkit-scrollbar {
