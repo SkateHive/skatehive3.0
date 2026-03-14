@@ -174,15 +174,29 @@ export async function GET(request: NextRequest) {
               </div>
             </div>
 
-            {/* Center: Reward + Title */}
+            {/* Center: WIN + Reward + Title */}
             <div
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '24px',
+                gap: '16px',
               }}
             >
+              {/* WIN label */}
+              <div
+                style={{
+                  color: C.green,
+                  fontSize: '32px',
+                  fontWeight: '900',
+                  display: 'flex',
+                  letterSpacing: '12px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                WIN
+              </div>
+
               {/* Reward box */}
               <div
                 style={{
@@ -195,7 +209,6 @@ export async function GET(request: NextRequest) {
                   boxShadow: `0 0 30px ${C.greenDim}`,
                 }}
               >
-                {/* ETH diamond or Hive diamond */}
                 <EthDiamond size={amountFontSize * 0.45} color={accentColor} />
 
                 <div
@@ -227,7 +240,7 @@ export async function GET(request: NextRequest) {
               <div
                 style={{
                   color: C.text,
-                  fontSize: title.length > 40 ? '30px' : '36px',
+                  fontSize: title.length > 40 ? '28px' : '32px',
                   fontWeight: 'bold',
                   display: 'flex',
                   textAlign: 'center',
