@@ -159,7 +159,16 @@ function InnerLayout({
 }) {
   const isMobile = useBreakpointValue({ base: true, md: false });
   const pathname = usePathname();
-  const isHomePage = pathname === "/";
+  
+  // Pages with infinite scroll should not show footer
+  const hasInfiniteScroll = 
+    pathname === "/" || 
+    pathname?.startsWith("/user/") || 
+    pathname === "/magazine" || 
+    pathname === "/blog" ||
+    pathname?.startsWith("/blog/tag/") ||
+    pathname === "/videos" ||
+    pathname === "/skaters";
 
   const handleOpenAirdrop = () => {
     // Close search modal first
@@ -229,7 +238,7 @@ function InnerLayout({
           }}
         >
           {children}
-          {!isMobile && !isHomePage && <FooterLinks />}
+          {!isMobile && !hasInfiniteScroll && <FooterLinks />}
         </Box>
       </Flex>
       {isMobile && <FooterNavButtons />}
