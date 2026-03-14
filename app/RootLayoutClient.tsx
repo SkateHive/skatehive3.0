@@ -219,20 +219,9 @@ function InnerLayout({
           overflowX="hidden"
           height="100vh"
           sx={{
-            scrollbarWidth: "thin",
-            scrollbarColor: "var(--chakra-colors-primary) transparent",
+            scrollbarWidth: "none",
             "&::-webkit-scrollbar": {
-              width: "6px",
-            },
-            "&::-webkit-scrollbar-track": {
-              background: "transparent",
-            },
-            "&::-webkit-scrollbar-thumb": {
-              background: "var(--chakra-colors-primary)",
-              borderRadius: "999px",
-            },
-            "&::-webkit-scrollbar-thumb:hover": {
-              background: "#c8ff3a",
+              display: "none",
             },
           }}
         >

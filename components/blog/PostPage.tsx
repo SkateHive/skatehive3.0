@@ -117,7 +117,10 @@ export default function PostPage({ author, permlink }: PostPageProps) {
             width={{ base: "100%", md: "35%" }}
             h={{ base: "auto", md: "100vh" }}
             overflowY="auto"
-            sx={{ "&::-webkit-scrollbar": { display: "none" } }}
+            sx={{
+              "&::-webkit-scrollbar": { display: "none" },
+              scrollbarWidth: "none",
+            }}
           >
             {!conversation ? (
               <>
