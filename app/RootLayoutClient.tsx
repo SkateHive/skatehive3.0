@@ -7,6 +7,7 @@ import {
   useBreakpointValue,
   useDisclosure,
 } from "@chakra-ui/react";
+import { usePathname } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import FooterNavButtons from "@/components/layout/FooterNavButtons";
 import FooterLinks from "@/components/layout/FooterLinks";
@@ -157,6 +158,8 @@ function InnerLayout({
   };
 }) {
   const isMobile = useBreakpointValue({ base: true, md: false });
+  const pathname = usePathname();
+  const isHomePage = pathname === "/";
 
   const handleOpenAirdrop = () => {
     // Close search modal first
@@ -226,7 +229,7 @@ function InnerLayout({
           }}
         >
           {children}
-          {!isMobile && <FooterLinks />}
+          {!isMobile && !isHomePage && <FooterLinks />}
         </Box>
       </Flex>
       {isMobile && <FooterNavButtons />}
