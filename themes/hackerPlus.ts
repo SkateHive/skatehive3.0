@@ -16,7 +16,7 @@ const hackerPlusTheme = extendTheme({
     text: '#A8FF60',
     primary: '#a7ff00',
     'primary-alpha': '#a7ff00',
-    secondary: '#651368ff',
+    secondary: '#FFBD4A',
     accent: 'rgba(255, 242, 2, 1)',
     muted: '#202020',
     border: '#A8FF60',
