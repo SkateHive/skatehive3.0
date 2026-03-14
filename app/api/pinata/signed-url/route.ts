@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadLimiter, getClientIP } from '@/lib/utils/rate-limiter';
+import { logUpload } from '@/lib/utils/upload-logger';
 
 /**
  * Returns a temporary signed JWT for direct client-side uploads to Pinata.
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
   const { allowed, remaining, resetIn } = uploadLimiter.check(ip);
 
   if (!allowed) {
+    logUpload({ status: 'rate-limited', route: 'signed-url', ip });
     return NextResponse.json(
       { error: 'Rate limit exceeded', retryAfter: Math.ceil(resetIn / 1000) },
       { status: 429, headers: { 'Retry-After': Math.ceil(resetIn / 1000).toString() } }
@@ -21,6 +23,7 @@ export async function GET(request: NextRequest) {
 
   const pinataJwt = process.env.PINATA_JWT;
   if (!pinataJwt) {
+    logUpload({ status: 'failed', route: 'signed-url', ip, error: 'Pinata not configured' });
     return NextResponse.json({ error: 'Pinata not configured' }, { status: 500 });
   }
 
@@ -41,21 +44,37 @@ export async function GET(request: NextRequest) {
     });
 
     if (!pinataJwt || !keyRes.ok) {
-      // Fallback: just return the main JWT scoped info
-      // If key creation fails, fall back to returning the main JWT
-      // (this is less ideal but keeps uploads working)
       const errorText = await keyRes.text();
-      console.warn('[Pinata Signed URL] Key creation failed, status:', keyRes.status, errorText);
+      logUpload({
+        status: 'failed',
+        route: 'signed-url',
+        ip,
+        error: `Key creation failed: ${keyRes.status} - ${errorText}`,
+        meta: { fallback: true },
+      });
 
-      // As a fallback, return the main JWT directly
-      // This is safe because uploads are rate-limited and the JWT is only used for pinning
+      // Fallback: return the main JWT directly
       return NextResponse.json({ jwt: pinataJwt });
     }
 
     const keyData = await keyRes.json();
+
+    logUpload({
+      status: 'success',
+      route: 'signed-url',
+      ip,
+      meta: { tempKey: true },
+    });
+
     return NextResponse.json({ jwt: keyData.data?.JWT || keyData.JWT });
   } catch (error) {
-    console.error('[Pinata Signed URL] Error:', error);
+    logUpload({
+      status: 'failed',
+      route: 'signed-url',
+      ip,
+      error: error instanceof Error ? error.message : String(error),
+      meta: { fallback: true },
+    });
     // Fallback: return the main JWT
     return NextResponse.json({ jwt: pinataJwt });
   }

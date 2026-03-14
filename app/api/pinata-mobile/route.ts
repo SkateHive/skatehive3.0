@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadLimiter, getClientIP } from '@/lib/utils/rate-limiter';
+import { logUpload } from '@/lib/utils/upload-logger';
+
+// Edge Runtime — no payload size limit (fixes 413 for large mobile uploads)
+export const runtime = 'edge';
 
 export async function POST(request: NextRequest) {
-    // Rate limiting check
+    const startTime = Date.now();
     const ip = getClientIP(request);
     const { allowed, remaining, resetIn } = uploadLimiter.check(ip);
 
     if (!allowed) {
-        console.warn('📱 Mobile upload rate limit exceeded for IP:', ip);
+        logUpload({ status: 'rate-limited', route: 'pinata-mobile', ip });
         return NextResponse.json(
             {
                 error: 'Upload rate limit exceeded. Please try again later.',
@@ -24,20 +28,10 @@ export async function POST(request: NextRequest) {
     }
 
     const pinataJwt = process.env.PINATA_JWT;
-
-    // Mobile-specific logging
     const userAgent = request.headers.get('user-agent') || 'unknown';
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-
-    console.log('📱 Mobile Pinata API request:', {
-        userAgent: userAgent.substring(0, 50),
-        isMobile,
-        timestamp: new Date().toISOString(),
-        contentLength: request.headers.get('content-length')
-    });
 
     if (!pinataJwt) {
-        console.error('PINATA_JWT is missing from environment');
+        logUpload({ status: 'failed', route: 'pinata-mobile', ip, error: 'PINATA_JWT missing', userAgent });
         return NextResponse.json({ error: 'Pinata credentials not configured' }, { status: 500 });
     }
 
@@ -48,32 +42,47 @@ export async function POST(request: NextRequest) {
         const thumbnailUrl = requestFormData.get('thumbnailUrl') as string;
 
         if (!file) {
-            console.error('📱 No file provided in mobile request');
+            logUpload({ status: 'failed', route: 'pinata-mobile', ip, error: 'No file provided', userAgent });
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
         }
 
         const fileSizeMB = Math.round(file.size / 1024 / 1024 * 100) / 100;
 
-        // Mobile file size check before processing
-        if (file.size > 135 * 1024 * 1024) { // 135MB limit for mobile
-            console.error('📱 Mobile file too large:', fileSizeMB, 'MB');
+        // Mobile file size check (135MB limit)
+        if (file.size > 135 * 1024 * 1024) {
+            logUpload({
+                status: 'failed',
+                route: 'pinata-mobile',
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type,
+                creator,
+                ip,
+                platform: 'mobile',
+                error: `File too large: ${fileSizeMB}MB (max 135MB)`,
+                httpStatus: 413,
+                userAgent,
+            });
             return NextResponse.json({
                 error: `File too large for mobile upload. Size: ${fileSizeMB}MB, Maximum: 135MB`
             }, { status: 413 });
         }
 
-        console.log('📱 Mobile file details:', {
+        logUpload({
+            status: 'started',
+            route: 'pinata-mobile',
             fileName: file.name,
             fileSize: file.size,
-            fileSizeMB,
-            fileType: file.type
+            fileType: file.type,
+            creator,
+            ip,
+            platform: 'mobile',
+            userAgent,
         });
 
-        // Create upload FormData
         const uploadFormData = new FormData();
         uploadFormData.append('file', file);
 
-        // Mobile-optimized metadata
         const pinataMetadata = JSON.stringify({
             name: `mobile_${file.name}`,
             keyvalues: {
@@ -83,46 +92,44 @@ export async function POST(request: NextRequest) {
                 platform: 'mobile',
                 userAgent: userAgent.substring(0, 100),
                 fileSize: file.size.toString(),
-                ...(thumbnailUrl && { thumbnailUrl: thumbnailUrl }),
+                ...(thumbnailUrl && { thumbnailUrl }),
             }
         });
-
         uploadFormData.append('pinataMetadata', pinataMetadata);
 
-        const pinataOptions = JSON.stringify({
-            cidVersion: 1,
-        });
+        const pinataOptions = JSON.stringify({ cidVersion: 1 });
         uploadFormData.append('pinataOptions', pinataOptions);
 
-        console.log('📱 Sending mobile upload to Pinata...');
-
-        // Use fetch with longer timeout for mobile (increased for larger files)
+        // Edge Runtime handles streaming — no AbortController timeout needed for body limit
+        // but we still want a safety timeout for very slow uploads
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes for mobile
+        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
 
         const uploadResponse = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${pinataJwt}`,
-            },
+            headers: { 'Authorization': `Bearer ${pinataJwt}` },
             body: uploadFormData,
             signal: controller.signal
         });
 
         clearTimeout(timeoutId);
 
-        console.log('📱 Mobile Pinata response:', uploadResponse.status, uploadResponse.statusText);
-
         if (!uploadResponse.ok) {
             const errorText = await uploadResponse.text();
-            console.error('📱 Mobile Pinata upload failed:', {
-                status: uploadResponse.status,
-                statusText: uploadResponse.statusText,
-                errorText,
-                fileSize: file.size
+            logUpload({
+                status: 'failed',
+                route: 'pinata-mobile',
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type,
+                creator,
+                ip,
+                platform: 'mobile',
+                error: errorText,
+                httpStatus: uploadResponse.status,
+                durationMs: Date.now() - startTime,
+                userAgent,
             });
-
-            // Return more specific error for mobile
             return NextResponse.json({
                 error: `Mobile upload failed: ${uploadResponse.status} - ${errorText}`,
                 status: uploadResponse.status
@@ -130,26 +137,50 @@ export async function POST(request: NextRequest) {
         }
 
         const upload = await uploadResponse.json();
-        console.log('📱 Mobile upload successful:', upload.IpfsHash);
 
-        const result = {
+        logUpload({
+            status: 'success',
+            route: 'pinata-mobile',
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            creator,
+            ip,
+            platform: 'mobile',
+            ipfsHash: upload.IpfsHash,
+            durationMs: Date.now() - startTime,
+            userAgent,
+        });
+
+        return NextResponse.json({
             IpfsHash: upload.IpfsHash,
             PinSize: upload.PinSize,
             Timestamp: upload.Timestamp || new Date().toISOString(),
             platform: 'mobile'
-        };
-
-        return NextResponse.json(result);
+        });
     } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
-            console.error('📱 Mobile upload timeout');
+            logUpload({
+                status: 'failed',
+                route: 'pinata-mobile',
+                ip,
+                platform: 'mobile',
+                error: 'Upload timeout (10min)',
+                httpStatus: 408,
+                durationMs: Date.now() - startTime,
+                userAgent,
+            });
             return NextResponse.json({ error: 'Mobile upload timeout' }, { status: 408 });
         }
 
-        console.error('📱 Mobile upload error:', {
-            error: error instanceof Error ? error.message : error,
-            stack: error instanceof Error ? error.stack : undefined,
-            timestamp: new Date().toISOString()
+        logUpload({
+            status: 'failed',
+            route: 'pinata-mobile',
+            ip,
+            platform: 'mobile',
+            error: error instanceof Error ? error.message : String(error),
+            durationMs: Date.now() - startTime,
+            userAgent,
         });
         return NextResponse.json({ error: 'Mobile upload failed' }, { status: 500 });
     }

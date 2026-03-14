@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadLimiter, getClientIP } from '@/lib/utils/rate-limiter';
+import { logUpload } from '@/lib/utils/upload-logger';
 
 // Enable Edge Runtime for streaming support (no payload size limit)
 export const runtime = 'edge';
 
 export async function POST(request: NextRequest) {
-    // Rate limiting check
+    const startTime = Date.now();
     const ip = getClientIP(request);
     const { allowed, remaining, resetIn } = uploadLimiter.check(ip);
 
     if (!allowed) {
-        console.warn('Rate limit exceeded for IP:', ip);
+        logUpload({ status: 'rate-limited', route: 'pinata', ip });
         return NextResponse.json(
             {
                 error: 'Upload rate limit exceeded. Please try again later.',
@@ -27,62 +28,41 @@ export async function POST(request: NextRequest) {
     }
 
     const pinataJwt = process.env.PINATA_JWT;
-
-    // Log request info for debugging
     const userAgent = request.headers.get('user-agent') || 'unknown';
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-    console.log('📱 Pinata API request:', {
-        userAgent,
-        isMobile,
-        timestamp: new Date().toISOString(),
-        contentType: request.headers.get('content-type'),
-        contentLength: request.headers.get('content-length')
-    });
 
     if (!pinataJwt) {
-        console.error('PINATA_JWT is missing from environment');
+        logUpload({ status: 'failed', route: 'pinata', ip, error: 'PINATA_JWT missing', userAgent });
         return NextResponse.json({ error: 'Pinata credentials not configured' }, { status: 500 });
     }
 
     try {
-        console.log('📱 Parsing FormData (Edge streaming)...');
-        
-        // Edge Runtime still supports formData(), but processes it more efficiently
         const requestFormData = await request.formData();
         const file = requestFormData.get('file') as File;
         const creator = requestFormData.get('creator') as string;
         const thumbnailUrl = requestFormData.get('thumbnailUrl') as string;
 
-        console.log('📱 FormData parsed:', {
-            hasFile: !!file,
-            fileName: file?.name,
-            fileSize: file?.size,
-            fileType: file?.type,
-            creator,
-            hasThumbnail: !!thumbnailUrl,
-            isMobile
-        });
-
         if (!file) {
-            console.error('📱 No file provided in request');
+            logUpload({ status: 'failed', route: 'pinata', ip, error: 'No file provided', userAgent });
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
         }
 
-        // Check file size (warn if huge, but allow it)
-        const fileSizeMB = file.size / (1024 * 1024);
-        if (fileSizeMB > 100) {
-            console.warn('📱 Large file detected:', {
-                fileName: file.name,
-                sizeMB: fileSizeMB.toFixed(2),
-                isMobile
-            });
-        }
+        logUpload({
+            status: 'started',
+            route: 'pinata',
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            creator,
+            ip,
+            platform: isMobile ? 'mobile' : 'desktop',
+            userAgent,
+        });
 
         // Upload file using Pinata API (Edge Runtime handles streaming automatically)
         const uploadFormData = new FormData();
         uploadFormData.append('file', file);
 
-        // Add pinataMetadata with keyvalues
         const pinataMetadata = JSON.stringify({
             name: file.name,
             keyvalues: {
@@ -90,77 +70,78 @@ export async function POST(request: NextRequest) {
                 fileType: file.type,
                 uploadDate: new Date().toISOString(),
                 isMobile: isMobile.toString(),
-                userAgent: userAgent.substring(0, 100), // Truncate for storage
-                ...(thumbnailUrl && { thumbnailUrl: thumbnailUrl }),
+                userAgent: userAgent.substring(0, 100),
+                ...(thumbnailUrl && { thumbnailUrl }),
             }
         });
-
         uploadFormData.append('pinataMetadata', pinataMetadata);
 
-        // Add pinataOptions for making it public
-        const pinataOptions = JSON.stringify({
-            cidVersion: 1,
-        });
+        const pinataOptions = JSON.stringify({ cidVersion: 1 });
         uploadFormData.append('pinataOptions', pinataOptions);
-
-        console.log('📱 Sending to Pinata (streaming)...', {
-            fileSize: file.size,
-            fileName: file.name,
-            isMobile
-        });
 
         const uploadResponse = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${pinataJwt}`,
-            },
+            headers: { 'Authorization': `Bearer ${pinataJwt}` },
             body: uploadFormData,
         });
 
-        console.log('📱 Pinata response status:', uploadResponse.status, 'isMobile:', isMobile);
-
         if (!uploadResponse.ok) {
             const errorText = await uploadResponse.text();
-            console.error('📱 Pinata upload failed:', {
-                status: uploadResponse.status,
-                statusText: uploadResponse.statusText,
-                errorText,
-                isMobile,
-                fileSize: file.size
+            logUpload({
+                status: 'failed',
+                route: 'pinata',
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type,
+                creator,
+                ip,
+                platform: isMobile ? 'mobile' : 'desktop',
+                error: errorText,
+                httpStatus: uploadResponse.status,
+                durationMs: Date.now() - startTime,
+                userAgent,
             });
-            
-            // Return specific error for 413 (if Pinata itself rejects)
+
             if (uploadResponse.status === 413) {
                 return NextResponse.json(
                     { error: 'File too large for IPFS pinning service' },
                     { status: 413 }
                 );
             }
-            
+
             throw new Error(`Pinata upload failed: ${uploadResponse.status} - ${errorText}`);
         }
 
         const upload = await uploadResponse.json();
-        console.log('📱 Pinata upload successful:', {
-            hash: upload.IpfsHash,
-            size: upload.PinSize,
-            isMobile
+
+        logUpload({
+            status: 'success',
+            route: 'pinata',
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            creator,
+            ip,
+            platform: isMobile ? 'mobile' : 'desktop',
+            ipfsHash: upload.IpfsHash,
+            durationMs: Date.now() - startTime,
+            userAgent,
         });
 
-        // Return the result in the same format for compatibility
-        const result = {
+        return NextResponse.json({
             IpfsHash: upload.IpfsHash,
             PinSize: upload.PinSize,
             Timestamp: upload.Timestamp || new Date().toISOString(),
-        };
-
-        return NextResponse.json(result);
+        });
     } catch (error) {
-        console.error('📱 Failed to process upload:', {
-            error: error instanceof Error ? error.message : error,
-            stack: error instanceof Error ? error.stack : undefined,
-            isMobile,
-            timestamp: new Date().toISOString()
+        logUpload({
+            status: 'failed',
+            route: 'pinata',
+            ip,
+            error: error instanceof Error ? error.message : String(error),
+            durationMs: Date.now() - startTime,
+            platform: isMobile ? 'mobile' : 'desktop',
+            userAgent,
         });
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
