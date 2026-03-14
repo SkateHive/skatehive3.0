@@ -17,7 +17,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
     const title = searchParams.get('title') || 'Skatehive Bounty';
-    const amount = searchParams.get('amount') || '0';
+    const rawAmount = searchParams.get('amount') || '0';
+    // Format: strip trailing zeros but keep meaningful decimals
+    const amountNum = parseFloat(rawAmount);
+    const amount = isNaN(amountNum) ? '0'
+      : amountNum >= 1 ? amountNum.toFixed(2)
+      : amountNum >= 0.01 ? amountNum.toFixed(3)
+      : amountNum.toFixed(4);
     const currency = searchParams.get('currency') || 'ETH';
     const source = searchParams.get('source') || 'poidh'; // 'hive' or 'poidh'
     const chain = searchParams.get('chain') || '';
@@ -181,7 +187,7 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     color: C.green,
-                    fontSize: '72px',
+                    fontSize: amount.length > 6 ? '56px' : amount.length > 4 ? '64px' : '72px',
                     fontWeight: '900',
                     display: 'flex',
                     lineHeight: '1',

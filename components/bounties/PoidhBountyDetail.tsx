@@ -27,7 +27,7 @@ import { useConnectModal } from '@rainbow-me/rainbowkit';
 import type { PoidhBounty } from '@/types/poidh';
 import { CHAIN_LABEL, CHAIN_PATH } from '@/lib/poidh-constants';
 import { usePoidhWrite } from '@/hooks/usePoidhWrite';
-import { usePoidhParticipants, usePoidhVotingState, usePoidhParticipantAmount, usePoidhIsOpenBounty } from '@/hooks/usePoidhRead';
+import { usePoidhParticipants, usePoidhVotingState, usePoidhParticipantAmount, usePoidhPendingWithdrawals } from '@/hooks/usePoidhRead';
 
 interface PoidhBountyDetailProps {
   chainId: string;
@@ -66,15 +66,21 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   const [claimUri, setClaimUri] = useState('');
 
   const numericChainId = parseInt(chainId, 10);
-  const bountyIdBigInt = bounty ? BigInt(bounty.id) : undefined;
+  // Use onChainId for all smart contract interactions (different from indexer id)
+  const onChainBountyId = bounty ? BigInt(bounty.onChainId) : undefined;
 
-  // On-chain reads
-  const { participants, participantsLoading } = usePoidhParticipants(numericChainId, bountyIdBigInt);
-  const votingState = usePoidhVotingState(numericChainId, bountyIdBigInt);
-  const { isOpenBounty } = usePoidhIsOpenBounty(numericChainId, bountyIdBigInt);
+  // On-chain reads — use onChainId, not indexer id
+  const { participants, participantsLoading } = usePoidhParticipants(numericChainId, onChainBountyId);
+  const votingState = usePoidhVotingState(numericChainId, onChainBountyId);
+  // Use API-reported bounty type (from indexer's isMultiplayer flag)
+  const isOpenBounty = bounty?.isOpenBounty ?? false;
   const { amount: userContribution } = usePoidhParticipantAmount(
     numericChainId,
-    bountyIdBigInt,
+    onChainBountyId,
+    address as `0x${string}` | undefined,
+  );
+  const { pendingAmount } = usePoidhPendingWithdrawals(
+    numericChainId,
     address as `0x${string}` | undefined,
   );
 
@@ -101,6 +107,12 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   const amountInEth = bounty ? safeFormatEther(bounty.amount) : '0';
   const amountFloat = parseFloat(amountInEth);
   const isActive = bounty ? (bounty.isActive ?? !bounty.claimer) : false;
+  // Cancelled — use indexer's isCanceled flag, or fallback to claimer === issuer
+  const isCancelled = bounty?.isCanceled
+    || (bounty?.claimer && bounty?.issuer
+      ? bounty.claimer.toLowerCase() === bounty.issuer.toLowerCase()
+      : false);
+  const hasPendingWithdrawal = parseFloat(pendingAmount) > 0;
   const createdDate = bounty && bounty.createdAt > 0
     ? new Date(bounty.createdAt * 1000).toLocaleDateString('en-US', {
         month: 'short', day: 'numeric',
@@ -108,8 +120,8 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
     : null;
   const poidhUrl = bounty ? `https://poidh.xyz/${CHAIN_PATH[numericChainId]}/bounty/${bounty.id}` : '';
   const chainLabel = CHAIN_LABEL[numericChainId] ?? 'Unknown';
-  const statusColor = isActive ? 'success' : 'error';
-  const statusLabel = isActive ? 'OPEN' : 'CLOSED';
+  const statusColor = isCancelled ? 'warning' : isActive ? 'success' : 'error';
+  const statusLabel = isCancelled ? 'CANCELLED' : isActive ? 'OPEN' : 'CLOSED';
 
   const isIssuer = useMemo(() => {
     if (!bounty || !address) return false;
@@ -136,9 +148,9 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
 
   const handleContribute = async () => {
     if (!isConnected) { openConnectModal?.(); return; }
-    if (!bountyIdBigInt || !contributeAmount) return;
+    if (!onChainBountyId || !contributeAmount) return;
     try {
-      await poidh.joinOpenBounty(numericChainId, bountyIdBigInt, contributeAmount);
+      await poidh.joinOpenBounty(numericChainId, onChainBountyId, contributeAmount);
       setShowContributeForm(false);
       setContributeAmount('');
       // Refresh bounty data
@@ -147,18 +159,18 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   };
 
   const handleWithdrawContribution = async () => {
-    if (!bountyIdBigInt) return;
+    if (!onChainBountyId) return;
     try {
-      await poidh.withdrawFromOpenBounty(numericChainId, bountyIdBigInt);
+      await poidh.withdrawFromOpenBounty(numericChainId, onChainBountyId);
       window.location.reload();
     } catch { /* handled by hook */ }
   };
 
   const handleSubmitClaim = async () => {
     if (!isConnected) { openConnectModal?.(); return; }
-    if (!bountyIdBigInt || !claimTitle.trim()) return;
+    if (!onChainBountyId || !claimTitle.trim()) return;
     try {
-      await poidh.createClaim(numericChainId, bountyIdBigInt, claimTitle, claimDescription, claimUri);
+      await poidh.createClaim(numericChainId, onChainBountyId, claimTitle, claimDescription, claimUri);
       setShowClaimForm(false);
       setClaimTitle('');
       setClaimDescription('');
@@ -168,45 +180,53 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   };
 
   const handleAcceptClaim = async (claimId: string) => {
-    if (!bountyIdBigInt) return;
+    if (!onChainBountyId) return;
     try {
-      await poidh.acceptClaim(numericChainId, bountyIdBigInt, BigInt(claimId));
+      await poidh.acceptClaim(numericChainId, onChainBountyId, BigInt(claimId));
       window.location.reload();
     } catch { /* handled by hook */ }
   };
 
   const handleSubmitForVote = async (claimId: string) => {
-    if (!bountyIdBigInt) return;
+    if (!onChainBountyId) return;
     try {
-      await poidh.submitClaimForVote(numericChainId, bountyIdBigInt, BigInt(claimId));
+      await poidh.submitClaimForVote(numericChainId, onChainBountyId, BigInt(claimId));
       window.location.reload();
     } catch { /* handled by hook */ }
   };
 
   const handleVote = async (vote: boolean) => {
-    if (!bountyIdBigInt) return;
+    if (!onChainBountyId) return;
     try {
-      await poidh.voteClaim(numericChainId, bountyIdBigInt, vote);
+      await poidh.voteClaim(numericChainId, onChainBountyId, vote);
       window.location.reload();
     } catch { /* handled by hook */ }
   };
 
   const handleResolveVote = async () => {
-    if (!bountyIdBigInt) return;
+    if (!onChainBountyId) return;
     try {
-      await poidh.resolveVote(numericChainId, bountyIdBigInt);
+      await poidh.resolveVote(numericChainId, onChainBountyId);
       window.location.reload();
     } catch { /* handled by hook */ }
   };
 
   const handleCancelBounty = async () => {
-    if (!bountyIdBigInt) return;
+    if (!onChainBountyId) return;
     try {
       if (isOpenBounty) {
-        await poidh.cancelOpenBounty(numericChainId, bountyIdBigInt);
+        await poidh.cancelOpenBounty(numericChainId, onChainBountyId);
       } else {
-        await poidh.cancelSoloBounty(numericChainId, bountyIdBigInt);
+        await poidh.cancelSoloBounty(numericChainId, onChainBountyId);
       }
+      window.location.reload();
+    } catch { /* handled by hook */ }
+  };
+
+  const handleReclaimFunds = async () => {
+    if (!isConnected) { openConnectModal?.(); return; }
+    try {
+      await poidh.withdraw(numericChainId);
       window.location.reload();
     } catch { /* handled by hook */ }
   };
@@ -1044,8 +1064,8 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                 </VStack>
               </Box>
 
-              {/* Issuer actions */}
-              {isIssuer && isActive && (
+              {/* Issuer actions: Cancel (active) or Reclaim (cancelled) */}
+              {isIssuer && isActive && !isCancelled && (
                 <Button
                   onClick={handleCancelBounty}
                   isLoading={isBusy}
@@ -1063,6 +1083,26 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                   _hover={{ bg: 'rgba(255, 0, 0, 0.05)' }}
                 >
                   CANCEL BOUNTY
+                </Button>
+              )}
+              {isIssuer && isCancelled && hasPendingWithdrawal && (
+                <Button
+                  onClick={handleReclaimFunds}
+                  isLoading={isBusy}
+                  w="100%"
+                  size="sm"
+                  bg="transparent"
+                  border="1px solid"
+                  borderColor="primary"
+                  color="primary"
+                  borderRadius="none"
+                  fontFamily="mono"
+                  fontWeight="bold"
+                  fontSize="xs"
+                  textTransform="uppercase"
+                  _hover={{ bg: 'rgba(167, 255, 0, 0.05)' }}
+                >
+                  RECLAIM {pendingAmount} ETH
                 </Button>
               )}
 

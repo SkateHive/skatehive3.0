@@ -20,14 +20,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     if (!res.ok) throw new Error("Failed to fetch bounty");
     const bounty = await res.json();
 
-    const amountInEth = bounty.amount
-      ? parseFloat(formatEther(BigInt(bounty.amount)))
-      : 0;
+    // Amount may be in wei (large integer) or already in ETH (decimal string)
+    let amountInEth = 0;
+    if (bounty.amount) {
+      const raw = bounty.amount.toString();
+      if (raw.includes('.') || parseFloat(raw) < 1e10) {
+        // Already in ETH (decimal string or small number)
+        amountInEth = parseFloat(raw);
+      } else {
+        // In wei — convert
+        try {
+          amountInEth = parseFloat(formatEther(BigInt(raw)));
+        } catch {
+          amountInEth = parseFloat(raw) || 0;
+        }
+      }
+    }
     const amountStr = amountInEth < 0.001
       ? amountInEth.toFixed(6)
       : amountInEth < 1
         ? amountInEth.toFixed(4)
-        : amountInEth.toString();
+        : amountInEth.toFixed(2);
 
     const chain = CHAIN_LABEL[parseInt(chainId)] || "Base";
     const isActive = bounty.isActive ?? !bounty.claimer;

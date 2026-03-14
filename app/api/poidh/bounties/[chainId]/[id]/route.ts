@@ -84,6 +84,7 @@ export async function GET(
 
     const transformedBounty: PoidhBounty = {
       id: b.id.toString(),
+      onChainId: b.onChainId ?? b.id,
       issuer: b.issuer,
       name: b.title || b.name || '',
       description: b.description || '',
@@ -92,11 +93,12 @@ export async function GET(
       createdAt: toUnixSeconds(b.createdAt),
       claimId: b.claimId || 0,
       isOpenBounty: b.isMultiplayer || false,
+      isCanceled: b.isCanceled || false,
       claimCount: claims.length,
       chainId: numericChainId,
       claims,
       // On the detail page, determine active from claimer being null
-      isActive: !b.claimer,
+      isActive: b.isCanceled ? false : !b.claimer,
       imageUrl: extractFirstImage(b.description || ''),
     };
 

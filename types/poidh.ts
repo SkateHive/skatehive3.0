@@ -1,6 +1,7 @@
 // POIDH v3 Contract Types (Base Chain)
 export interface PoidhBounty {
   id: string;
+  onChainId: number; // actual on-chain bounty ID (different from indexer id)
   issuer: string;
   name: string;
   description: string;
@@ -18,6 +19,7 @@ export interface PoidhBounty {
   claims?: PoidhClaim[];
   imageUrl?: string | null;
   inProgress?: boolean;
+  isCanceled?: boolean;
   isActive?: boolean; // True when fetched from status='open' endpoint
 }
 

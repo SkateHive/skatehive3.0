@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
     // Transform to our format
     const transformedBounties = paginatedBounties.map((b: any) => ({
       id: b.id.toString(),
+      onChainId: b.onChainId ?? b.id,
       issuer: b.issuer,
       name: b.title,
       description: b.description,
@@ -85,11 +86,12 @@ export async function GET(req: NextRequest) {
       createdAt: toUnixSeconds(b.createdAt),
       claimId: b.claimId || 0,
       isOpenBounty: b.isMultiplayer || false,
+      isCanceled: b.isCanceled || false,
       claimCount: b.claimCount || (b.hasClaims ? 1 : 0),
       chainId: b.chainId,
       inProgress: b.inProgress || false,
       // status='open' from Poidh means it's truly open; pass it through so the card knows
-      isActive: status === 'open',
+      isActive: b.isCanceled ? false : status === 'open',
       imageUrl: extractFirstImage(b.description || ''),
     }));
 

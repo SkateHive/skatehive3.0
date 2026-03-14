@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Box,
   VStack,
@@ -10,19 +10,25 @@ import {
   Icon,
   Textarea,
   Input,
+  IconButton,
+  Wrap,
+  Image,
 } from '@chakra-ui/react';
-import { FaEthereum } from 'react-icons/fa';
-import { useAccount } from 'wagmi';
+import { FaEthereum, FaImage, FaVideo, FaTimes } from 'react-icons/fa';
+import { useAccount, usePublicClient } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { usePoidhWrite } from '@/hooks/usePoidhWrite';
 import { CHAIN_LABEL } from '@/lib/poidh-constants';
+import { POIDH_ABI, POIDH_CONTRACT_ADDRESS } from '@/lib/poidh-abi';
+import ImageCompressor, { ImageCompressorRef } from '@/lib/utils/ImageCompressor';
+import VideoUploader, { VideoUploaderRef } from '@/components/homepage/VideoUploader';
+import { uploadToIpfs } from '@/lib/markdown/composeUtils';
+import imageCompression from 'browser-image-compression';
 
 interface PoidhBountyComposerProps {
   onSuccess?: () => void;
   onClose?: () => void;
 }
-
-type BountyType = 'solo' | 'open';
 
 const SUPPORTED_CHAINS = [
   { id: 8453, label: 'BASE', color: '#627EEA' },
@@ -33,15 +39,39 @@ export default function PoidhBountyComposer({ onSuccess, onClose }: PoidhBountyC
   const { address, isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
   const poidh = usePoidhWrite();
+  const publicClient = usePublicClient();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [chainId, setChainId] = useState(8453);
-  const [bountyType, setBountyType] = useState<BountyType>('solo');
+
+  // Media state
+  const [compressedImages, setCompressedImages] = useState<{ url: string; fileName: string }[]>([]);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const imageCompressorRef = useRef<ImageCompressorRef>(null);
+  const videoUploaderRef = useRef<VideoUploaderRef>(null);
 
   const isValid = title.trim().length > 0 && parseFloat(amount) >= 0.001;
   const isBusy = poidh.status === 'switching-chain' || poidh.status === 'pending-approval' || poidh.status === 'pending-tx';
+
+  // Build description with media markdown for on-chain storage
+  const buildDescription = () => {
+    let body = `[skatehive] ${description}`;
+    if (compressedImages.length > 0) {
+      const imageMarkup = compressedImages
+        .map((img) => `\nThumbnail: ![](${img.url})`)
+        .join('');
+      body += imageMarkup;
+    }
+    if (videoUrl) {
+      body += `\nVideo: ${videoUrl}`;
+    }
+    body += `\n\nView on Skatehive: https://skatehive.app/bounties`;
+    return body;
+  };
 
   const handleSubmit = async () => {
     if (!isConnected) {
@@ -51,17 +81,107 @@ export default function PoidhBountyComposer({ onSuccess, onClose }: PoidhBountyC
     if (!isValid) return;
 
     try {
-      // Auto-tag skatehive bounties
-      const taggedDescription = `[skatehive] ${description}`;
+      const taggedDescription = buildDescription();
+      await poidh.createOpenBounty(chainId, title, taggedDescription, amount);
 
-      if (bountyType === 'solo') {
-        await poidh.createSoloBounty(chainId, title, taggedDescription, amount);
-      } else {
-        await poidh.createOpenBounty(chainId, title, taggedDescription, amount);
+      // Read bountyCounter to get the on-chain ID of the new bounty, then announce
+      if (address) {
+        (async () => {
+          try {
+            let bountyOnChainId: number | undefined;
+            if (publicClient) {
+              const counter = await publicClient.readContract({
+                address: POIDH_CONTRACT_ADDRESS,
+                abi: POIDH_ABI,
+                functionName: 'bountyCounter',
+              }) as bigint;
+              // Counter was incremented after creation, so new bounty = counter - 1
+              bountyOnChainId = Number(counter) - 1;
+            }
+            await fetch('/api/poidh/announce', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title,
+                amount,
+                chainId,
+                issuerAddress: address,
+                bountyOnChainId,
+              }),
+            });
+          } catch { /* announcement failure is non-critical */ }
+        })();
       }
+
       onSuccess?.();
     } catch {
       // error is handled by the hook
+    }
+  };
+
+  // Image upload via IPFS (no Hive auth needed)
+  const handleCompressedImageUpload = async (url: string | null, fileName?: string) => {
+    if (!url) return;
+    setIsUploading(true);
+    try {
+      const blob = await fetch(url).then((res) => res.blob());
+      const ipfsUrl = await uploadToIpfs(blob, fileName || 'bounty-image.jpg');
+      setCompressedImages((prev) => [...prev, { url: ipfsUrl, fileName: fileName || 'image' }]);
+    } catch {
+      // silently fail
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Video upload handler
+  const handleVideoUpload = (result: { url?: string; hash?: string } | null) => {
+    if (result?.url) {
+      setVideoUrl(result.url);
+    }
+  };
+
+  // Drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files);
+    for (const file of files) {
+      if (file.type.startsWith('image/')) {
+        setIsUploading(true);
+        try {
+          const compressed = await imageCompression(file, {
+            maxSizeMB: 2,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+          });
+          const url = URL.createObjectURL(compressed);
+          await handleCompressedImageUpload(url, compressed.name);
+          URL.revokeObjectURL(url);
+        } catch { /* ignore */ } finally {
+          setIsUploading(false);
+        }
+      } else if (file.type.startsWith('video/')) {
+        if (videoUploaderRef.current?.handleFile) {
+          setIsUploading(true);
+          try {
+            await videoUploaderRef.current.handleFile(file);
+          } catch { /* ignore */ } finally {
+            setIsUploading(false);
+          }
+        }
+      }
     }
   };
 
@@ -110,7 +230,18 @@ export default function PoidhBountyComposer({ onSuccess, onClose }: PoidhBountyC
   }
 
   return (
-    <VStack spacing={4} py={4} px={2} align="stretch">
+    <VStack
+      spacing={4}
+      py={4}
+      px={2}
+      align="stretch"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      border={isDragOver ? '2px dashed' : undefined}
+      borderColor={isDragOver ? 'primary' : undefined}
+      transition="border 0.2s"
+    >
       {/* Chain selector */}
       <Box>
         <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold" mb={2} textTransform="uppercase">
@@ -142,55 +273,6 @@ export default function PoidhBountyComposer({ onSuccess, onClose }: PoidhBountyC
         </HStack>
       </Box>
 
-      {/* Bounty type */}
-      <Box>
-        <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold" mb={2} textTransform="uppercase">
-          TYPE
-        </Text>
-        <HStack spacing={2}>
-          <Box
-            as="button"
-            flex={1}
-            border="1px solid"
-            borderColor={bountyType === 'solo' ? 'primary' : 'border'}
-            bg={bountyType === 'solo' ? 'rgba(167, 255, 0, 0.05)' : 'transparent'}
-            px={3}
-            py={2}
-            cursor="pointer"
-            onClick={() => setBountyType('solo')}
-          >
-            <VStack spacing={0.5}>
-              <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color={bountyType === 'solo' ? 'primary' : 'dim'}>
-                SOLO
-              </Text>
-              <Text fontSize="2xs" fontFamily="mono" color="dim">
-                YOU PICK THE WINNER
-              </Text>
-            </VStack>
-          </Box>
-          <Box
-            as="button"
-            flex={1}
-            border="1px solid"
-            borderColor={bountyType === 'open' ? 'primary' : 'border'}
-            bg={bountyType === 'open' ? 'rgba(167, 255, 0, 0.05)' : 'transparent'}
-            px={3}
-            py={2}
-            cursor="pointer"
-            onClick={() => setBountyType('open')}
-          >
-            <VStack spacing={0.5}>
-              <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color={bountyType === 'open' ? 'primary' : 'dim'}>
-                OPEN
-              </Text>
-              <Text fontSize="2xs" fontFamily="mono" color="dim">
-                COMMUNITY VOTES
-              </Text>
-            </VStack>
-          </Box>
-        </HStack>
-      </Box>
-
       {/* Title */}
       <Box>
         <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold" mb={2} textTransform="uppercase">
@@ -210,6 +292,134 @@ export default function PoidhBountyComposer({ onSuccess, onClose }: PoidhBountyC
           _placeholder={{ color: 'dim' }}
           _focus={{ borderColor: 'primary', boxShadow: 'none' }}
         />
+      </Box>
+
+      {/* Banner media drop zone — between title and description */}
+      <Box>
+        {/* Hidden components */}
+        <ImageCompressor
+          ref={imageCompressorRef}
+          onUpload={handleCompressedImageUpload}
+          isProcessing={isUploading}
+          hideStatus
+        />
+        <VideoUploader
+          ref={videoUploaderRef}
+          onUpload={handleVideoUpload}
+        />
+
+        {compressedImages.length > 0 ? (
+          /* Banner preview — aspect ratio preserved */
+          <Box position="relative" w="90%" mx="auto">
+            <Image
+              src={compressedImages[0].url}
+              alt={compressedImages[0].fileName}
+              w="100%"
+              maxH="200px"
+              objectFit="contain"
+              border="1px solid"
+              borderColor="primary"
+            />
+            <IconButton
+              icon={<FaTimes />}
+              size="xs"
+              aria-label="Remove image"
+              position="absolute"
+              top={1}
+              right={1}
+              bg="rgba(0,0,0,0.7)"
+              color="error"
+              borderRadius="none"
+              _hover={{ bg: 'rgba(0,0,0,0.9)' }}
+              onClick={() => setCompressedImages([])}
+            />
+            {/* Overlay buttons to swap */}
+            <HStack position="absolute" bottom={1} left={1} spacing={1}>
+              <Button
+                size="xs"
+                leftIcon={<FaImage />}
+                bg="rgba(0,0,0,0.7)"
+                color="primary"
+                borderRadius="none"
+                fontFamily="mono"
+                fontSize="2xs"
+                _hover={{ bg: 'rgba(0,0,0,0.9)' }}
+                isLoading={isUploading}
+                onClick={() => imageCompressorRef.current?.trigger()}
+              >
+                CHANGE
+              </Button>
+            </HStack>
+          </Box>
+        ) : videoUrl ? (
+          /* Video attached banner */
+          <Box
+            position="relative"
+            w="100%"
+            h="160px"
+            border="1px solid"
+            borderColor="primary"
+            bg="rgba(167, 255, 0, 0.03)"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+          >
+            <VStack spacing={1}>
+              <Icon as={FaVideo} boxSize="24px" color="primary" />
+              <Text fontSize="xs" fontFamily="mono" color="primary" fontWeight="bold">
+                VIDEO ATTACHED
+              </Text>
+            </VStack>
+            <IconButton
+              icon={<FaTimes />}
+              size="xs"
+              aria-label="Remove video"
+              position="absolute"
+              top={1}
+              right={1}
+              bg="rgba(0,0,0,0.7)"
+              color="error"
+              borderRadius="none"
+              _hover={{ bg: 'rgba(0,0,0,0.9)' }}
+              onClick={() => setVideoUrl(null)}
+            />
+          </Box>
+        ) : (
+          /* Empty drop zone */
+          <Box
+            w="100%"
+            h="120px"
+            border={isDragOver ? '2px dashed' : '1px dashed'}
+            borderColor={isDragOver ? 'primary' : 'border'}
+            bg={isDragOver ? 'rgba(167, 255, 0, 0.05)' : 'transparent'}
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            cursor="pointer"
+            transition="all 0.15s"
+            _hover={{ borderColor: 'primary', bg: 'rgba(167, 255, 0, 0.03)' }}
+            onClick={() => imageCompressorRef.current?.trigger()}
+          >
+            <VStack spacing={2}>
+              {isUploading ? (
+                <Text fontSize="xs" fontFamily="mono" color="primary" fontWeight="bold">
+                  UPLOADING...
+                </Text>
+              ) : (
+                <>
+                  <HStack spacing={3} color="dim">
+                    <Icon as={FaImage} boxSize="18px" />
+                    <Icon as={FaVideo} boxSize="18px" />
+                  </HStack>
+                  <Text fontSize="xs" fontFamily="mono" color="dim" fontWeight="bold">
+                    {isDragOver ? 'DROP HERE' : 'DROP IMAGE / VIDEO OR CLICK'}
+                  </Text>
+                </>
+              )}
+            </VStack>
+          </Box>
+        )}
+
       </Box>
 
       {/* Description */}
@@ -297,7 +507,7 @@ export default function PoidhBountyComposer({ onSuccess, onClose }: PoidhBountyC
         onClick={handleSubmit}
         isLoading={isBusy}
         loadingText={statusLabel || 'PROCESSING...'}
-        isDisabled={isConnected && !isValid}
+        isDisabled={(isConnected && !isValid) || isUploading}
         bg="primary"
         color="background"
         borderRadius="none"
@@ -310,7 +520,7 @@ export default function PoidhBountyComposer({ onSuccess, onClose }: PoidhBountyC
         _hover={{ bg: 'accent' }}
         _disabled={{ opacity: 0.5, cursor: 'not-allowed' }}
       >
-        {!isConnected ? 'CONNECT WALLET' : `CREATE ${bountyType.toUpperCase()} BOUNTY`}
+        {!isConnected ? 'CONNECT WALLET' : 'CREATE BOUNTY'}
       </Button>
 
       {/* Info */}
