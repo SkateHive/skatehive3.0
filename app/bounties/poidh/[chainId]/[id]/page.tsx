@@ -62,16 +62,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       ? bounty.description.slice(0, 160)
       : `${amountStr} ETH bounty on ${chain}. Submit your proof and earn!`;
 
+    const bountyPageUrl = `${baseUrl}/bounties/poidh/${chainId}/${id}`;
+    const ogImageUrl = ogUrl.toString();
+    const buttonTitle = isActive ? "Claim Bounty" : "View Bounty";
+
     return {
       title: pageTitle,
       description,
       openGraph: {
         title: `${pageTitle} | Skatehive`,
         description,
-        url: `${baseUrl}/bounties/poidh/${chainId}/${id}`,
+        url: bountyPageUrl,
         images: [
           {
-            url: ogUrl.toString(),
+            url: ogImageUrl,
             width: 1200,
             height: 630,
             alt: `${title} - ${amountStr} ETH Bounty`,
@@ -84,7 +88,25 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         card: "summary_large_image",
         title: `${pageTitle} | Skatehive`,
         description,
-        images: [ogUrl.toString()],
+        images: [ogImageUrl],
+      },
+      other: {
+        // Farcaster Frame v2 (mini-app)
+        "fc:frame": JSON.stringify({
+          version: "next",
+          imageUrl: ogImageUrl,
+          button: {
+            title: buttonTitle,
+            action: {
+              type: "launch_frame",
+              name: "Skatehive",
+              url: bountyPageUrl,
+            },
+          },
+          postUrl: bountyPageUrl,
+        }),
+        "fc:frame:image": ogImageUrl,
+        "fc:frame:post_url": bountyPageUrl,
       },
     };
   } catch {
