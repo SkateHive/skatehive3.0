@@ -79,10 +79,12 @@ export default function AuthorBio({
             href={`/user/${author}`}
             size="sm"
             variant="outline"
-            colorScheme="primary"
+            borderColor="primary"
+            color="primary"
             _hover={{
               bg: "primary",
               color: "background",
+              borderColor: "accent",
             }}
           >
             {t("viewProfile")}

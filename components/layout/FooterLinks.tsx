@@ -48,9 +48,9 @@ export default function FooterLinks() {
               as={NextLink}
               href={link.href}
               fontSize="sm"
-              color="textSecondary"
+              color="primary"
               _hover={{
-                color: "primary",
+                color: "accent",
                 textDecoration: "none",
               }}
               transition="color 0.2s"
@@ -71,9 +71,9 @@ export default function FooterLinks() {
               as={NextLink}
               href={link.href}
               fontSize="sm"
-              color="textSecondary"
+              color="primary"
               _hover={{
-                color: "primary",
+                color: "accent",
                 textDecoration: "none",
               }}
               transition="color 0.2s"

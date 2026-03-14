@@ -18,9 +18,9 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
   return (
     <Breadcrumb
       spacing="4px"
-      separator={<ChevronRightIcon color="textSecondary" boxSize={3} />}
+      separator={<ChevronRightIcon color="primary" boxSize={3} />}
       fontSize="sm"
-      color="textSecondary"
+      color="primary"
       mb={4}
     >
       {items.map((item, index) => {
@@ -44,7 +44,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
               <BreadcrumbLink
                 as={NextLink}
                 href={item.href || "#"}
-                _hover={{ color: "primary" }}
+                _hover={{ color: "accent" }}
                 transition="color 0.2s"
               >
                 {item.label}
