@@ -26,6 +26,8 @@ import {
   Container,
 } from "@chakra-ui/react";
 import RelatedPosts from "./RelatedPosts";
+import AuthorBio from "./AuthorBio";
+import Breadcrumbs, { BreadcrumbItemData } from "@/components/shared/Breadcrumbs";
 import React, {
   useState,
   useRef,
@@ -340,6 +342,31 @@ export default function PostDetails({
     toast,
   ]);
 
+  // Build breadcrumbs
+  const breadcrumbs = useMemo(() => {
+    const items: BreadcrumbItemData[] = [
+      { label: "Home", href: "/" },
+      { label: "Blog", href: "/blog" },
+    ];
+    
+    // Add category if available from tags
+    if (postTags.length > 0) {
+      const mainTag = postTags[0];
+      items.push({ 
+        label: mainTag.charAt(0).toUpperCase() + mainTag.slice(1), 
+        href: `/blog/tag/${mainTag}` 
+      });
+    }
+    
+    // Add post title as current page
+    items.push({ 
+      label: title || "Post", 
+      isCurrentPage: true 
+    });
+    
+    return items;
+  }, [title, postTags]);
+
   return (
     <Box
       data-component="PostDetails"
@@ -351,6 +378,11 @@ export default function PostDetails({
       w="100%"
       mt={{ base: "0px", md: "10px" }}
     >
+      {/* Breadcrumbs Navigation */}
+      <Box px={2} pt={2}>
+        <Breadcrumbs items={breadcrumbs} />
+      </Box>
+
       <Flex
         data-subcomponent="PostDetails/Header"
         direction="column"
@@ -893,6 +925,17 @@ export default function PostDetails({
           />
         )}
       </Box>
+
+      {/* Author Bio Section */}
+      <Container maxW="container.xl" px={4}>
+        <AuthorBio
+          author={author}
+          displayName={displayAuthor}
+          avatarUrl={displayAvatar}
+          postCount={undefined}
+          followers={undefined}
+        />
+      </Container>
 
       {/* Related Posts Section */}
       <Container maxW="container.xl" px={4}>

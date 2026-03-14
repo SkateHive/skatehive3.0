@@ -9,6 +9,7 @@ import {
 } from "@chakra-ui/react";
 import Sidebar from "@/components/layout/Sidebar";
 import FooterNavButtons from "@/components/layout/FooterNavButtons";
+import FooterLinks from "@/components/layout/FooterLinks";
 import SplashScreen from "@/components/layout/SplashScreen";
 import AccountLinkingDetector from "@/components/layout/AccountLinkingDetector";
 import SearchOverlay from "@/components/shared/SearchOverlay";
@@ -236,6 +237,7 @@ function InnerLayout({
           }}
         >
           {children}
+          {!isMobile && <FooterLinks />}
         </Box>
       </Flex>
       {isMobile && <FooterNavButtons />}
