@@ -45,7 +45,7 @@ import {
   generateThumbnailWithCanvas,
   uploadThumbnail,
 } from "@/lib/utils/videoThumbnailUtils";
-import { generateVideoIframeMarkdown } from "@/lib/markdown/composeUtils";
+import { generateVideoIframeMarkdown, uploadToIpfs } from "@/lib/markdown/composeUtils";
 import { FaVideo } from "react-icons/fa6";
 import { FaTimes } from "react-icons/fa";
 import ImageCompressor from "@/lib/utils/ImageCompressor";
@@ -258,6 +258,32 @@ const SnapComposer = React.memo(function SnapComposer({
     // It will be cleared when upload completes or new file is selected
   };
 
+  // Upload image to Hive first, fall back to IPFS if Hive fails
+  const uploadImageWithFallback = async (
+    file: File,
+    index: number,
+    progressSetter: React.Dispatch<React.SetStateAction<number[]>>
+  ): Promise<string> => {
+    try {
+      const signature = await getFileSignature(file);
+      const url = await uploadImage(file, signature, index, progressSetter);
+      if (url) return url;
+      throw new Error('Hive upload returned empty URL');
+    } catch (hiveError) {
+      console.warn('⚠️ [SnapComposer] Hive image upload failed, trying IPFS fallback...', hiveError);
+      try {
+        const ipfsUrl = await uploadToIpfs(file, file.name);
+        console.log('✅ [SnapComposer] IPFS fallback succeeded:', ipfsUrl);
+        return ipfsUrl;
+      } catch (ipfsError) {
+        console.error('❌ [SnapComposer] Both Hive and IPFS uploads failed');
+        throw new Error(
+          `Upload failed. Hive: ${hiveError instanceof Error ? hiveError.message : String(hiveError)}. IPFS: ${ipfsError instanceof Error ? ipfsError.message : String(ipfsError)}`
+        );
+      }
+    }
+  };
+
   // Handler for compressed image upload
   const handleCompressedImageUpload = async (
     url: string | null,
@@ -304,18 +330,15 @@ const SnapComposer = React.memo(function SnapComposer({
         caption = 'Skateboarding photo';
       }
       
-      console.log('🖼️ [SnapComposer] Getting file signature...');
-      const signature = await getFileSignature(file);
-      console.log('🖼️ [SnapComposer] Got signature, uploading image...');
-      
-      const uploadUrl = await uploadImage(
+      console.log('🖼️ [SnapComposer] Uploading image (Hive → IPFS fallback)...');
+
+      const uploadUrl = await uploadImageWithFallback(
         file,
-        signature,
         compressedImages.length,
         setUploadProgress
       );
       console.log('🖼️ [SnapComposer] Upload complete, URL:', uploadUrl);
-      
+
       if (uploadUrl) {
         setCompressedImages((prev) => [
           ...prev,
@@ -343,18 +366,16 @@ const SnapComposer = React.memo(function SnapComposer({
       alert(t('compose.onlyGifWebp'));
       return;
     }
-    // Check file size (limit to 10MB)
-    if (file.size > 10 * 1024 * 1024) {
+    // Check file size (limit to 15MB for GIF/WEBP)
+    if (file.size > 15 * 1024 * 1024) {
       alert(t('compose.gifSizeLimit'));
       return;
     }
     startUpload();
     setIsLoading(true);
     try {
-      const signature = await getFileSignature(file);
-      const uploadUrl = await uploadImage(
+      const uploadUrl = await uploadImageWithFallback(
         file,
-        signature,
         compressedImages.length,
         setUploadProgress
       );
@@ -364,7 +385,7 @@ const SnapComposer = React.memo(function SnapComposer({
           .replace(/\.[^.]+$/, '') // Remove extension
           .replace(/[-_]/g, ' ')   // Dashes to spaces
           .trim() || 'Skateboarding GIF';
-        
+
         setCompressedImages((prev) => [
           ...prev,
           { url: uploadUrl, fileName: file.name, caption },
@@ -372,6 +393,13 @@ const SnapComposer = React.memo(function SnapComposer({
       }
     } catch (error) {
       console.error("Error uploading GIF/WEBP:", error);
+      toast({
+        title: t('compose.imageUploadFailed') || "Upload failed",
+        description: error instanceof Error ? error.message : String(error),
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
       setIsLoading(false);
       finishUpload();
@@ -394,10 +422,8 @@ const SnapComposer = React.memo(function SnapComposer({
     try {
       startUpload();
       const file = new File([gifBlob], fileName, { type: "image/gif" });
-      const signature = await getFileSignature(file);
-      const uploadUrl = await uploadImage(
+      const uploadUrl = await uploadImageWithFallback(
         file,
-        signature,
         compressedImages.length,
         setUploadProgress
       );
