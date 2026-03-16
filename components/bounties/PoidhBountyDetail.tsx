@@ -52,6 +52,40 @@ function safeFormatEther(amount: string): string {
   }
 }
 
+/**
+ * Smart media preview — probes the URL to detect if it's a video or image.
+ * IPFS URLs have no file extension, so we try <video> first and fall back to <img>.
+ */
+function MediaPreview({ src }: { src: string }) {
+  const [isVideo, setIsVideo] = useState<boolean | null>(null);
+
+  // Quick heuristic check first
+  const looksLikeVideo = /\.(mp4|webm|mov|avi|mkv|m4v)(\?|$)/i.test(src) || src.includes('video');
+
+  useEffect(() => {
+    if (looksLikeVideo) { setIsVideo(true); return; }
+    // For IPFS/unknown URLs, probe with a <video> element
+    const video = document.createElement('video');
+    video.muted = true;
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => { setIsVideo(true); URL.revokeObjectURL(video.src); };
+    video.onerror = () => { setIsVideo(false); URL.revokeObjectURL(video.src); };
+    video.src = src;
+    return () => { video.onloadedmetadata = null; video.onerror = null; };
+  }, [src, looksLikeVideo]);
+
+  if (isVideo === null && !looksLikeVideo) {
+    // Still probing — show image as default (most common)
+    return <Box as="img" src={src} alt="Proof" w="100%" maxH="180px" objectFit="contain" />;
+  }
+
+  if (isVideo || looksLikeVideo) {
+    return <video src={src} controls style={{ width: '100%', maxHeight: '180px' }} />;
+  }
+
+  return <Box as="img" src={src} alt="Proof" w="100%" maxH="180px" objectFit="contain" />;
+}
+
 export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   const [bounty, setBounty] = useState<PoidhBounty | null>(null);
   const [loading, setLoading] = useState(true);
@@ -921,18 +955,8 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                           {/* Upload zone + URL input */}
                           {claimUri ? (
                             <Box position="relative" border="1px solid" borderColor="primary" bg="background" p={2}>
-                              {claimUri.match(/\.(mp4|webm|mov)$/i) || claimUri.includes('video') ? (
-                                <video src={claimUri} controls style={{ width: '100%', maxHeight: '180px' }} />
-                              ) : (
-                                <Box
-                                  as="img"
-                                  src={claimUri}
-                                  alt="Proof"
-                                  w="100%"
-                                  maxH="180px"
-                                  objectFit="contain"
-                                />
-                              )}
+                              <MediaPreview src={claimUri} />
+
                               <Button
                                 position="absolute"
                                 top={1}
