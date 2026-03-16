@@ -15,10 +15,26 @@ export interface UploadResult {
 }
 
 /**
- * Check if file is MP4
+ * Check if file is a real MP4 (not a .mov that Safari mislabels as video/mp4)
  */
 export function isMP4(file: File): boolean {
-  return file.type === 'video/mp4' || file.name.toLowerCase().endsWith('.mp4');
+  const name = file.name.toLowerCase();
+  // Safari reports .mov files as video/mp4 — exclude them
+  if (name.endsWith('.mov')) return false;
+  return file.type === 'video/mp4' || name.endsWith('.mp4');
+}
+
+/**
+ * Check if file can be uploaded directly without transcoding.
+ * Only true MP4 and WebM files are browser-compatible.
+ * Everything else (MOV, AVI, MKV, etc.) needs server-side transcoding.
+ */
+export function canDirectUpload(file: File): boolean {
+  const name = file.name.toLowerCase();
+  // .mov always needs transcoding even if Safari says it's video/mp4
+  if (name.endsWith('.mov')) return false;
+  return file.type === 'video/mp4' || file.type === 'video/webm'
+    || name.endsWith('.mp4') || name.endsWith('.webm');
 }
 
 /**

@@ -9,6 +9,7 @@ import React, {
 
 import {
   isMP4,
+  canDirectUpload,
   validateVideo,
   uploadToIPFS,
   EnhancedUploadOptions,
@@ -301,11 +302,10 @@ const VideoUploader = forwardRef<VideoUploaderRef, VideoUploaderProps>(
           connectionType: deviceData.connectionType,
         };
 
-        // 3. Handle browser-compatible files (MP4/WebM) - direct upload
-        //    MOV and other formats MUST go through transcoding even if from trim modal
-        const isBrowserCompatible = isMP4(file) || file.type === 'video/webm';
-        if (isBrowserCompatible) {
-          const reason = isTrimmed && !isMP4(file)
+        // 3. Only MP4 and WebM go direct — everything else (MOV, AVI, MKV) gets transcoded
+        //    Safari reports .mov as video/mp4, so canDirectUpload() checks file extension too
+        if (canDirectUpload(file)) {
+          const reason = isTrimmed
             ? t('terminal.trimmedDetected')
             : t('terminal.mp4Detected');
           terminal.addLine(reason, "info");
