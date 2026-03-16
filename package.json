@@ -149,6 +149,7 @@
       "@farcaster/frame-sdk": "npm:@farcaster/miniapp-sdk@^0.1.7",
       "@farcaster/frame-wagmi-connector": "npm:@farcaster/miniapp-wagmi-connector@^1.0.0",
       "cuer": "0.0.2"
-    }
+    },
+    "onlyBuiltDependencies": ["exifreader"]
   }
 }

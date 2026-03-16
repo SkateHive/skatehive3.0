@@ -24,7 +24,6 @@ export default function RightSideBar() {
   const sidebarRef = useRef<HTMLDivElement>(null); // Reference for the sidebar
   const isFetching = useRef(false);
   const seenPosts = useRef<Set<string>>(new Set());
-  const prefillInProgress = useRef(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const QUERY = "created";
@@ -88,41 +87,6 @@ export default function RightSideBar() {
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
-
-  const prefillIfNeeded = useCallback(async () => {
-    if (prefillInProgress.current || !hasMore) return;
-    const sidebar = sidebarRef.current;
-    if (!sidebar) return;
-
-    prefillInProgress.current = true;
-    try {
-      let iterations = 0;
-      const maxIterations = 4; // Avoid runaway loops
-      while (iterations < maxIterations) {
-        const needsMore =
-          sidebar.scrollHeight <= sidebar.clientHeight * 1.5 + 200;
-        if (!needsMore || !hasMore) break;
-        if (isFetching.current) {
-          await new Promise((r) => setTimeout(r, 100));
-          continue;
-        }
-        await fetchPosts();
-        iterations += 1;
-        await new Promise((r) => setTimeout(r, 0));
-      }
-    } finally {
-      prefillInProgress.current = false;
-    }
-  }, [fetchPosts, hasMore]);
-
-  useEffect(() => {
-    prefillIfNeeded();
-  }, [prefillIfNeeded, allPosts]);
-
-  useEffect(() => {
-    // Aggressive prefill on mount to ensure content is visible without user scroll
-    prefillIfNeeded();
-  }, [prefillIfNeeded]);
 
   useEffect(() => {
     if (!hasMore) return;
