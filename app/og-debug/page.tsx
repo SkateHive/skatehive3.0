@@ -1,676 +1,528 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Container,
-  Heading,
   VStack,
   HStack,
-  Select,
   Text,
+  Input,
+  Button,
+  Image,
   Grid,
   Badge,
   Divider,
-  Button,
-  useToast,
-  Input,
-  FormControl,
-  FormLabel,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
   Code,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
+  Spinner,
+  IconButton,
+  Wrap,
+  WrapItem,
 } from "@chakra-ui/react";
-import OGPreviewCard from "@/components/OGPreviewCard";
+import { FaSync, FaExternalLinkAlt, FaCopy, FaCheck } from "react-icons/fa";
 
-// Define all pages with their metadata status
-const PAGES = [
+const PROD_URL = "https://skatehive.app";
+const LOCAL_URL = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+
+// Pages to test — grouped by category
+const TEST_PAGES = [
+  // Bounties (POIDH)
+  { label: "Bounty (Base)", path: "/bounties/poidh/8453/1091" },
+  { label: "Bounty (Arb)", path: "/bounties/poidh/42161/232" },
+  // Posts
+  { label: "Post", path: "/post/skaters/is-it-possible-to-make-a-living-off-skateboarding-ft-william-damascena-and-leo-spanghero" },
+  // Profiles
+  { label: "Profile", path: "/user/xvlad" },
+  { label: "Profile 2", path: "/user/web3pleb" },
+  // Coins
+  { label: "Coin", path: "/coin/0xfe10d3ce1b0f090935670368ec6de00d8d965523" },
   // Static pages
-  {
-    path: "/",
-    type: "Homepage",
-    hasCustomMetadata: true,
-    hasFarcasterFrame: true,
-    example: "/",
-  },
-  {
-    path: "/blog",
-    type: "Blog Feed",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/blog",
-  },
-  {
-    path: "/map",
-    type: "Map",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/map",
-  },
-  {
-    path: "/leaderboard",
-    type: "Leaderboard",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/leaderboard",
-  },
-  {
-    path: "/dao",
-    type: "DAO",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/dao",
-  },
-  {
-    path: "/bounties",
-    type: "Bounties",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/bounties",
-  },
-  {
-    path: "/tricks",
-    type: "Tricks List",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/tricks",
-  },
-  {
-    path: "/tricks/[trick]",
-    type: "Trick Page",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/tricks/tre-flip",
-  },
-  {
-    path: "/magazine",
-    type: "Magazine",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/magazine",
-  },
-  {
-    path: "/auction",
-    type: "Auction List",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/auction",
-  },
-  {
-    path: "/auction/[tokenId]",
-    type: "Auction Detail",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/auction/1",
-  },
-  {
-    path: "/coin/[address]",
-    type: "Coin Page",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/coin/0x1234",
-  },
-
-  // Dynamic pages with custom metadata
-  {
-    path: "/post/[author]/[permlink]",
-    type: "Post Detail",
-    hasCustomMetadata: true,
-    hasFarcasterFrame: true,
-    example: "/post/xvlad/re-leothreads-39iukb",
-  },
-  {
-    path: "/user/[username]",
-    type: "User Profile",
-    hasCustomMetadata: true,
-    hasFarcasterFrame: false,
-    example: "/user/xvlad",
-  },
-  {
-    path: "/user/[username]/snap/[permlink]",
-    type: "User Snap",
-    hasCustomMetadata: true,
-    hasFarcasterFrame: false,
-    example: "/user/xvlad/snap/re-skatehive-smvsq9",
-  },
-
-  // App pages (no OG metadata needed)
-  {
-    path: "/settings",
-    type: "Settings",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/settings",
-    appOnly: true,
-  },
-  {
-    path: "/wallet",
-    type: "Wallet",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/wallet",
-    appOnly: true,
-  },
-  {
-    path: "/compose",
-    type: "Compose",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/compose",
-    appOnly: true,
-  },
-  {
-    path: "/notifications",
-    type: "Notifications",
-    hasCustomMetadata: false,
-    hasFarcasterFrame: false,
-    example: "/notifications",
-    appOnly: true,
-  },
+  { label: "Homepage", path: "/" },
+  { label: "Bounties Hub", path: "/bounties" },
+  { label: "Leaderboard", path: "/leaderboard" },
+  { label: "Auction", path: "/auction" },
+  // Additional pages
+  { label: "Map", path: "/map" },
+  { label: "Tricks", path: "/tricks" },
+  { label: "Games", path: "/games" },
+  { label: "Magazine", path: "/blog" },
 ];
 
-const BASE_URL = "https://skatehive.app";
+interface ParsedMeta {
+  title: string;
+  description: string;
+  ogImage: string;
+  ogTitle: string;
+  ogDescription: string;
+  ogUrl: string;
+  twitterCard: string;
+  twitterImage: string;
+  fcFrame: string;
+  fcFrameImage: string;
+  fcFramePostUrl: string;
+  allTags: Record<string, string>;
+}
 
-// Known users for quick testing
-const KNOWN_USERS = [
-  "xvlad",
-  "web3pleb",
-  "davideownzall",
-  "knowhow92",
-  "gabrielcarreiro",
-  "homelesscrewmx",
-];
-
-// Known posts for quick testing
-const KNOWN_POSTS = [
-  { author: "xvlad", permlink: "re-leothreads-39iukb" },
-  { author: "web3pleb", permlink: "skatehive-mobile-app" },
-  { author: "davideownzall", permlink: "skating-in-malta" },
-];
-
-export default function OGDebugPage() {
-  const [selectedPage, setSelectedPage] = useState(PAGES[0]);
-  const [customUrl, setCustomUrl] = useState("");
-  const [testUsername, setTestUsername] = useState("xvlad");
-  const toast = useToast();
-
-  // Simulated metadata (in production, this would fetch from the actual page)
-  const getMetadata = (page: typeof PAGES[0]) => {
-    const isCustom = page.hasCustomMetadata;
-
-    // Default metadata
-    let metadata = {
-      title: "Skatehive - The Infinity Skateboard Magazine",
-      description:
-        "Post skate videos, find skate spots on the map, earn crypto rewards, and connect with skaters worldwide. The decentralized skate community.",
-      image: `${BASE_URL}/ogimage.png`,
-      url: `${BASE_URL}${page.example}`,
-      type: "website",
-      twitterCard: "summary_large_image",
-      fcFrame: page.hasFarcasterFrame
-        ? {
-            version: "next",
-            imageUrl: `${BASE_URL}/ogimage.png`,
-            button: {
-              title: "Open",
-              action: {
-                type: "launch_frame",
-                name: "Skatehive",
-                url: `${BASE_URL}${page.example}`,
-              },
-            },
-          }
-        : undefined,
-    };
-
-    // Custom metadata for specific pages (using real examples)
-    if (isCustom) {
-      if (page.path.includes("/post/")) {
-        // Extract author/permlink from example
-        const parts = page.example.split("/");
-        const author = parts[2];
-        const permlink = parts[3];
-        metadata = {
-          ...metadata,
-          title: `Post by @${author} | Skatehive`,
-          description:
-            "Real skate content from the Hive blockchain. Check out this post from our community!",
-          image: `${BASE_URL}/api/og/post/${author}/${permlink}`,
-          type: "article",
-        };
-      } else if (page.path.includes("/user/[username]")) {
-        const username = page.example.split("/")[2];
-        metadata = {
-          ...metadata,
-          title: `@${username} | Skatehive`,
-          description: `Check out @${username}&apos;s profile on Skatehive - posts, snaps, and skate activity.`,
-          image: `${BASE_URL}/api/og/profile/${username}`,
-          type: "profile",
-        };
-      } else if (page.path.includes("/snap/")) {
-        const parts = page.example.split("/");
-        const username = parts[2];
-        const permlink = parts[4];
-        metadata = {
-          ...metadata,
-          title: `Snap by @${username} | Skatehive`,
-          description: "Quick skate moment captured and shared on-chain!",
-          image: `${BASE_URL}/api/og/profile/${username}`,
-        };
-      }
-    }
-
-    return metadata;
+function parseMeta(html: string): ParsedMeta {
+  const get = (pattern: RegExp): string => {
+    const m = html.match(pattern);
+    return m ? m[1] : "";
   };
 
-  const metadata = getMetadata(selectedPage);
+  const allTags: Record<string, string> = {};
 
-  // Stats
-  const totalPages = PAGES.length;
-  const withCustomMetadata = PAGES.filter((p) => p.hasCustomMetadata).length;
-  const withFarcasterFrame = PAGES.filter((p) => p.hasFarcasterFrame).length;
-  const appOnlyPages = PAGES.filter((p) => p.appOnly).length;
+  // OG tags
+  const ogRegex = /property="og:([^"]+)"\s+content="([^"]*)"/g;
+  let match;
+  while ((match = ogRegex.exec(html)) !== null) {
+    allTags[`og:${match[1]}`] = match[2];
+  }
 
-  const fetchRealMetadata = async (url: string) => {
+  // Twitter tags
+  const twRegex = /name="twitter:([^"]+)"\s+content="([^"]*)"/g;
+  while ((match = twRegex.exec(html)) !== null) {
+    allTags[`twitter:${match[1]}`] = match[2];
+  }
+
+  // FC tags
+  const fcRegex = /(?:property|name)="(fc:[^"]+)"\s+content="([^"]*)"/g;
+  while ((match = fcRegex.exec(html)) !== null) {
+    allTags[match[1]] = match[2];
+  }
+
+  // Title
+  const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/);
+
+  return {
+    title: titleMatch?.[1] || "",
+    description: get(/name="description"\s+content="([^"]*)"/),
+    ogImage: allTags["og:image"] || "",
+    ogTitle: allTags["og:title"] || "",
+    ogDescription: allTags["og:description"] || "",
+    ogUrl: allTags["og:url"] || "",
+    twitterCard: allTags["twitter:card"] || "",
+    twitterImage: allTags["twitter:image"] || "",
+    fcFrame: allTags["fc:frame"] || "",
+    fcFrameImage: allTags["fc:frame:image"] || "",
+    fcFramePostUrl: allTags["fc:frame:post_url"] || "",
+    allTags,
+  };
+}
+
+// Single card preview that shows the actual OG image + metadata
+function MetaPreviewCard({
+  url,
+  autoLoad = false,
+}: {
+  url: string;
+  autoLoad?: boolean;
+}) {
+  const [meta, setMeta] = useState<ParsedMeta | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showRaw, setShowRaw] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const fetchMeta = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(url);
-      const html = await response.text();
-
-      // Extract OG tags
-      const ogTags: Record<string, string> = {};
-      const ogRegex = /<meta\s+property="og:([^"]+)"\s+content="([^"]*)"/g;
-      let match;
-      while ((match = ogRegex.exec(html)) !== null) {
-        ogTags[match[1]] = match[2];
-      }
-
-      // Extract Twitter tags
-      const twitterTags: Record<string, string> = {};
-      const twitterRegex = /<meta\s+name="twitter:([^"]+)"\s+content="([^"]*)"/g;
-      while ((match = twitterRegex.exec(html)) !== null) {
-        twitterTags[match[1]] = match[2];
-      }
-
-      // Extract Farcaster Frame tags
-      const fcTags: Record<string, string> = {};
-      const fcRegex = /<meta\s+(?:property|name)="fc:frame(?::([^"]+))?"\s+content="([^"]*)"/g;
-      while ((match = fcRegex.exec(html)) !== null) {
-        const key = match[1] || "version";
-        fcTags[key] = match[2];
-      }
-
-      toast({
-        title: "✅ Real Metadata Retrieved",
-        description: `OG: ${Object.keys(ogTags).length} | Twitter: ${Object.keys(twitterTags).length} | FC: ${Object.keys(fcTags).length}`,
-        status: "success",
-        duration: 4000,
-      });
-
-      console.group("📊 Real Metadata from:", url);
-      console.log("Open Graph:", ogTags);
-      console.log("Twitter Card:", twitterTags);
-      console.log("Farcaster Frame:", fcTags);
-      console.groupEnd();
-
-      return { ogTags, twitterTags, fcTags };
-    } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Failed to fetch URL. Check console for details.",
-        status: "error",
-        duration: 3000,
-      });
-      console.error("Fetch error:", error);
-      return null;
+      const proxyUrl = `/api/og-debug?url=${encodeURIComponent(url)}`;
+      const res = await fetch(proxyUrl);
+      const html = await res.text();
+      setMeta(parseMeta(html));
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch");
+    } finally {
+      setLoading(false);
     }
+  }, [url]);
+
+  useEffect(() => {
+    if (autoLoad) fetchMeta();
+  }, [autoLoad, fetchMeta]);
+
+  const hasFarcaster = !!meta?.fcFrame;
+  const fcData = hasFarcaster ? (() => {
+    try { return JSON.parse(meta!.fcFrame); } catch { return null; }
+  })() : null;
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   return (
-    <Container maxW="container.xl" py={8}>
-      <VStack spacing={8} align="stretch">
-        {/* Header */}
-        <Box>
-          <Heading size="2xl" mb={2}>
-            🔍 OG Metadata Debug Tool
-          </Heading>
-          <Text color="gray.400">
-            Test and preview Open Graph metadata for all pages. Check Farcaster Frame compatibility.
+    <Box
+      border="1px solid"
+      borderColor="border"
+      bg="rgba(0,0,0,0.3)"
+      overflow="hidden"
+    >
+      {/* Header */}
+      <HStack
+        px={3}
+        py={2}
+        bg="rgba(0,0,0,0.5)"
+        justify="space-between"
+        borderBottom="1px solid"
+        borderColor="border"
+      >
+        <Text
+          fontSize="xs"
+          fontFamily="mono"
+          color="dim"
+          noOfLines={1}
+          flex={1}
+        >
+          {(() => { try { return new URL(url).pathname; } catch { return url; } })()}
+        </Text>
+        <HStack spacing={1}>
+          <IconButton
+            icon={copied ? <FaCheck /> : <FaCopy />}
+            size="xs"
+            aria-label="Copy URL"
+            variant="ghost"
+            color={copied ? "success" : "dim"}
+            onClick={copyUrl}
+          />
+          <IconButton
+            icon={<FaExternalLinkAlt />}
+            size="xs"
+            aria-label="Open"
+            variant="ghost"
+            color="dim"
+            as="a"
+            href={url}
+            target="_blank"
+          />
+          <IconButton
+            icon={<FaSync />}
+            size="xs"
+            aria-label="Refresh"
+            variant="ghost"
+            color="dim"
+            onClick={fetchMeta}
+            isLoading={loading}
+          />
+        </HStack>
+      </HStack>
+
+      {!meta && !loading && !error && (
+        <Box p={6} textAlign="center">
+          <Button
+            size="sm"
+            onClick={fetchMeta}
+            fontFamily="mono"
+            fontSize="xs"
+            borderRadius="none"
+            border="1px solid"
+            borderColor="primary"
+            color="primary"
+            bg="transparent"
+            _hover={{ bg: "rgba(167,255,0,0.1)" }}
+          >
+            LOAD PREVIEW
+          </Button>
+        </Box>
+      )}
+
+      {loading && (
+        <Box p={6} textAlign="center">
+          <Spinner size="sm" color="primary" />
+        </Box>
+      )}
+
+      {error && (
+        <Box p={3}>
+          <Text fontSize="xs" fontFamily="mono" color="error">
+            {error}
           </Text>
         </Box>
+      )}
 
-        {/* Stats */}
-        <Grid templateColumns="repeat(4, 1fr)" gap={4}>
-          <Box p={4} borderWidth="1px" borderRadius="lg" bg="gray.800">
-            <Text fontSize="2xl" fontWeight="bold">
-              {totalPages}
-            </Text>
-            <Text fontSize="sm" color="gray.400">
-              Total Pages
-            </Text>
-          </Box>
-          <Box p={4} borderWidth="1px" borderRadius="lg" bg="green.900">
-            <Text fontSize="2xl" fontWeight="bold">
-              {withCustomMetadata}
-            </Text>
-            <Text fontSize="sm" color="gray.400">
-              Custom Metadata
-            </Text>
-          </Box>
-          <Box p={4} borderWidth="1px" borderRadius="lg" bg="purple.900">
-            <Text fontSize="2xl" fontWeight="bold">
-              {withFarcasterFrame}
-            </Text>
-            <Text fontSize="sm" color="gray.400">
-              Farcaster Frames
-            </Text>
-          </Box>
-          <Box p={4} borderWidth="1px" borderRadius="lg" bg="blue.900">
-            <Text fontSize="2xl" fontWeight="bold">
-              {appOnlyPages}
-            </Text>
-            <Text fontSize="sm" color="gray.400">
-              App-Only (No OG)
-            </Text>
-          </Box>
-        </Grid>
-
-        <Divider />
-
-        {/* Quick Test Section */}
-        <Box p={4} borderWidth="1px" borderRadius="lg" bg="purple.900">
-          <Heading size="sm" mb={3}>
-            ⚡ Quick Test - Real Data
-          </Heading>
-          <VStack align="stretch" spacing={3}>
-            <Box>
-              <Text fontSize="sm" mb={2} color="gray.300">
-                Test User Profiles:
-              </Text>
-              <HStack wrap="wrap" spacing={2}>
-                {KNOWN_USERS.map((username) => (
-                  <Button
-                    key={username}
-                    size="sm"
-                    colorScheme="purple"
-                    variant="outline"
-                    onClick={() => {
-                      const profilePage = PAGES.find((p) => p.path === "/user/[username]");
-                      if (profilePage) {
-                        const updatedPage = {
-                          ...profilePage,
-                          example: `/user/${username}`,
-                        };
-                        setSelectedPage(updatedPage);
-                        toast({
-                          title: `Testing @${username}`,
-                          status: "info",
-                          duration: 2000,
-                        });
-                      }
-                    }}
+      {meta && (
+        <VStack spacing={0} align="stretch">
+          {/* OG Image */}
+          {meta.ogImage && (
+            <Box position="relative">
+              <Image
+                src={meta.ogImage}
+                alt={meta.ogTitle}
+                w="100%"
+                maxH="300px"
+                objectFit="contain"
+                bg="black"
+              />
+              {/* Badges overlay */}
+              <HStack position="absolute" top={2} right={2} spacing={1}>
+                {hasFarcaster && (
+                  <Badge
+                    bg="purple.600"
+                    color="white"
+                    fontSize="2xs"
+                    fontFamily="mono"
                   >
-                    @{username}
-                  </Button>
-                ))}
+                    FC FRAME
+                  </Badge>
+                )}
+                <Badge
+                  bg={meta.twitterCard ? "blue.600" : "red.600"}
+                  color="white"
+                  fontSize="2xs"
+                  fontFamily="mono"
+                >
+                  {meta.twitterCard || "NO TWITTER"}
+                </Badge>
               </HStack>
             </Box>
-            <Box>
-              <Text fontSize="sm" mb={2} color="gray.300">
-                Test Posts:
-              </Text>
-              <VStack align="stretch" spacing={2}>
-                {KNOWN_POSTS.map((post) => (
-                  <Button
-                    key={`${post.author}-${post.permlink}`}
-                    size="sm"
-                    colorScheme="green"
-                    variant="outline"
-                    onClick={() => {
-                      const postPage = PAGES.find((p) => p.path === "/post/[author]/[permlink]");
-                      if (postPage) {
-                        const updatedPage = {
-                          ...postPage,
-                          example: `/post/${post.author}/${post.permlink}`,
-                        };
-                        setSelectedPage(updatedPage);
-                        toast({
-                          title: `Testing post by @${post.author}`,
-                          status: "info",
-                          duration: 2000,
-                        });
-                      }
-                    }}
-                  >
-                    @{post.author}/{post.permlink.substring(0, 20)}...
-                  </Button>
-                ))}
-              </VStack>
-            </Box>
-          </VStack>
-        </Box>
+          )}
 
-        <Divider />
-
-        {/* Page Selector */}
-        <VStack align="stretch" spacing={4}>
-          <FormControl>
-            <FormLabel>Select Page to Preview</FormLabel>
-            <Select
-              value={selectedPage.path}
-              onChange={(e) => {
-                const page = PAGES.find((p) => p.path === e.target.value);
-                if (page) setSelectedPage(page);
-              }}
+          {/* Title + Description */}
+          <Box px={3} py={2} borderTop="1px solid" borderColor="border">
+            <Text
+              fontSize="sm"
+              fontFamily="mono"
+              fontWeight="bold"
+              color="text"
+              noOfLines={2}
             >
-              {PAGES.map((page) => (
-                <option key={page.path} value={page.path}>
-                  {page.type} - {page.path}
-                  {page.hasCustomMetadata ? " ✅" : " ⚠️"}
-                  {page.hasFarcasterFrame ? " 🟣" : ""}
-                </option>
-              ))}
-            </Select>
-          </FormControl>
-
-          {/* Page Info */}
-          <HStack>
-            <Badge colorScheme={selectedPage.hasCustomMetadata ? "green" : "yellow"}>
-              {selectedPage.hasCustomMetadata ? "Custom Metadata" : "Default Metadata"}
-            </Badge>
-            <Badge colorScheme={selectedPage.hasFarcasterFrame ? "purple" : "gray"}>
-              {selectedPage.hasFarcasterFrame ? "Farcaster Frame Ready" : "No Frame"}
-            </Badge>
-            {selectedPage.appOnly && <Badge colorScheme="blue">App Only</Badge>}
-          </HStack>
-
-          <HStack justify="space-between" align="center">
-            <Text fontSize="sm" color="gray.400">
-              Example URL: <Code>{BASE_URL + selectedPage.example}</Code>
+              {meta.ogTitle || meta.title || "No title"}
             </Text>
+            <Text fontSize="xs" fontFamily="mono" color="dim" noOfLines={2} mt={1}>
+              {meta.ogDescription || meta.description || "No description"}
+            </Text>
+          </Box>
+
+          {/* Farcaster Frame preview */}
+          {fcData && (
+            <Box
+              px={3}
+              py={2}
+              borderTop="1px solid"
+              borderColor="purple.800"
+              bg="rgba(128,0,255,0.05)"
+            >
+              <Text fontSize="2xs" fontFamily="mono" color="purple.300" fontWeight="bold" mb={1}>
+                FARCASTER FRAME
+              </Text>
+              <HStack spacing={2}>
+                <Box
+                  flex={1}
+                  border="1px solid"
+                  borderColor="purple.600"
+                  bg="purple.900"
+                  px={3}
+                  py={1.5}
+                  textAlign="center"
+                >
+                  <Text fontSize="xs" fontFamily="mono" color="purple.200" fontWeight="bold">
+                    {fcData.button?.title || "Open"}
+                  </Text>
+                </Box>
+              </HStack>
+              <Text fontSize="2xs" fontFamily="mono" color="purple.400" mt={1}>
+                action: {fcData.button?.action?.type || "none"} → {(() => { try { return new URL(fcData.button?.action?.url || "").pathname; } catch { return fcData.button?.action?.url || ""; } })() || ""}
+              </Text>
+            </Box>
+          )}
+
+          {/* Toggle raw */}
+          <Box px={3} py={1} borderTop="1px solid" borderColor="border">
+            <Button
+              size="xs"
+              variant="ghost"
+              color="dim"
+              fontFamily="mono"
+              fontSize="2xs"
+              onClick={() => setShowRaw(!showRaw)}
+              w="100%"
+            >
+              {showRaw ? "HIDE" : "SHOW"} RAW TAGS ({Object.keys(meta.allTags).length})
+            </Button>
+          </Box>
+
+          {showRaw && (
+            <Box px={3} pb={3} maxH="200px" overflowY="auto">
+              <Code
+                display="block"
+                whiteSpace="pre-wrap"
+                bg="transparent"
+                fontSize="2xs"
+                fontFamily="mono"
+                color="dim"
+                p={0}
+              >
+                {Object.entries(meta.allTags)
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join("\n")}
+              </Code>
+            </Box>
+          )}
+        </VStack>
+      )}
+    </Box>
+  );
+}
+
+export default function OGDebugPage() {
+  const [customUrl, setCustomUrl] = useState("");
+  const [customCards, setCustomCards] = useState<string[]>([]);
+  const [loadAll, setLoadAll] = useState(false);
+  const [useLocal, setUseLocal] = useState(true);
+
+  const BASE_URL = useLocal ? LOCAL_URL : PROD_URL;
+
+  const addCustomUrl = () => {
+    if (!customUrl.trim()) return;
+    const url = customUrl.startsWith("http")
+      ? customUrl
+      : `${BASE_URL}${customUrl.startsWith("/") ? customUrl : `/${customUrl}`}`;
+    setCustomCards((prev) => [url, ...prev]);
+    setCustomUrl("");
+  };
+
+  return (
+    <Container maxW="container.xl" py={6}>
+      <VStack spacing={6} align="stretch">
+        {/* Header */}
+        <HStack justify="space-between" align="center">
+          <VStack align="start" spacing={0}>
+            <Text fontSize="lg" fontFamily="mono" fontWeight="900" color="primary">
+              OG DEBUG
+            </Text>
+            <Text fontSize="xs" fontFamily="mono" color="dim">
+              Preview OG images, metadata & Farcaster frames
+            </Text>
+          </VStack>
+          <HStack spacing={2}>
             <Button
               size="sm"
-              colorScheme="blue"
-              onClick={() => fetchRealMetadata(BASE_URL + selectedPage.example)}
+              fontFamily="mono"
+              fontSize="xs"
+              borderRadius="none"
+              border="1px solid"
+              borderColor={useLocal ? "#27c93f" : "dim"}
+              color={useLocal ? "#27c93f" : "dim"}
+              bg={useLocal ? "rgba(39,201,63,0.1)" : "transparent"}
+              onClick={() => setUseLocal(!useLocal)}
+              _hover={{ bg: "rgba(167,255,0,0.1)" }}
             >
-              🔍 Fetch Real Metadata
+              {useLocal ? "LOCAL" : "PROD"}
+            </Button>
+            <Button
+              size="sm"
+              fontFamily="mono"
+              fontSize="xs"
+              borderRadius="none"
+              border="1px solid"
+              borderColor={loadAll ? "error" : "primary"}
+              color={loadAll ? "error" : "primary"}
+              bg="transparent"
+              onClick={() => setLoadAll(!loadAll)}
+              _hover={{ bg: "rgba(167,255,0,0.1)" }}
+            >
+              {loadAll ? "LOADING ALL..." : "LOAD ALL"}
             </Button>
           </HStack>
-        </VStack>
+        </HStack>
 
-        <Divider />
+        {/* Custom URL input */}
+        <HStack>
+          <Input
+            value={customUrl}
+            onChange={(e) => setCustomUrl(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addCustomUrl()}
+            placeholder="/bounties/poidh/8453/1091 or full URL"
+            fontFamily="mono"
+            fontSize="sm"
+            borderRadius="none"
+            border="1px solid"
+            borderColor="border"
+            bg="background"
+            color="text"
+            _placeholder={{ color: "dim" }}
+            _focus={{ borderColor: "primary", boxShadow: "none" }}
+          />
+          <Button
+            onClick={addCustomUrl}
+            fontFamily="mono"
+            fontSize="xs"
+            fontWeight="bold"
+            borderRadius="none"
+            bg="primary"
+            color="background"
+            _hover={{ bg: "accent" }}
+            px={6}
+          >
+            ADD
+          </Button>
+        </HStack>
 
-        {/* Farcaster Miniapp Readiness Check */}
-        <Alert
-          status={selectedPage.hasFarcasterFrame ? "success" : "warning"}
-          borderRadius="lg"
-        >
-          <AlertIcon />
-          <Box>
-            <AlertTitle>Farcaster Miniapp Sharing</AlertTitle>
-            <AlertDescription>
-              {selectedPage.hasFarcasterFrame ? (
-                <>
-                  ✅ This page has Farcaster Frame metadata and is ready for miniapp sharing.
-                  Users can share and interact with this content directly in Farcaster feeds.
-                </>
-              ) : (
-                <>
-                  ⚠️ This page does not have Farcaster Frame metadata. While it can be shared,
-                  it will appear as a basic link preview without interactive frame features.
-                </>
-              )}
-            </AlertDescription>
-          </Box>
-        </Alert>
-
-        {/* Previews */}
-        <Tabs variant="enclosed" colorScheme="purple">
-          <TabList>
-            <Tab>Telegram</Tab>
-            <Tab>Discord</Tab>
-            <Tab>Twitter</Tab>
-            <Tab>Farcaster</Tab>
-          </TabList>
-
-          <TabPanels>
-            <TabPanel>
-              <OGPreviewCard
-                metadata={metadata}
-                platform="telegram"
-                pageType={selectedPage.type}
-                hasCustomMetadata={selectedPage.hasCustomMetadata}
-              />
-            </TabPanel>
-            <TabPanel>
-              <OGPreviewCard
-                metadata={metadata}
-                platform="discord"
-                pageType={selectedPage.type}
-                hasCustomMetadata={selectedPage.hasCustomMetadata}
-              />
-            </TabPanel>
-            <TabPanel>
-              <OGPreviewCard
-                metadata={metadata}
-                platform="twitter"
-                pageType={selectedPage.type}
-                hasCustomMetadata={selectedPage.hasCustomMetadata}
-              />
-            </TabPanel>
-            <TabPanel>
-              <OGPreviewCard
-                metadata={metadata}
-                platform="farcaster"
-                pageType={selectedPage.type}
-                hasCustomMetadata={selectedPage.hasCustomMetadata}
-              />
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-
-        <Divider />
-
-        {/* URL Tester */}
+        {/* Quick buttons */}
         <Box>
-          <Heading size="md" mb={4}>
-            🧪 Test Custom URL
-          </Heading>
-          <HStack>
-            <Input
-              placeholder="https://skatehive.app/user/xvlad"
-              value={customUrl}
-              onChange={(e) => setCustomUrl(e.target.value)}
-            />
-            <Button colorScheme="purple" onClick={() => fetchRealMetadata(customUrl)}>
-              Fetch Metadata
-            </Button>
-          </HStack>
-          <Text fontSize="xs" color="gray.500" mt={2}>
-            Paste any SkateHive URL to extract real OG metadata. Check browser console for full output.
+          <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold" mb={2}>
+            QUICK ADD
           </Text>
-          <HStack mt={2} spacing={2}>
-            <Text fontSize="xs" color="gray.600">
-              Quick fill:
-            </Text>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => setCustomUrl("https://skatehive.app/user/xvlad")}
-            >
-              Profile
-            </Button>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => setCustomUrl("https://skatehive.app/blog")}
-            >
-              Blog
-            </Button>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => setCustomUrl("https://skatehive.app/map")}
-            >
-              Map
-            </Button>
-          </HStack>
+          <Wrap spacing={1}>
+            {TEST_PAGES.map((p) => (
+              <WrapItem key={p.path}>
+                <Button
+                  size="xs"
+                  fontFamily="mono"
+                  fontSize="2xs"
+                  borderRadius="none"
+                  border="1px solid"
+                  borderColor="border"
+                  bg="transparent"
+                  color="dim"
+                  _hover={{ borderColor: "primary", color: "primary" }}
+                  onClick={() =>
+                    setCustomCards((prev) =>
+                      prev.includes(`${BASE_URL}${p.path}`)
+                        ? prev
+                        : [`${BASE_URL}${p.path}`, ...prev]
+                    )
+                  }
+                >
+                  {p.label}
+                </Button>
+              </WrapItem>
+            ))}
+          </Wrap>
         </Box>
 
-        {/* Missing Metadata List */}
-        <Box>
-          <Heading size="md" mb={4}>
-            ⚠️ Pages Missing Custom Metadata
-          </Heading>
-          <VStack align="stretch" spacing={2}>
-            {PAGES.filter((p) => !p.hasCustomMetadata && !p.appOnly).map((page) => (
-              <HStack
-                key={page.path}
-                p={3}
-                borderWidth="1px"
-                borderRadius="md"
-                bg="yellow.900"
-                opacity={0.8}
-              >
-                <Text flex={1}>{page.type}</Text>
-                <Code fontSize="xs">{page.path}</Code>
-              </HStack>
-            ))}
-          </VStack>
-        </Box>
+        <Divider borderColor="border" />
 
-        {/* Farcaster Frame Status */}
-        <Box>
-          <Heading size="md" mb={4}>
-            🟣 Farcaster Frame Implementation Status
-          </Heading>
-          <VStack align="stretch" spacing={2}>
-            <Text fontSize="sm" color="gray.400" mb={2}>
-              Pages with Farcaster Frame support for miniapp sharing:
+        {/* Custom cards first */}
+        {customCards.length > 0 && (
+          <>
+            <Text fontSize="2xs" fontFamily="mono" color="primary" fontWeight="bold">
+              CUSTOM ({customCards.length})
             </Text>
-            {PAGES.filter((p) => p.hasFarcasterFrame).map((page) => (
-              <HStack
-                key={page.path}
-                p={3}
-                borderWidth="1px"
-                borderRadius="md"
-                bg="purple.900"
-              >
-                <Text flex={1}>✅ {page.type}</Text>
-                <Code fontSize="xs">{page.path}</Code>
-              </HStack>
-            ))}
-            <Text fontSize="sm" color="gray.500" mt={4}>
-              Recommended additions: /blog, /user/[username]/snap/[permlink], /tricks/[trick]
-            </Text>
-          </VStack>
-        </Box>
+            <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
+              {customCards.map((url) => (
+                <MetaPreviewCard key={url} url={url} autoLoad />
+              ))}
+            </Grid>
+            <Divider borderColor="border" />
+          </>
+        )}
+
+        {/* All test pages */}
+        <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold">
+          ALL PAGES ({TEST_PAGES.length})
+        </Text>
+        <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
+          {TEST_PAGES.map((p) => (
+            <MetaPreviewCard
+              key={p.path}
+              url={`${BASE_URL}${p.path}`}
+              autoLoad={loadAll}
+            />
+          ))}
+        </Grid>
       </VStack>
     </Container>
   );

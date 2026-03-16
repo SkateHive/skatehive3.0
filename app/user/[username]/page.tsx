@@ -169,7 +169,9 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
         } followers. Check out their skate videos, snaps, and posts.`;
 
     // Generate dynamic OpenGraph image using our gamified API
-    const frameImage = `${DOMAIN_URL}/api/og/profile/${username}`;
+    // Use baseUrl (respects host header) so localhost works for testing
+    const ogImage = `${baseUrl}/api/og/profile/${username}`;
+    const frameImage = `${baseUrl}/api/og/profile/${username}?format=frame`;
 
     return {
       title: `${userData.name || username} | Skatehive Profile`,
@@ -185,7 +187,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
         url: profileUrl,
         images: [
           {
-            url: frameImage,
+            url: ogImage,
             width: 1200,
             height: 630,
           },
@@ -197,7 +199,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
         card: "summary_large_image",
         title: `${userData.name || username} (@${username})`,
         description: description,
-        images: frameImage,
+        images: ogImage,
       },
       other: {
         "fc:frame": JSON.stringify({
