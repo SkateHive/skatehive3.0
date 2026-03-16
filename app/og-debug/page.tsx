@@ -122,15 +122,23 @@ function parseMeta(html: string): ParsedMeta {
 function MetaPreviewCard({
   url,
   autoLoad = false,
+  rewriteBase,
 }: {
   url: string;
   autoLoad?: boolean;
+  rewriteBase?: string; // e.g. "http://localhost:3000" — rewrites production URLs in OG images
 }) {
   const [meta, setMeta] = useState<ParsedMeta | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const rewriteUrl = useCallback((imgUrl: string) => {
+    if (!rewriteBase || !imgUrl) return imgUrl;
+    // Rewrite https://skatehive.app/api/og/... to localhost/api/og/...
+    return imgUrl.replace(/https?:\/\/(www\.)?skatehive\.app/g, rewriteBase);
+  }, [rewriteBase]);
 
   const fetchMeta = useCallback(async () => {
     setLoading(true);
@@ -139,13 +147,24 @@ function MetaPreviewCard({
       const proxyUrl = `/api/og-debug?url=${encodeURIComponent(url)}`;
       const res = await fetch(proxyUrl);
       const html = await res.text();
-      setMeta(parseMeta(html));
+      const parsed = parseMeta(html);
+      // Rewrite image URLs if needed
+      if (rewriteBase) {
+        parsed.ogImage = rewriteUrl(parsed.ogImage);
+        parsed.twitterImage = rewriteUrl(parsed.twitterImage);
+        parsed.fcFrameImage = rewriteUrl(parsed.fcFrameImage);
+        // Rewrite fc:frame JSON imageUrl
+        if (parsed.fcFrame) {
+          parsed.fcFrame = parsed.fcFrame.replace(/https?:\/\/(www\.)?skatehive\.app/g, rewriteBase);
+        }
+      }
+      setMeta(parsed);
     } catch (err: any) {
       setError(err.message || "Failed to fetch");
     } finally {
       setLoading(false);
     }
-  }, [url]);
+  }, [url, rewriteBase, rewriteUrl]);
 
   useEffect(() => {
     if (autoLoad) fetchMeta();
@@ -512,7 +531,7 @@ export default function OGDebugPage() {
             </Text>
             <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
               {customCards.map((url) => (
-                <MetaPreviewCard key={url} url={url} autoLoad />
+                <MetaPreviewCard key={url} url={url} autoLoad rewriteBase={useLocal ? LOCAL_URL : undefined} />
               ))}
             </Grid>
             <Divider borderColor="border" />
@@ -529,6 +548,7 @@ export default function OGDebugPage() {
               key={p.path}
               url={`${BASE_URL}${p.path}`}
               autoLoad={loadAll}
+              rewriteBase={useLocal ? LOCAL_URL : undefined}
             />
           ))}
         </Grid>

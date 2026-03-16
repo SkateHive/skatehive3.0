@@ -37,24 +37,9 @@ async function fetchLeaderboardData(
   }
 }
 
-// Generate podium image URL with top 3 skaters
-function generatePodiumImageUrl(top3: SkaterData[]): string {
-  if (top3.length === 0) {
-    return `${BASE_URL}/api/generate-podium?default=true`;
-  }
-
-  const avatarUrls = top3
-    .map(
-      (skater) =>
-        `https://images.hive.blog/u/${skater.hive_author}/avatar/small`
-    )
-    .join(",");
-
-  const names = top3.map((skater) => skater.hive_author).join(",");
-
-  return `${BASE_URL}/api/generate-podium?avatars=${encodeURIComponent(
-    avatarUrls
-  )}&names=${encodeURIComponent(names)}`;
+// Generate podium image URL — uses the new OG route
+function generatePodiumImageUrl(_top3: SkaterData[]): string {
+  return `${BASE_URL}/api/og/leaderboard`;
 }
 
 // Process leaderboard data and generate metadata assets
