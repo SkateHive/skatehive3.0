@@ -301,8 +301,10 @@ const VideoUploader = forwardRef<VideoUploaderRef, VideoUploaderProps>(
           connectionType: deviceData.connectionType,
         };
 
-        // 3. Handle MP4 files or already-processed trim modal files - direct upload
-        if (isMP4(file) || isTrimmed) {
+        // 3. Handle browser-compatible files (MP4/WebM) - direct upload
+        //    MOV and other formats MUST go through transcoding even if from trim modal
+        const isBrowserCompatible = isMP4(file) || file.type === 'video/webm';
+        if (isBrowserCompatible) {
           const reason = isTrimmed && !isMP4(file)
             ? t('terminal.trimmedDetected')
             : t('terminal.mp4Detected');
