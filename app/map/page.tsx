@@ -4,7 +4,7 @@ import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
-const ogImageUrl = `${BASE_URL}/api/og/page?title=Skate%20Map&subtitle=Find%20skate%20spots%20worldwide`;
+const ogImageUrl = `${BASE_URL}/api/og/map`;
 
 export const metadata: Metadata = {
   title: "Find Skateparks Near You | Interactive Skate Spot Map 🛹",
