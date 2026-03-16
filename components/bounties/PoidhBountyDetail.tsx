@@ -64,7 +64,7 @@ function safeFormatEther(amount: string): string {
  * Smart media preview — probes the URL to detect if it's a video or image.
  * IPFS URLs have no file extension, so we try <video> first and fall back to <img>.
  */
-function MediaPreview({ src }: { src: string }) {
+function MediaPreview({ src, maxH = '180px' }: { src: string; maxH?: string }) {
   const [isVideo, setIsVideo] = useState<boolean | null>(null);
 
   // Quick heuristic check first
@@ -83,15 +83,14 @@ function MediaPreview({ src }: { src: string }) {
   }, [src, looksLikeVideo]);
 
   if (isVideo === null && !looksLikeVideo) {
-    // Still probing — show image as default (most common)
-    return <Box as="img" src={src} alt="Proof" w="100%" maxH="180px" objectFit="contain" />;
+    return <Box as="img" src={src} alt="Proof" w="100%" maxH={maxH} objectFit="contain" />;
   }
 
   if (isVideo || looksLikeVideo) {
-    return <video src={src} controls style={{ width: '100%', maxHeight: '180px' }} />;
+    return <video src={src} controls style={{ width: '100%', maxHeight: maxH }} />;
   }
 
-  return <Box as="img" src={src} alt="Proof" w="100%" maxH="180px" objectFit="contain" />;
+  return <Box as="img" src={src} alt="Proof" w="100%" maxH={maxH} objectFit="contain" />;
 }
 
 export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
@@ -116,6 +115,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   const [showShareModal, setShowShareModal] = useState(false);
   const [submittedClaimUrl, setSubmittedClaimUrl] = useState('');
   const [submittedClaimTitle, setSubmittedClaimTitle] = useState('');
+  const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
   const imageCompressorRef = useRef<ImageCompressorRef>(null);
   const toast = useToast();
   // Hive cross-post hooks
@@ -929,8 +929,9 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                         border="1px solid"
                         borderColor={claim.accepted ? 'success' : 'border'}
                         bg="muted"
-                        _hover={{ borderColor: 'primary' }}
+                        _hover={{ borderColor: 'primary', cursor: 'pointer' }}
                         transition="border-color 0.15s"
+                        onClick={() => setSelectedClaimId(claim.id)}
                       >
                         <HStack
                           justify="space-between"
@@ -972,7 +973,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                               <>
                                 {!isOpenBounty ? (
                                   <Button
-                                    onClick={() => handleAcceptClaim(claim.id)}
+                                    onClick={(e) => { e.stopPropagation(); handleAcceptClaim(claim.id); }}
                                     isLoading={isBusy}
                                     size="xs"
                                     bg="success"
@@ -987,7 +988,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                                   </Button>
                                 ) : !hasVotingClaim && (
                                   <Button
-                                    onClick={() => handleSubmitForVote(claim.id)}
+                                    onClick={(e) => { e.stopPropagation(); handleSubmitForVote(claim.id); }}
                                     isLoading={isBusy}
                                     size="xs"
                                     bg="warning"
@@ -1013,7 +1014,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                           )}
                           {claim.description && (
                             <Text fontSize="xs" color="dim" fontFamily="mono" mb={2} noOfLines={3}>
-                              {claim.description}
+                              {claim.description.replace(/<iframe[\s\S]*?<\/iframe>/gi, '').replace(/!\[.*?\]\(.*?\)/g, '').trim()}
                             </Text>
                           )}
                           {claim.createdAt > 0 && (
@@ -1456,6 +1457,139 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
           </GridItem>
         </SimpleGrid>
       </Container>
+
+      {/* ── Claim detail modal ──── */}
+      {(() => {
+        const claim = bounty.claims?.find(c => c.id === selectedClaimId);
+        if (!claim) return null;
+        // Strip iframe/HTML tags for plain text display, but also render iframes separately
+        const iframeMatch = claim.description?.match(/<iframe[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/iframe>/i);
+        const iframeVideoUrl = iframeMatch?.[1] || null;
+        const plainDescription = claim.description?.replace(/<iframe[\s\S]*?<\/iframe>/gi, '').replace(/!\[.*?\]\(.*?\)/g, '').trim() || '';
+
+        return (
+          <SkateModal
+            isOpen={!!selectedClaimId}
+            onClose={() => setSelectedClaimId(null)}
+            title={`CLAIM #${claim.id}`}
+            size={{ base: 'full', md: 'xl' }}
+          >
+            <VStack spacing={0} align="stretch">
+              {/* Header bar */}
+              <HStack
+                justify="space-between"
+                px={4}
+                py={3}
+                borderBottom="1px solid"
+                borderColor="border"
+                bg="muted"
+              >
+                <VStack align="start" spacing={0}>
+                  <Text fontSize="sm" fontFamily="mono" fontWeight="bold" color="text">
+                    {claim.name}
+                  </Text>
+                  <Tooltip label={claim.issuer} placement="top">
+                    <Text fontSize="xs" fontFamily="mono" color="primary" fontWeight="bold">
+                      {shortenAddress(claim.issuer)}
+                    </Text>
+                  </Tooltip>
+                </VStack>
+                <VStack align="end" spacing={0}>
+                  {claim.accepted && (
+                    <Box border="1px solid" borderColor="success" px={2} py={0.5}>
+                      <Text fontSize="2xs" fontWeight="bold" fontFamily="mono" color="success">
+                        ACCEPTED
+                      </Text>
+                    </Box>
+                  )}
+                  {claim.createdAt > 0 && (
+                    <Text fontSize="2xs" color="dim" fontFamily="mono" mt={1}>
+                      {new Date(claim.createdAt * 1000).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric',
+                      }).toUpperCase()}
+                    </Text>
+                  )}
+                </VStack>
+              </HStack>
+
+              {/* Media — full size */}
+              {(claim.url || iframeVideoUrl) && (
+                <Box bg="black" w="100%">
+                  {iframeVideoUrl ? (
+                    <video
+                      src={iframeVideoUrl}
+                      controls
+                      style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }}
+                    />
+                  ) : claim.url ? (
+                    <Box w="100%" maxH="500px" display="flex" alignItems="center" justifyContent="center">
+                      <MediaPreview src={claim.url} maxH="500px" />
+                    </Box>
+                  ) : null}
+                </Box>
+              )}
+
+              {/* Description */}
+              {plainDescription && (
+                <Box px={4} py={4}>
+                  <Text fontSize="sm" color="text" fontFamily="mono" whiteSpace="pre-wrap" lineHeight="tall">
+                    {plainDescription}
+                  </Text>
+                </Box>
+              )}
+
+              {/* Actions */}
+              <HStack px={4} py={3} borderTop="1px solid" borderColor="border" spacing={2}>
+                {isIssuer && isActive && !claim.accepted && (
+                  <>
+                    {!isOpenBounty ? (
+                      <Button
+                        onClick={() => { handleAcceptClaim(claim.id); setSelectedClaimId(null); }}
+                        isLoading={isBusy}
+                        bg="success"
+                        color="background"
+                        borderRadius="none"
+                        fontFamily="mono"
+                        fontWeight="bold"
+                        fontSize="xs"
+                        _hover={{ opacity: 0.9 }}
+                        leftIcon={<Icon as={FaCheck} boxSize="10px" />}
+                      >
+                        ACCEPT CLAIM
+                      </Button>
+                    ) : !hasVotingClaim && (
+                      <Button
+                        onClick={() => { handleSubmitForVote(claim.id); setSelectedClaimId(null); }}
+                        isLoading={isBusy}
+                        bg="warning"
+                        color="background"
+                        borderRadius="none"
+                        fontFamily="mono"
+                        fontWeight="bold"
+                        fontSize="xs"
+                        _hover={{ opacity: 0.9 }}
+                      >
+                        NOMINATE FOR VOTE
+                      </Button>
+                    )}
+                  </>
+                )}
+                <Button
+                  onClick={() => setSelectedClaimId(null)}
+                  variant="ghost"
+                  borderRadius="none"
+                  fontFamily="mono"
+                  fontSize="xs"
+                  color="dim"
+                  ml="auto"
+                >
+                  CLOSE
+                </Button>
+              </HStack>
+            </VStack>
+          </SkateModal>
+        );
+      })()}
 
       {/* ── Share modal after successful claim ──── */}
       <SkateModal
