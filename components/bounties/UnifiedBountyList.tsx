@@ -273,29 +273,11 @@ export default function UnifiedBountyList({
           >
             OPEN BOUNTIES ({openBounties.length})
           </Text>
-          <Box
-            overflowX="auto"
-            mx={-1}
-            px={1}
-            pb={2}
-            css={{
-              '&::-webkit-scrollbar': { height: '4px' },
-              '&::-webkit-scrollbar-track': { background: 'transparent' },
-              '&::-webkit-scrollbar-thumb': { background: 'var(--chakra-colors-primary)', borderRadius: '0' },
-            }}
-          >
-            <HStack spacing={{ base: 3, md: 4 }} align="stretch" minW="min-content">
-              {openBounties.map((bounty) => (
-                <Box
-                  key={bounty.id}
-                  w={{ base: '240px', sm: '280px', md: '320px' }}
-                  flexShrink={0}
-                >
-                  <UnifiedBountyCard bounty={bounty} hivePrice={hivePrice} hbdPrice={hbdPrice} ethPrice={ethPrice} />
-                </Box>
-              ))}
-            </HStack>
-          </Box>
+          <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} gap={4}>
+            {openBounties.map((bounty) => (
+              <UnifiedBountyCard key={bounty.id} bounty={bounty} hivePrice={hivePrice} hbdPrice={hbdPrice} ethPrice={ethPrice} />
+            ))}
+          </SimpleGrid>
         </Box>
       )}
 
