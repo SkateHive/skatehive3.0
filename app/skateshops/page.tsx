@@ -4,6 +4,7 @@ import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import SkateshopsContent from "@/components/skateshops/SkateshopsContent";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
+const ogImageUrl = `${BASE_URL}/api/og/page?title=Skate%20Shops&subtitle=Support%20local%20skate%20shops`;
 
 export const metadata: Metadata = {
   title: "Skate Shops Directory — Support Local Skate Shops Worldwide",
@@ -31,7 +32,7 @@ export const metadata: Metadata = {
     url: `${BASE_URL}/skateshops`,
     images: [
       {
-        url: `${BASE_URL}/ogimage.png`,
+        url: ogImageUrl,
         width: 1200,
         height: 630,
         alt: "Skatehive Skate Shops Directory",
@@ -45,7 +46,7 @@ export const metadata: Metadata = {
     title: "Skate Shops Directory — Support Local Skate Shops",
     description:
       "Discover skateboard shops worldwide. From Bless Skate Shop to your local spot — support the community.",
-    images: [`${BASE_URL}/ogimage.png`],
+    images: [ogImageUrl],
   },
   alternates: {
     canonical: `${BASE_URL}/skateshops`,

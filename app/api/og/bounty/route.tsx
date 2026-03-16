@@ -4,39 +4,35 @@ import { NextRequest } from 'next/server';
 export const runtime = 'edge';
 
 const C = {
-  bg: '#0a0a0a',
+  bg: '#050505',
   green: '#a7ff00',
-  greenDim: 'rgba(167, 255, 0, 0.15)',
-  text: '#e0e0e0',
+  greenDim: 'rgba(167, 255, 0, 0.10)',
+  greenGlow: 'rgba(167, 255, 0, 0.25)',
+  text: '#f0f0f0',
   dim: '#888',
-  border: '#333',
-  ethBlue: '#627EEA',
-  hiveRed: '#E31337',
+  border: '#222',
 } as const;
 
-// Inline ETH diamond as a data URI PNG won't work in edge, so we draw it with divs
-function EthDiamond({ size = 28, color = C.ethBlue }: { size?: number; color?: string }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: `${size}px`,
-        height: `${size}px`,
-      }}
-    >
-      <div
-        style={{
-          width: `${size * 0.6}px`,
-          height: `${size * 0.6}px`,
-          background: color,
-          transform: 'rotate(45deg)',
-          display: 'flex',
-        }}
-      />
-    </div>
-  );
+async function getEthPrice(): Promise<number> {
+  try {
+    const res = await fetch(
+      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
+      { next: { revalidate: 300 } }
+    );
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data?.ethereum?.usd || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function formatUsd(usd: number): string {
+  if (usd >= 1000) return `$${(usd / 1000).toFixed(1)}k`;
+  if (usd >= 100) return `$${Math.round(usd)}`;
+  if (usd >= 1) return `$${usd.toFixed(2)}`;
+  if (usd >= 0.01) return `$${usd.toFixed(2)}`;
+  return `$${usd.toFixed(4)}`;
 }
 
 export async function GET(request: NextRequest) {
@@ -44,27 +40,47 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const title = searchParams.get('title') || 'Skatehive Bounty';
     const rawAmount = searchParams.get('amount') || '0';
-    const amountNum = parseFloat(rawAmount);
-    const amount = isNaN(amountNum) ? '0'
-      : amountNum >= 1 ? amountNum.toFixed(2)
-      : amountNum >= 0.01 ? amountNum.toFixed(3)
-      : amountNum.toFixed(4);
     const currency = searchParams.get('currency') || 'ETH';
     const source = searchParams.get('source') || 'poidh';
     const chain = searchParams.get('chain') || '';
     const status = searchParams.get('status') || 'OPEN';
-    const deadline = searchParams.get('deadline') || '';
     const claims = searchParams.get('claims') || '0';
+    const format = searchParams.get('format') || 'og';
+
+    const isFrame = format === 'frame';
+    const W = 1200;
+    const H = isFrame ? 800 : 630;
+
+    const amountNum = parseFloat(rawAmount);
+    const isNumericAmount = !isNaN(amountNum) && amountNum > 0;
+    const amount = !isNumericAmount
+      ? rawAmount
+      : amountNum >= 1 ? amountNum.toFixed(2)
+      : amountNum >= 0.01 ? amountNum.toFixed(3)
+      : amountNum >= 0.001 ? amountNum.toFixed(4)
+      : amountNum.toFixed(6);
 
     const isHive = source === 'hive';
-    const accentColor = isHive ? C.hiveRed : C.ethBlue;
-    const statusColor = status === 'OPEN' ? '#27c93f' : status === 'CANCELLED' ? '#ffbd2e' : '#ff5f56';
+    const isOpen = status === 'OPEN';
 
     const baseUrl = request.nextUrl.origin;
-    const bgUrl = `${baseUrl}/images/moneybag.png`;
+    const ethUrl = `${baseUrl}/images/ethvector.svg`;
+    const poidhUrl = `${baseUrl}/images/poidh-icon.png`;
 
-    // Font size scales with amount length
-    const amountFontSize = amount.length > 6 ? 52 : amount.length > 4 ? 60 : 72;
+    // Get USD value for ETH bounties
+    let usdValue = '';
+    if (isNumericAmount && !isHive) {
+      const ethPrice = await getEthPrice();
+      if (ethPrice > 0) {
+        usdValue = formatUsd(amountNum * ethPrice);
+      }
+    }
+
+    // Dynamic font sizing
+    const amountLen = amount.length;
+    const amountFontSize = amountLen > 10 ? 48 : amountLen > 7 ? 56 : amountLen > 5 ? 68 : 80;
+
+    const claimCount = parseInt(claims);
 
     return new ImageResponse(
       (
@@ -75,25 +91,11 @@ export async function GET(request: NextRequest) {
             display: 'flex',
             position: 'relative',
             fontFamily: 'monospace',
+            overflow: 'hidden',
+            backgroundColor: C.bg,
           }}
         >
-          {/* Background image */}
-          <img
-            src={bgUrl}
-            alt=""
-            width="1200"
-            height="630"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
-
-          {/* Dark overlay */}
+          {/* Radial gradient background — dramatic spotlight */}
           <div
             style={{
               position: 'absolute',
@@ -101,12 +103,38 @@ export async function GET(request: NextRequest) {
               left: 0,
               width: '100%',
               height: '100%',
-              background: 'linear-gradient(180deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.85) 100%)',
+              background: 'radial-gradient(ellipse 80% 60% at 50% 35%, rgba(167,255,0,0.06) 0%, transparent 70%)',
               display: 'flex',
             }}
           />
 
-          {/* Content — extra horizontal padding for Farcaster frame cropping */}
+          {/* Diagonal accent lines — subtle grid pattern */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'repeating-linear-gradient(135deg, transparent, transparent 60px, rgba(167,255,0,0.015) 60px, rgba(167,255,0,0.015) 61px)',
+              display: 'flex',
+            }}
+          />
+
+          {/* Left accent bar */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '5px',
+              height: '100%',
+              background: `linear-gradient(180deg, transparent 5%, ${C.green} 30%, ${C.green} 70%, transparent 95%)`,
+              display: 'flex',
+            }}
+          />
+
+          {/* Content */}
           <div
             style={{
               position: 'relative',
@@ -115,10 +143,10 @@ export async function GET(request: NextRequest) {
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              padding: '44px 80px',
+              padding: isFrame ? '50px 70px' : '40px 70px',
             }}
           >
-            {/* Top bar */}
+            {/* === TOP BAR === */}
             <div
               style={{
                 display: 'flex',
@@ -126,189 +154,269 @@ export async function GET(request: NextRequest) {
                 alignItems: 'center',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* SKATEHIVE / BOUNTY */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div
                   style={{
                     color: C.green,
-                    fontSize: '26px',
-                    fontWeight: 'bold',
+                    fontSize: '22px',
+                    fontWeight: '900',
                     display: 'flex',
-                    letterSpacing: '3px',
+                    letterSpacing: '6px',
                   }}
                 >
                   SKATEHIVE
                 </div>
-                <div style={{ color: C.dim, fontSize: '26px', display: 'flex' }}>/</div>
+                <div style={{ color: C.dim, fontSize: '22px', display: 'flex' }}>/</div>
                 <div
                   style={{
                     color: C.dim,
-                    fontSize: '20px',
+                    fontSize: '16px',
                     display: 'flex',
-                    letterSpacing: '2px',
+                    letterSpacing: '4px',
                   }}
                 >
                   BOUNTY
                 </div>
               </div>
 
-              {/* Status badge */}
-              <div
-                style={{
-                  display: 'flex',
-                  border: `2px solid ${statusColor}`,
-                  padding: '6px 24px',
-                  background: 'rgba(0,0,0,0.5)',
-                }}
-              >
+              {/* Status + chain badges */}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                {/* Chain badge */}
+                {chain && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      border: `1px solid ${C.border}`,
+                      padding: '5px 14px',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'rgba(0,0,0,0.5)',
+                    }}
+                  >
+                    {!isHive && (
+                      <img src={ethUrl} alt="" width={14} height={14} style={{ opacity: 0.7 }} />
+                    )}
+                    <div
+                      style={{
+                        color: C.dim,
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        letterSpacing: '2px',
+                      }}
+                    >
+                      {chain}
+                    </div>
+                  </div>
+                )}
+                {/* Status */}
                 <div
                   style={{
-                    color: statusColor,
-                    fontSize: '18px',
-                    fontWeight: 'bold',
                     display: 'flex',
-                    letterSpacing: '3px',
+                    padding: '5px 16px',
+                    background: isOpen ? 'rgba(167,255,0,0.12)' : 'rgba(255,95,86,0.12)',
+                    border: `1px solid ${isOpen ? C.green : '#ff5f56'}`,
                   }}
                 >
-                  {status}
+                  <div
+                    style={{
+                      color: isOpen ? C.green : '#ff5f56',
+                      fontSize: '13px',
+                      fontWeight: '900',
+                      display: 'flex',
+                      letterSpacing: '3px',
+                    }}
+                  >
+                    {status}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Center: WIN + Reward + Title */}
+            {/* === CENTER: The Prize === */}
             <div
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '16px',
+                gap: isFrame ? '18px' : '12px',
               }}
             >
-              {/* WIN label */}
+              {/* "CAN YOU LAND IT?" or "WIN" */}
               <div
                 style={{
                   color: C.green,
-                  fontSize: '32px',
+                  fontSize: '20px',
                   fontWeight: '900',
                   display: 'flex',
-                  letterSpacing: '12px',
-                  textTransform: 'uppercase',
+                  letterSpacing: '10px',
+                  opacity: 0.7,
                 }}
               >
-                WIN
+                {isOpen ? 'CAN YOU LAND IT?' : 'BOUNTY CLOSED'}
               </div>
 
-              {/* Reward box */}
+              {/* Main amount display */}
               <div
                 style={{
                   display: 'flex',
-                  border: `3px solid ${C.green}`,
-                  padding: '18px 50px',
-                  background: 'rgba(0, 0, 0, 0.65)',
                   alignItems: 'center',
                   gap: '18px',
-                  boxShadow: `0 0 30px ${C.greenDim}`,
                 }}
               >
-                <EthDiamond size={amountFontSize * 0.45} color={accentColor} />
+                {/* ETH icon */}
+                {!isHive && isNumericAmount && (
+                  <img
+                    src={ethUrl}
+                    alt=""
+                    width={amountFontSize * 0.55}
+                    height={amountFontSize * 0.55}
+                    style={{ opacity: 0.9 }}
+                  />
+                )}
 
+                {/* Amount */}
                 <div
                   style={{
-                    color: C.green,
+                    color: C.text,
                     fontSize: `${amountFontSize}px`,
                     fontWeight: '900',
                     display: 'flex',
                     lineHeight: '1',
-                    letterSpacing: '-1px',
+                    letterSpacing: '-2px',
                   }}
                 >
                   {amount}
                 </div>
+
+                {/* Currency */}
                 <div
                   style={{
-                    color: C.dim,
+                    color: C.green,
                     fontSize: '28px',
-                    fontWeight: 'bold',
+                    fontWeight: '900',
                     display: 'flex',
-                    marginLeft: '4px',
+                    letterSpacing: '3px',
                   }}
                 >
                   {currency}
                 </div>
               </div>
 
-              {/* Title */}
+              {/* USD value */}
+              {usdValue && (
+                <div
+                  style={{
+                    display: 'flex',
+                    padding: '6px 28px',
+                    background: C.greenDim,
+                    border: `1px solid rgba(167,255,0,0.2)`,
+                  }}
+                >
+                  <div
+                    style={{
+                      color: C.green,
+                      fontSize: '22px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      letterSpacing: '2px',
+                    }}
+                  >
+                    {usdValue} USD
+                  </div>
+                </div>
+              )}
+
+              {/* Separator line */}
+              <div
+                style={{
+                  width: '80px',
+                  height: '2px',
+                  background: `linear-gradient(90deg, transparent, ${C.green}, transparent)`,
+                  display: 'flex',
+                  margin: '4px 0',
+                }}
+              />
+
+              {/* Bounty title */}
               <div
                 style={{
                   color: C.text,
-                  fontSize: title.length > 40 ? '28px' : '32px',
+                  fontSize: title.length > 50 ? '22px' : title.length > 35 ? '26px' : '30px',
                   fontWeight: 'bold',
                   display: 'flex',
                   textAlign: 'center',
                   textTransform: 'uppercase',
-                  maxWidth: '850px',
+                  maxWidth: '900px',
                   lineHeight: '1.3',
+                  letterSpacing: '1px',
                 }}
               >
-                {title.length > 60 ? title.slice(0, 57) + '...' : title}
+                {title.length > 70 ? title.slice(0, 67) + '...' : title}
               </div>
+
+              {/* Claims count */}
+              {claimCount > 0 && (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <div style={{ color: C.dim, fontSize: '14px', display: 'flex', letterSpacing: '2px' }}>
+                    {claimCount} {claimCount === 1 ? 'CLAIM' : 'CLAIMS'} SUBMITTED
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Bottom bar */}
+            {/* === BOTTOM BAR === */}
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                borderTop: `1px solid ${C.border}`,
-                paddingTop: '16px',
               }}
             >
-              <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-                {/* Chain */}
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <EthDiamond size={16} color={accentColor} />
-                  <div
-                    style={{
-                      color: C.text,
-                      fontSize: '16px',
-                      fontWeight: 'bold',
-                      display: 'flex',
-                    }}
-                  >
-                    {chain || (isHive ? 'HIVE' : 'BASE')}
-                  </div>
+              {/* Left: skatehive.app */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    color: C.green,
+                    fontSize: '16px',
+                    fontWeight: '900',
+                    display: 'flex',
+                    letterSpacing: '3px',
+                  }}
+                >
+                  skatehive.app
                 </div>
-
-                {/* Deadline */}
-                {deadline && (
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <div style={{ color: C.dim, fontSize: '14px', display: 'flex' }}>DEADLINE:</div>
-                    <div style={{ color: '#ffbd2e', fontSize: '14px', fontWeight: 'bold', display: 'flex' }}>{deadline}</div>
-                  </div>
-                )}
-
-                {/* Claims */}
-                {parseInt(claims) > 0 && (
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <div style={{ color: C.dim, fontSize: '14px', display: 'flex' }}>CLAIMS:</div>
-                    <div style={{ color: C.green, fontSize: '14px', fontWeight: 'bold', display: 'flex' }}>{claims}</div>
-                  </div>
-                )}
               </div>
 
-              {/* Skatehive URL */}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <div style={{ color: C.green, fontSize: '16px', display: 'flex' }}>{'>_'}</div>
-                <div style={{ color: C.dim, fontSize: '16px', display: 'flex' }}>skatehive.app</div>
+              {/* Right: POIDH branding */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    color: C.dim,
+                    fontSize: '12px',
+                    display: 'flex',
+                    letterSpacing: '2px',
+                  }}
+                >
+                  POWERED BY
+                </div>
+                <img
+                  src={poidhUrl}
+                  alt=""
+                  width={36}
+                  height={36}
+                  style={{
+                    borderRadius: '50%',
+                    opacity: 0.85,
+                  }}
+                />
               </div>
             </div>
           </div>
         </div>
       ),
-      {
-        width: 1200,
-        height: 630,
-      },
+      { width: W, height: H },
     );
   } catch {
     return new ImageResponse(
@@ -321,7 +429,7 @@ export async function GET(request: NextRequest) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#0a0a0a',
+            backgroundColor: '#050505',
             fontFamily: 'monospace',
           }}
         >

@@ -2,9 +2,18 @@ import PostPage from "@/components/blog/PostPage";
 import HiveClient from "@/lib/hive/hiveclient";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
+
+async function getBaseUrl() {
+  const hdrs = await headers();
+  const host = hdrs.get("host");
+  const protocol = hdrs.get("x-forwarded-proto") || "http";
+  if (host) return `${protocol}://${host}`;
+  return APP_CONFIG.BASE_URL;
+}
 
 // Known profile tab slugs that bots/crawlers mistakenly request as
 // /post/{user}/{tab} instead of /user/{user}/{tab}.
@@ -342,8 +351,10 @@ export async function generateMetadata({
       bannerImage = imageUrls[0];
     }
 
+    const dynamicBase = await getBaseUrl();
     const postUrl = `${DOMAIN_URL}/post/${cleanedAuthor}/${permlink}`;
-    const ogImage = `${DOMAIN_URL}/api/og/post/${cleanedAuthor}/${permlink}`;
+    const ogImage = `${dynamicBase}/api/og/post/${cleanedAuthor}/${permlink}`;
+    const frameOgImage = `${dynamicBase}/api/og/post/${cleanedAuthor}/${permlink}?format=frame`;
 
     // Extract keywords from post tags
     const postTags: string[] = [];
@@ -397,7 +408,7 @@ export async function generateMetadata({
       other: {
         "fc:frame": JSON.stringify({
           version: "next",
-          imageUrl: bannerImage,
+          imageUrl: frameOgImage,
           button: {
             title: "Open post",
             action: {
@@ -408,7 +419,7 @@ export async function generateMetadata({
           },
           postUrl: postUrl,
         }),
-        "fc:frame:image": bannerImage,
+        "fc:frame:image": frameOgImage,
         "fc:frame:post_url": postUrl,
       },
     };

@@ -6,6 +6,7 @@ import HiveClient from "@/lib/hive/hiveclient";
 import TricksPageWrapper from "@/components/tricks/TricksPageWrapper";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
+const ogImageUrl = `${BASE_URL}/api/og/page?title=Skate%20Tricks&subtitle=Learn%20tricks%20from%20the%20community`;
 
 export const metadata: Metadata = {
     title: "Skateboard Tricks — GIFs, Videos & How-To Clips from Real Skaters",
@@ -34,13 +35,13 @@ export const metadata: Metadata = {
         url: `${BASE_URL}/tricks`,
         siteName: "Skatehive",
         type: "website",
-        images: [{ url: `${BASE_URL}/ogimage.png`, width: 1200, height: 630 }],
+        images: [{ url: ogImageUrl, width: 1200, height: 630 }],
     },
     twitter: {
         card: "summary_large_image",
         title: "Skateboard Tricks — GIFs & Videos | Skatehive",
         description: "Community-filmed skate trick clips. Kickflips, grinds, slides, and more.",
-        images: [`${BASE_URL}/ogimage.png`],
+        images: [ogImageUrl],
     },
     alternates: {
         canonical: `${BASE_URL}/tricks`,

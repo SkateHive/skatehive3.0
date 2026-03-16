@@ -2,6 +2,10 @@ import { Metadata } from "next";
 import BountiesHubClient from "@/components/bounties/BountiesHubClient";
 import { APP_CONFIG } from "@/config/app.config";
 
+const ogImageUrl = `${APP_CONFIG.BASE_URL}/api/og/bounty?title=Skatehive+Bounties&amount=ETH+%2B+HIVE&currency=&status=OPEN&source=poidh&chain=BASE+%2F+ARB+%2F+HIVE`;
+const frameImageUrl = `${APP_CONFIG.BASE_URL}/api/og/bounty?title=Skatehive+Bounties&amount=ETH+%2B+HIVE&currency=&status=OPEN&source=poidh&chain=BASE+%2F+ARB+%2F+HIVE&format=frame`;
+const bountyUrl = `${APP_CONFIG.BASE_URL}/bounties`;
+
 export const metadata: Metadata = {
   title: "Skate Trick Bounties — Land Tricks, Earn Rewards",
   description:
@@ -21,10 +25,10 @@ export const metadata: Metadata = {
     title: "Skate Trick Bounties — Land Tricks, Earn Rewards | Skatehive",
     description:
       "Take on skate trick challenges and earn crypto rewards. Post a bounty, submit your clip, get paid. Real challenges from real skaters.",
-    url: `${APP_CONFIG.BASE_URL}/bounties`,
+    url: bountyUrl,
     images: [
       {
-        url: `${APP_CONFIG.BASE_URL}/api/og/bounty?title=Skatehive+Bounties&amount=ETH+%2B+HIVE&currency=&status=OPEN&source=poidh&chain=BASE+%2F+ARB+%2F+HIVE`,
+        url: ogImageUrl,
         width: 1200,
         height: 630,
         alt: "Skatehive Bounties — Land Tricks, Earn Rewards",
@@ -38,10 +42,27 @@ export const metadata: Metadata = {
     title: "Skate Trick Bounties — Land Tricks, Earn Rewards | Skatehive",
     description:
       "Take on skate trick challenges and earn crypto rewards. Post a bounty, submit your clip, get paid.",
-    images: [`${APP_CONFIG.BASE_URL}/api/og/bounty?title=Skatehive+Bounties&amount=ETH+%2B+HIVE&currency=&status=OPEN`],
+    images: [ogImageUrl],
+  },
+  other: {
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: frameImageUrl,
+      button: {
+        title: "View Bounties",
+        action: {
+          type: "launch_frame",
+          name: "Skatehive",
+          url: bountyUrl,
+        },
+      },
+      postUrl: bountyUrl,
+    }),
+    "fc:frame:image": frameImageUrl,
+    "fc:frame:post_url": bountyUrl,
   },
   alternates: {
-    canonical: `${APP_CONFIG.BASE_URL}/bounties`,
+    canonical: bountyUrl,
   },
 };
 

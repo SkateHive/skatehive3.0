@@ -4,6 +4,7 @@ import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
+const ogImageUrl = `${BASE_URL}/api/og/page?title=Skate%20Map&subtitle=Find%20skate%20spots%20worldwide`;
 
 export const metadata: Metadata = {
   title: "Find Skateparks Near You | Interactive Skate Spot Map 🛹",
@@ -34,7 +35,7 @@ export const metadata: Metadata = {
     url: `${APP_CONFIG.BASE_URL}/map`,
     images: [
       {
-        url: `${APP_CONFIG.BASE_URL}/ogimage.png`,
+        url: ogImageUrl,
         width: 1200,
         height: 630,
         alt: "Skatehive Skate Spot Map - Find spots worldwide",
@@ -48,7 +49,7 @@ export const metadata: Metadata = {
     title: "Skate Spot Map — Find Skateparks & Street Spots Near You",
     description:
       "Community-built skate spot map. Find skateparks, street spots, and DIY spots worldwide. Add your local spots.",
-    images: [`${APP_CONFIG.BASE_URL}/ogimage.png`],
+    images: [ogImageUrl],
   },
   alternates: {
     canonical: `${APP_CONFIG.BASE_URL}/map`,

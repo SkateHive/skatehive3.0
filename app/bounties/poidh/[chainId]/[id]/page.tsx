@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { PoidhBountyDetail } from "@/components/bounties/PoidhBountyDetail";
 import { APP_CONFIG } from "@/config/app.config";
 import { CHAIN_LABEL } from "@/lib/poidh-constants";
@@ -8,11 +9,19 @@ interface PageProps {
   params: Promise<{ chainId: string; id: string }>;
 }
 
+async function getBaseUrl() {
+  const hdrs = await headers();
+  const host = hdrs.get("host");
+  const protocol = hdrs.get("x-forwarded-proto") || "http";
+  if (host) return `${protocol}://${host}`;
+  return APP_CONFIG.BASE_URL;
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { chainId, id } = await params;
 
   try {
-    const baseUrl = APP_CONFIG.BASE_URL || "https://skatehive.app";
+    const baseUrl = await getBaseUrl();
     const res = await fetch(`${baseUrl}/api/poidh/bounties/${chainId}/${id}`, {
       next: { revalidate: 300 },
     });
@@ -64,6 +73,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     const bountyPageUrl = `${baseUrl}/bounties/poidh/${chainId}/${id}`;
     const ogImageUrl = ogUrl.toString();
+
+    // Farcaster frame needs 3:2 aspect ratio (1200x800)
+    const frameOgUrl = new URL(ogUrl.toString());
+    frameOgUrl.searchParams.set("format", "frame");
+    const frameImageUrl = frameOgUrl.toString();
+
     const buttonTitle = isActive ? "Claim Bounty" : "View Bounty";
 
     return {
@@ -91,10 +106,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         images: [ogImageUrl],
       },
       other: {
-        // Farcaster Frame v2 (mini-app)
+        // Farcaster Frame v2 (mini-app) — uses 3:2 image
         "fc:frame": JSON.stringify({
           version: "next",
-          imageUrl: ogImageUrl,
+          imageUrl: frameImageUrl,
           button: {
             title: buttonTitle,
             action: {
@@ -105,7 +120,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
           },
           postUrl: bountyPageUrl,
         }),
-        "fc:frame:image": ogImageUrl,
+        "fc:frame:image": frameImageUrl,
         "fc:frame:post_url": bountyPageUrl,
       },
     };

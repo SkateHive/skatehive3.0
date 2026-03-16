@@ -4,6 +4,7 @@ import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import VideosContent from "@/components/videos/VideosContent";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
+const ogImageUrl = `${BASE_URL}/api/og/page?title=Skate%20Videos&subtitle=Watch%20the%20latest%20skate%20clips`;
 
 export const metadata: Metadata = {
   title: "Skate Videos — Street Skating, Park Clips & Full Edits | Skatehive",
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
     url: `${BASE_URL}/videos`,
     images: [
       {
-        url: `${BASE_URL}/ogimage.png`,
+        url: ogImageUrl,
         width: 1200,
         height: 630,
         alt: "Skatehive Skate Videos",
@@ -44,7 +45,7 @@ export const metadata: Metadata = {
     title: "Skate Videos — Community Clips & Edits",
     description:
       "Watch skateboarding videos from the Skatehive community. Street skating, park sessions, and more.",
-    images: [`${BASE_URL}/ogimage.png`],
+    images: [ogImageUrl],
   },
   alternates: {
     canonical: `${BASE_URL}/videos`,

@@ -63,10 +63,19 @@ interface ParsedMeta {
   allTags: Record<string, string>;
 }
 
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
 function parseMeta(html: string): ParsedMeta {
   const get = (pattern: RegExp): string => {
     const m = html.match(pattern);
-    return m ? m[1] : "";
+    return m ? decodeHtmlEntities(m[1]) : "";
   };
 
   const allTags: Record<string, string> = {};
@@ -75,19 +84,19 @@ function parseMeta(html: string): ParsedMeta {
   const ogRegex = /property="og:([^"]+)"\s+content="([^"]*)"/g;
   let match;
   while ((match = ogRegex.exec(html)) !== null) {
-    allTags[`og:${match[1]}`] = match[2];
+    allTags[`og:${match[1]}`] = decodeHtmlEntities(match[2]);
   }
 
   // Twitter tags
   const twRegex = /name="twitter:([^"]+)"\s+content="([^"]*)"/g;
   while ((match = twRegex.exec(html)) !== null) {
-    allTags[`twitter:${match[1]}`] = match[2];
+    allTags[`twitter:${match[1]}`] = decodeHtmlEntities(match[2]);
   }
 
   // FC tags
   const fcRegex = /(?:property|name)="(fc:[^"]+)"\s+content="([^"]*)"/g;
   while ((match = fcRegex.exec(html)) !== null) {
-    allTags[match[1]] = match[2];
+    allTags[match[1]] = decodeHtmlEntities(match[2]);
   }
 
   // Title
