@@ -102,6 +102,7 @@ export default function BountiesHubClient() {
             textTransform="uppercase"
             letterSpacing="wider"
             fontSize={{ base: 'md', md: '2xl' }}
+            noOfLines={1}
           >
             SKATEHIVE BOUNTIES
           </Text>
@@ -138,8 +139,8 @@ export default function BountiesHubClient() {
           <Flex
             justify="space-between"
             align={{ base: 'stretch', sm: 'center' }}
-            mb={{ base: 4, md: 5 }}
-            gap={3}
+            mb={{ base: 5, md: 5 }}
+            gap={{ base: 4, sm: 3 }}
             direction={{ base: 'column', sm: 'row' }}
           >
             <HStack

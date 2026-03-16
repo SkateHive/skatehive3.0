@@ -5,6 +5,7 @@ import {
   Container,
   VStack,
   HStack,
+  Flex,
   Text,
   Button,
   SimpleGrid,
@@ -486,7 +487,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                             justify="space-between"
                           >
                             <Tooltip label={p.address} placement="top">
-                              <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="primary" cursor="default">
+                              <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="primary" cursor="default" wordBreak="break-all" maxW="150px">
                                 {shortenAddress(p.address)}
                               </Text>
                             </Tooltip>
@@ -511,7 +512,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                           justify="space-between"
                         >
                           <Tooltip label={addr} placement="top">
-                            <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="primary" cursor="default">
+                            <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="primary" cursor="default" wordBreak="break-all" maxW="150px">
                               {shortenAddress(addr)}
                             </Text>
                           </Tooltip>
@@ -529,7 +530,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                     <Box px={4} pb={3}>
                       {showContributeForm ? (
                         <VStack spacing={2} align="stretch">
-                          <HStack>
+                          <Flex gap={2} direction={{ base: 'column', sm: 'row' }}>
                             <Input
                               type="number"
                               step="0.001"
@@ -571,7 +572,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                             >
                               CANCEL
                             </Button>
-                          </HStack>
+                          </Flex>
                         </VStack>
                       ) : (
                         <Button
@@ -790,6 +791,8 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                                 color="primary"
                                 fontFamily="mono"
                                 cursor="default"
+                                wordBreak="break-all"
+                                maxW="120px"
                               >
                                 {shortenAddress(claim.issuer)}
                               </Text>
@@ -1026,7 +1029,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                               onUpload={handleProofVideoUpload}
                             />
                           </Box>
-                          <HStack spacing={2}>
+                          <Flex gap={2} direction={{ base: 'column', sm: 'row' }}>
                             <Button
                               onClick={handleSubmitClaim}
                               isLoading={isBusy}
@@ -1053,7 +1056,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                             >
                               CANCEL
                             </Button>
-                          </HStack>
+                          </Flex>
                         </VStack>
                       </Box>
                     ) : (
@@ -1108,7 +1111,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
 
           {/* ── Sidebar ───────────────────────── */}
           <GridItem>
-            <VStack align="stretch" gap={4} position="sticky" top="80px">
+            <VStack align="stretch" gap={4} position={{ base: 'static', md: 'sticky' }} top={{ md: '80px' }}>
               {/* Reward card */}
               <Box border="1px solid" borderColor="primary" bg="muted" overflow="hidden">
                 <Box borderBottom="1px solid" borderColor="primary" px={4} py={2}>
