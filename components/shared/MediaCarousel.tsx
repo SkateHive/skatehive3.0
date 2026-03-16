@@ -119,7 +119,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems }) => {
 
   return (
     <Box position="relative" width="100%" mt={2} mb={2}>
-      <Box aspectRatio="1 / 1" position="relative">
+      <Box position="relative">
         <Swiper
           modules={[Navigation]}
           navigation={!isMobile}
@@ -183,24 +183,21 @@ function renderMediaItem(
         <>
           <Box
             width="100%"
-            aspectRatio="1 / 1"
-            flex={isCarouselMode ? "1" : "none"}
             display="flex"
             alignItems="center"
             justifyContent="center"
-            bg={isCarouselMode ? "rgba(0,0,0,0.05)" : "transparent"}
-            borderRadius="none"
             overflow="hidden"
           >
             <Box
               sx={{
                 img: {
-                  width: "100%",
-                  height: isCarouselMode ? `${containerHeight}px` : "400px",
-                  aspectRatio: "1 / 1",
-                  objectFit: "cover",
-                  borderRadius: "md",
+                  maxWidth: "100%",
+                  maxHeight: isCarouselMode ? `${containerHeight}px` : "500px",
+                  width: "auto",
+                  height: "auto",
+                  objectFit: "contain",
                   display: "block",
+                  margin: "0 auto",
                 },
               }}
             >
