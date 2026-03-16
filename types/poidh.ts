@@ -30,6 +30,7 @@ export interface PoidhClaim {
   bountyIssuer: string;
   name: string;
   description: string;
+  url: string;
   createdAt: number;
   accepted: boolean;
 }

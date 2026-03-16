@@ -884,6 +884,11 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                           </HStack>
                         </HStack>
                         <Box px={4} py={3}>
+                          {claim.url && (
+                            <Box mb={2} border="1px solid" borderColor="border" overflow="hidden">
+                              <MediaPreview src={claim.url} />
+                            </Box>
+                          )}
                           {claim.description && (
                             <Text fontSize="xs" color="dim" fontFamily="mono" mb={2} noOfLines={3}>
                               {claim.description}

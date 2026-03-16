@@ -77,6 +77,7 @@ export async function GET(
         bountyIssuer: b.issuer,
         name: c.title || '',
         description: c.description || '',
+        url: c.url || c.uri || '',
         createdAt: toUnixSeconds(c.createdAt),
         accepted: c.accepted || (b.claimId && b.claimId.toString() === c.id.toString()) || false,
       }));
