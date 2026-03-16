@@ -26,7 +26,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import ImageCompressor, { ImageCompressorRef } from '@/lib/utils/ImageCompressor';
-import VideoUploader, { VideoUploaderRef } from '@/components/homepage/VideoUploader';
+// VideoUploader removed — bounty claims use direct IPFS upload via uploadToIpfsSmart
 import imageCompression from 'browser-image-compression';
 import { uploadToIpfsSmart } from '@/lib/utils/ipfsUpload';
 import type { PoidhBounty } from '@/types/poidh';
@@ -106,7 +106,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   const [isUploadingProof, setIsUploadingProof] = useState(false);
   const [isDragOverProof, setIsDragOverProof] = useState(false);
   const imageCompressorRef = useRef<ImageCompressorRef>(null);
-  const videoUploaderRef = useRef<VideoUploaderRef>(null);
+  // Video uploads go directly to IPFS via handleProofVideoFile
 
   const numericChainId = parseInt(chainId, 10);
   // Use onChainId for all smart contract interactions (different from indexer id)
@@ -225,7 +225,27 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   };
 
   const handleProofVideoUpload = (result: { url?: string; hash?: string } | null) => {
-    if (result?.url) setClaimUri(result.url);
+    if (result?.url) {
+      setClaimUri(result.url);
+      setIsUploadingProof(false);
+    }
+  };
+
+  // Direct video upload for bounty claims — bypasses transcoding servers
+  // (proof videos don't need to be converted, raw upload is fine)
+  const handleProofVideoFile = async (file: File) => {
+    setIsUploadingProof(true);
+    try {
+      const result = await uploadToIpfsSmart(file, {
+        fileName: file.name,
+        creator: 'bounty-claim',
+      });
+      if (result?.url) setClaimUri(result.url);
+    } catch (e) {
+      console.error('Video upload failed:', e);
+    } finally {
+      setIsUploadingProof(false);
+    }
   };
 
   const handleProofDrop = async (e: React.DragEvent) => {
@@ -249,14 +269,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
           setIsUploadingProof(false);
         }
       } else if (file.type.startsWith('video/')) {
-        if (videoUploaderRef.current?.handleFile) {
-          setIsUploadingProof(true);
-          try {
-            await videoUploaderRef.current.handleFile(file);
-          } catch { /* ignore */ } finally {
-            setIsUploadingProof(false);
-          }
-        }
+        await handleProofVideoFile(file);
       }
     }
   };
@@ -1006,11 +1019,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                                       URL.revokeObjectURL(url);
                                     } catch { /* ignore */ } finally { setIsUploadingProof(false); }
                                   } else if (file.type.startsWith('video/')) {
-                                    if (videoUploaderRef.current?.handleFile) {
-                                      setIsUploadingProof(true);
-                                      try { await videoUploaderRef.current.handleFile(file); }
-                                      catch { /* ignore */ } finally { setIsUploadingProof(false); }
-                                    }
+                                    await handleProofVideoFile(file);
                                   }
                                 };
                                 input.click();
@@ -1052,10 +1061,6 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                             <ImageCompressor
                               ref={imageCompressorRef}
                               onUpload={handleProofImageUpload}
-                            />
-                            <VideoUploader
-                              ref={videoUploaderRef}
-                              onUpload={handleProofVideoUpload}
                             />
                           </Box>
                           <Flex gap={2} direction={{ base: 'column', sm: 'row' }}>
