@@ -16,11 +16,13 @@ import {
   Icon,
   Input,
   Textarea,
+  useDisclosure,
+  useToast,
 } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import Image from 'next/image';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
-import { FaEthereum, FaCalendar, FaArrowLeft, FaBolt, FaUsers, FaTrophy, FaVoteYea, FaTimes, FaCheck } from 'react-icons/fa';
+import { FaEthereum, FaCalendar, FaArrowLeft, FaBolt, FaUsers, FaTrophy, FaVoteYea, FaTimes, FaCheck, FaTwitter, FaFacebook, FaLink } from 'react-icons/fa';
 import { formatEther } from 'viem';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAccount } from 'wagmi';
@@ -29,10 +31,16 @@ import ImageCompressor, { ImageCompressorRef } from '@/lib/utils/ImageCompressor
 // VideoUploader removed — bounty claims use direct IPFS upload via uploadToIpfsSmart
 import imageCompression from 'browser-image-compression';
 import { uploadToIpfsSmart } from '@/lib/utils/ipfsUpload';
+import { generateVideoIframeMarkdown, generatePermlink } from '@/lib/markdown/composeUtils';
 import type { PoidhBounty } from '@/types/poidh';
 import { CHAIN_LABEL, CHAIN_PATH } from '@/lib/poidh-constants';
 import { usePoidhWrite } from '@/hooks/usePoidhWrite';
 import { usePoidhParticipants, usePoidhVotingState, usePoidhParticipantAmount, usePoidhPendingWithdrawals } from '@/hooks/usePoidhRead';
+import { useHiveUser } from '@/contexts/UserContext';
+import useUserbaseHiveIdentity from '@/hooks/useUserbaseHiveIdentity';
+import { useAioha } from '@aioha/react-ui';
+import { HIVE_CONFIG } from '@/config/app.config';
+import SkateModal from '@/components/shared/SkateModal';
 
 interface PoidhBountyDetailProps {
   chainId: string;
@@ -105,7 +113,15 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   const [claimUri, setClaimUri] = useState('');
   const [isUploadingProof, setIsUploadingProof] = useState(false);
   const [isDragOverProof, setIsDragOverProof] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [submittedClaimUrl, setSubmittedClaimUrl] = useState('');
+  const [submittedClaimTitle, setSubmittedClaimTitle] = useState('');
   const imageCompressorRef = useRef<ImageCompressorRef>(null);
+  const toast = useToast();
+  // Hive cross-post hooks
+  const { hiveUser } = useHiveUser();
+  const { identity: userbaseHiveIdentity } = useUserbaseHiveIdentity();
+  const { aioha, user: aiohaUser } = useAioha();
   // Video uploads go directly to IPFS via handleProofVideoFile
 
   const numericChainId = parseInt(chainId, 10);
@@ -216,7 +232,12 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
     try {
       const blob = await fetch(compressedUrl).then(r => r.blob());
       const result = await uploadToIpfsSmart(blob, { fileName: fileName || 'proof.jpg' });
-      if (result?.url) setClaimUri(result.url);
+      if (result?.url) {
+        setClaimUri(result.url);
+        // Auto-insert image markdown into description
+        const imageMarkdown = `![proof](${result.url})`;
+        setClaimDescription(prev => prev ? `${prev}\n\n${imageMarkdown}` : imageMarkdown);
+      }
     } catch (e) {
       console.error('Image upload failed:', e);
     } finally {
@@ -227,6 +248,9 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   const handleProofVideoUpload = (result: { url?: string; hash?: string } | null) => {
     if (result?.url) {
       setClaimUri(result.url);
+      // Auto-insert video iframe into description
+      const videoMarkdown = generateVideoIframeMarkdown(result.url, 'Bounty proof');
+      setClaimDescription(prev => prev ? `${prev}\n\n${videoMarkdown}` : videoMarkdown);
       setIsUploadingProof(false);
     }
   };
@@ -240,7 +264,12 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
         fileName: file.name,
         creator: 'bounty-claim',
       });
-      if (result?.url) setClaimUri(result.url);
+      if (result?.url) {
+        setClaimUri(result.url);
+        // Auto-insert video iframe into description
+        const videoMarkdown = generateVideoIframeMarkdown(result.url, 'Bounty proof');
+        setClaimDescription(prev => prev ? `${prev}\n\n${videoMarkdown}` : videoMarkdown);
+      }
     } catch (e) {
       console.error('Video upload failed:', e);
     } finally {
@@ -278,12 +307,92 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
     if (!isConnected) { openConnectModal?.(); return; }
     if (!onChainBountyId || !claimTitle.trim()) return;
     try {
-      await poidh.createClaim(numericChainId, onChainBountyId, claimTitle, claimDescription, claimUri);
+      // Ensure media markdown is in the description before submitting
+      let finalDescription = claimDescription;
+      if (claimUri && !claimDescription.includes(claimUri)) {
+        const isVideo = /\.(mp4|webm|mov|avi|mkv|m4v)(\?|$)/i.test(claimUri) || claimUri.includes('video');
+        const mediaMarkdown = isVideo
+          ? generateVideoIframeMarkdown(claimUri, claimTitle || 'Bounty proof')
+          : `![proof](${claimUri})`;
+        finalDescription = finalDescription ? `${finalDescription}\n\n${mediaMarkdown}` : mediaMarkdown;
+      }
+
+      await poidh.createClaim(numericChainId, onChainBountyId, claimTitle, finalDescription, claimUri);
+
+      // Build claim page URL for sharing
+      const claimPageUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/bounties/poidh/${chainId}/${id}`;
+      setSubmittedClaimUrl(claimPageUrl);
+      setSubmittedClaimTitle(claimTitle);
+
+      // Cross-post to Hive if user has Hive identity
+      const hasHive = !!(hiveUser || userbaseHiveIdentity?.handle);
+      if (hasHive && bounty) {
+        try {
+          const hiveTitle = `POIDH Bounty Claim: ${claimTitle}`;
+          const permlink = generatePermlink(`poidh-claim-${bounty.id}-${Date.now()}`);
+          const hiveBody = [
+            `## ${claimTitle}`,
+            '',
+            finalDescription || '',
+            '',
+            claimUri ? (
+              /\.(mp4|webm|mov|avi|mkv|m4v)(\?|$)/i.test(claimUri) || claimUri.includes('video')
+                ? generateVideoIframeMarkdown(claimUri, claimTitle)
+                : `![proof](${claimUri})`
+            ) : '',
+            '',
+            `---`,
+            `*Bounty claim submitted on [POIDH](${poidhUrl}) (${chainLabel}) for ${amountInEth} ETH*`,
+            `*View on [Skatehive](${claimPageUrl})*`,
+          ].filter(Boolean).join('\n');
+
+          const imageArray = claimUri && !/\.(mp4|webm|mov|avi|mkv|m4v)(\?|$)/i.test(claimUri)
+            ? [claimUri] : [];
+
+          if (aiohaUser) {
+            // Direct Hive posting via Keychain
+            await aioha.comment(
+              null,
+              HIVE_CONFIG.COMMUNITY_TAG,
+              permlink,
+              hiveTitle,
+              hiveBody,
+              { tags: ['skatehive', 'poidh', 'bounty'], app: 'Skatehive App 3.0', image: imageArray }
+            );
+          } else {
+            // Post via userbase API (shared account or stored key)
+            await fetch('/api/userbase/hive/comment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                parent_author: '',
+                parent_permlink: HIVE_CONFIG.COMMUNITY_TAG,
+                permlink,
+                title: hiveTitle,
+                body: hiveBody,
+                json_metadata: {
+                  tags: ['skatehive', 'poidh', 'bounty'],
+                  app: 'Skatehive App 3.0',
+                  image: imageArray,
+                },
+                beneficiaries: [],
+                type: 'post',
+              }),
+            });
+          }
+          toast({ title: 'Also posted to Hive!', status: 'success', duration: 3000 });
+        } catch (e) {
+          console.error('Hive cross-post failed:', e);
+          // Non-blocking — the POIDH claim already succeeded
+        }
+      }
+
+      // Show share dialog instead of reloading
       setShowClaimForm(false);
       setClaimTitle('');
       setClaimDescription('');
       setClaimUri('');
-      window.location.reload();
+      setShowShareModal(true);
     } catch { /* handled by hook */ }
   };
 
@@ -1347,6 +1456,112 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
           </GridItem>
         </SimpleGrid>
       </Container>
+
+      {/* ── Share modal after successful claim ──── */}
+      <SkateModal
+        isOpen={showShareModal}
+        onClose={() => { setShowShareModal(false); window.location.reload(); }}
+        title="CLAIM SUBMITTED"
+        size="sm"
+      >
+        <VStack spacing={4} p={6} align="stretch">
+          <Text fontSize="sm" fontFamily="mono" color="primary" fontWeight="bold" textAlign="center">
+            YOUR PROOF HAS BEEN SUBMITTED!
+          </Text>
+          <Text fontSize="xs" fontFamily="mono" color="dim" textAlign="center">
+            Share your bounty claim with the world
+          </Text>
+          <VStack spacing={2} align="stretch">
+            <Button
+              onClick={() => {
+                const text = `I just submitted proof for a bounty on @skatehive! 🛹`;
+                window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(submittedClaimUrl)}&text=${encodeURIComponent(text)}`, '_blank');
+              }}
+              w="100%"
+              bg="transparent"
+              border="1px solid"
+              borderColor="border"
+              color="text"
+              borderRadius="none"
+              fontFamily="mono"
+              fontWeight="bold"
+              fontSize="xs"
+              _hover={{ borderColor: 'primary', color: 'primary' }}
+              leftIcon={<Icon as={FaTwitter} />}
+            >
+              SHARE ON X
+            </Button>
+            <Button
+              onClick={() => {
+                const text = `I just submitted proof for a bounty on Skatehive! 🛹 ${submittedClaimUrl}`;
+                window.open(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`, '_blank');
+              }}
+              w="100%"
+              bg="transparent"
+              border="1px solid"
+              borderColor="border"
+              color="text"
+              borderRadius="none"
+              fontFamily="mono"
+              fontWeight="bold"
+              fontSize="xs"
+              _hover={{ borderColor: 'primary', color: 'primary' }}
+            >
+              SHARE ON WARPCAST
+            </Button>
+            <Button
+              onClick={() => {
+                window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(submittedClaimUrl)}`, '_blank');
+              }}
+              w="100%"
+              bg="transparent"
+              border="1px solid"
+              borderColor="border"
+              color="text"
+              borderRadius="none"
+              fontFamily="mono"
+              fontWeight="bold"
+              fontSize="xs"
+              _hover={{ borderColor: 'primary', color: 'primary' }}
+              leftIcon={<Icon as={FaFacebook} />}
+            >
+              SHARE ON FACEBOOK
+            </Button>
+            <Button
+              onClick={() => {
+                navigator.clipboard.writeText(submittedClaimUrl);
+                toast({ title: 'Link copied!', status: 'success', duration: 2000 });
+              }}
+              w="100%"
+              bg="transparent"
+              border="1px solid"
+              borderColor="border"
+              color="text"
+              borderRadius="none"
+              fontFamily="mono"
+              fontWeight="bold"
+              fontSize="xs"
+              _hover={{ borderColor: 'primary', color: 'primary' }}
+              leftIcon={<Icon as={FaLink} />}
+            >
+              COPY LINK
+            </Button>
+          </VStack>
+          <Button
+            onClick={() => { setShowShareModal(false); window.location.reload(); }}
+            w="100%"
+            bg="primary"
+            color="background"
+            borderRadius="none"
+            fontFamily="mono"
+            fontWeight="bold"
+            fontSize="xs"
+            _hover={{ bg: 'accent' }}
+          >
+            DONE
+          </Button>
+        </VStack>
+      </SkateModal>
     </Box>
   );
 }
