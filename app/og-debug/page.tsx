@@ -22,7 +22,10 @@ import {
 import { FaSync, FaExternalLinkAlt, FaCopy, FaCheck } from "react-icons/fa";
 
 const PROD_URL = "https://skatehive.app";
-const LOCAL_URL = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+const LOCAL_URL =
+  typeof window !== "undefined"
+    ? window.location.origin
+    : "http://localhost:3000";
 
 // Pages to test — grouped by category
 const TEST_PAGES = [
@@ -30,10 +33,13 @@ const TEST_PAGES = [
   { label: "Bounty (Base)", path: "/bounties/poidh/8453/1091" },
   { label: "Bounty (Arb)", path: "/bounties/poidh/42161/232" },
   // Posts
-  { label: "Post", path: "/post/skaters/is-it-possible-to-make-a-living-off-skateboarding-ft-william-damascena-and-leo-spanghero" },
+  {
+    label: "Post",
+    path: "/post/xvlad/from-trick-to-street-art-how-a-no-comply-became-eternal",
+  },
   // Profiles
   { label: "Profile", path: "/user/xvlad" },
-  { label: "Profile 2", path: "/user/web3pleb" },
+  { label: "Profile 2", path: "/user/web-gnar" },
   // Coins
   { label: "Coin", path: "/coin/0xfe10d3ce1b0f090935670368ec6de00d8d965523" },
   // Static pages
@@ -134,11 +140,14 @@ function MetaPreviewCard({
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const rewriteUrl = useCallback((imgUrl: string) => {
-    if (!rewriteBase || !imgUrl) return imgUrl;
-    // Rewrite https://skatehive.app/api/og/... to localhost/api/og/...
-    return imgUrl.replace(/https?:\/\/(www\.)?skatehive\.app/g, rewriteBase);
-  }, [rewriteBase]);
+  const rewriteUrl = useCallback(
+    (imgUrl: string) => {
+      if (!rewriteBase || !imgUrl) return imgUrl;
+      // Rewrite https://skatehive.app/api/og/... to localhost/api/og/...
+      return imgUrl.replace(/https?:\/\/(www\.)?skatehive\.app/g, rewriteBase);
+    },
+    [rewriteBase],
+  );
 
   const fetchMeta = useCallback(async () => {
     setLoading(true);
@@ -155,7 +164,10 @@ function MetaPreviewCard({
         parsed.fcFrameImage = rewriteUrl(parsed.fcFrameImage);
         // Rewrite fc:frame JSON imageUrl
         if (parsed.fcFrame) {
-          parsed.fcFrame = parsed.fcFrame.replace(/https?:\/\/(www\.)?skatehive\.app/g, rewriteBase);
+          parsed.fcFrame = parsed.fcFrame.replace(
+            /https?:\/\/(www\.)?skatehive\.app/g,
+            rewriteBase,
+          );
         }
       }
       setMeta(parsed);
@@ -171,9 +183,15 @@ function MetaPreviewCard({
   }, [autoLoad, fetchMeta]);
 
   const hasFarcaster = !!meta?.fcFrame;
-  const fcData = hasFarcaster ? (() => {
-    try { return JSON.parse(meta!.fcFrame); } catch { return null; }
-  })() : null;
+  const fcData = hasFarcaster
+    ? (() => {
+        try {
+          return JSON.parse(meta!.fcFrame);
+        } catch {
+          return null;
+        }
+      })()
+    : null;
 
   const copyUrl = () => {
     navigator.clipboard.writeText(url);
@@ -204,7 +222,13 @@ function MetaPreviewCard({
           noOfLines={1}
           flex={1}
         >
-          {(() => { try { return new URL(url).pathname; } catch { return url; } })()}
+          {(() => {
+            try {
+              return new URL(url).pathname;
+            } catch {
+              return url;
+            }
+          })()}
         </Text>
         <HStack spacing={1}>
           <IconButton
@@ -318,7 +342,13 @@ function MetaPreviewCard({
             >
               {meta.ogTitle || meta.title || "No title"}
             </Text>
-            <Text fontSize="xs" fontFamily="mono" color="dim" noOfLines={2} mt={1}>
+            <Text
+              fontSize="xs"
+              fontFamily="mono"
+              color="dim"
+              noOfLines={2}
+              mt={1}
+            >
               {meta.ogDescription || meta.description || "No description"}
             </Text>
           </Box>
@@ -332,9 +362,28 @@ function MetaPreviewCard({
               borderColor="purple.800"
               bg="rgba(128,0,255,0.05)"
             >
-              <Text fontSize="2xs" fontFamily="mono" color="purple.300" fontWeight="bold" mb={1}>
-                FARCASTER FRAME
+              <Text
+                fontSize="2xs"
+                fontFamily="mono"
+                color="purple.300"
+                fontWeight="bold"
+                mb={1}
+              >
+                FARCASTER FRAME (3:2)
               </Text>
+              {fcData.imageUrl && (
+                <Image
+                  src={rewriteUrl(fcData.imageUrl)}
+                  alt="Frame image"
+                  w="100%"
+                  maxH="200px"
+                  objectFit="contain"
+                  bg="black"
+                  mb={2}
+                  border="1px solid"
+                  borderColor="purple.700"
+                />
+              )}
               <HStack spacing={2}>
                 <Box
                   flex={1}
@@ -345,13 +394,25 @@ function MetaPreviewCard({
                   py={1.5}
                   textAlign="center"
                 >
-                  <Text fontSize="xs" fontFamily="mono" color="purple.200" fontWeight="bold">
+                  <Text
+                    fontSize="xs"
+                    fontFamily="mono"
+                    color="purple.200"
+                    fontWeight="bold"
+                  >
                     {fcData.button?.title || "Open"}
                   </Text>
                 </Box>
               </HStack>
               <Text fontSize="2xs" fontFamily="mono" color="purple.400" mt={1}>
-                action: {fcData.button?.action?.type || "none"} → {(() => { try { return new URL(fcData.button?.action?.url || "").pathname; } catch { return fcData.button?.action?.url || ""; } })() || ""}
+                action: {fcData.button?.action?.type || "none"} →{" "}
+                {(() => {
+                  try {
+                    return new URL(fcData.button?.action?.url || "").pathname;
+                  } catch {
+                    return fcData.button?.action?.url || "";
+                  }
+                })() || ""}
               </Text>
             </Box>
           )}
@@ -367,7 +428,8 @@ function MetaPreviewCard({
               onClick={() => setShowRaw(!showRaw)}
               w="100%"
             >
-              {showRaw ? "HIDE" : "SHOW"} RAW TAGS ({Object.keys(meta.allTags).length})
+              {showRaw ? "HIDE" : "SHOW"} RAW TAGS (
+              {Object.keys(meta.allTags).length})
             </Button>
           </Box>
 
@@ -417,7 +479,12 @@ export default function OGDebugPage() {
         {/* Header */}
         <HStack justify="space-between" align="center">
           <VStack align="start" spacing={0}>
-            <Text fontSize="lg" fontFamily="mono" fontWeight="900" color="primary">
+            <Text
+              fontSize="lg"
+              fontFamily="mono"
+              fontWeight="900"
+              color="primary"
+            >
               OG DEBUG
             </Text>
             <Text fontSize="xs" fontFamily="mono" color="dim">
@@ -490,7 +557,13 @@ export default function OGDebugPage() {
 
         {/* Quick buttons */}
         <Box>
-          <Text fontSize="2xs" fontFamily="mono" color="dim" fontWeight="bold" mb={2}>
+          <Text
+            fontSize="2xs"
+            fontFamily="mono"
+            color="dim"
+            fontWeight="bold"
+            mb={2}
+          >
             QUICK ADD
           </Text>
           <Wrap spacing={1}>
@@ -510,7 +583,7 @@ export default function OGDebugPage() {
                     setCustomCards((prev) =>
                       prev.includes(`${BASE_URL}${p.path}`)
                         ? prev
-                        : [`${BASE_URL}${p.path}`, ...prev]
+                        : [`${BASE_URL}${p.path}`, ...prev],
                     )
                   }
                 >
@@ -526,12 +599,22 @@ export default function OGDebugPage() {
         {/* Custom cards first */}
         {customCards.length > 0 && (
           <>
-            <Text fontSize="2xs" fontFamily="mono" color="primary" fontWeight="bold">
+            <Text
+              fontSize="2xs"
+              fontFamily="mono"
+              color="primary"
+              fontWeight="bold"
+            >
               CUSTOM ({customCards.length})
             </Text>
             <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
               {customCards.map((url) => (
-                <MetaPreviewCard key={url} url={url} autoLoad rewriteBase={useLocal ? LOCAL_URL : undefined} />
+                <MetaPreviewCard
+                  key={url}
+                  url={url}
+                  autoLoad
+                  rewriteBase={useLocal ? LOCAL_URL : undefined}
+                />
               ))}
             </Grid>
             <Divider borderColor="border" />

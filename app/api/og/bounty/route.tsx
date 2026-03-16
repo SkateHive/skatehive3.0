@@ -243,7 +243,7 @@ export async function GET(request: NextRequest) {
                 gap: isFrame ? '18px' : '12px',
               }}
             >
-              {/* "CAN YOU LAND IT?" or "WIN" */}
+              {/* Tagline */}
               <div
                 style={{
                   color: C.green,
@@ -254,57 +254,61 @@ export async function GET(request: NextRequest) {
                   opacity: 0.7,
                 }}
               >
-                {isOpen ? 'CAN YOU LAND IT?' : 'BOUNTY CLOSED'}
+                {isNumericAmount ? (isOpen ? 'CAN YOU LAND IT?' : 'BOUNTY CLOSED') : 'SKATE TRICK BOUNTIES'}
               </div>
 
-              {/* Main amount display */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '18px',
-                }}
-              >
-                {/* ETH icon */}
-                {!isHive && isNumericAmount && (
-                  <img
-                    src={ethUrl}
-                    alt=""
-                    width={amountFontSize * 0.55}
-                    height={amountFontSize * 0.55}
-                    style={{ opacity: 0.9 }}
-                  />
-                )}
-
-                {/* Amount */}
+              {/* Main amount display — only when we have a real amount */}
+              {isNumericAmount ? (
                 <div
                   style={{
-                    color: C.text,
-                    fontSize: `${amountFontSize}px`,
-                    fontWeight: '900',
                     display: 'flex',
-                    lineHeight: '1',
-                    letterSpacing: '-2px',
+                    alignItems: 'center',
+                    gap: '18px',
                   }}
                 >
-                  {amount}
-                </div>
+                  {/* ETH icon */}
+                  {!isHive && (
+                    <img
+                      src={ethUrl}
+                      alt=""
+                      width={amountFontSize * 0.55}
+                      height={amountFontSize * 0.55}
+                      style={{ opacity: 0.9 }}
+                    />
+                  )}
 
-                {/* Currency */}
-                <div
-                  style={{
-                    color: C.green,
-                    fontSize: '28px',
-                    fontWeight: '900',
-                    display: 'flex',
-                    letterSpacing: '3px',
-                  }}
-                >
-                  {currency}
-                </div>
+                  {/* Amount */}
+                  <div
+                    style={{
+                      color: C.text,
+                      fontSize: `${amountFontSize}px`,
+                      fontWeight: '900',
+                      display: 'flex',
+                      lineHeight: '1',
+                      letterSpacing: '-2px',
+                    }}
+                  >
+                    {amount}
+                  </div>
+
+                  {/* Currency */}
+                  {currency && (
+                    <div
+                      style={{
+                        color: C.green,
+                        fontSize: '28px',
+                        fontWeight: '900',
+                        display: 'flex',
+                        letterSpacing: '3px',
+                      }}
+                    >
+                      {currency}
+                    </div>
+                  )}
               </div>
+              ) : null}
 
-              {/* USD value */}
+              {/* USD value — only for specific bounties */}
               {usdValue && (
                 <div
                   style={{
@@ -343,8 +347,8 @@ export async function GET(request: NextRequest) {
               <div
                 style={{
                   color: C.text,
-                  fontSize: title.length > 50 ? '22px' : title.length > 35 ? '26px' : '30px',
-                  fontWeight: 'bold',
+                  fontSize: title.length > 50 ? '22px' : title.length > 35 ? '26px' : (isNumericAmount ? '30px' : '42px'),
+                  fontWeight: '900',
                   display: 'flex',
                   textAlign: 'center',
                   textTransform: 'uppercase',

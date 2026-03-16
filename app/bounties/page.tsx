@@ -2,8 +2,8 @@ import { Metadata } from "next";
 import BountiesHubClient from "@/components/bounties/BountiesHubClient";
 import { APP_CONFIG } from "@/config/app.config";
 
-const ogImageUrl = `${APP_CONFIG.BASE_URL}/api/og/bounty?title=Skatehive+Bounties&amount=ETH+%2B+HIVE&currency=&status=OPEN&source=poidh&chain=BASE+%2F+ARB+%2F+HIVE`;
-const frameImageUrl = `${APP_CONFIG.BASE_URL}/api/og/bounty?title=Skatehive+Bounties&amount=ETH+%2B+HIVE&currency=&status=OPEN&source=poidh&chain=BASE+%2F+ARB+%2F+HIVE&format=frame`;
+const ogImageUrl = `${APP_CONFIG.BASE_URL}/api/og/bounty?title=Land+The+Trick.+Get+Paid.&amount=&currency=&status=OPEN&source=poidh&chain=`;
+const frameImageUrl = `${APP_CONFIG.BASE_URL}/api/og/bounty?title=Land+The+Trick.+Get+Paid.&amount=&currency=&status=OPEN&source=poidh&chain=&format=frame`;
 const bountyUrl = `${APP_CONFIG.BASE_URL}/bounties`;
 
 export const metadata: Metadata = {
