@@ -189,15 +189,12 @@ function renderMediaItem(
             overflow="hidden"
           >
             <Box
+              width="100%"
               sx={{
                 img: {
-                  maxWidth: "100%",
-                  maxHeight: isCarouselMode ? `${containerHeight}px` : "500px",
-                  width: "auto",
+                  width: "100%",
                   height: "auto",
-                  objectFit: "contain",
                   display: "block",
-                  margin: "0 auto",
                 },
               }}
             >
