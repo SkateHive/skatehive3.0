@@ -104,6 +104,20 @@ export function getDetailedDeviceInfo(): {
 /**
  * Upload video directly to IPFS (for MP4 files)
  */
+// Threshold above which we upload directly to Pinata (bypassing Vercel's ~4.5MB payload limit)
+const DIRECT_UPLOAD_THRESHOLD = 4 * 1024 * 1024; // 4MB
+
+/**
+ * Get a temporary signed JWT for direct client-to-Pinata uploads
+ */
+async function getSignedJwt(): Promise<string> {
+  const res = await fetch('/api/pinata/signed-url');
+  if (!res.ok) throw new Error('Failed to get upload credentials');
+  const data = await res.json();
+  if (!data.jwt) throw new Error('No JWT returned');
+  return data.jwt;
+}
+
 export async function uploadToIPFS(
   file: File,
   username: string = 'anonymous',
@@ -111,7 +125,6 @@ export async function uploadToIPFS(
   onProgress?: (progress: number) => void
 ): Promise<UploadResult> {
   try {
-    // Auto-detect device info if not provided
     const deviceData = enhancedOptions ? {
       platform: enhancedOptions.platform || 'web',
       deviceInfo: enhancedOptions.deviceInfo || 'unknown',
@@ -120,29 +133,57 @@ export async function uploadToIPFS(
       connectionType: enhancedOptions.connectionType || 'unknown'
     } : getDetailedDeviceInfo();
 
-    console.log('📤 IPFS upload started:', file.name);
+    console.log('📤 IPFS upload started:', file.name, `(${(file.size / 1024 / 1024).toFixed(1)}MB)`);
 
+    const useDirectUpload = file.size > DIRECT_UPLOAD_THRESHOLD;
+
+    if (useDirectUpload) {
+      console.log('📡 Using direct-to-Pinata upload (file > 4MB, bypassing Vercel limit)');
+    }
+
+    // Build FormData for Pinata
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('creator', username);
 
-    // Add enhanced tracking information
-    formData.append('platform', deviceData.platform);
-    formData.append('deviceInfo', deviceData.deviceInfo);
-    formData.append('browserInfo', deviceData.browserInfo);
-    formData.append('viewport', deviceData.viewport);
-
-    if (enhancedOptions?.userHP !== undefined) {
-      formData.append('userHP', enhancedOptions.userHP.toString());
+    if (useDirectUpload) {
+      // Direct upload: add Pinata metadata inline
+      const pinataMetadata = JSON.stringify({
+        name: file.name,
+        keyvalues: {
+          creator: username,
+          fileType: file.type,
+          uploadDate: new Date().toISOString(),
+          platform: deviceData.platform,
+          deviceInfo: deviceData.deviceInfo,
+        }
+      });
+      formData.append('pinataMetadata', pinataMetadata);
+      formData.append('pinataOptions', JSON.stringify({ cidVersion: 1 }));
+    } else {
+      // Proxy upload: add tracking fields for /api/pinata
+      formData.append('creator', username);
+      formData.append('platform', deviceData.platform);
+      formData.append('deviceInfo', deviceData.deviceInfo);
+      formData.append('browserInfo', deviceData.browserInfo);
+      formData.append('viewport', deviceData.viewport);
+      if (enhancedOptions?.userHP !== undefined) {
+        formData.append('userHP', enhancedOptions.userHP.toString());
+      }
+      if (deviceData.connectionType !== 'unknown') {
+        formData.append('connectionType', deviceData.connectionType);
+      }
+      formData.append('correlationId', `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
     }
 
-    if (deviceData.connectionType !== 'unknown') {
-      formData.append('connectionType', deviceData.connectionType);
+    // Get signed JWT for direct uploads
+    let jwt: string | null = null;
+    if (useDirectUpload) {
+      jwt = await getSignedJwt();
     }
 
-    // Generate correlation ID for tracking if not provided
-    const correlationId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    formData.append('correlationId', correlationId);
+    const endpoint = useDirectUpload
+      ? 'https://api.pinata.cloud/pinning/pinFileToIPFS'
+      : '/api/pinata';
 
     // Use XHR for progress support
     const result = await new Promise<{ IpfsHash: string }>((resolve, reject) => {
@@ -160,13 +201,13 @@ export async function uploadToIPFS(
       xhr.addEventListener('load', () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
-            const result = JSON.parse(xhr.responseText);
-            resolve(result);
+            const parsed = JSON.parse(xhr.responseText);
+            resolve(parsed);
           } catch {
             reject(new Error('Invalid response from server'));
           }
         } else {
-          reject(new Error(`Upload failed: ${xhr.status}`));
+          reject(new Error(`Upload failed: ${xhr.status} - ${xhr.responseText?.substring(0, 200)}`));
         }
       });
 
@@ -180,7 +221,10 @@ export async function uploadToIPFS(
 
       xhr.timeout = 480000; // 8 minutes
 
-      xhr.open('POST', '/api/pinata');
+      xhr.open('POST', endpoint);
+      if (jwt) {
+        xhr.setRequestHeader('Authorization', `Bearer ${jwt}`);
+      }
       xhr.send(formData);
     });
 
@@ -188,7 +232,7 @@ export async function uploadToIPFS(
       throw new Error('No IPFS hash returned');
     }
 
-    console.log('✅ IPFS upload successful');
+    console.log('✅ IPFS upload successful:', result.IpfsHash);
 
     const ipfsUrl = `https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${result.IpfsHash}`;
 
@@ -201,7 +245,6 @@ export async function uploadToIPFS(
   } catch (error) {
     console.error('❌ IPFS upload failed:', {
       creator: username,
-      deviceInfo: enhancedOptions ? (enhancedOptions.deviceInfo || getDetailedDeviceInfo().deviceInfo) : getDetailedDeviceInfo().deviceInfo,
       error: error instanceof Error ? error.message : 'Upload failed'
     });
     return {

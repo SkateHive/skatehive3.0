@@ -21,9 +21,12 @@ import Image from 'next/image';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { FaEthereum, FaCalendar, FaArrowLeft, FaBolt, FaUsers, FaTrophy, FaVoteYea, FaTimes, FaCheck } from 'react-icons/fa';
 import { formatEther } from 'viem';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
+import ImageCompressor, { ImageCompressorRef } from '@/lib/utils/ImageCompressor';
+import VideoUploader, { VideoUploaderRef } from '@/components/homepage/VideoUploader';
+import imageCompression from 'browser-image-compression';
 import type { PoidhBounty } from '@/types/poidh';
 import { CHAIN_LABEL, CHAIN_PATH } from '@/lib/poidh-constants';
 import { usePoidhWrite } from '@/hooks/usePoidhWrite';
@@ -64,6 +67,10 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   const [claimTitle, setClaimTitle] = useState('');
   const [claimDescription, setClaimDescription] = useState('');
   const [claimUri, setClaimUri] = useState('');
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
+  const [isDragOverProof, setIsDragOverProof] = useState(false);
+  const imageCompressorRef = useRef<ImageCompressorRef>(null);
+  const videoUploaderRef = useRef<VideoUploaderRef>(null);
 
   const numericChainId = parseInt(chainId, 10);
   // Use onChainId for all smart contract interactions (different from indexer id)
@@ -164,6 +171,61 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
       await poidh.withdrawFromOpenBounty(numericChainId, onChainBountyId);
       window.location.reload();
     } catch { /* handled by hook */ }
+  };
+
+  // ── Proof upload handlers ──
+  const handleProofImageUpload = async (compressedUrl: string | null, fileName?: string) => {
+    if (!compressedUrl) return;
+    setIsUploadingProof(true);
+    try {
+      const blob = await fetch(compressedUrl).then(r => r.blob());
+      const formData = new FormData();
+      formData.append('file', blob, fileName || 'proof.jpg');
+      const res = await fetch('/api/pinata', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data?.url) setClaimUri(data.url);
+    } catch (e) {
+      console.error('Image upload failed:', e);
+    } finally {
+      setIsUploadingProof(false);
+    }
+  };
+
+  const handleProofVideoUpload = (result: { url?: string; hash?: string } | null) => {
+    if (result?.url) setClaimUri(result.url);
+  };
+
+  const handleProofDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOverProof(false);
+    const files = Array.from(e.dataTransfer.files);
+    for (const file of files) {
+      if (file.type.startsWith('image/')) {
+        setIsUploadingProof(true);
+        try {
+          const compressed = await imageCompression(file, {
+            maxSizeMB: 2,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+          });
+          const url = URL.createObjectURL(compressed);
+          await handleProofImageUpload(url, compressed.name);
+          URL.revokeObjectURL(url);
+        } catch { /* ignore */ } finally {
+          setIsUploadingProof(false);
+        }
+      } else if (file.type.startsWith('video/')) {
+        if (videoUploaderRef.current?.handleFile) {
+          setIsUploadingProof(true);
+          try {
+            await videoUploaderRef.current.handleFile(file);
+          } catch { /* ignore */ } finally {
+            setIsUploadingProof(false);
+          }
+        }
+      }
+    }
   };
 
   const handleSubmitClaim = async () => {
@@ -855,20 +917,117 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                             _placeholder={{ color: 'dim' }}
                             _focus={{ borderColor: 'primary', boxShadow: 'none' }}
                           />
+                          {/* Upload zone + URL input */}
+                          {claimUri ? (
+                            <Box position="relative" border="1px solid" borderColor="primary" bg="background" p={2}>
+                              {claimUri.match(/\.(mp4|webm|mov)$/i) || claimUri.includes('video') ? (
+                                <video src={claimUri} controls style={{ width: '100%', maxHeight: '180px' }} />
+                              ) : (
+                                <Box
+                                  as="img"
+                                  src={claimUri}
+                                  alt="Proof"
+                                  w="100%"
+                                  maxH="180px"
+                                  objectFit="contain"
+                                />
+                              )}
+                              <Button
+                                position="absolute"
+                                top={1}
+                                right={1}
+                                size="xs"
+                                bg="rgba(0,0,0,0.7)"
+                                color="error"
+                                borderRadius="none"
+                                onClick={() => setClaimUri('')}
+                                _hover={{ bg: 'rgba(0,0,0,0.9)' }}
+                              >
+                                <Icon as={FaTimes} />
+                              </Button>
+                            </Box>
+                          ) : (
+                            <Box
+                              border="2px dashed"
+                              borderColor={isDragOverProof ? 'primary' : 'border'}
+                              bg={isDragOverProof ? 'rgba(167,255,0,0.05)' : 'background'}
+                              p={4}
+                              textAlign="center"
+                              cursor="pointer"
+                              transition="all 0.2s"
+                              onDragOver={(e) => { e.preventDefault(); setIsDragOverProof(true); }}
+                              onDragLeave={() => setIsDragOverProof(false)}
+                              onDrop={handleProofDrop}
+                              onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/*,video/*';
+                                input.onchange = async (e) => {
+                                  const file = (e.target as HTMLInputElement).files?.[0];
+                                  if (!file) return;
+                                  if (file.type.startsWith('image/')) {
+                                    setIsUploadingProof(true);
+                                    try {
+                                      const compressed = await imageCompression(file, {
+                                        maxSizeMB: 2, maxWidthOrHeight: 1920, useWebWorker: true,
+                                      });
+                                      const url = URL.createObjectURL(compressed);
+                                      await handleProofImageUpload(url, compressed.name);
+                                      URL.revokeObjectURL(url);
+                                    } catch { /* ignore */ } finally { setIsUploadingProof(false); }
+                                  } else if (file.type.startsWith('video/')) {
+                                    if (videoUploaderRef.current?.handleFile) {
+                                      setIsUploadingProof(true);
+                                      try { await videoUploaderRef.current.handleFile(file); }
+                                      catch { /* ignore */ } finally { setIsUploadingProof(false); }
+                                    }
+                                  }
+                                };
+                                input.click();
+                              }}
+                            >
+                              {isUploadingProof ? (
+                                <VStack spacing={1}>
+                                  <Spinner size="sm" color="primary" />
+                                  <Text fontSize="xs" fontFamily="mono" color="primary">UPLOADING...</Text>
+                                </VStack>
+                              ) : (
+                                <VStack spacing={1}>
+                                  <Text fontSize="sm" fontFamily="mono" color="dim">
+                                    DROP IMAGE/VIDEO OR CLICK TO UPLOAD
+                                  </Text>
+                                  <Text fontSize="2xs" fontFamily="mono" color="dim" opacity={0.5}>
+                                    Auto-uploads to IPFS
+                                  </Text>
+                                </VStack>
+                              )}
+                            </Box>
+                          )}
                           <Input
                             value={claimUri}
                             onChange={(e) => setClaimUri(e.target.value)}
-                            placeholder="Proof URL (image/video link or IPFS URI)"
+                            placeholder="Or paste URL (image/video link or IPFS URI)"
                             bg="background"
                             border="1px solid"
                             borderColor="border"
                             borderRadius="none"
                             fontFamily="mono"
-                            fontSize="sm"
+                            fontSize="xs"
                             color="text"
                             _placeholder={{ color: 'dim' }}
                             _focus={{ borderColor: 'primary', boxShadow: 'none' }}
                           />
+                          {/* Hidden upload components */}
+                          <Box display="none">
+                            <ImageCompressor
+                              ref={imageCompressorRef}
+                              onUpload={handleProofImageUpload}
+                            />
+                            <VideoUploader
+                              ref={videoUploaderRef}
+                              onUpload={handleProofVideoUpload}
+                            />
+                          </Box>
                           <HStack spacing={2}>
                             <Button
                               onClick={handleSubmitClaim}

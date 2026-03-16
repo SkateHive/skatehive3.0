@@ -139,7 +139,51 @@ export async function uploadWithProgress(
       reject(error);
     }
   });
-} export async function uploadWithChunks(
+}
+
+/**
+ * Upload directly to Pinata's API (bypasses Vercel payload limit)
+ */
+export async function uploadDirectToPinata(
+  formData: FormData,
+  jwt: string,
+  onProgress: (progress: number) => void,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        const progress = Math.round((event.loaded / event.total) * 100);
+        onProgress(progress);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.responseText);
+      } else {
+        reject(new Error(`Upload failed: ${xhr.status} - ${xhr.responseText?.substring(0, 200)}`));
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      reject(new Error(`Network error: ${xhr.statusText || "Unknown error"}`));
+    });
+
+    xhr.addEventListener("timeout", () => {
+      reject(new Error("Upload timeout"));
+    });
+
+    xhr.timeout = 600000; // 10 minutes for large files
+
+    xhr.open("POST", "https://api.pinata.cloud/pinning/pinFileToIPFS");
+    xhr.setRequestHeader("Authorization", `Bearer ${jwt}`);
+    xhr.send(formData);
+  });
+}
+
+export async function uploadWithChunks(
   file: File,
   creator?: string,
   thumbnailUrl?: string
@@ -236,42 +280,48 @@ export async function handleVideoUpload(
       };
     }
 
-    // Create FormData for upload. Do NOT set Content-Type manually when sending
-    // this FormData (fetch/XHR will set it correctly including the boundary).
+    // Files > 4MB bypass Vercel's payload limit by uploading directly to Pinata
+    const DIRECT_UPLOAD_THRESHOLD = 4 * 1024 * 1024;
+    const useDirectUpload = file.size > DIRECT_UPLOAD_THRESHOLD;
+
     const formData = new FormData();
     formData.append("file", file);
-    if (username) formData.append("creator", username);
-    if (thumbnailUrl) formData.append("thumbnailUrl", thumbnailUrl);
-
-    // Add enhanced tracking information if provided
-    if (enhancedOptions?.platform) {
-      formData.append("platform", enhancedOptions.platform);
-    }
-    if (userHP > 0) {
-      formData.append("userHP", userHP.toString());
-    }
-    if (enhancedOptions?.deviceInfo) {
-      formData.append("deviceInfo", enhancedOptions.deviceInfo);
-    }
-    if (enhancedOptions?.browserInfo) {
-      formData.append("browserInfo", enhancedOptions.browserInfo);
-    }
-    if (enhancedOptions?.viewport) {
-      formData.append("viewport", enhancedOptions.viewport);
-    }
-    if (enhancedOptions?.connectionType) {
-      formData.append("connectionType", enhancedOptions.connectionType);
-    }
 
     let responseText: string;
 
-    if (file.size > limits.chunkedUploadThreshold) {
-      try {
-        responseText = await uploadWithChunks(file, username, thumbnailUrl);
-      } catch (chunkError) {
-        responseText = await uploadWithProgress(formData, onProgress || (() => { }));
-      }
+    if (useDirectUpload) {
+      // Direct-to-Pinata: get signed JWT, upload with Pinata metadata format
+      console.log('📡 Direct-to-Pinata upload (file > 4MB, bypassing Vercel limit)');
+      const pinataMetadata = JSON.stringify({
+        name: file.name,
+        keyvalues: {
+          creator: username || 'anonymous',
+          fileType: file.type,
+          uploadDate: new Date().toISOString(),
+          platform: enhancedOptions?.platform || 'web',
+          ...(thumbnailUrl && { thumbnailUrl }),
+        }
+      });
+      formData.append('pinataMetadata', pinataMetadata);
+      formData.append('pinataOptions', JSON.stringify({ cidVersion: 1 }));
+
+      const jwtRes = await fetch('/api/pinata/signed-url');
+      if (!jwtRes.ok) throw new Error('Failed to get upload credentials');
+      const { jwt } = await jwtRes.json();
+      if (!jwt) throw new Error('No JWT returned');
+
+      responseText = await uploadDirectToPinata(formData, jwt, onProgress || (() => { }));
     } else {
+      // Small files: proxy through /api/pinata
+      if (username) formData.append("creator", username);
+      if (thumbnailUrl) formData.append("thumbnailUrl", thumbnailUrl);
+      if (enhancedOptions?.platform) formData.append("platform", enhancedOptions.platform);
+      if (userHP > 0) formData.append("userHP", userHP.toString());
+      if (enhancedOptions?.deviceInfo) formData.append("deviceInfo", enhancedOptions.deviceInfo);
+      if (enhancedOptions?.browserInfo) formData.append("browserInfo", enhancedOptions.browserInfo);
+      if (enhancedOptions?.viewport) formData.append("viewport", enhancedOptions.viewport);
+      if (enhancedOptions?.connectionType) formData.append("connectionType", enhancedOptions.connectionType);
+
       responseText = await uploadWithProgress(formData, onProgress || (() => { }));
     }
 
