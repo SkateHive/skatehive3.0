@@ -27,6 +27,7 @@ import { useConnectModal } from '@rainbow-me/rainbowkit';
 import ImageCompressor, { ImageCompressorRef } from '@/lib/utils/ImageCompressor';
 import VideoUploader, { VideoUploaderRef } from '@/components/homepage/VideoUploader';
 import imageCompression from 'browser-image-compression';
+import { uploadToIpfsSmart } from '@/lib/utils/ipfsUpload';
 import type { PoidhBounty } from '@/types/poidh';
 import { CHAIN_LABEL, CHAIN_PATH } from '@/lib/poidh-constants';
 import { usePoidhWrite } from '@/hooks/usePoidhWrite';
@@ -179,11 +180,8 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
     setIsUploadingProof(true);
     try {
       const blob = await fetch(compressedUrl).then(r => r.blob());
-      const formData = new FormData();
-      formData.append('file', blob, fileName || 'proof.jpg');
-      const res = await fetch('/api/pinata', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data?.url) setClaimUri(data.url);
+      const result = await uploadToIpfsSmart(blob, { fileName: fileName || 'proof.jpg' });
+      if (result?.url) setClaimUri(result.url);
     } catch (e) {
       console.error('Image upload failed:', e);
     } finally {

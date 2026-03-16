@@ -5,6 +5,7 @@
 import React from 'react';
 import { fetchFile } from '@ffmpeg/util';
 import { APP_CONFIG } from "@/config/app.config";
+import { uploadToIpfsSmart } from "./ipfsUpload";
 
 export async function generateThumbnailWithCanvas(
   file: File
@@ -162,27 +163,11 @@ export async function uploadThumbnail(
   username?: string
 ): Promise<string | null> {
   try {
-    const thumbnailFormData = new FormData();
-    thumbnailFormData.append("file", thumbnailBlob, "thumbnail.webp");
-    if (username) thumbnailFormData.append("creator", username);
-
-    const thumbnailResponse = await fetch("/api/pinata", {
-      method: "POST",
-      body: thumbnailFormData,
+    const result = await uploadToIpfsSmart(thumbnailBlob, {
+      fileName: 'thumbnail.webp',
+      creator: username,
     });
-
-    if (!thumbnailResponse.ok) {
-      const errorText = await thumbnailResponse.text().catch(() => '');
-      console.error("Thumbnail upload failed", {
-        status: thumbnailResponse.status,
-        statusText: thumbnailResponse.statusText,
-        response: errorText,
-      });
-      throw new Error("Failed to upload thumbnail");
-    }
-
-    const thumbnailResult = await thumbnailResponse.json();
-    return `https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${thumbnailResult.IpfsHash}`;
+    return result.url;
   } catch (error) {
     console.error("Thumbnail upload failed:", error);
     return null;

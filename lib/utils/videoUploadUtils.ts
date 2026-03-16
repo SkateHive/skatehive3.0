@@ -3,6 +3,7 @@
  */
 
 import { APP_CONFIG } from "@/config/app.config";
+import { uploadToIpfsSmart } from "./ipfsUpload";
 
 export function getVideoDuration(file: File): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -280,70 +281,21 @@ export async function handleVideoUpload(
       };
     }
 
-    // Files > 4MB bypass Vercel's payload limit by uploading directly to Pinata
-    const DIRECT_UPLOAD_THRESHOLD = 4 * 1024 * 1024;
-    const useDirectUpload = file.size > DIRECT_UPLOAD_THRESHOLD;
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    let responseText: string;
-
-    if (useDirectUpload) {
-      // Direct-to-Pinata: get signed JWT, upload with Pinata metadata format
-      console.log('📡 Direct-to-Pinata upload (file > 4MB, bypassing Vercel limit)');
-      const pinataMetadata = JSON.stringify({
-        name: file.name,
-        keyvalues: {
-          creator: username || 'anonymous',
-          fileType: file.type,
-          uploadDate: new Date().toISOString(),
-          platform: enhancedOptions?.platform || 'web',
-          ...(thumbnailUrl && { thumbnailUrl }),
-        }
-      });
-      formData.append('pinataMetadata', pinataMetadata);
-      formData.append('pinataOptions', JSON.stringify({ cidVersion: 1 }));
-
-      const jwtRes = await fetch('/api/pinata/signed-url');
-      if (!jwtRes.ok) throw new Error('Failed to get upload credentials');
-      const { jwt } = await jwtRes.json();
-      if (!jwt) throw new Error('No JWT returned');
-
-      responseText = await uploadDirectToPinata(formData, jwt, onProgress || (() => { }));
-    } else {
-      // Small files: proxy through /api/pinata
-      if (username) formData.append("creator", username);
-      if (thumbnailUrl) formData.append("thumbnailUrl", thumbnailUrl);
-      if (enhancedOptions?.platform) formData.append("platform", enhancedOptions.platform);
-      if (userHP > 0) formData.append("userHP", userHP.toString());
-      if (enhancedOptions?.deviceInfo) formData.append("deviceInfo", enhancedOptions.deviceInfo);
-      if (enhancedOptions?.browserInfo) formData.append("browserInfo", enhancedOptions.browserInfo);
-      if (enhancedOptions?.viewport) formData.append("viewport", enhancedOptions.viewport);
-      if (enhancedOptions?.connectionType) formData.append("connectionType", enhancedOptions.connectionType);
-
-      responseText = await uploadWithProgress(formData, onProgress || (() => { }));
-    }
-
-    const result = JSON.parse(responseText);
-
-    if (!result || !result.IpfsHash) {
-      return {
-        success: false,
-        error: "Failed to upload video - invalid response"
-      };
-    }
-
-    console.log('✅ Video upload successful:', {
+    // Use shared smart upload (handles direct-to-Pinata for large files + 413 fallback)
+    const result = await uploadToIpfsSmart(file, {
+      fileName: file.name,
       creator: username,
-      platform: enhancedOptions?.platform || 'web',
-      ipfsHash: result.IpfsHash
+      onProgress,
+      metadata: {
+        platform: enhancedOptions?.platform || 'web',
+        ...(thumbnailUrl && { thumbnailUrl }),
+      },
     });
 
     return {
       success: true,
-      url: `https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${result.IpfsHash}`,
-      IpfsHash: result.IpfsHash
+      url: result.url,
+      IpfsHash: result.IpfsHash,
     };
   } catch (error) {
     console.error('❌ Video upload failed:', {
