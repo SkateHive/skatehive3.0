@@ -11,6 +11,7 @@ import ZoraCoinPreview from "../zora/ZoraCoinPreview";
 import SnapshotPreview from "../shared/SnapshotPreview";
 import GameCartridgeEmbed from "../games/GameCartridgeEmbed";
 import ProposalPreview from "../dao/governance/ProposalPreview";
+import BountyPreview from "../bounties/BountyPreview";
 import HiveMarkdown from "@/components/shared/HiveMarkdown";
 
 interface EnhancedMarkdownRendererProps {
@@ -39,7 +40,7 @@ function renderContentWithVideos(
   // Split on supported video, social media, Zora coin, Snapshot, SkateHive game, and Builder proposal placeholders
   // Use [\s\S] instead of [^\]] to handle newlines inside placeholders
   const parts = processed.contentWithPlaceholders.split(
-    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL):[\s\S]+?\]\])/g
+    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[\s\S]+?\]\])/g
   );
 
   return parts
@@ -94,6 +95,13 @@ function renderContentWithVideos(
         return <ProposalPreview key={`proposal-${idx}`} url={url} />;
       }
 
+      // Handle POIDH bounty placeholders
+      const bountyMatch = part.match(/^\[\[POIDHBOUNTY:([\s\S]+?)\]\]$/);
+      if (bountyMatch) {
+        const [chainId, id] = bountyMatch[1].trim().split(":");
+        return <BountyPreview key={`bounty-${idx}`} chainId={chainId} id={id} />;
+      }
+
       // Skip empty parts or parts that are just whitespace
       if (!part || part.trim() === "") {
         return null;
@@ -142,11 +150,12 @@ function cleanMarkdownPart(part: string): string {
     )
     .replace(/^https?:\/\/(?:www\.)?worldmappin\.com\/.*$/gm, "")
     .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/games\/.*$/gm, "") // SkateHive games
+    .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/bounties\/poidh\/.*$/gm, "") // POIDH bounties
     .replace(/^https?:\/\/(?:www\.)?[^\/\s]+\/(?:proposals|vote)\/\d+$/gm, "") // Builder DAO proposals
     // Remove any leftover placeholders that weren't split properly
-    .replace(/\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL):[^\]]+\]\]/g, "")
+    .replace(/\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[^\]]+\]\]/g, "")
     .replace(
-      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL)\s*$/gm,
+      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY)\s*$/gm,
       ""
     )
     .replace(/^[a-zA-Z0-9_-]{11}$/gm, "") // YouTube video IDs

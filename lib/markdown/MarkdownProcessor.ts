@@ -14,7 +14,7 @@ export interface ProcessedMarkdown {
 }
 
 export interface VideoPlaceholder {
-  type: 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL';
+  type: 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY';
   id: string;
   placeholder: string;
 }
@@ -53,8 +53,11 @@ export class MarkdownProcessor {
     // Step 3.6: Convert Builder DAO proposal links to placeholders
     const contentWithProposalPlaceholders = this.convertBuilderProposalLinksToPlaceholders(contentWithGamePlaceholders);
 
+    // Step 3.7: Convert POIDH bounty links to placeholders
+    const contentWithBountyPlaceholders = this.convertPoidhBountyLinksToPlaceholders(contentWithProposalPlaceholders);
+
     // Step 4: Extract video placeholders and convert to our format
-    const contentWithPlaceholders = this.convertToVideoPlaceholders(contentWithProposalPlaceholders);
+    const contentWithPlaceholders = this.convertToVideoPlaceholders(contentWithBountyPlaceholders);
 
     // Step 4: Detect Instagram embeds
     const hasInstagramEmbeds = processedContent.includes("<!--INSTAGRAM_EMBED_SCRIPT-->");
@@ -128,6 +131,15 @@ export class MarkdownProcessor {
     });
   }
 
+  private static convertPoidhBountyLinksToPlaceholders(content: string): string {
+    // Match skatehive.app/bounties/poidh/[chainId]/[id] URLs (and localhost for dev)
+    const bountyUrlRegex = /https?:\/\/(?:www\.)?(?:skatehive\.app|localhost:\d+)\/bounties\/poidh\/(\d+)\/(\d+)/g;
+
+    return content.replace(bountyUrlRegex, (_, chainId, id) => {
+      return `[[POIDHBOUNTY:${chainId}:${id}]]`;
+    });
+  }
+
   private static convertToVideoPlaceholders(content: string): string {
     return content.replace(
       /<div class="video-embed" data-ipfs-hash="([^"]+)">[\s\S]*?<\/div>/g,
@@ -137,12 +149,12 @@ export class MarkdownProcessor {
 
   private static extractVideoPlaceholders(content: string): VideoPlaceholder[] {
     const placeholders: VideoPlaceholder[] = [];
-    const regex = /\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL):([^\]]+)\]\]/g;
+    const regex = /\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):([^\]]+)\]\]/g;
     let match;
 
     while ((match = regex.exec(content)) !== null) {
       placeholders.push({
-        type: match[1] as 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL',
+        type: match[1] as 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY',
         id: match[2],
         placeholder: match[0],
       });
