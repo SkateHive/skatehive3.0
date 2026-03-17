@@ -322,17 +322,37 @@ export default function BountyPreview({ chainId, id }: BountyPreviewProps) {
         cursor="pointer"
       >
         <VStack align="start" spacing={3} width="full">
-          {/* Header */}
+          {/* Header: POIDH BOUNTY + chain */}
           <HStack justify="space-between" width="full">
             <Text fontWeight="bold" fontSize="sm" fontFamily="mono" color="primary">
-              POIDH BOUNTY 💰
+              💰 POIDH BOUNTY
             </Text>
             <HStack spacing={1.5} align="center">
-              <Icon as={FaEthereum} boxSize="12px" color="#627EEA" mt="-1px" />
+              <Icon as={FaEthereum} boxSize="12px" color="#627EEA" />
               <Text fontSize="xs" fontFamily="mono" color="gray.500">
                 {chainLabel}
               </Text>
             </HStack>
+          </HStack>
+
+          {/* Win line */}
+          <HStack spacing={2} align="center">
+            <Text fontWeight="900" fontSize="xl" fontFamily="mono" color="text">
+              Win
+            </Text>
+            <Text fontWeight="900" fontSize="xl" fontFamily="mono" color="#627EEA">
+              {ethDisplay} ETH
+            </Text>
+            {usdValue && (
+              <>
+                <Text fontWeight="900" fontSize="xl" color="gray.500" fontFamily="mono">
+                  ~
+                </Text>
+                <Text fontWeight="900" fontSize="xl" color="primary" fontFamily="mono">
+                  (${usdValue})
+                </Text>
+              </>
+            )}
           </HStack>
 
           {/* Image — natural aspect ratio */}
@@ -361,50 +381,32 @@ export default function BountyPreview({ chainId, id }: BountyPreviewProps) {
 
           <Divider borderColor="gray.700" />
 
-          {/* Reward + claims + claim button */}
+          {/* Footer: claims count + claim button */}
           <HStack justify="space-between" width="full" align="center">
-            <HStack spacing={2} align="center">
-              <Icon as={FaEthereum} boxSize="18px" color="#627EEA" flexShrink={0} />
-              <Text fontWeight="900" fontSize="lg" fontFamily="mono" color="#627EEA">
-                {ethDisplay} ETH
-              </Text>
-              {usdValue && (
-                <>
-                  <Text fontWeight="900" fontSize="lg" color="gray.500" fontFamily="mono">
-                    ~
-                  </Text>
-                  <Text fontWeight="900" fontSize="lg" color="primary" fontFamily="mono">
-                    ${usdValue}
-                  </Text>
-                </>
-              )}
-            </HStack>
-            <HStack spacing={3}>
-              <Text fontSize="xs" fontFamily="mono" color="gray.500">
-                {claimCount} {claimCount === 1 ? "claim" : "claims"}
-              </Text>
-              {isActive && (
-                <Button
-                  size="xs"
-                  bg="primary"
-                  color="background"
-                  borderRadius="none"
-                  fontFamily="mono"
-                  fontWeight="bold"
-                  fontSize="xs"
-                  textTransform="uppercase"
-                  leftIcon={<Icon as={FaBolt} boxSize="10px" />}
-                  _hover={{ bg: "accent" }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowClaimModal(true);
-                  }}
-                >
-                  CLAIM
-                </Button>
-              )}
-            </HStack>
+            <Text fontSize="xs" fontFamily="mono" color="gray.500">
+              {claimCount} {claimCount === 1 ? "claim" : "claims"}
+            </Text>
+            {isActive && (
+              <Button
+                size="sm"
+                bg="primary"
+                color="background"
+                borderRadius="none"
+                fontFamily="mono"
+                fontWeight="bold"
+                fontSize="xs"
+                textTransform="uppercase"
+                leftIcon={<Icon as={FaBolt} boxSize="10px" />}
+                _hover={{ bg: "accent" }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowClaimModal(true);
+                }}
+              >
+                CLAIM
+              </Button>
+            )}
           </HStack>
         </VStack>
       </Box>
