@@ -18,7 +18,7 @@ import { HIVE_CONFIG } from "@/config/app.config";
 import { useTranslations } from "@/contexts/LocaleContext";
 
 const SKATEHIVE_TAG = HIVE_CONFIG.COMMUNITY_TAG;
-const BLINK_INTERVAL = 5000; // alternate every 5 seconds
+const BLINK_INTERVAL = 4000; // alternate every 4 seconds
 
 function CommunityTotalPayout() {
   const t = useTranslations();
@@ -143,60 +143,48 @@ function CommunityTotalPayout() {
     fetchBounties();
   }, []);
 
-  // Scramble animation for initial load
+  // Scramble helper — randomizes digits then settles on target
+  const runScramble = useCallback((target: string, durationMs = 800) => {
+    let count = 0;
+    const total = Math.floor(durationMs / 80);
+    const id = setInterval(() => {
+      setDisplayedNumber(
+        target
+          .split("")
+          .map(() => Math.floor(Math.random() * 10))
+          .join("")
+      );
+      count++;
+      if (count >= total) {
+        clearInterval(id);
+        setDisplayedNumber(target);
+      }
+    }, 80);
+    return id;
+  }, []);
+
+  // Initial scramble on load
   useEffect(() => {
     if (!loading && !error) {
-      const target = showingBounties ? formattedBountyNumber : formattedNumber;
-      const intervalId = setInterval(() => {
-        setDisplayedNumber(
-          target
-            .split("")
-            .map(() => Math.floor(Math.random() * 10))
-            .join("")
-        );
-      }, 100);
-
-      const timeoutId = setTimeout(() => {
-        clearInterval(intervalId);
-        setDisplayedNumber(target);
-      }, 4000);
-
-      return () => {
-        clearInterval(intervalId);
-        clearTimeout(timeoutId);
-      };
+      const id = runScramble(formattedNumber, 2000);
+      return () => clearInterval(id);
     }
-  }, [formattedNumber, loading, error]);
+  }, [formattedNumber, loading, error, runScramble]);
 
-  // Blink between community payout and bounty total
+  // Alternate between community payout and bounty total
   useEffect(() => {
     if (!hasBounties || loading || error) return;
 
     const interval = setInterval(() => {
       setShowingBounties((prev) => {
         const next = !prev;
-        // Quick scramble transition
-        const target = next ? formattedBountyNumber : formattedNumber;
-        let scrambleCount = 0;
-        const scramble = setInterval(() => {
-          setDisplayedNumber(
-            target
-              .split("")
-              .map(() => Math.floor(Math.random() * 10))
-              .join("")
-          );
-          scrambleCount++;
-          if (scrambleCount >= 8) {
-            clearInterval(scramble);
-            setDisplayedNumber(target);
-          }
-        }, 80);
+        runScramble(next ? formattedBountyNumber : formattedNumber);
         return next;
       });
     }, BLINK_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [hasBounties, loading, error, formattedNumber, formattedBountyNumber]);
+  }, [hasBounties, loading, error, formattedNumber, formattedBountyNumber, runScramble]);
 
   const handleClick = useCallback(() => {
     if (showingBounties && hasBounties) {
