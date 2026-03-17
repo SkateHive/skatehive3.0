@@ -82,6 +82,8 @@ export const extractLastUrl = (content: string): string | null => {
       || url.includes('schema.org')
       // skip gnars.com 
       || url.includes('gnars.com')
+      // skip skatehive bounties urls 
+      || url.includes('skatehive.app/bounties/poidh/')
       // skit media.tenor
       || url.includes('media.tenor.com')
       // skip https://html5-game-skatehive.vercel.app/QFShive/index.html
