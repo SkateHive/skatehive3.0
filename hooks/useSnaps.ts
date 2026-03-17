@@ -38,19 +38,18 @@ export const useSnaps = () => {
     });
   }
 
-  // Fetch comments with a minimum size
+  // Fetch comments with a minimum size (blockchain fallback)
   async function getMoreSnaps(): Promise<Discussion[]> {
     const tag = HIVE_CONFIG.COMMUNITY_TAG;
     const author = HIVE_CONFIG.THREADS.AUTHOR;
     const limit = 3;
     const allFilteredComments: Discussion[] = [];
 
-    let hasMoreData = true; // To track if there are more containers to fetch
+    let hasMoreData = true;
     let permlink = lastContainerRef.current?.permlink || "";
     let date = lastContainerRef.current?.date || new Date().toISOString();
 
     while (allFilteredComments.length < pageMinSize && hasMoreData) {
-
       const result = await HiveClient.database.call('get_discussions_by_author_before_date', [
         author,
         permlink,
@@ -63,27 +62,27 @@ export const useSnaps = () => {
         break;
       }
 
-      for (const resultItem of result) {
-        const comments = (await HiveClient.database.call("get_content_replies", [
+      // Parallelize reply fetches instead of sequential
+      const replyPromises = result.map((resultItem: any) =>
+        HiveClient.database.call("get_content_replies", [
           author,
           resultItem.permlink,
-        ])) as Discussion[];
+        ]) as Promise<Discussion[]>
+      );
+      const allReplies = await Promise.all(replyPromises);
 
+      for (let i = 0; i < result.length; i++) {
+        const resultItem = result[i];
+        const comments = allReplies[i];
         const filteredComments = filterCommentsByTag(comments, tag);
         allFilteredComments.push(...filteredComments);
-
-        // Add permlink to the fetched set
         fetchedPermlinksRef.current.add(resultItem.permlink);
-
-        // Update the last container info for the next fetch
         permlink = resultItem.permlink;
         date = resultItem.created;
       }
     }
 
-    // Update the lastContainerRef state for the next API call
     lastContainerRef.current = { permlink, date };
-
     return allFilteredComments;
   }
 
@@ -172,31 +171,16 @@ export const useSnaps = () => {
       try {
         let newSnaps: Discussion[] = [];
 
-        if (process.env.NODE_ENV === 'development') {
-          // Development: API first, blockchain fallback
-          try {
-            newSnaps = await fetchFromNewApi();
-          } catch (apiError) {
-            console.warn('API fetch failed, falling back to Hive blockchain:', apiError);
-            try {
-              newSnaps = await getMoreSnaps();
-            } catch (hiveError) {
-              console.error('Both API and Hive blockchain fetch methods failed:', hiveError);
-              return;
-            }
-          }
-        } else {
-          // Production: Blockchain first, API fallback
+        // API first in all environments (faster), blockchain fallback
+        try {
+          newSnaps = await fetchFromNewApi();
+        } catch (apiError) {
+          console.warn('API fetch failed, falling back to Hive blockchain:', apiError);
           try {
             newSnaps = await getMoreSnaps();
           } catch (hiveError) {
-            console.warn('Hive blockchain fetch failed, falling back to API:', hiveError);
-            try {
-              newSnaps = await fetchFromNewApi();
-            } catch (apiError) {
-              console.error('Both Hive blockchain and API fetch methods failed:', apiError);
-              return;
-            }
+            console.error('Both API and Hive blockchain fetch methods failed:', hiveError);
+            return;
           }
         }
 

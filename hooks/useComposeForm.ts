@@ -7,7 +7,7 @@ import { generatePermlink, prepareImageArray, insertAtCursor } from "@/lib/markd
 import { Beneficiary } from "@/components/compose/BeneficiariesInput";
 import { validateHiveUsernameFormat } from "@/lib/utils/hiveAccountUtils";
 import { HIVE_CONFIG } from "@/config/app.config";
-import useUserbaseHiveIdentity from "@/hooks/useUserbaseHiveIdentity";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 
 export const useComposeForm = () => {
@@ -22,7 +22,7 @@ export const useComposeForm = () => {
     const [showThumbnailPicker, setShowThumbnailPicker] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { aioha, user } = useAioha();
-    const { identity: userbaseHiveIdentity } = useUserbaseHiveIdentity();
+    const { hiveIdentity: userbaseHiveIdentity } = useLinkedIdentities();
     const { user: userbaseUser } = useUserbaseAuth();
     const toast = useToast();
     const router = useRouter();

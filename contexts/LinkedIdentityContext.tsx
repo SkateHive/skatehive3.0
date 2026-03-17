@@ -39,6 +39,7 @@ export interface LinkedConnectionInfo {
 interface LinkedIdentityContextValue {
   identities: IdentityRow[];
   connections: Record<IdentityType, LinkedConnectionInfo>;
+  hiveIdentity: IdentityRow | null;
   isLoading: boolean;
   refresh: () => Promise<void>;
 }
@@ -119,6 +120,12 @@ export function LinkedIdentityProvider({ children }: { children: React.ReactNode
     () => identities.filter((identity) => identity.type === "hive"),
     [identities]
   );
+
+  // Primary Hive identity — replaces the separate useUserbaseHiveIdentity hook
+  const hiveIdentity = useMemo(() => {
+    const primary = hiveIdentities.find((i) => i.is_primary);
+    return primary || hiveIdentities[0] || null;
+  }, [hiveIdentities]);
   const evmIdentities = useMemo(
     () => identities.filter((identity) => identity.type === "evm"),
     [identities]
@@ -180,15 +187,19 @@ export function LinkedIdentityProvider({ children }: { children: React.ReactNode
     ]
   );
 
+  const value = useMemo(
+    () => ({
+      identities,
+      connections,
+      hiveIdentity,
+      isLoading,
+      refresh: fetchIdentities,
+    }),
+    [identities, connections, hiveIdentity, isLoading, fetchIdentities]
+  );
+
   return (
-    <LinkedIdentityContext.Provider
-      value={{
-        identities,
-        connections,
-        isLoading,
-        refresh: fetchIdentities,
-      }}
-    >
+    <LinkedIdentityContext.Provider value={value}>
       {children}
     </LinkedIdentityContext.Provider>
   );

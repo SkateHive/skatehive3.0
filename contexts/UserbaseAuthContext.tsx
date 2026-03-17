@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -155,20 +156,23 @@ export function UserbaseAuthProvider({ children }: { children: React.ReactNode }
     };
   }, [maybeRefresh]);
 
+  const value = useMemo(
+    () => ({
+      user,
+      sessionId,
+      expiresAt,
+      isLoading,
+      error,
+      refresh,
+      signOut,
+      identitiesVersion,
+      bumpIdentitiesVersion,
+    }),
+    [user, sessionId, expiresAt, isLoading, error, refresh, signOut, identitiesVersion, bumpIdentitiesVersion]
+  );
+
   return (
-    <UserbaseAuthContext.Provider
-      value={{
-        user,
-        sessionId,
-        expiresAt,
-        isLoading,
-        error,
-        refresh,
-        signOut,
-        identitiesVersion,
-        bumpIdentitiesVersion,
-      }}
-    >
+    <UserbaseAuthContext.Provider value={value}>
       {children}
     </UserbaseAuthContext.Provider>
   );

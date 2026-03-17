@@ -1,7 +1,7 @@
 import { HiveAccount } from "@/hooks/useHiveAccount";
 import useHiveAccount from "@/hooks/useHiveAccount";
-import useUserbaseHiveIdentity from "@/hooks/useUserbaseHiveIdentity";
-import { createContext, useContext, useEffect, useState } from "react";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
+import { createContext, useContext, useEffect, useMemo, useCallback, useState } from "react";
 
 export interface HiveUserContextProps {
   hiveUser: HiveAccount | null;
@@ -17,39 +17,42 @@ const HiveUserContext = createContext<HiveUserContextProps | undefined>(
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<HiveAccount | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>();
-  const { identity: userbaseHiveIdentity } = useUserbaseHiveIdentity();
+  const { hiveIdentity } = useLinkedIdentities();
   const { hiveAccount, isLoading: isHiveAccountLoading } = useHiveAccount(
-    userbaseHiveIdentity?.handle || ""
+    hiveIdentity?.handle || ""
   );
 
-  const refreshUser = () => {
+  const refreshUserCb = useCallback(() => {
     const userData = localStorage.getItem("hiveuser");
     if (userData) {
       setUser(JSON.parse(userData));
     }
     setIsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
-    if (userbaseHiveIdentity?.handle) {
+    if (hiveIdentity?.handle) {
       setIsLoading(isHiveAccountLoading);
       if (hiveAccount) {
         setUser(hiveAccount);
       }
       return;
     }
-    refreshUser();
-  }, [userbaseHiveIdentity?.handle, hiveAccount, isHiveAccountLoading]);
+    refreshUserCb();
+  }, [hiveIdentity?.handle, hiveAccount, isHiveAccountLoading, refreshUserCb]);
+
+  const value = useMemo(
+    () => ({
+      hiveUser: user,
+      setHiveUser: setUser,
+      isLoading,
+      refreshUser: refreshUserCb,
+    }),
+    [user, isLoading, refreshUserCb]
+  );
 
   return (
-    <HiveUserContext.Provider
-      value={{
-        hiveUser: user,
-        setHiveUser: setUser,
-        isLoading,
-        refreshUser
-      }}
-    >
+    <HiveUserContext.Provider value={value}>
       {children}
     </HiveUserContext.Provider>
   );

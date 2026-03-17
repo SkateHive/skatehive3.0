@@ -255,3 +255,133 @@ function PostItem({ discussion }) {
 ```
 
 For detailed documentation, see `docs/USERBASE_SOFT_POSTS.md`.
+
+## Feed mini-app embeds
+
+The feed supports inline "mini-app" cards for special URLs. When a user posts a link to a supported platform, it renders as a rich interactive card instead of a plain link.
+
+### Supported embeds
+
+| Platform | URL Pattern | Component | Features |
+|----------|-------------|-----------|----------|
+| Zora Coins | `zora.co/.../coin/...` | `ZoraCoinEmbed` | Coin price, market cap, CTA |
+| Builder DAO | `nouns.build/.../vote/...` | `BuilderProposalPreview` | Proposal status, vote counts |
+| Snapshot | `snapshot.box/#/...` | `SnapshotProposalPreview` | Vote status, choices |
+| POIDH Bounties | `skatehive.app/bounties/poidh/...` | `BountyPreview` | Reward in ETH+USD, claim modal |
+
+### 5-layer embed architecture
+
+Adding a new embed type follows this pipeline:
+
+1. **URL detection** (`lib/markdown/MarkdownProcessor.ts`) — Regex matches URLs and converts to placeholders like `[[TYPE:data]]`
+2. **Placeholder extraction** (`extractVideoPlaceholders`) — Split regex updated to recognize new type
+3. **Renderer split** (`components/markdown/EnhancedMarkdownRenderer.tsx`) — Splits content on placeholder boundaries
+4. **Placeholder handler** — Maps placeholder type to the correct React component
+5. **Embed component** — Self-contained component that fetches its own data and renders the card
+
+### Adding a new embed
+
+1. Add URL regex + placeholder conversion in `MarkdownProcessor.ts` (follow the `convertPoidhBountyLinksToPlaceholders` pattern)
+2. Add the new type to the `VideoPlaceholder` type union
+3. Update `extractVideoPlaceholders` regex to include new type
+4. In `EnhancedMarkdownRenderer.tsx`:
+   - Add new type to the split regex
+   - Add handler in the placeholder matching section
+   - Add cleanup regex to strip raw URLs that were already converted
+5. Create the embed component (fetch data via React Query, render card)
+
+### BountyPreview mini-app
+
+`components/bounties/BountyPreview.tsx` is a full-featured embed:
+- Fetches bounty data from `/api/poidh/bounties/[chainId]/[id]`
+- Fetches ETH price (shared `queryKey: ["eth-price"]` across instances)
+- Shows reward as "Win X ETH ~ ($Y USD)"
+- Displays bounty image if available (natural aspect ratio)
+- Inline CLAIM modal with full upload flow (IPFS upload, description, title)
+- Cross-posts claims to Hive if user has Hive identity
+- Entire card is clickable NextLink to bounty detail page
+
+## Hive cross-posting pattern
+
+When a feature needs to cross-post content to Hive, use the dual-path approach:
+
+```typescript
+// Path 1: User has Keychain (aioha)
+if (aiohaUser) {
+  await aioha.comment(
+    null, HIVE_CONFIG.COMMUNITY_TAG, permlink, title, body,
+    { tags: [...], app: "Skatehive App 3.0", image: [...] }
+  );
+}
+// Path 2: User has userbase identity (stored posting key)
+else {
+  await fetch("/api/userbase/hive/comment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      parent_author: "", parent_permlink: HIVE_CONFIG.COMMUNITY_TAG,
+      permlink, title, body,
+      json_metadata: { tags: [...], app: "Skatehive App 3.0", image: [...] },
+      beneficiaries: [], type: "post",
+    }),
+  });
+}
+```
+
+Key hooks for detecting Hive identity:
+- `useHiveUser()` from `contexts/UserContext` — Keychain users
+- `useUserbaseHiveIdentity()` from `hooks/useUserbaseHiveIdentity` — Userbase users with linked Hive
+- `useAioha()` from `@aioha/react-ui` — Aioha wallet instance
+
+Use `generatePermlink()` and `generateVideoIframeMarkdown()` from `lib/markdown/composeUtils.ts`.
+
+## Market prices
+
+`hooks/useMarketPrices.ts` provides centralized price data:
+- Fetches HIVE, HBD, and ETH prices from CoinGecko
+- Auto-refreshes every 5 minutes
+- Fallback prices: HIVE=$0.21, HBD=$1.00, ETH=$2500
+- Used by bounty sorting, USD conversions, and feed embeds
+
+For ETH-only price needs, use a shared React Query key:
+```typescript
+const { data: ethPrice } = useQuery<number>({
+  queryKey: ["eth-price"],
+  queryFn: async () => { /* fetch from CoinGecko */ },
+  staleTime: 5 * 60 * 1000,
+});
+```
+
+## IPFS uploads
+
+`lib/utils/ipfsUpload.ts` provides `uploadToIpfsSmart()`:
+- Unified upload function for images and videos
+- Auto-routes files >4MB directly to Pinata for reliability
+- Returns `{ url, cid }` on success
+- Used by post composer, bounty claims, and profile uploads
+
+## Key component patterns
+
+### SkateModal
+`components/shared/SkateModal.tsx` — Standard modal wrapper used across the app.
+Props: `isOpen`, `onClose`, `title`, `children`, `size` (default `"md"`)
+
+### CommunityTotalPayout
+`components/shared/CommunityTotalPayout.tsx` — Sidebar widget that:
+- Shows total HBD community payout (from HiveHub stats API)
+- Alternates with total open bounties USD value every 4 seconds
+- Scramble animation on transitions
+- Click navigates to `/bounties` when showing bounty total, opens magazine modal otherwise
+
+## Homepage loading architecture
+
+The homepage loading chain is sequential:
+```
+UserbaseAuthProvider → useUserbaseHiveIdentity → useHiveAccount → VoteWeightProvider
+```
+
+Known optimization opportunities:
+1. **Feed source**: PROD uses 6-9 sequential Hive RPCs; DEV uses a single API call. Consider using API as primary.
+2. **Duplicate identity fetches**: Both `useUserbaseHiveIdentity` and `LinkedIdentityProvider` fetch `/api/userbase/identities` independently.
+3. **Leaderboard**: Fetched eagerly but only shown in AirdropModal — could be lazy-loaded.
+4. **Identity caching**: Use `stale-while-revalidate` pattern for identity fetches.

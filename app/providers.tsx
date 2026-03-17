@@ -91,21 +91,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ClickSoundProvider>
         <LocaleProvider>
           <UserbaseAuthProvider>
-            <UserProvider>
-              <ThemeProvider>
-                <QueryClientProvider client={queryClient}>
-                  <WagmiProvider config={wagmiConfig}>
-                    <RainbowKitProvider
-                      coolMode
-                      initialChain={base}
-                      theme={dynamicRainbowTheme}
+            <ThemeProvider>
+              <QueryClientProvider client={queryClient}>
+                <WagmiProvider config={wagmiConfig}>
+                  <RainbowKitProvider
+                    coolMode
+                    initialChain={base}
+                    theme={dynamicRainbowTheme}
+                  >
+                    <OnchainKitProvider
+                      chain={base}
+                      apiKey={APP_CONFIG.ONCHAINKIT_API_KEY}
                     >
-                      <OnchainKitProvider
-                        chain={base}
-                        apiKey={APP_CONFIG.ONCHAINKIT_API_KEY}
-                      >
-                        <AiohaProvider aioha={aioha}>
-                          <LinkedIdentityProvider>
+                      <AiohaProvider aioha={aioha}>
+                        <LinkedIdentityProvider>
+                          <UserProvider>
                             <VoteWeightProvider>
                               <WindowProvider>
                                 <CSSReset />
@@ -113,14 +113,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
                                 {children}
                               </WindowProvider>
                             </VoteWeightProvider>
-                          </LinkedIdentityProvider>
-                        </AiohaProvider>
-                      </OnchainKitProvider>
-                    </RainbowKitProvider>
-                  </WagmiProvider>
-                </QueryClientProvider>
-              </ThemeProvider>
-            </UserProvider>
+                          </UserProvider>
+                        </LinkedIdentityProvider>
+                      </AiohaProvider>
+                    </OnchainKitProvider>
+                  </RainbowKitProvider>
+                </WagmiProvider>
+              </QueryClientProvider>
+            </ThemeProvider>
           </UserbaseAuthProvider>
         </LocaleProvider>
       </ClickSoundProvider>

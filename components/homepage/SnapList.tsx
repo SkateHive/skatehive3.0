@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useMemo } from "react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import {
   Box,
@@ -166,28 +166,15 @@ export default function SnapList({
     });
   };
 
-  const filteredAndSortedComments = filterDuplicates(
-    filterDeletedPosts(filterAutoComments([...displayedComments])),
-  ).sort((a: Discussion, b: Discussion) => {
-    // Sort by creation date (newest first) instead of payout value
-    // This ensures users see the latest content first, including new Zora posts
-    const aDate = new Date(a.created).getTime();
-    const bDate = new Date(b.created).getTime();
-
-    return bDate - aDate; // Descending order (newest first)
-  });
-
-  // Debug: Log final order after filtering and sorting
-  if (
-    process.env.NODE_ENV === "development" &&
-    filteredAndSortedComments.length > 0
-  ) {
-    filteredAndSortedComments.slice(0, 10).forEach((comment, index) => {
-      const hasZora =
-        comment.body?.includes("zora") ||
-        comment.json_metadata?.includes("zora");
+  const filteredAndSortedComments = useMemo(() => {
+    return filterDuplicates(
+      filterDeletedPosts(filterAutoComments([...displayedComments])),
+    ).sort((a: Discussion, b: Discussion) => {
+      const aDate = new Date(a.created).getTime();
+      const bDate = new Date(b.created).getTime();
+      return bDate - aDate;
     });
-  }
+  }, [displayedComments]);
 
   // Conditionally render after all hooks have run
   if (!hasMounted) return null;

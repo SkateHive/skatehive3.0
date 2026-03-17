@@ -112,10 +112,22 @@ All core POIDH features are now integrated natively — create, contribute, clai
 
 ---
 
+## Phase 9: Feed Embeds & Claim UX
+
+- [x] **Feed mini-app embeds** — Bounty links in posts render as rich inline cards (`BountyPreview.tsx`)
+- [x] **URL detection pipeline** — `MarkdownProcessor.ts` converts bounty URLs to `[[POIDHBOUNTY:chainId:id]]` placeholders
+- [x] **Inline claim modal** — Users can claim bounties directly from the feed without navigating to detail page
+- [x] **IPFS upload in claims** — Image compression + IPFS upload via `uploadToIpfsSmart()` in both detail page and feed embed
+- [x] **Auto-insert media markdown** — Uploaded images/videos auto-appended as markdown to claim description
+- [x] **Hive cross-posting on claims** — Claims auto-posted to Hive if user has Hive identity (dual-path: Keychain or userbase API)
+- [x] **Share dialog after claim** — SkateModal with Twitter/Warpcast/Facebook/Copy Link buttons
+- [x] **Clickable claim cards** — Clicking a claim opens SkateModal with full-size media, description, and issuer actions
+- [x] **Bounty total in sidebar** — `CommunityTotalPayout` alternates between magazine rewards and open bounties USD total
+- [x] **OpenGraph filter** — Bounty URLs included in OG metadata generation
+
 ## Remaining Items (Nice-to-Have)
 
 - [ ] Degen chain support (chain 666666666)
-- [ ] IPFS upload for claim proofs (currently manual URL input)
 - [ ] Highlight user's own claims on a bounty
 - [ ] Reset voting period UI button
 - [ ] Withdraw pending balance UI in settings
@@ -153,6 +165,7 @@ All core POIDH features are now integrated natively — create, contribute, clai
 | `hooks/usePoidhWrite.ts` | All POIDH write operations (create, contribute, claim, vote, cancel, withdraw) |
 | `hooks/usePoidhRead.ts` | On-chain read hooks (participants, voting, balances) |
 | `components/bounties/PoidhBountyComposer.tsx` | Native ETH bounty creation form |
+| `components/bounties/BountyPreview.tsx` | Feed mini-app embed with inline claim modal |
 
 ## Modified Files
 
@@ -160,6 +173,14 @@ All core POIDH features are now integrated natively — create, contribute, clai
 |------|---------|
 | `lib/poidh-abi.ts` | Full v2 ABI (18 read + 16 write functions) |
 | `app/providers.tsx` | Added Arbitrum chain + transport |
-| `components/bounties/PoidhBountyDetail.tsx` | Full native interaction (contribute, claim, vote, accept, cancel) |
+| `components/bounties/PoidhBountyDetail.tsx` | Full native interaction + claim detail modal + share dialog + Hive cross-post |
 | `components/bounties/BountiesHubClient.tsx` | Native ETH bounty creation (no more external redirect) |
 | `components/bounties/index.ts` | Added PoidhBountyDetail + PoidhBountyComposer exports |
+| `lib/markdown/MarkdownProcessor.ts` | Bounty URL placeholder conversion (`[[POIDHBOUNTY:chainId:id]]`) |
+| `components/markdown/EnhancedMarkdownRenderer.tsx` | BountyPreview rendering for bounty placeholders |
+| `components/shared/CommunityTotalPayout.tsx` | Alternates between magazine payout and open bounties total |
+| `lib/utils/snapUtils.ts` | Bounty URLs added to OpenGraph filter |
+
+## Known Data Issues
+
+- **POIDH indexer `isCanceled` field**: Sometimes returns `true` for bounties that appear open on poidh.xyz. The bounty status badge was removed from `BountyPreview` due to this unreliable upstream data. The `isActive` field derived from the fetch `status='open'` parameter is more reliable than `isCanceled`.

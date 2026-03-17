@@ -29,7 +29,7 @@ import { generateVideoIframeMarkdown, generatePermlink } from "@/lib/markdown/co
 import { CHAIN_LABEL, CHAIN_PATH } from "@/lib/poidh-constants";
 import { usePoidhWrite } from "@/hooks/usePoidhWrite";
 import { useHiveUser } from "@/contexts/UserContext";
-import useUserbaseHiveIdentity from "@/hooks/useUserbaseHiveIdentity";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useAioha } from "@aioha/react-ui";
 import { HIVE_CONFIG } from "@/config/app.config";
 import SkateModal from "@/components/shared/SkateModal";
@@ -110,7 +110,7 @@ export default function BountyPreview({ chainId, id }: BountyPreviewProps) {
 
   // Hive cross-post hooks
   const { hiveUser } = useHiveUser();
-  const { identity: userbaseHiveIdentity } = useUserbaseHiveIdentity();
+  const { hiveIdentity: userbaseHiveIdentity } = useLinkedIdentities();
   const { aioha, user: aiohaUser } = useAioha();
 
   const detailHref = `/bounties/poidh/${chainId}/${id}`;

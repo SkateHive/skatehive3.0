@@ -62,17 +62,15 @@ export default function AccountLinkingDetector() {
 
     // Detect new Hive connection
     if (hiveUser && prevHiveRef.current !== hiveUser) {
-      const isNewConnection = prevHiveRef.current !== null || !hasShownForSession;
+      const isNewConnection = prevHiveRef.current !== null;
       prevHiveRef.current = hiveUser;
-      
-      // Check if this Hive account is not already linked OR if there are any unlinked opportunities
-      // (e.g., Ethereum/Farcaster accounts found in Hive metadata)
+
+      // Only prompt if this Hive account is genuinely not linked
       const hiveNotLinked = opportunities.some(
         (o) => o.type === "hive" && o.handle?.toLowerCase() === hiveUser.toLowerCase() && !o.alreadyLinked
       );
-      
-      if ((hiveNotLinked || hasUnlinkedOpportunities) && isNewConnection) {
-        // Longer delay to allow Hive account metadata to be fetched and parsed
+
+      if (hiveNotLinked && isNewConnection && !hasShownForSession) {
         const timeoutId = setTimeout(() => {
           setIsModalOpen(true);
           setHasShownForSession(true);

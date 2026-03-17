@@ -213,8 +213,11 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
   ]);
 
   const hasUnlinkedOpportunities = useMemo(() => {
+    // Don't report unlinked opportunities while identities are still loading
+    // to avoid false positives from race conditions
+    if (isLoading) return false;
     return opportunities.some((o) => !o.alreadyLinked);
-  }, [opportunities]);
+  }, [opportunities, isLoading]);
 
   return {
     opportunities,

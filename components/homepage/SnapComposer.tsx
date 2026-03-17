@@ -60,7 +60,7 @@ import useHivePower from "@/hooks/useHivePower";
 import { useInstagramHealth } from "@/hooks/useInstagramHealth";
 import { TbGif } from "react-icons/tb";
 import MatrixOverlay from "@/components/graphics/MatrixOverlay";
-import useUserbaseHiveIdentity from "@/hooks/useUserbaseHiveIdentity";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 
 // Check for demo mode via localStorage
 const SHOW_ERROR_DEMO =
@@ -88,7 +88,7 @@ const SnapComposer = React.memo(function SnapComposer({
 }: SnapComposerProps) {
   const { user, aioha } = useAioha();
   const { handle: effectiveUser, canUseAppFeatures } = useEffectiveHiveUser();
-  const { identity: userbaseHiveIdentity } = useUserbaseHiveIdentity();
+  const { hiveIdentity: userbaseHiveIdentity } = useLinkedIdentities();
   const linkedHiveHandle = userbaseHiveIdentity?.handle || null;
   const toast = useToast();
   const t = useTranslations();

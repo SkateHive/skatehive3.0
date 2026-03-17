@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 
 interface WindowState {
   id: string;
@@ -80,20 +80,33 @@ export function WindowProvider({ children }: { children: React.ReactNode }) {
     [windows]
   );
 
+  const value = useMemo(
+    () => ({
+      windows,
+      registerWindow,
+      unregisterWindow,
+      minimizeWindow,
+      maximizeWindow,
+      unmaximizeWindow,
+      restoreWindow,
+      isWindowMinimized,
+      isWindowMaximized,
+    }),
+    [
+      windows,
+      registerWindow,
+      unregisterWindow,
+      minimizeWindow,
+      maximizeWindow,
+      unmaximizeWindow,
+      restoreWindow,
+      isWindowMinimized,
+      isWindowMaximized,
+    ]
+  );
+
   return (
-    <WindowContext.Provider
-      value={{
-        windows,
-        registerWindow,
-        unregisterWindow,
-        minimizeWindow,
-        maximizeWindow,
-        unmaximizeWindow,
-        restoreWindow,
-        isWindowMinimized,
-        isWindowMaximized,
-      }}
-    >
+    <WindowContext.Provider value={value}>
       {children}
     </WindowContext.Provider>
   );

@@ -44,8 +44,9 @@ export default function RootLayoutClient({
     setIsHydrated(true);
   }, []);
 
-  // Fetch leaderboard data for airdrop modal
+  // Lazy-load leaderboard data only when airdrop modal opens
   useEffect(() => {
+    if (!isAirdropOpen || leaderboardData.length > 0) return;
     async function fetchLeaderboardData() {
       try {
         const res = await fetch("https://api.skatehive.app/api/v2/leaderboard", {
@@ -60,7 +61,7 @@ export default function RootLayoutClient({
       }
     }
     fetchLeaderboardData();
-  }, []);
+  }, [isAirdropOpen, leaderboardData.length]);
 
   // Global keyboard shortcut for search
   useEffect(() => {

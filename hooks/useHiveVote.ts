@@ -2,12 +2,12 @@
 
 import { useCallback } from "react";
 import { useAioha } from "@aioha/react-ui";
-import useUserbaseHiveIdentity from "@/hooks/useUserbaseHiveIdentity";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 
 export default function useHiveVote() {
   const { user, aioha } = useAioha();
-  const { identity } = useUserbaseHiveIdentity();
+  const { hiveIdentity: identity } = useLinkedIdentities();
   const { user: userbaseUser } = useUserbaseAuth();
 
   const effectiveUser = user || identity?.handle || null;

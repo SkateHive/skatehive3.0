@@ -119,17 +119,30 @@ export const NotificationProvider = ({
     refreshNotifications();
   }, [refreshNotifications]);
 
-  const value: NotificationContextProps = {
-    notifications,
-    newNotificationCount,
-    lastReadDate,
-    refreshNotifications,
-    markNotificationsAsRead,
-    isLoading,
-    farcasterEnabled,
-    enableFarcasterNotifications,
-    disableFarcasterNotifications,
-  };
+  const value = useMemo(
+    () => ({
+      notifications,
+      newNotificationCount,
+      lastReadDate,
+      refreshNotifications,
+      markNotificationsAsRead,
+      isLoading,
+      farcasterEnabled,
+      enableFarcasterNotifications,
+      disableFarcasterNotifications,
+    }),
+    [
+      notifications,
+      newNotificationCount,
+      lastReadDate,
+      refreshNotifications,
+      markNotificationsAsRead,
+      isLoading,
+      farcasterEnabled,
+      enableFarcasterNotifications,
+      disableFarcasterNotifications,
+    ]
+  );
 
   return (
     <NotificationContext.Provider value={value}>

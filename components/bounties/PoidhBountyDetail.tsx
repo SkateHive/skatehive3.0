@@ -37,7 +37,7 @@ import { CHAIN_LABEL, CHAIN_PATH } from '@/lib/poidh-constants';
 import { usePoidhWrite } from '@/hooks/usePoidhWrite';
 import { usePoidhParticipants, usePoidhVotingState, usePoidhParticipantAmount, usePoidhPendingWithdrawals } from '@/hooks/usePoidhRead';
 import { useHiveUser } from '@/contexts/UserContext';
-import useUserbaseHiveIdentity from '@/hooks/useUserbaseHiveIdentity';
+import { useLinkedIdentities } from '@/contexts/LinkedIdentityContext';
 import { useAioha } from '@aioha/react-ui';
 import { HIVE_CONFIG } from '@/config/app.config';
 import SkateModal from '@/components/shared/SkateModal';
@@ -120,7 +120,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   const toast = useToast();
   // Hive cross-post hooks
   const { hiveUser } = useHiveUser();
-  const { identity: userbaseHiveIdentity } = useUserbaseHiveIdentity();
+  const { hiveIdentity: userbaseHiveIdentity } = useLinkedIdentities();
   const { aioha, user: aiohaUser } = useAioha();
   // Video uploads go directly to IPFS via handleProofVideoFile
 

@@ -20,7 +20,7 @@ import { Discussion } from "@hiveio/dhive";
 import { FaRegComment } from "react-icons/fa";
 import { LuArrowUp, LuArrowDown, LuDollarSign } from "react-icons/lu";
 import { useAioha } from "@aioha/react-ui";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getPayoutValue } from "@/lib/hive/client-functions";
 import { EnhancedMarkdownRenderer } from "@/components/markdown/EnhancedMarkdownRenderer";
 import { getPostDate } from "@/lib/utils/GetPostDate";
@@ -162,24 +162,21 @@ const Snap = ({
 
   const hasSoftVote =
     !!softVote && softVote.status !== "failed" && softVote.weight > 0;
-  const [voted, setVoted] = useState(
-    hasSoftVote ||
+
+  // Derive voted state instead of useState+useEffect
+  const derivedVoted = useMemo(
+    () =>
+      hasSoftVote ||
       discussion.active_votes?.some(
         (item: { voter: string }) => item.voter === effectiveUser
       ) ||
-      false
+      false,
+    [discussion.active_votes, effectiveUser, hasSoftVote]
   );
-  const [isHovered, setIsHovered] = useState(false);
+  const [votedOverride, setVotedOverride] = useState(false);
+  const voted = votedOverride || derivedVoted;
 
-  useEffect(() => {
-    setVoted(
-      hasSoftVote ||
-        discussion.active_votes?.some(
-          (item: { voter: string }) => item.voter === effectiveUser
-        ) ||
-        false
-    );
-  }, [discussion.active_votes, effectiveUser, hasSoftVote]);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Direct vote handler for when slider is disabled
   async function handleDirectVote() {
@@ -194,7 +191,7 @@ const Snap = ({
       );
       
       if (voteResult.success) {
-        setVoted(true);
+        setVotedOverride(true);
         if (effectiveUser) {
           setActiveVotes([
             ...activeVotes,
@@ -234,11 +231,11 @@ const Snap = ({
     }
   }
 
-  function handleConversation() {
+  const handleConversation = useCallback(() => {
     if (setConversation) {
       setConversation(discussion);
     }
-  }
+  }, [setConversation, discussion]);
 
   function handleInlineNewReply(newComment: Partial<Discussion>) {
     const newReply = newComment as Discussion;
@@ -563,13 +560,13 @@ const Snap = ({
           <UpvoteButton
             discussion={discussion}
             voted={voted}
-            setVoted={setVoted}
+            setVoted={setVotedOverride}
             activeVotes={activeVotes}
             setActiveVotes={setActiveVotes}
             showSlider={showSlider}
             setShowSlider={setShowSlider}
             onVoteSuccess={(estimatedValue?: number) => {
-              setVoted(true);
+              setVotedOverride(true);
               if (estimatedValue) {
                 setRewardAmount((prev) =>
                   parseFloat((prev + estimatedValue).toFixed(3))
