@@ -31,14 +31,11 @@
     "@apollo/client": "^3.13.8",
     "@chakra-ui/icons": "^2.2.4",
     "@chakra-ui/react": "^2.10.9",
-    "@coinbase/onchainkit": "^0.38.17",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@ethersproject/providers": "^5.8.0",
     "@farcaster/auth-client": "^0.7.1",
     "@farcaster/auth-kit": "^0.8.2",
-    "@farcaster/frame-node": "^0.1.6",
-    "@farcaster/miniapp-sdk": "^0.1.7",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@giphy/js-fetch-api": "^5.6.0",
@@ -148,8 +145,6 @@
     "overrides": {
       "@types/react": "^18.3.24",
       "@types/react-dom": "^18.3.7",
-      "@farcaster/frame-sdk": "npm:@farcaster/miniapp-sdk@^0.1.7",
-      "@farcaster/frame-wagmi-connector": "npm:@farcaster/miniapp-wagmi-connector@^1.0.0",
       "cuer": "0.0.2"
     },
     "onlyBuiltDependencies": [
