@@ -87,12 +87,14 @@ export function optimizeImageUrl(
     return src.replace(/images\.hive\.blog\/\d+x\d+\//, `images.hive.blog/${w}x${h}/`);
   }
 
-  // Resolve IPFS to gateway first
+  // IPFS images — serve from gateway directly (Hive proxy can't access IPFS gateways)
   const cid = extractIpfsCid(src);
-  const resolvedSrc = cid ? ipfsGatewayUrl(cid) : src;
+  if (cid) {
+    return ipfsGatewayUrl(cid);
+  }
 
-  // Proxy through Hive image service
-  return `${HIVE_PROXY}/${w}x${h}/${resolvedSrc}`;
+  // External images — proxy through Hive image service for resize + WebP
+  return `${HIVE_PROXY}/${w}x${h}/${src}`;
 }
 
 /**
