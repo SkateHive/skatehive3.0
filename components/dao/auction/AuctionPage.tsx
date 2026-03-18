@@ -106,11 +106,21 @@ function AuctionCountdown({
   const isVeryUrgent = totalSeconds < 60;
 
   const digitStyle = {
-    fontSize: { base: "4xl", md: "6xl", lg: "7xl" },
+    fontSize: { base: "3xl", md: "5xl", lg: "6xl" },
     fontWeight: "900",
     fontFamily: "'Joystix', 'VT323', 'Fira Mono', monospace",
-    letterSpacing: "wider",
     lineHeight: 1,
+    minW: { base: "48px", md: "72px", lg: "88px" },
+    textAlign: "center" as const,
+  };
+
+  const separatorStyle = {
+    fontSize: { base: "2xl", md: "4xl", lg: "5xl" },
+    fontWeight: "900",
+    fontFamily: "'Joystix', 'VT323', 'Fira Mono', monospace",
+    lineHeight: 1,
+    color: "gray.600",
+    alignSelf: "flex-start" as const,
   };
 
   const labelStyle = {
@@ -123,26 +133,30 @@ function AuctionCountdown({
 
   return (
     <HStack
-      spacing={{ base: 3, md: 6 }}
+      spacing={{ base: 1, md: 3, lg: 4 }}
       justify="center"
+      flexWrap="nowrap"
       animation={isVeryUrgent ? `${urgentPulse} 0.5s ease infinite` : isUrgent ? `${urgentPulse} 1s ease infinite` : undefined}
     >
       {days > 0 && (
-        <VStack spacing={0}>
-          <Text {...digitStyle} color="primary">{String(days).padStart(2, "0")}</Text>
-          <Text {...labelStyle}>days</Text>
-        </VStack>
+        <>
+          <VStack spacing={0}>
+            <Text {...digitStyle} color="primary">{String(days).padStart(2, "0")}</Text>
+            <Text {...labelStyle}>days</Text>
+          </VStack>
+          <Text {...separatorStyle}>:</Text>
+        </>
       )}
       <VStack spacing={0}>
         <Text {...digitStyle} color="primary">{String(hours).padStart(2, "0")}</Text>
         <Text {...labelStyle}>hrs</Text>
       </VStack>
-      <Text {...digitStyle} color="gray.600" mt={-2}>:</Text>
+      <Text {...separatorStyle}>:</Text>
       <VStack spacing={0}>
         <Text {...digitStyle} color="primary">{String(minutes).padStart(2, "0")}</Text>
         <Text {...labelStyle}>min</Text>
       </VStack>
-      <Text {...digitStyle} color="gray.600" mt={-2}>:</Text>
+      <Text {...separatorStyle}>:</Text>
       <VStack spacing={0}>
         <Text
           {...digitStyle}
@@ -389,7 +403,7 @@ export default function AuctionPage({
             {/* Artwork */}
             <Box
               position="relative"
-              w={{ base: "100%", md: "400px", lg: "480px" }}
+              w={{ base: "100%", md: "340px", lg: "440px" }}
               flexShrink={0}
               animation={`${glowPulse} 3s ease infinite`}
               border="1px solid"
@@ -436,7 +450,7 @@ export default function AuctionPage({
             </Box>
 
             {/* Right side: Timer + Current Bid + Bid Form */}
-            <VStack flex={1} spacing={{ base: 5, md: 8 }} align="stretch" w="full">
+            <VStack flex={1} spacing={{ base: 5, md: 8 }} align="stretch" w="full" overflow="hidden" minW={0}>
 
               {/* Countdown Timer — THE STAR */}
               <VStack spacing={2}>
