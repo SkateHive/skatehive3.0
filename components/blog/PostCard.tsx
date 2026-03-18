@@ -13,6 +13,7 @@ import {
   HStack,
   useToast,
 } from "@chakra-ui/react";
+import { optimizeImageUrl, IMAGE_SIZES } from "@/lib/utils/imageOptimize";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Discussion } from "@hiveio/dhive";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -173,7 +174,9 @@ export default function PostCard({
     images = images.concat(markdownImages);
 
     const uniqueImages = Array.from(new Set(images));
-    const validImages = uniqueImages.filter((img) => !failedImages.has(img));
+    const validImages = uniqueImages
+      .filter((img) => !failedImages.has(img))
+      .map((img) => optimizeImageUrl(img, IMAGE_SIZES.SIDEBAR_THUMB.w, IMAGE_SIZES.SIDEBAR_THUMB.h));
     if (validImages.length > 0) {
       return { imageUrls: validImages, youtubeLinks: [] as LinkWithDomain[] };
     }

@@ -3,6 +3,7 @@ import DOMPurify from "dompurify";
 import { LRUCache } from "@/lib/utils/LRUCache";
 import { getCacheKey } from "@/lib/utils/hashUtils";
 import { APP_CONFIG } from "@/config/app.config";
+import { optimizeImageUrl, IMAGE_SIZES } from "@/lib/utils/imageOptimize";
 
 // LRU caches with bounded memory usage
 // Cache keys are deterministic hashes instead of full markdown strings for memory efficiency
@@ -131,8 +132,9 @@ export function processMediaContent(content: string): string {
                 if (isGif) {
                     return `<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;"><img src='${resolvedUrl}' alt='IPFS GIF' style='max-width: min(80%, 600px); min-width: min(300px, 90vw); height: auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);'/></div>`;
                 } else {
-                    // Regular image styling
-                    return `<div style="display: flex; justify-content: center; align-items: center; margin: 1.5rem 0;"><img src='${resolvedUrl}' alt='IPFS Image' style='max-width: 100%; height: auto; box-shadow: 0 2px 16px rgba(0,0,0,0.12);'/></div>`;
+                    // Regular image — proxy through Hive for resize + WebP
+                    const optimized = optimizeImageUrl(resolvedUrl, IMAGE_SIZES.INLINE.w, 0);
+                    return `<div style="display: flex; justify-content: center; align-items: center; margin: 1.5rem 0;"><img src='${optimized}' alt='IPFS Image' loading='lazy' decoding='async' style='max-width: 100%; height: auto; box-shadow: 0 2px 16px rgba(0,0,0,0.12);'/></div>`;
                 }
             }
         }
@@ -194,9 +196,12 @@ export function processMediaContent(content: string): string {
                          url.includes('.gif');
             
             if (isGif) {
-                return `<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;"><img src='${url}' alt='${altText || 'GIF'}' style='max-width: min(80%, 600px); min-width: min(300px, 90vw); height: auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);'/></div>`;
+                // GIFs pass through unmodified (Hive proxy strips animation)
+                return `<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;"><img src='${url}' alt='${altText || 'GIF'}' loading='lazy' decoding='async' style='max-width: min(80%, 600px); min-width: min(300px, 90vw); height: auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);'/></div>`;
             } else {
-                return `<div style="display: flex; justify-content: center; align-items: center; margin: 1.5rem 0;"><img src='${url}' alt='${altText || 'Image'}' style='max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 16px rgba(0,0,0,0.12);'/></div>`;
+                // Non-GIF images — proxy through Hive for resize + WebP
+                const optimized = optimizeImageUrl(url, IMAGE_SIZES.INLINE.w, 0);
+                return `<div style="display: flex; justify-content: center; align-items: center; margin: 1.5rem 0;"><img src='${optimized}' alt='${altText || 'Image'}' loading='lazy' decoding='async' style='max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 16px rgba(0,0,0,0.12);'/></div>`;
             }
         }
     );
@@ -211,9 +216,10 @@ export function processMediaContent(content: string): string {
                          url.includes('.gif');
             
             if (isGif) {
-                return `<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;"><img src='${url}' alt='GIF' style='max-width: min(80%, 600px); min-width: min(300px, 90vw); height: auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);'/></div>`;
+                return `<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;"><img src='${url}' alt='GIF' loading='lazy' decoding='async' style='max-width: min(80%, 600px); min-width: min(300px, 90vw); height: auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);'/></div>`;
             } else {
-                return `<div style="display: flex; justify-content: center; align-items: center; margin: 1.5rem 0;"><img src='${url}' alt='Image' style='max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 16px rgba(0,0,0,0.12);'/></div>`;
+                const optimized = optimizeImageUrl(url, IMAGE_SIZES.INLINE.w, 0);
+                return `<div style="display: flex; justify-content: center; align-items: center; margin: 1.5rem 0;"><img src='${optimized}' alt='Image' loading='lazy' decoding='async' style='max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 16px rgba(0,0,0,0.12);'/></div>`;
             }
         }
     );
