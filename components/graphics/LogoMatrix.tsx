@@ -220,14 +220,14 @@ const LogoMatrix = () => {
         <style jsx global>{`
           @font-face {
             font-family: "Logoskate";
-            src: url("/fonts/Logoskate.ttf") format("truetype");
+            src: url("/fonts/Logoskate.woff2") format("woff2");
             font-weight: normal;
             font-style: normal;
             font-display: swap;
           }
           @font-face {
             font-family: "Logoskate2";
-            src: url("/fonts/Logoskate2.ttf") format("truetype");
+            src: url("/fonts/Logoskate2.woff2") format("woff2");
             font-weight: normal;
             font-style: normal;
             font-display: swap;

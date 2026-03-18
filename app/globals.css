@@ -174,16 +174,6 @@ body.show-splash #splash-root {
   font-display: swap;
 }
 
-@font-face {
-  font-family: 'Dash';
-  src: url('/fonts/Dash.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
-
-.dash-title {
-  font-family: 'Dash', cursive, sans-serif;
-}
 
 
 

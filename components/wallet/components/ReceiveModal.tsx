@@ -25,7 +25,7 @@ import { FiCopy } from "react-icons/fi";
 import SkateModal from "@/components/shared/SkateModal";
 import { useAccount } from "wagmi";
 import * as QRCode from "qrcode";
-import { Name, Avatar as OnchainAvatar } from "@coinbase/onchainkit/identity";
+import { EnsName as Name, EnsAvatar as OnchainAvatar } from "@/components/shared/EnsIdentity";
 import { FaEthereum, FaHive, FaShare } from "react-icons/fa";
 import { useAioha } from "@aioha/react-ui";
 import { useTranslations } from "@/contexts/LocaleContext";

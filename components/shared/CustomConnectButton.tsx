@@ -2,8 +2,7 @@
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Box, Button, HStack, Text, VStack } from "@chakra-ui/react";
-import { Name, Avatar } from "@coinbase/onchainkit/identity";
-import { base } from "wagmi/chains";
+import { EnsName as Name, EnsAvatar as Avatar } from "@/components/shared/EnsIdentity";
 import { useTranslations } from "@/contexts/LocaleContext";
 
 interface CustomConnectButtonProps {
@@ -162,19 +161,15 @@ export function CustomConnectButton({
                     minW="auto"
                   >
                     <HStack spacing={3}>
-                      {/* OnchainKit Avatar */}
                       <Avatar
                         address={account.address as `0x${string}`}
-                        chain={base}
                         className="w-6 h-6 rounded-full"
                       />
 
                       <VStack spacing={0} align="start" minW="0">
-                        {/* OnchainKit Name */}
                         <Box maxW="120px" overflow="hidden">
                           <Name
                             address={account.address as `0x${string}`}
-                            chain={base}
                             className="text-sm font-medium truncate"
                             style={{ color: "var(--chakra-colors-primary)" }}
                           />

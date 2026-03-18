@@ -5,7 +5,6 @@ import { CSSReset } from "@chakra-ui/react";
 import { Aioha } from "@aioha/aioha";
 import { AiohaProvider } from "@aioha/react-ui";
 import { ThemeProvider } from "./themeProvider";
-import { OnchainKitProvider } from "@coinbase/onchainkit";
 import { getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { WagmiProvider, http } from "wagmi";
 import { base, mainnet, arbitrum } from "wagmi/chains";
@@ -99,24 +98,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
                     initialChain={base}
                     theme={dynamicRainbowTheme}
                   >
-                    <OnchainKitProvider
-                      chain={base}
-                      apiKey={APP_CONFIG.ONCHAINKIT_API_KEY}
-                    >
-                      <AiohaProvider aioha={aioha}>
-                        <LinkedIdentityProvider>
-                          <UserProvider>
-                            <VoteWeightProvider>
-                              <WindowProvider>
-                                <CSSReset />
-                                <UserbaseWalletBootstrapper />
-                                {children}
-                              </WindowProvider>
-                            </VoteWeightProvider>
-                          </UserProvider>
-                        </LinkedIdentityProvider>
-                      </AiohaProvider>
-                    </OnchainKitProvider>
+                    <AiohaProvider aioha={aioha}>
+                      <LinkedIdentityProvider>
+                        <UserProvider>
+                          <VoteWeightProvider>
+                            <WindowProvider>
+                              <CSSReset />
+                              <UserbaseWalletBootstrapper />
+                              {children}
+                            </WindowProvider>
+                          </VoteWeightProvider>
+                        </UserProvider>
+                      </LinkedIdentityProvider>
+                    </AiohaProvider>
                   </RainbowKitProvider>
                 </WagmiProvider>
               </QueryClientProvider>

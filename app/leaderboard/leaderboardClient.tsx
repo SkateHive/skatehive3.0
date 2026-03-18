@@ -27,7 +27,7 @@ import RulesModal from "./RulesModal";
 import AirdropModal from "@/components/airdrop/AirdropModal";
 import React from "react";
 import useIsMobile from "@/hooks/useIsMobile";
-import { Name } from "@coinbase/onchainkit/identity";
+import { EnsName as Name } from "@/components/shared/EnsIdentity";
 import { SkaterData } from "@/types/leaderboard";
 import { ETH_ADDRESSES } from "@/config/app.config";
 import { useTranslations } from "@/contexts/LocaleContext";

@@ -39,7 +39,7 @@ import { SortOption } from "@/types/airdrop";
 import useIsMobile from "@/hooks/useIsMobile";
 import { useAioha } from "@aioha/react-ui";
 import { useAccount } from "wagmi";
-import { Avatar, Name } from "@coinbase/onchainkit/identity";
+import { EnsAvatar as Avatar, EnsName as Name } from "@/components/shared/EnsIdentity";
 import { memo } from "react";
 import { tokenDictionary } from "@/lib/utils/tokenDictionary";
 import { getAvatarErrorHandler } from "@/hooks/useHiveAvatar";

@@ -19,7 +19,7 @@ import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import HiveLoginModal from "./HiveLoginModal";
 import { FaEthereum, FaHive, FaEnvelope } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
-import { Name, Avatar } from "@coinbase/onchainkit/identity";
+import { EnsName as Name, EnsAvatar as Avatar } from "@/components/shared/EnsIdentity";
 import ConnectionModal from "./ConnectionModal";
 import { FarcasterAuthIsland, useFarcasterAuthMethods } from "@/components/farcaster/FarcasterAuthIsland";
 import useHiveAccount from "@/hooks/useHiveAccount";

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { createCoin, DeployCurrency, createMetadataBuilder, createZoraUploaderForCreator, setApiKey } from '@zoralabs/coins-sdk';
+import { createCoin, createMetadataBuilder, createZoraUploaderForCreator, setApiKey } from '@zoralabs/coins-sdk';
 import { useAccount, useWalletClient, usePublicClient, useSwitchChain, useChainId } from 'wagmi';
 import { Address } from 'viem';
 import { useToast } from '@chakra-ui/react';
@@ -199,9 +199,10 @@ export function useCoinCreation() {
       // Create the coin
       const coinParams = {
         ...createMetadataParameters,
+        creator: address,
         payoutRecipient: address,
         platformReferrer: SKATEHIVE_PLATFORM_REFERRER as Address,
-        currency: DeployCurrency.ZORA, // Use ZORA as the trading currency
+        currency: "ZORA" as const,
       };
 
       console.log('🪙 Creating coin with params:', {
@@ -209,7 +210,7 @@ export function useCoinCreation() {
         symbol: coinData.symbol,
         payoutRecipient: address,
         platformReferrer: SKATEHIVE_PLATFORM_REFERRER,
-        currency: DeployCurrency.ZORA,
+        currency: "ZORA",
         chainId,
       });
 
@@ -220,8 +221,11 @@ export function useCoinCreation() {
       
       while (retries < maxRetries) {
         try {
-          result = await createCoin(coinParams, walletClient, publicClient, {
-            gasMultiplier: 120, // Add 20% buffer to gas
+          result = await createCoin({
+            call: coinParams,
+            walletClient,
+            publicClient,
+            options: { gasMultiplier: 120 },
           });
           break; // Success, exit retry loop
         } catch (retryError: any) {

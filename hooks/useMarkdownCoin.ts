@@ -1,6 +1,6 @@
 import { debugLog } from "@/lib/utils/debugUtils";
 import { useState, useCallback } from 'react';
-import { createCoin, DeployCurrency, createMetadataBuilder, createZoraUploaderForCreator, setApiKey } from '@zoralabs/coins-sdk';
+import { createCoin, createMetadataBuilder, createZoraUploaderForCreator, setApiKey } from '@zoralabs/coins-sdk';
 import { useAccount, useWalletClient, usePublicClient, useSwitchChain, useChainId } from 'wagmi';
 import { useToast } from '@chakra-ui/react';
 import { SKATEHIVE_PLATFORM_REFERRER } from '@/components/shared/search/constants';
@@ -552,14 +552,20 @@ export function useMarkdownCoin() {
       transactionStartTime = Date.now();
       
       const coinParams = {
-        ...createMetadataParameters,
+        name: createMetadataParameters.name,
+        symbol: createMetadataParameters.symbol,
+        metadata: { type: "RAW_URI" as const, uri: createMetadataParameters.uri },
+        creator: address,
         payoutRecipient: address,
         platformReferrer: SKATEHIVE_PLATFORM_REFERRER as `0x${string}`,
-        currency: DeployCurrency.ZORA, // Use ZORA as the trading currency
+        currency: "ZORA" as const,
       };
 
-      const result = await createCoin(coinParams, walletClient, publicClient, {
-        gasMultiplier: 120, // Add 20% buffer to gas
+      const result = await createCoin({
+        call: coinParams,
+        walletClient,
+        publicClient,
+        options: { gasMultiplier: 120 },
       });
       
       transactionEndTime = Date.now();

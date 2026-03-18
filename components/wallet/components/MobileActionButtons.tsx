@@ -6,8 +6,8 @@ import {
   FaEthereum,
 } from "react-icons/fa";
 import { useState, useEffect } from "react";
-import { ConnectWallet } from "@coinbase/onchainkit/wallet";
 import { useAccount } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import TokenSearchModal from "./TokenSearchModal";
 import ReceiveModal from "./ReceiveModal";
 import { TokenDetail } from "../../../types/portfolio";
@@ -37,6 +37,7 @@ export default function MobileActionButtons({
   onHiveSwap,
 }: MobileActionButtonsProps) {
   const { isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
   const [isMounted, setIsMounted] = useState(false);
   const t = useTranslations();
 
@@ -181,10 +182,9 @@ export default function MobileActionButtons({
               transition="all 0.2s ease"
               cursor="pointer"
             >
-              <ConnectWallet
-                className="bg-transparent"
-                disconnectedLabel={<FaEthereum />}
-              />
+              <Box onClick={() => openConnectModal?.()}>
+                <FaEthereum />
+              </Box>
             </Box>
 
             <Text

@@ -11,7 +11,7 @@ import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 // Google Analytics 4
 const GA_MEASUREMENT_ID = "G-M3CSHT7F03";
 // import '@aioha/react-ui/dist/build.css';
-import "@coinbase/onchainkit/styles.css";
+// OnchainKit CSS removed — was injecting 6 render-blocking Google Font @imports
 
 // Initialize the VT323 font
 const vt323 = VT323({
@@ -197,6 +197,8 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Preload critical fonts */}
         <link rel="preload" href="/fonts/joystix.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/Logoskate.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/Logoskate2.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         {/* JSON-LD structured data */}
         <script
           type="application/ld+json"

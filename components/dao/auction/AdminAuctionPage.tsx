@@ -189,7 +189,7 @@ export function AdminAuctionPage({
               letterSpacing="wide"
               lineHeight="tight"
               style={{
-                fontFamily: "Dash",
+                fontFamily: "'Joystix', 'VT323', 'Fira Mono', monospace",
               }}
             >
               Skatehive Auction

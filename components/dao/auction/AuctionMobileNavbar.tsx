@@ -12,7 +12,7 @@ import {
   useBreakpointValue,
 } from "@chakra-ui/react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
-import { Name, Avatar, Identity } from "@coinbase/onchainkit/identity";
+import { EnsName as Name, EnsAvatar as Avatar } from "@/components/shared/EnsIdentity";
 import { CustomConnectButton } from "../../shared/CustomConnectButton";
 import { useRouter } from "next/navigation";
 

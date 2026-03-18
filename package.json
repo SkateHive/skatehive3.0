@@ -35,7 +35,8 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@ethersproject/providers": "^5.8.0",
-    "@farcaster/auth-kit": "^0.8.1",
+    "@farcaster/auth-client": "^0.7.1",
+    "@farcaster/auth-kit": "^0.8.2",
     "@farcaster/frame-node": "^0.1.6",
     "@farcaster/miniapp-sdk": "^0.1.7",
     "@ffmpeg/ffmpeg": "^0.12.15",
@@ -62,7 +63,8 @@
     "@vercel/postgres": "^0.10.0",
     "@wagmi/cli": "^2.3.1",
     "@wagmi/core": "^2.17.2",
-    "@zoralabs/coins-sdk": "^0.2.9",
+    "@zoralabs/coins-sdk": "^0.4.7",
+    "@zoralabs/protocol-deployments": "^0.7.5",
     "argon2": "^0.44.0",
     "browser-image-compression": "^2.0.2",
     "buffer": "^6.0.3",
@@ -150,6 +152,8 @@
       "@farcaster/frame-wagmi-connector": "npm:@farcaster/miniapp-wagmi-connector@^1.0.0",
       "cuer": "0.0.2"
     },
-    "onlyBuiltDependencies": ["exifreader"]
+    "onlyBuiltDependencies": [
+      "exifreader"
+    ]
   }
 }

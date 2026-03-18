@@ -35,7 +35,7 @@ import {
   Center,
 } from "@chakra-ui/react";
 import { base } from "viem/chains";
-import { Name, Avatar } from "@coinbase/onchainkit/identity";
+import { EnsName as Name, EnsAvatar as Avatar } from "@/components/shared/EnsIdentity";
 
 interface Bid {
   bidder: string;

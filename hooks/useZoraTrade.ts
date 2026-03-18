@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { tradeCoin, TradeParameters, createTradeCall, getOnchainCoinDetails } from '@zoralabs/coins-sdk';
+import { tradeCoin, TradeParameters, createTradeCall } from '@zoralabs/coins-sdk';
 import { useAccount, useWalletClient, usePublicClient, useBalance, useChainId, useSwitchChain } from 'wagmi';
 import { Address, formatEther, formatUnits } from 'viem';
 import { useToast } from '@chakra-ui/react';
@@ -110,18 +110,15 @@ export function useZoraTrade() {
       if (type === 'erc20' && tokenAddress) {
         console.log('🔍 Fetching Zora internal balance for:', { tokenAddress, user: address });
         
-        // Use Zora SDK to get internal coin balance
-        const coinDetails = await getOnchainCoinDetails({
-          coin: tokenAddress,
-          user: address,
-          publicClient,
+        // Read ERC20 balanceOf directly
+        const balance = await publicClient.readContract({
+          address: tokenAddress,
+          abi: [{ name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ name: '', type: 'uint256' }] }],
+          functionName: 'balanceOf',
+          args: [address],
         });
-        
-        console.log('📊 Zora coin details:', coinDetails);
-        const balance = coinDetails?.balance || BigInt(0);
-        console.log('💰 Zora internal balance:', balance.toString());
-        
-        return balance;
+
+        return balance as bigint;
       } else if (type === 'eth') {
         // For ETH, we'll need to check Zora's ETH deposit contract
         // This is a placeholder - you may need to implement based on Zora's docs
@@ -165,22 +162,17 @@ export function useZoraTrade() {
     try {
       // Try the Zora SDK method first to get both balance and correct decimals
       try {
-        console.log('📱 Trying Zora SDK getOnchainCoinDetails...');
-        const coinDetails = await getOnchainCoinDetails({
-          coin: tokenAddress,
-          user: address,
-          publicClient,
+        const balance = await publicClient.readContract({
+          address: tokenAddress,
+          abi: [{ name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ name: '', type: 'uint256' }] }],
+          functionName: 'balanceOf',
+          args: [address],
         });
-        
-        console.log('📊 Zora SDK result:', coinDetails);
-        
-        if (coinDetails && coinDetails.balance !== undefined) {
-          console.log('✅ Got balance from Zora SDK:', coinDetails.balance.toString());
-          return coinDetails.balance;
+        if (balance !== undefined) {
+          return balance as bigint;
         }
       } catch (error) {
-        console.log('⚠️ Zora SDK failed, trying fallback. Error:', error);
-        // Fallback to direct contract call
+        console.log('⚠️ balanceOf failed, trying fallback:', error);
       }
       
       // Fallback: try to read balance directly from contract

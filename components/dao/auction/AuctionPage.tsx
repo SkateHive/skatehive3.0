@@ -34,7 +34,7 @@ import {
 import { IconButton } from "@chakra-ui/react";
 import { CheckCircleIcon, InfoIcon } from "@chakra-ui/icons";
 import MatrixOverlay from "@/components/graphics/MatrixOverlay";
-import { Name, Avatar } from "@coinbase/onchainkit/identity";
+import { EnsName as Name, EnsAvatar as Avatar } from "@/components/shared/EnsIdentity";
 
 const formatBidAmount = (amount: bigint) => {
   return Number(formatEther(amount)).toLocaleString(undefined, {
@@ -223,7 +223,7 @@ export default function AuctionPage({
                 letterSpacing="wide"
                 lineHeight="tight"
                 style={{
-                  fontFamily: "Dash",
+                  fontFamily: "'Joystix', 'VT323', 'Fira Mono', monospace",
                 }}
               >
                 {t('title')}
