@@ -19,7 +19,11 @@ const processedImages = new WeakSet<HTMLImageElement>();
 
 // Fallback placeholder for when conversion completely fails
 const FALLBACK_PLACEHOLDER =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect fill='%23202020' width='400' height='300'/%3E%3Ctext x='200' y='140' text-anchor='middle' fill='%23666' font-family='monospace' font-size='14'%3E📷 HEIC image%3C/text%3E%3Ctext x='200' y='165' text-anchor='middle' fill='%23555' font-family='monospace' font-size='11'%3ETap to open original%3C/text%3E%3C/svg%3E";
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect fill='%230a0a0a' width='400' height='300' rx='4'/%3E%3Crect x='150' y='90' width='100' height='80' rx='8' fill='none' stroke='%23a7ff00' stroke-width='1.5' opacity='0.4'/%3E%3Cpath d='M185 110 L200 130 L215 115 L225 125 L175 125 Z' fill='%23a7ff00' opacity='0.3'/%3E%3Ccircle cx='210' cy='108' r='5' fill='%23a7ff00' opacity='0.3'/%3E%3Ctext x='200' y='200' text-anchor='middle' fill='%23a7ff00' font-family='monospace' font-size='11' opacity='0.7'%3EHEIC — tap to open%3C/text%3E%3C/svg%3E";
+
+// Loading placeholder shown during conversion
+const LOADING_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Cstyle%3E@keyframes spin%7B0%25%7Btransform:rotate(0deg)%7D100%25%7Btransform:rotate(360deg)%7D%7D@keyframes pulse%7B0%25,100%25%7Bopacity:.4%7D50%25%7Bopacity:1%7D%7D%3C/style%3E%3Crect fill='%230a0a0a' width='400' height='300' rx='4'/%3E%3Cg transform='translate(200,130)'%3E%3Ccircle r='20' fill='none' stroke='%23a7ff00' stroke-width='2' stroke-dasharray='80 40' style='animation:spin 1.5s linear infinite;transform-origin:center'/%3E%3Ccircle r='12' fill='none' stroke='%23a7ff00' stroke-width='1.5' stroke-dasharray='50 30' opacity='0.5' style='animation:spin 2s linear infinite reverse;transform-origin:center'/%3E%3C/g%3E%3Ctext x='200' y='175' text-anchor='middle' fill='%23a7ff00' font-family='monospace' font-size='11' style='animation:pulse 1.5s ease infinite'%3Econverting image...%3C/text%3E%3C/svg%3E";
 
 /** Check if a URL points to a HEIC/HEIF file */
 function isHeicUrl(src: string): boolean {
@@ -91,18 +95,19 @@ async function convertHeicImage(img: HTMLImageElement): Promise<void> {
   if (processedImages.has(img)) return;
   processedImages.add(img);
 
-  const src = img.src;
-  if (!src || !isHeicUrl(src)) return;
+  const originalSrc = img.src;
+  if (!originalSrc || !isHeicUrl(originalSrc)) return;
 
   try {
-    // Show loading state
-    img.style.opacity = "0.5";
-    img.alt = "Converting HEIC image...";
+    // Show animated loading placeholder
+    img.src = LOADING_PLACEHOLDER;
+    img.style.opacity = "1";
+    img.alt = "Converting image...";
 
     // Fetch with 30s timeout (large files need time)
-    const response = await fetchWithTimeout(src, 30000);
+    const response = await fetchWithTimeout(originalSrc, 30000);
     if (!response.ok) {
-      showFallback(img, src);
+      showFallback(img, originalSrc);
       return;
     }
     const heicBlob = await response.blob();
@@ -146,11 +151,11 @@ async function convertHeicImage(img: HTMLImageElement): Promise<void> {
     }
 
     // All retries failed — show fallback
-    console.warn("All HEIC conversion attempts failed for:", src, lastError);
-    showFallback(img, src);
+    console.warn("All HEIC conversion attempts failed for:", originalSrc, lastError);
+    showFallback(img, originalSrc);
   } catch (err) {
-    console.warn("Failed to convert HEIC image:", src, err);
-    showFallback(img, src);
+    console.warn("Failed to convert HEIC image:", originalSrc, err);
+    showFallback(img, originalSrc);
   }
 }
 
