@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import InfiniteScroll from "react-infinite-scroll-component";
 import {
   Box,
@@ -19,10 +20,7 @@ import {
 import { FaGift, FaHive } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import Snap from "./Snap";
-import SnapComposer from "./SnapComposer";
-import CoinCreatorComposer from "./CoinCreatorComposer";
-import { AirdropModal } from "../airdrop/AirdropModal";
-import { Discussion } from "@hiveio/dhive"; // Add this import for consistency
+import { Discussion } from "@hiveio/dhive";
 import LogoMatrix from "../graphics/LogoMatrix";
 import { filterAutoComments } from "@/lib/utils/postUtils";
 import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
@@ -30,6 +28,11 @@ import { useAccount } from "wagmi";
 import SidebarLogo from "../graphics/SidebarLogo";
 import { SoftVoteProvider } from "@/contexts/SoftVoteContext";
 import { SoftPostProvider } from "@/contexts/SoftPostContext";
+
+// Deferred — only loaded when user interacts
+const SnapComposer = dynamic(() => import("./SnapComposer"), { ssr: false });
+const CoinCreatorComposer = dynamic(() => import("./CoinCreatorComposer"), { ssr: false });
+const AirdropModal = dynamic(() => import("../airdrop/AirdropModal").then(m => m.AirdropModal), { ssr: false });
 
 interface SnapListProps {
   author: string;

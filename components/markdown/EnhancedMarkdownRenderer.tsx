@@ -1,18 +1,21 @@
 "use client";
 
 import React, { useMemo } from "react";
+import dynamic from "next/dynamic";
 import {
   MarkdownProcessor,
   ProcessedMarkdown,
 } from "@/lib/markdown/MarkdownProcessor";
-import { VideoEmbed } from "./VideoEmbed";
-import InstagramEmbed from "./InstagramEmbed";
-import ZoraCoinPreview from "../zora/ZoraCoinPreview";
-import SnapshotPreview from "../shared/SnapshotPreview";
-import GameCartridgeEmbed from "../games/GameCartridgeEmbed";
-import ProposalPreview from "../dao/governance/ProposalPreview";
-import BountyPreview from "../bounties/BountyPreview";
 import HiveMarkdown from "@/components/shared/HiveMarkdown";
+
+// Embed components — lazy loaded (only when post contains that embed type)
+const VideoEmbed = dynamic(() => import("./VideoEmbed").then(m => m.VideoEmbed), { ssr: false });
+const InstagramEmbed = dynamic(() => import("./InstagramEmbed"), { ssr: false });
+const ZoraCoinPreview = dynamic(() => import("../zora/ZoraCoinPreview"), { ssr: false });
+const SnapshotPreview = dynamic(() => import("../shared/SnapshotPreview"), { ssr: false });
+const GameCartridgeEmbed = dynamic(() => import("../games/GameCartridgeEmbed"), { ssr: false });
+const ProposalPreview = dynamic(() => import("../dao/governance/ProposalPreview"), { ssr: false });
+const BountyPreview = dynamic(() => import("../bounties/BountyPreview"), { ssr: false });
 
 interface EnhancedMarkdownRendererProps {
   content: string;

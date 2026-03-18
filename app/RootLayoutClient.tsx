@@ -8,22 +8,25 @@ import {
   useDisclosure,
 } from "@chakra-ui/react";
 import { usePathname } from "next/navigation";
+import dynamic from "next/dynamic";
 import Sidebar from "@/components/layout/Sidebar";
 import FooterNavButtons from "@/components/layout/FooterNavButtons";
 import FooterLinks from "@/components/layout/FooterLinks";
 import SplashScreen from "@/components/layout/SplashScreen";
-import AccountLinkingDetector from "@/components/layout/AccountLinkingDetector";
-import SearchOverlay from "@/components/shared/SearchOverlay";
-import AirdropModal from "@/components/airdrop/AirdropModal";
-import CommunityToasts from "@/components/homepage/CommunityToasts";
-import IOSAppBanner from "@/components/shared/IOSAppBanner";
-import HZCEasterEgg from "@/components/shared/HZCEasterEgg";
 import { Providers } from "./providers";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { Analytics } from "@vercel/analytics/next";
 import InitFrameSDK from "@/hooks/init-frame-sdk";
 import { SkaterData } from "@/types/leaderboard";
-import WindowDock from "@/components/shared/WindowDock";
+
+// Deferred — not needed for first paint
+const SearchOverlay = dynamic(() => import("@/components/shared/SearchOverlay"), { ssr: false });
+const AirdropModal = dynamic(() => import("@/components/airdrop/AirdropModal"), { ssr: false });
+const AccountLinkingDetector = dynamic(() => import("@/components/layout/AccountLinkingDetector"), { ssr: false });
+const CommunityToasts = dynamic(() => import("@/components/homepage/CommunityToasts"), { ssr: false });
+const IOSAppBanner = dynamic(() => import("@/components/shared/IOSAppBanner"), { ssr: false });
+const HZCEasterEgg = dynamic(() => import("@/components/shared/HZCEasterEgg"), { ssr: false });
+const WindowDock = dynamic(() => import("@/components/shared/WindowDock"), { ssr: false });
 
 export default function RootLayoutClient({
   children,

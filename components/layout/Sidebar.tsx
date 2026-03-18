@@ -43,27 +43,15 @@ export default function Sidebar() {
   const { soundEnabled } = useSoundSettings();
   const hoverAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize hover sound
-  useEffect(() => {
-    hoverAudioRef.current = new Audio('/hoversfx.mp3');
-    hoverAudioRef.current.volume = 0.2;
-    
-    return () => {
-      if (hoverAudioRef.current) {
-        hoverAudioRef.current.pause();
-        hoverAudioRef.current.src = '';
-        hoverAudioRef.current = null;
-      }
-    };
-  }, []);
-
+  // Load audio lazily on first hover instead of on mount
   const playHoverSound = useCallback(() => {
-    if (soundEnabled && hoverAudioRef.current) {
-      hoverAudioRef.current.currentTime = 0;
-      hoverAudioRef.current.play().catch(() => {
-        // Silently fail if audio can't be played
-      });
+    if (!soundEnabled) return;
+    if (!hoverAudioRef.current) {
+      hoverAudioRef.current = new Audio('/hoversfx.mp3');
+      hoverAudioRef.current.volume = 0.2;
     }
+    hoverAudioRef.current.currentTime = 0;
+    hoverAudioRef.current.play().catch(() => {});
   }, [soundEnabled]);
 
   // Ensure client-side only rendering to prevent hydration mismatch
