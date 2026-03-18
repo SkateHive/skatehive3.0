@@ -82,15 +82,20 @@ export function optimizeImageUrl(
   // Skip data URIs and SVGs
   if (src.startsWith("data:") || src.endsWith(".svg")) return src;
 
+  // IPFS images — serve from gateway directly (Hive proxy can't access IPFS gateways)
+  if (
+    src.includes("/ipfs/") ||
+    src.includes("ipfs.skatehive") ||
+    src.includes("gateway.pinata.cloud") ||
+    src.includes("ipfs.io")
+  ) {
+    const cid = extractIpfsCid(src);
+    return cid ? ipfsGatewayUrl(cid) : src;
+  }
+
   // Already proxied through Hive — update dimensions only if using 0x0
   if (src.includes("images.hive.blog")) {
     return src.replace(/images\.hive\.blog\/\d+x\d+\//, `images.hive.blog/${w}x${h}/`);
-  }
-
-  // IPFS images — serve from gateway directly (Hive proxy can't access IPFS gateways)
-  const cid = extractIpfsCid(src);
-  if (cid) {
-    return ipfsGatewayUrl(cid);
   }
 
   // External images — proxy through Hive image service for resize + WebP
