@@ -20,21 +20,18 @@ export default function AccountLinkingDetector() {
   const { hasUnlinkedOpportunities, opportunities, refresh, isLoading } = useAccountLinkingOpportunities();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // Use sessionStorage to persist across page refreshes within the same session
+  // Use localStorage so dismissing persists across tabs and refreshes
   const [hasShownForSession, setHasShownForSession] = useState(() => {
     if (typeof window !== "undefined") {
-      return sessionStorage.getItem("accountLinkingModalShown") === "true";
+      return localStorage.getItem("accountLinkingModalDismissed") === "true";
     }
     return false;
   });
 
-  // Sync hasShownForSession to sessionStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (hasShownForSession) {
-        sessionStorage.setItem("accountLinkingModalShown", "true");
-      } else {
-        sessionStorage.removeItem("accountLinkingModalShown");
+        localStorage.setItem("accountLinkingModalDismissed", "true");
       }
     }
   }, [hasShownForSession]);
@@ -151,10 +148,13 @@ export default function AccountLinkingDetector() {
     isLoading,
   ]);
 
-  // Reset session flag when user logs out
+  // Reset flag when user logs out
   useEffect(() => {
     if (!userbaseUser) {
       setHasShownForSession(false);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("accountLinkingModalDismissed");
+      }
     }
   }, [userbaseUser]);
 
