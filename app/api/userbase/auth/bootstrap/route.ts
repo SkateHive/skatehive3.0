@@ -178,16 +178,17 @@ export async function POST(request: NextRequest) {
   const identifierField =
     type === "hive" ? "handle" : type === "evm" ? "address" : "external_id";
 
-  const shouldUseExistingIdentity = type === "hive";
+  // Always look up existing identity for all types.
+  // Without this check, EVM/Farcaster users get a brand-new account on every
+  // session (after cookie expiry or new browser), creating duplicate users.
+  const { data: existingIdentityRows } = await supabase!
+    .from("userbase_identities")
+    .select("id, user_id")
+    .eq("type", type)
+    .eq(identifierField, identifier)
+    .limit(1);
 
-  const { data: existingIdentity } = shouldUseExistingIdentity
-    ? await supabase!
-        .from("userbase_identities")
-        .select("id, user_id")
-        .eq("type", type)
-        .eq(identifierField, identifier)
-        .limit(1)
-    : { data: null };
+  const existingIdentity = existingIdentityRows ?? null;
 
   let userId = existingIdentity?.[0]?.user_id || null;
   let identityId = existingIdentity?.[0]?.id || null;
