@@ -320,7 +320,13 @@ export default function AccountLinkingModal({
         body: JSON.stringify({ handle }),
       });
       const challengeData = await challengeRes.json();
-      if (!challengeRes.ok) throw new Error(challengeData?.error || "Challenge failed");
+      if (!challengeRes.ok) {
+        if (challengeRes.status === 401) {
+          await refreshUserbase();
+          throw new Error("Session expired — please sign in again and retry");
+        }
+        throw new Error(challengeData?.error || "Challenge failed");
+      }
 
       const signResult = await aioha.signMessage(challengeData.message, KeyTypes.Posting);
       if (!signResult?.success) throw new Error(signResult?.error || "Signing failed");
@@ -444,7 +450,13 @@ export default function AccountLinkingModal({
         body: JSON.stringify({ address }),
       });
       const challengeData = await challengeRes.json();
-      if (!challengeRes.ok) throw new Error(challengeData?.error || "Challenge failed");
+      if (!challengeRes.ok) {
+        if (challengeRes.status === 401) {
+          await refreshUserbase();
+          throw new Error("Session expired — please sign in again and retry");
+        }
+        throw new Error(challengeData?.error || "Challenge failed");
+      }
 
       // Sign with wallet
       const signature = await signMessageAsync({ message: challengeData.message });

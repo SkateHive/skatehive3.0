@@ -165,14 +165,15 @@ export async function POST(request: NextRequest) {
       .from("userbase_sessions")
       .select("user_id, expires_at")
       .eq("refresh_token_hash", tokenHash)
+      .is("revoked_at", null)
       .gt("expires_at", new Date().toISOString())
       .limit(1)
       .single();
-    
+
     if (session) {
       return NextResponse.json({ success: true, user_id: session.user_id });
     }
-    // Token invalid/expired - continue with bootstrap flow
+    // Token invalid/expired/revoked - continue with bootstrap flow
   }
 
   const identifierField =
