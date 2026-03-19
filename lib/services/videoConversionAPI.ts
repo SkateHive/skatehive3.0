@@ -29,14 +29,14 @@ const SECONDARY_API_ENDPOINT = "https://146-235-239-243.sslip.io/transcode";
 const FALLBACK_API_ENDPOINT = "https://vladsberry.tail83ea3e.ts.net/video/transcode";
 
 /**
- * Attempts to upload and convert video using the primary API (Oracle)
+ * Attempts to upload and convert video using the primary API (Mac Mini M4)
  */
 async function uploadToPrimaryAPI(
   file: File,
   options: VideoConversionOptions
 ): Promise<VideoConversionResult> {
   try {
-    console.log("� Attempting upload to Oracle API (primary)...");
+    console.log("🍎 Attempting upload to Mac Mini M4 API (primary)...");
 
     const formData = new FormData();
     formData.append("video", file);
@@ -55,14 +55,13 @@ async function uploadToPrimaryAPI(
     });
 
     if (!response.ok) {
-      throw new Error(`Oracle API failed: ${response.status} - ${response.statusText}`);
+      throw new Error(`Mac Mini M4 API failed: ${response.status} - ${response.statusText}`);
     }
 
     const result = await response.json();
 
     console.log("🔍 Mac Mini M4 API Response Debug:");
     console.log("Full result:", JSON.stringify(result, null, 2));
-    console.log("result.url:", result.url, typeof result.url);
     console.log("result.gatewayUrl:", result.gatewayUrl, typeof result.gatewayUrl);
 
     // Mac Mini returns: { cid, gatewayUrl, requestId, duration, creator, sourceApp, timestamp }
@@ -93,14 +92,14 @@ async function uploadToPrimaryAPI(
 }
 
 /**
- * Attempts to upload and convert video using the secondary API (Mac Mini M4)
+ * Attempts to upload and convert video using the secondary API (Oracle)
  */
 async function uploadToSecondaryAPI(
   file: File,
   options: VideoConversionOptions
 ): Promise<VideoConversionResult> {
   try {
-    console.log("🍎 Attempting upload to secondary API (Mac Mini M4)...");
+    console.log("☁️ Attempting upload to secondary API (Oracle)...");
 
     const formData = new FormData();
     formData.append("video", file);
