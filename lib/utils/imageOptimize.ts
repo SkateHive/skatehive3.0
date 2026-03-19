@@ -4,10 +4,11 @@ import { APP_CONFIG } from "@/config/app.config";
  * Centralized image optimization pipeline.
  *
  * Strategy:
+ *  - IPFS images → serve from ipfs.skatehive.app with Pinata img-* query params
+ *    (resize, WebP conversion, quality — no Hive proxy middleman)
  *  - Hive-hosted images → use images.hive.blog proxy with explicit dimensions
- *  - IPFS images → resolve through skatehive gateway, then proxy via Hive for resize
  *  - External images → proxy via Hive image service for resize + WebP
- *  - GIFs → pass through unmodified (Hive proxy strips animation)
+ *  - GIFs → pass through unmodified (proxies strip animation)
  */
 
 // Standard dimension presets
@@ -30,8 +31,8 @@ const HIVE_PROXY = "https://images.hive.blog";
 const IPFS_GATEWAY = APP_CONFIG.IPFS_GATEWAY;
 
 /**
- * Check if a URL points to an animated GIF (which shouldn't be proxied
- * through Hive since the proxy strips animation frames).
+ * Check if a URL points to an animated GIF.
+ * GIFs should not have img-format=webp applied (strips animation).
  */
 function isAnimatedGif(url: string): boolean {
   const lower = url.toLowerCase();
@@ -44,6 +45,18 @@ function isAnimatedGif(url: string): boolean {
 }
 
 /**
+ * Check if a URL is an IPFS resource (any gateway).
+ */
+function isIpfsUrl(url: string): boolean {
+  return (
+    url.includes("/ipfs/") ||
+    url.includes("ipfs.skatehive") ||
+    url.includes("gateway.pinata.cloud") ||
+    url.includes("ipfs.io")
+  );
+}
+
+/**
  * Extract IPFS CID from any IPFS gateway URL.
  */
 function extractIpfsCid(url: string): string | null {
@@ -52,7 +65,7 @@ function extractIpfsCid(url: string): string | null {
 }
 
 /**
- * Resolve an IPFS URL to the skatehive gateway.
+ * Resolve an IPFS URL to the skatehive gateway (no optimization params).
  */
 export function ipfsGatewayUrl(cidOrUrl: string): string {
   const cid = extractIpfsCid(cidOrUrl) || cidOrUrl;
@@ -60,14 +73,38 @@ export function ipfsGatewayUrl(cidOrUrl: string): string {
 }
 
 /**
- * Proxy any image through the Hive image service with explicit dimensions.
+ * Build a Pinata gateway URL with image optimization query params.
  *
- * The Hive proxy (`images.hive.blog/{W}x{H}/{url}`) resizes on the edge,
- * converts to WebP when the client supports it, and caches aggressively.
+ * Pinata serves img-* transformations natively on the gateway edge —
+ * no need to route through the Hive image proxy.
  *
- * @param src  Original image URL (IPFS, external CDN, etc.)
- * @param w    Target width  (0 = auto / keep aspect ratio)
- * @param h    Target height (0 = auto / keep aspect ratio)
+ * @param cid  IPFS CID
+ * @param w    Target width  (0 = no constraint)
+ * @param h    Target height (0 = no constraint)
+ */
+function pinataOptimizedUrl(cid: string, w: number, h: number): string {
+  const params = new URLSearchParams();
+  if (w > 0) params.set('img-width', String(w));
+  if (h > 0) params.set('img-height', String(h));
+  // Use cover when both dimensions are specified; scale-down when only width
+  params.set('img-fit', h > 0 ? 'cover' : 'scale-down');
+  params.set('img-format', 'webp');
+  params.set('img-quality', '75');
+  // Fall back to original image if optimization fails (e.g. non-image CID)
+  params.set('img-onerror', 'redirect');
+  return `https://${IPFS_GATEWAY}/ipfs/${cid}?${params.toString()}`;
+}
+
+/**
+ * Optimize an image URL with explicit dimensions.
+ *
+ * - IPFS images: Pinata img-* params (native edge optimization, no proxy middleman)
+ * - Hive-hosted images: update Hive proxy dimensions
+ * - External images: proxy via Hive image service
+ *
+ * @param src  Original image URL
+ * @param w    Target width  (0 = auto)
+ * @param h    Target height (0 = auto)
  */
 export function optimizeImageUrl(
   src: string,
@@ -76,24 +113,20 @@ export function optimizeImageUrl(
 ): string {
   if (!src) return src;
 
-  // Skip GIFs — Hive proxy strips animation
+  // GIFs — pass through unmodified (optimization strips animation)
   if (isAnimatedGif(src)) return src;
 
-  // Skip data URIs and SVGs
+  // Data URIs and SVGs — pass through
   if (src.startsWith("data:") || src.endsWith(".svg")) return src;
 
-  // IPFS images — serve from gateway directly (Hive proxy can't access IPFS gateways)
-  if (
-    src.includes("/ipfs/") ||
-    src.includes("ipfs.skatehive") ||
-    src.includes("gateway.pinata.cloud") ||
-    src.includes("ipfs.io")
-  ) {
+  // IPFS images — use Pinata's native img-* optimization params
+  if (isIpfsUrl(src)) {
     const cid = extractIpfsCid(src);
-    return cid ? ipfsGatewayUrl(cid) : src;
+    if (!cid) return src;
+    return pinataOptimizedUrl(cid, w, h);
   }
 
-  // Already proxied through Hive — update dimensions only if using 0x0
+  // Already proxied through Hive — update dimensions
   if (src.includes("images.hive.blog")) {
     return src.replace(/images\.hive\.blog\/\d+x\d+\//, `images.hive.blog/${w}x${h}/`);
   }

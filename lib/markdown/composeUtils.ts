@@ -1,6 +1,7 @@
 import { extractImageUrls } from "@/lib/utils/extractImageUrls";
 
 import { APP_CONFIG } from "@/config/app.config";
+import { groupIdForMimeType } from "@/lib/pinata/groups";
 
 // Helper function to get file extension from MIME type
 const getExtensionFromMimeType = (mimeType: string): string => {
@@ -150,15 +151,19 @@ export const uploadToIpfs = async (
     formData.append("file", blob, fileName);
 
     // Add Pinata metadata for better file management
-    const fileType = blob.type.startsWith('image/') ? 'image' :
-                     blob.type.startsWith('video/') ? 'video' : 'file';
+    const mimeType = blob.type || 'application/octet-stream';
+    const fileType = mimeType.startsWith('image/') ? 'image' :
+                     mimeType.startsWith('video/') ? 'video' : 'file';
+    const groupId = groupIdForMimeType(mimeType);
 
     const pinataMetadata = {
         name: fileName,
         keyvalues: {
+            source: 'webapp',
             app: 'skatehive',
             type: fileType,
-            uploadedAt: new Date().toISOString(),
+            fileType: mimeType,
+            uploadDate: new Date().toISOString(),
             size: blob.size.toString(),
         }
     };
@@ -167,7 +172,8 @@ export const uploadToIpfs = async (
 
     // Add Pinata options for better CDN performance
     const pinataOptions = {
-        cidVersion: 1, // Use CIDv1 for better gateway compatibility
+        cidVersion: 1,
+        ...(groupId && { groupId }),
     };
 
     formData.append("pinataOptions", JSON.stringify(pinataOptions));
@@ -205,8 +211,8 @@ export const uploadToIpfs = async (
 const uploadToIpfsDirect = async (
     blob: Blob,
     fileName: string,
-    pinataMetadata: any,
-    pinataOptions: any
+    pinataMetadata: { name: string; keyvalues: Record<string, string> },
+    pinataOptions: { cidVersion: number; groupId?: string }
 ): Promise<string> => {
     // Get a temporary JWT for direct upload
     const keyRes = await fetch('/api/pinata/signed-url');

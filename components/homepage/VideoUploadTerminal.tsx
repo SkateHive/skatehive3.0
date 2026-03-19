@@ -219,7 +219,10 @@ export const VideoUploadTerminal: React.FC<VideoUploadTerminalProps> = ({
     (l.type === "success" && l.message.includes("✓ IPFS upload successful"))
   );
 
-  const hasError = lines.some(l => l.type === "error");
+  // Only show the error state if the upload ultimately failed.
+  // Intermediate server failures (e.g. Oracle 404 before Mac Mini succeeds)
+  // add error-type lines but the upload still completes — don't treat those as fatal.
+  const hasError = !isFullyComplete && lines.some(l => l.type === "error");
 
   useEffect(() => {
     if (isFullyComplete && !hasError && autoCloseOnSuccess && onClose && countdown === null) {

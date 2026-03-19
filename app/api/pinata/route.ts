@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadLimiter, getClientIP } from '@/lib/utils/rate-limiter';
 import { logUpload } from '@/lib/utils/upload-logger';
+import { groupIdForMimeType } from '@/lib/pinata/groups';
 
 // Enable Edge Runtime for streaming support (no payload size limit)
 export const runtime = 'edge';
@@ -63,9 +64,12 @@ export async function POST(request: NextRequest) {
         const uploadFormData = new FormData();
         uploadFormData.append('file', file);
 
+        const groupId = groupIdForMimeType(file.type);
+
         const pinataMetadata = JSON.stringify({
             name: file.name,
             keyvalues: {
+                source: 'webapp',
                 creator: creator || 'anonymous',
                 fileType: file.type,
                 uploadDate: new Date().toISOString(),
@@ -76,7 +80,10 @@ export async function POST(request: NextRequest) {
         });
         uploadFormData.append('pinataMetadata', pinataMetadata);
 
-        const pinataOptions = JSON.stringify({ cidVersion: 1 });
+        const pinataOptions = JSON.stringify({
+            cidVersion: 1,
+            ...(groupId && { groupId }),
+        });
         uploadFormData.append('pinataOptions', pinataOptions);
 
         const uploadResponse = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {

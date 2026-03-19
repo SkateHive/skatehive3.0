@@ -8,6 +8,7 @@
  */
 
 import { APP_CONFIG } from "@/config/app.config";
+import { groupIdForMimeType } from "@/lib/pinata/groups";
 
 const DIRECT_UPLOAD_THRESHOLD = 4 * 1024 * 1024; // 4MB
 
@@ -61,9 +62,11 @@ export async function uploadToIpfsSmart(
 
     if (direct) {
       console.log('📡 Direct-to-Pinata upload (bypassing Vercel)');
+      const groupId = groupIdForMimeType(fileType);
       const pinataMetadata = JSON.stringify({
         name,
         keyvalues: {
+          source: 'webapp',
           creator: creator || 'anonymous',
           fileType,
           uploadDate: new Date().toISOString(),
@@ -71,7 +74,10 @@ export async function uploadToIpfsSmart(
         }
       });
       formData.append('pinataMetadata', pinataMetadata);
-      formData.append('pinataOptions', JSON.stringify({ cidVersion: 1 }));
+      formData.append('pinataOptions', JSON.stringify({
+        cidVersion: 1,
+        ...(groupId && { groupId }),
+      }));
 
       const jwt = await getSignedJwt();
       endpoint = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
