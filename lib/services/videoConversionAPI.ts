@@ -19,11 +19,11 @@ export interface VideoConversionOptions {
   maxRetries?: number;
 }
 
-// Primary API configuration - Oracle (highest priority)
-const PRIMARY_API_ENDPOINT = "https://146-235-239-243.sslip.io/transcode";
+// Primary API configuration - Mac Mini M4 (updated with Pinata Groups + standardized metadata)
+const PRIMARY_API_ENDPOINT = "https://minivlad.tail83ea3e.ts.net/video/transcode";
 
-// Secondary API configuration - Mac Mini M4 (fast processing)
-const SECONDARY_API_ENDPOINT = "https://minivlad.tail83ea3e.ts.net/video/transcode";
+// Secondary API configuration - Oracle (fallback)
+const SECONDARY_API_ENDPOINT = "https://146-235-239-243.sslip.io/transcode";
 
 // Fallback API configuration - Raspberry Pi (reliable backup)
 const FALLBACK_API_ENDPOINT = "https://vladsberry.tail83ea3e.ts.net/video/transcode";
@@ -60,17 +60,16 @@ async function uploadToPrimaryAPI(
 
     const result = await response.json();
 
-    console.log("🔍 Oracle API Response Debug:");
+    console.log("🔍 Mac Mini M4 API Response Debug:");
     console.log("Full result:", JSON.stringify(result, null, 2));
     console.log("result.url:", result.url, typeof result.url);
-    console.log("result.ipfsUrl:", result.ipfsUrl, typeof result.ipfsUrl);
-    console.log("result.videoUrl:", result.videoUrl, typeof result.videoUrl);
+    console.log("result.gatewayUrl:", result.gatewayUrl, typeof result.gatewayUrl);
 
-    // Assuming the API returns a JSON with a URL field
-    if (result.url || result.ipfsUrl || result.videoUrl) {
-      const videoUrl = result.url || result.ipfsUrl || result.videoUrl;
+    // Mac Mini returns: { cid, gatewayUrl, requestId, duration, creator, sourceApp, timestamp }
+    if (result.gatewayUrl || result.url) {
+      const videoUrl = result.gatewayUrl || result.url;
 
-      console.log("✅ Oracle API upload successful!");
+      console.log("✅ Mac Mini M4 API upload successful!");
       console.log("Selected videoUrl:", videoUrl, typeof videoUrl);
 
       return {
@@ -81,10 +80,10 @@ async function uploadToPrimaryAPI(
         fileSize: result.fileSize || file.size,
       };
     } else {
-      throw new Error("Oracle API returned invalid response - no URL found");
+      throw new Error("Mac Mini M4 API returned invalid response - no URL found");
     }
   } catch (error) {
-    console.error("❌ Oracle API failed:", error);
+    console.error("❌ Mac Mini M4 API failed:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -120,15 +119,15 @@ async function uploadToSecondaryAPI(
     });
 
     if (!response.ok) {
-      throw new Error(`Mac Mini M4 API failed: ${response.status} - ${response.statusText}`);
+      throw new Error(`Oracle API failed: ${response.status} - ${response.statusText}`);
     }
 
     const result = await response.json();
 
-    if (result.url || result.ipfsUrl || result.videoUrl) {
-      const videoUrl = result.url || result.ipfsUrl || result.videoUrl;
+    if (result.url || result.ipfsUrl || result.videoUrl || result.gatewayUrl) {
+      const videoUrl = result.gatewayUrl || result.url || result.ipfsUrl || result.videoUrl;
 
-      console.log("✅ Mac Mini M4 API upload successful!");
+      console.log("✅ Oracle API upload successful!");
       return {
         success: true,
         url: videoUrl,
@@ -137,10 +136,10 @@ async function uploadToSecondaryAPI(
         fileSize: result.fileSize || file.size,
       };
     } else {
-      throw new Error("Mac Mini M4 API returned invalid response - no URL found");
+      throw new Error("Oracle API returned invalid response - no URL found");
     }
   } catch (error) {
-    console.error("❌ Mac Mini M4 API failed:", error);
+    console.error("❌ Oracle API failed:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -220,17 +219,17 @@ export async function uploadVideoWithAPIFallback(
     fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
     creator: options.creator,
     hasThumbnail: !!options.thumbnailUrl,
-    chain: "Oracle → Mac Mini M4 → Raspberry Pi → Native"
+    chain: "Mac Mini M4 → Oracle → Raspberry Pi → Native"
   });
 
-  // Try primary API first (Oracle)
+  // Try primary API first (Mac Mini M4)
   let result = await uploadToPrimaryAPI(file, options);
   if (result.success) {
-    console.log("✅ Oracle upload successful!");
+    console.log("✅ Mac Mini M4 upload successful!");
     return result;
   }
 
-  console.log("⚠️ Oracle failed, trying Mac Mini M4...");
+  console.log("⚠️ Mac Mini M4 failed, trying Oracle...");
 
   // Try secondary API (Mac Mini M4)
   result = await uploadToSecondaryAPI(file, options);
@@ -253,7 +252,7 @@ export async function uploadVideoWithAPIFallback(
   // Return failure - the calling code will handle native fallback
   return {
     success: false,
-    error: "All APIs failed (Oracle, Mac Mini M4, Raspberry Pi) - falling back to native processing",
+    error: "All APIs failed (Mac Mini M4, Oracle, Raspberry Pi) - falling back to native processing",
     method: 'native',
   };
 }
@@ -285,5 +284,8 @@ export async function checkAPIAvailability(): Promise<{
   return {
     primaryAPI: primaryAPI.status === 'fulfilled' && primaryAPI.value,
     fallbackAPI: fallbackAPI.status === 'fulfilled' && fallbackAPI.value,
+  };
+}
+lbackAPI.status === 'fulfilled' && fallbackAPI.value,
   };
 }
