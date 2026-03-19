@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Container,
@@ -17,12 +17,13 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
+  HStack,
+  Button,
 } from "@chakra-ui/react";
-import { FaSearch, FaMapMarkerAlt } from "react-icons/fa";
+import { FaSearch, FaMapMarkerAlt, FaGlobe, FaTh } from "react-icons/fa";
 import HiveClient from "@/lib/hive/hiveclient";
 import NextLink from "next/link";
 import HubNavigation from "@/components/shared/HubNavigation";
-import { trackLandingPageVisit } from "@/lib/analytics/events";
 
 type SkaterProfile = {
   username: string;
@@ -35,90 +36,140 @@ type SkaterProfile = {
   postCount?: number;
 };
 
+// Country → flag emoji
+const COUNTRY_FLAGS: Record<string, string> = {
+  "Brazil": "🇧🇷", "USA": "🇺🇸", "United States": "🇺🇸", "US": "🇺🇸",
+  "United Kingdom": "🇬🇧", "UK": "🇬🇧", "Germany": "🇩🇪", "France": "🇫🇷",
+  "Spain": "🇪🇸", "Portugal": "🇵🇹", "Italy": "🇮🇹", "Netherlands": "🇳🇱",
+  "Australia": "🇦🇺", "Canada": "🇨🇦", "Japan": "🇯🇵", "Mexico": "🇲🇽",
+  "Argentina": "🇦🇷", "Colombia": "🇨🇴", "Chile": "🇨🇱", "Peru": "🇵🇪",
+  "Venezuela": "🇻🇪", "Ecuador": "🇪🇨", "Bolivia": "🇧🇴", "Uruguay": "🇺🇾",
+  "Sweden": "🇸🇪", "Norway": "🇳🇴", "Denmark": "🇩🇰", "Finland": "🇫🇮",
+  "Poland": "🇵🇱", "Russia": "🇷🇺", "Ukraine": "🇺🇦", "Czech Republic": "🇨🇿",
+  "Austria": "🇦🇹", "Switzerland": "🇨🇭", "Belgium": "🇧🇪", "Greece": "🇬🇷",
+  "Turkey": "🇹🇷", "Israel": "🇮🇱", "South Africa": "🇿🇦", "Nigeria": "🇳🇬",
+  "Kenya": "🇰🇪", "Egypt": "🇪🇬", "Indonesia": "🇮🇩", "Philippines": "🇵🇭",
+  "Thailand": "🇹🇭", "Vietnam": "🇻🇳", "India": "🇮🇳", "Pakistan": "🇵🇰",
+  "China": "🇨🇳", "South Korea": "🇰🇷", "Taiwan": "🇹🇼", "New Zealand": "🇳🇿",
+  "Costa Rica": "🇨🇷", "Panama": "🇵🇦", "Guatemala": "🇬🇹", "Honduras": "🇭🇳",
+  "El Salvador": "🇸🇻", "Nicaragua": "🇳🇮", "Cuba": "🇨🇺", "Puerto Rico": "🇵🇷",
+  "Dominican Republic": "🇩🇴", "Jamaica": "🇯🇲", "Trinidad": "🇹🇹",
+};
+
+function getFlag(country?: string) {
+  if (!country) return "🌍";
+  return COUNTRY_FLAGS[country.trim()] || "🌍";
+}
+
+function parseProfile(acc: any): SkaterProfile | null {
+  let profile: any = {};
+  try {
+    const meta = JSON.parse(acc.posting_json_metadata || "{}");
+    profile = meta.profile || {};
+    if (!profile.name && !profile.location) {
+      const meta2 = JSON.parse(acc.json_metadata || "{}");
+      profile = { ...meta2.profile, ...profile };
+    }
+  } catch {
+    // ignore
+  }
+
+  const location = (profile.location || "").trim();
+  const parts = location.split(",").map((s: string) => s.trim());
+  const city = parts.length > 1 ? parts[0] : "";
+  const country = parts.length > 1 ? parts[parts.length - 1] : parts[0] || "";
+
+  return {
+    username: acc.name,
+    name: profile.name || acc.name,
+    location,
+    country,
+    city,
+    about: profile.about || "",
+    avatar:
+      profile.profile_image ||
+      `https://images.ecency.com/webp/u/${acc.name}/avatar/small`,
+    postCount: acc.post_count || 0,
+  };
+}
+
+// Batch-fetch accounts — one call per batch of up to 15 usernames
+async function fetchAccountsBatched(usernames: string[]): Promise<SkaterProfile[]> {
+  const BATCH = 15;
+  const batches: string[][] = [];
+  for (let i = 0; i < usernames.length; i += BATCH) {
+    batches.push(usernames.slice(i, i + BATCH));
+  }
+
+  const results = await Promise.allSettled(
+    batches.map((batch) => HiveClient.database.call("get_accounts", [batch]))
+  );
+
+  const profiles: SkaterProfile[] = [];
+  for (const res of results) {
+    if (res.status !== "fulfilled" || !Array.isArray(res.value)) continue;
+    for (const acc of res.value) {
+      const p = parseProfile(acc);
+      if (p) profiles.push(p);
+    }
+  }
+  return profiles;
+}
+
 export default function SkatersContent() {
   const [skaters, setSkaters] = useState<SkaterProfile[]>([]);
-  const [filteredSkaters, setFilteredSkaters] = useState<SkaterProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
-
-  // Track landing page visit on mount
-  useEffect(() => {
-    trackLandingPageVisit({ page: 'map' }); // using 'map' as fallback since 'skaters' not in type yet
-  }, []);
+  const [viewMode, setViewMode] = useState<"grid" | "map">("map");
 
   useEffect(() => {
     loadSkaters();
   }, []);
 
-  useEffect(() => {
-    filterSkaters();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, selectedCountry, skaters]);
-
   const loadSkaters = async () => {
     setIsLoading(true);
     try {
-      // Fetch active users from hive-173115 community
-      const posts = await HiveClient.call("bridge", "get_ranked_posts", {
-        sort: "created",
-        tag: "hive-173115",
-        limit: 100,
-      });
+      // Pull from two sources in parallel for maximum coverage
+      const [subscribersRaw, postsRaw] = await Promise.allSettled([
+        HiveClient.call("bridge", "list_subscribers", {
+          community: "hive-173115",
+          limit: 100,
+        }),
+        HiveClient.call("bridge", "get_ranked_posts", {
+          sort: "created",
+          tag: "hive-173115",
+          limit: 100,
+        }),
+      ]);
 
-      if (!posts || posts.length === 0) {
-        setIsLoading(false);
-        return;
-      }
+      const usernameSet = new Set<string>();
 
-      // Extract unique authors
-      const authorMap = new Map<string, SkaterProfile>();
-      for (const post of posts) {
-        if (!post?.author || authorMap.has(post.author)) continue;
-
-        // Try to get profile info
-        try {
-          const account = await HiveClient.database.call("get_accounts", [[post.author]]);
-          if (!account || account.length === 0) continue;
-
-          const acc = account[0];
-          let profile: any = {};
-          try {
-            const metadata = JSON.parse(acc.posting_json_metadata || "{}");
-            profile = metadata.profile || {};
-          } catch {
-            // Skip invalid JSON
-          }
-
-          const location = profile.location || "";
-          const parts = location.split(",").map((s: string) => s.trim());
-          const city = parts.length > 1 ? parts[0] : "";
-          const country = parts.length > 1 ? parts[parts.length - 1] : parts[0] || "";
-
-          authorMap.set(post.author, {
-            username: post.author,
-            name: profile.name || post.author,
-            location,
-            country,
-            city,
-            about: profile.about || "",
-            avatar: profile.profile_image || `https://images.ecency.com/webp/u/${post.author}/avatar/small`,
-            postCount: acc.post_count || 0,
-          });
-
-          // Limit to 50 skaters for performance
-          if (authorMap.size >= 50) break;
-        } catch (err) {
-          console.warn(`Failed to load profile for ${post.author}:`, err);
+      if (subscribersRaw.status === "fulfilled" && Array.isArray(subscribersRaw.value)) {
+        for (const sub of subscribersRaw.value) {
+          // list_subscribers returns [account, role, label, created]
+          const name = Array.isArray(sub) ? sub[0] : sub.account;
+          if (name) usernameSet.add(name);
         }
       }
 
-      const skatersArray = Array.from(authorMap.values())
-        .filter((s) => s.location) // only those with location set
-        .sort((a, b) => (b.postCount || 0) - (a.postCount || 0)); // sort by activity
+      if (postsRaw.status === "fulfilled" && Array.isArray(postsRaw.value)) {
+        for (const post of postsRaw.value) {
+          if (post?.author) usernameSet.add(post.author);
+        }
+      }
 
-      setSkaters(skatersArray);
-      setFilteredSkaters(skatersArray);
+      const usernames = Array.from(usernameSet).slice(0, 150);
+      const profiles = await fetchAccountsBatched(usernames);
+
+      // Sort by location presence first, then by post count
+      profiles.sort((a, b) => {
+        if (a.location && !b.location) return -1;
+        if (!a.location && b.location) return 1;
+        return (b.postCount || 0) - (a.postCount || 0);
+      });
+
+      setSkaters(profiles);
     } catch (error) {
       console.error("Error loading skaters:", error);
     } finally {
@@ -126,39 +177,53 @@ export default function SkatersContent() {
     }
   };
 
-  const filterSkaters = () => {
-    let filtered = skaters;
-
+  // Filtered list
+  const filteredSkaters = useMemo(() => {
+    let list = skaters;
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
+      const t = searchTerm.toLowerCase();
+      list = list.filter(
         (s) =>
-          s.username.toLowerCase().includes(term) ||
-          s.name?.toLowerCase().includes(term) ||
-          s.location?.toLowerCase().includes(term) ||
-          s.country?.toLowerCase().includes(term) ||
-          s.city?.toLowerCase().includes(term)
+          s.username.toLowerCase().includes(t) ||
+          s.name?.toLowerCase().includes(t) ||
+          s.location?.toLowerCase().includes(t) ||
+          s.country?.toLowerCase().includes(t) ||
+          s.city?.toLowerCase().includes(t)
       );
     }
-
     if (selectedCountry) {
-      filtered = filtered.filter((s) => s.country === selectedCountry);
+      list = list.filter((s) => s.country === selectedCountry);
     }
+    return list;
+  }, [skaters, searchTerm, selectedCountry]);
 
-    setFilteredSkaters(filtered);
-  };
+  // Skaters grouped by country (only those with location)
+  const byCountry = useMemo(() => {
+    const map = new Map<string, SkaterProfile[]>();
+    for (const s of filteredSkaters) {
+      if (!s.location) continue;
+      const key = s.country || "Unknown";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    }
+    // Sort countries by number of skaters desc
+    return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length);
+  }, [filteredSkaters]);
 
-  // Get unique countries for filtering
-  const countries = Array.from(new Set(skaters.map((s) => s.country).filter(Boolean))).sort();
+  const skatersWithLocation = useMemo(() => skaters.filter((s) => s.location), [skaters]);
+  const countries = useMemo(
+    () =>
+      Array.from(new Set(skatersWithLocation.map((s) => s.country).filter(Boolean))).sort(),
+    [skatersWithLocation]
+  );
 
   return (
     <Box minH="100vh" py={8}>
       <Container maxW="container.xl">
-        {/* Hub Navigation */}
         <HubNavigation />
 
-        {/* Hero Section */}
-        <VStack spacing={4} mb={10} textAlign="center">
+        {/* Hero */}
+        <VStack spacing={4} mb={8} textAlign="center">
           <Heading
             as="h1"
             className="fretqwik-title"
@@ -173,38 +238,22 @@ export default function SkatersContent() {
             Discover skateboarders from around the world. Browse by country and city,
             connect with the global skate community.
           </Text>
-          <Badge colorScheme="green" fontSize="sm" px={3} py={1}>
-            {skaters.length} Active Skaters
-          </Badge>
+          <HStack spacing={3} flexWrap="wrap" justify="center">
+            <Badge colorScheme="green" fontSize="sm" px={3} py={1}>
+              {skaters.length} Active Skaters
+            </Badge>
+            <Badge colorScheme="blue" fontSize="sm" px={3} py={1}>
+              {skatersWithLocation.length} with location
+            </Badge>
+            <Badge colorScheme="purple" fontSize="sm" px={3} py={1}>
+              {countries.length} countries
+            </Badge>
+          </HStack>
         </VStack>
 
-        {/* SEO Content */}
-        <Box
-          mb={8}
-          p={6}
-          bg="rgba(20,20,20,0.4)"
-          border="1px solid"
-          borderColor="whiteAlpha.200"
-          borderRadius="lg"
-        >
-          <Heading as="h2" fontSize="xl" mb={3} color="primary">
-            Find Skateboarders Worldwide
-          </Heading>
-          <Text fontSize="sm" color="gray.300" mb={2}>
-            Connect with skateboarders from every corner of the globe. From Brazilian skateboarders
-            in São Paulo and Rio de Janeiro to street skaters in Los Angeles, New York, and Tokyo —
-            the Skatehive community spans the world.
-          </Text>
-          <Text fontSize="sm" color="gray.300">
-            Browse profiles by country and city, discover local skate scenes, and connect with
-            skaters who share your passion. Every skater on Skatehive is part of the decentralized
-            skate movement.
-          </Text>
-        </Box>
-
-        {/* Search & Filters */}
-        <Flex gap={4} mb={8} flexWrap="wrap">
-          <InputGroup maxW={{ base: "100%", md: "400px" }}>
+        {/* Search + Filters */}
+        <Flex gap={4} mb={6} flexWrap="wrap" align="center">
+          <InputGroup maxW={{ base: "100%", md: "360px" }}>
             <InputLeftElement pointerEvents="none">
               <FaSearch color="gray" />
             </InputLeftElement>
@@ -219,119 +268,197 @@ export default function SkatersContent() {
             />
           </InputGroup>
 
+          {/* View toggle */}
+          <HStack spacing={2}>
+            <Button
+              size="sm"
+              leftIcon={<FaGlobe />}
+              variant={viewMode === "map" ? "solid" : "outline"}
+              colorScheme="green"
+              onClick={() => setViewMode("map")}
+            >
+              By Location
+            </Button>
+            <Button
+              size="sm"
+              leftIcon={<FaTh />}
+              variant={viewMode === "grid" ? "solid" : "outline"}
+              colorScheme="green"
+              onClick={() => setViewMode("grid")}
+            >
+              All Skaters
+            </Button>
+          </HStack>
+
           {/* Country filter pills */}
           <Flex gap={2} flexWrap="wrap" align="center">
-            <Text fontSize="sm" color="gray.500">
-              Filter by country:
-            </Text>
+            <Text fontSize="sm" color="gray.500">Country:</Text>
             <Badge
               cursor="pointer"
               colorScheme={selectedCountry === null ? "green" : "gray"}
               onClick={() => setSelectedCountry(null)}
-              fontSize="xs"
-              px={3}
-              py={1}
+              fontSize="xs" px={3} py={1}
             >
-              All
+              ALL
             </Badge>
-            {countries.slice(0, 8).map((country) => (
+            {countries.slice(0, 10).map((country) => (
               <Badge
                 key={country}
                 cursor="pointer"
                 colorScheme={selectedCountry === country ? "green" : "gray"}
                 onClick={() => setSelectedCountry(selectedCountry === country ? null : (country || null))}
-                fontSize="xs"
-                px={3}
-                py={1}
+                fontSize="xs" px={3} py={1}
               >
-                {country}
+                {getFlag(country)} {country}
               </Badge>
             ))}
           </Flex>
         </Flex>
 
-        {/* Skaters Grid */}
+        {/* Content */}
         {isLoading ? (
           <Center py={20}>
-            <Spinner size="xl" color="primary" />
-          </Center>
-        ) : filteredSkaters.length === 0 ? (
-          <Center py={20}>
             <VStack spacing={4}>
-              <Text color="gray.500" fontSize="lg">
-                No skaters found.
-              </Text>
-              <Text color="gray.600" fontSize="sm">
-                Try adjusting your search or filters.
-              </Text>
+              <Spinner size="xl" color="primary" />
+              <Text color="gray.500" fontSize="sm">Loading skaters from Hive blockchain...</Text>
             </VStack>
           </Center>
-        ) : (
-          <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={6} mb={8}>
-            {filteredSkaters.map((skater) => (
-              <NextLink
-                key={skater.username}
-                href={`/user/${skater.username}`}
-                passHref
-                legacyBehavior
-              >
-                <ChakraLink
-                  _hover={{ textDecoration: "none" }}
-                  display="block"
-                  bg="rgba(20,20,20,0.6)"
-                  border="1px solid"
-                  borderColor="whiteAlpha.200"
-                  borderRadius="lg"
-                  p={4}
-                  transition="all 0.3s"
-                  _groupHover={{
-                    borderColor: "primary",
-                    transform: "translateY(-4px)",
-                    boxShadow: "0 0 20px rgba(138, 255, 0, 0.3)",
-                  }}
-                  role="group"
-                >
-                  <Flex align="center" mb={3}>
-                    <Avatar src={skater.avatar} name={skater.name} size="md" mr={3} />
-                    <Box flex={1}>
-                      <Text
-                        fontWeight="bold"
-                        color="white"
-                        fontSize="md"
-                        _groupHover={{ color: "primary" }}
-                      >
-                        {skater.name}
-                      </Text>
-                      <Text fontSize="xs" color="gray.500">
-                        @{skater.username}
-                      </Text>
-                    </Box>
+        ) : viewMode === "map" ? (
+          /* ── BY LOCATION VIEW ── */
+          byCountry.length === 0 ? (
+            <Center py={20}>
+              <VStack spacing={2}>
+                <Text color="gray.500">No skaters with location found.</Text>
+                <Text color="gray.600" fontSize="sm">Try switching to "All Skaters" view.</Text>
+              </VStack>
+            </Center>
+          ) : (
+            <VStack spacing={8} align="stretch">
+              {byCountry.map(([country, countrySkaters]) => (
+                <Box key={country}>
+                  {/* Country header */}
+                  <Flex
+                    align="center"
+                    gap={3}
+                    mb={4}
+                    pb={2}
+                    borderBottom="1px solid"
+                    borderColor="whiteAlpha.200"
+                  >
+                    <Text fontSize="2xl">{getFlag(country)}</Text>
+                    <Heading fontSize="xl" color="primary">
+                      {country}
+                    </Heading>
+                    <Badge colorScheme="green" fontSize="xs">
+                      {countrySkaters.length} skater{countrySkaters.length !== 1 ? "s" : ""}
+                    </Badge>
                   </Flex>
 
-                  {skater.location && (
-                    <Flex align="center" gap={2} mb={2}>
-                      <FaMapMarkerAlt color="#8AFF00" size={12} />
-                      <Text fontSize="sm" color="gray.400">
-                        {skater.location}
-                      </Text>
+                  <SimpleGrid columns={{ base: 2, sm: 3, md: 4, lg: 5 }} spacing={4}>
+                    {countrySkaters.map((skater) => (
+                      <SkaterCard key={skater.username} skater={skater} />
+                    ))}
+                  </SimpleGrid>
+                </Box>
+              ))}
+
+              {/* Skaters without location */}
+              {!selectedCountry && !searchTerm && (() => {
+                const noLocation = filteredSkaters.filter((s) => !s.location);
+                if (noLocation.length === 0) return null;
+                return (
+                  <Box>
+                    <Flex align="center" gap={3} mb={4} pb={2} borderBottom="1px solid" borderColor="whiteAlpha.200">
+                      <Text fontSize="2xl">🌍</Text>
+                      <Heading fontSize="xl" color="gray.500">Location Unknown</Heading>
+                      <Badge colorScheme="gray" fontSize="xs">{noLocation.length}</Badge>
                     </Flex>
-                  )}
-
-                  {skater.about && (
-                    <Text fontSize="xs" color="gray.500" noOfLines={2} mb={2}>
-                      {skater.about}
-                    </Text>
-                  )}
-
-                  <Badge colorScheme="green" fontSize="xs">
-                    {skater.postCount} posts
-                  </Badge>
-                </ChakraLink>
-              </NextLink>
-            ))}
-          </SimpleGrid>
+                    <SimpleGrid columns={{ base: 2, sm: 3, md: 4, lg: 5 }} spacing={4}>
+                      {noLocation.slice(0, 20).map((skater) => (
+                        <SkaterCard key={skater.username} skater={skater} />
+                      ))}
+                    </SimpleGrid>
+                  </Box>
+                );
+              })()}
+            </VStack>
+          )
+        ) : (
+          /* ── GRID VIEW ── */
+          filteredSkaters.length === 0 ? (
+            <Center py={20}>
+              <VStack spacing={4}>
+                <Text color="gray.500" fontSize="lg">No skaters found.</Text>
+                <Text color="gray.600" fontSize="sm">Try adjusting your search or filters.</Text>
+              </VStack>
+            </Center>
+          ) : (
+            <SimpleGrid columns={{ base: 2, sm: 3, md: 4, lg: 5 }} spacing={4} mb={8}>
+              {filteredSkaters.map((skater) => (
+                <SkaterCard key={skater.username} skater={skater} />
+              ))}
+            </SimpleGrid>
+          )
         )}
       </Container>
     </Box>
+  );
+}
+
+// ── Skater Card ──────────────────────────────────────────────────────────────
+
+function SkaterCard({ skater }: { skater: SkaterProfile }) {
+  return (
+    <NextLink href={`/user/${skater.username}`} passHref legacyBehavior>
+      <ChakraLink
+        _hover={{ textDecoration: "none" }}
+        display="block"
+        bg="rgba(20,20,20,0.6)"
+        border="1px solid"
+        borderColor="whiteAlpha.200"
+        borderRadius="lg"
+        p={3}
+        transition="all 0.2s"
+        _groupHover={{
+          borderColor: "primary",
+          transform: "translateY(-3px)",
+          boxShadow: "0 0 16px rgba(138,255,0,0.25)",
+        }}
+        role="group"
+      >
+        <VStack spacing={2} align="center" textAlign="center">
+          <Avatar src={skater.avatar} name={skater.name} size="md" />
+          <Box>
+            <Text
+              fontWeight="bold"
+              color="white"
+              fontSize="sm"
+              noOfLines={1}
+              _groupHover={{ color: "primary" }}
+            >
+              {skater.name}
+            </Text>
+            <Text fontSize="xs" color="gray.500" noOfLines={1}>
+              @{skater.username}
+            </Text>
+          </Box>
+
+          {skater.location ? (
+            <Flex align="center" gap={1}>
+              <FaMapMarkerAlt color="#8AFF00" size={10} />
+              <Text fontSize="xs" color="gray.400" noOfLines={1}>
+                {skater.city ? `${skater.city}, ${skater.country}` : skater.location}
+              </Text>
+            </Flex>
+          ) : (
+            <Text fontSize="xs" color="gray.600">no location</Text>
+          )}
+
+          <Badge colorScheme="green" fontSize="xs" variant="subtle">
+            {skater.postCount} posts
+          </Badge>
+        </VStack>
+      </ChakraLink>
+    </NextLink>
   );
 }
