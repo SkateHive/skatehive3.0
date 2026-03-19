@@ -47,7 +47,7 @@ export const extractLastUrl = (content: string): string | null => {
   let match;
   
   while ((match = urlRegex.exec(content)) !== null) {
-    const url = match[0];
+    const url = match[0].replace(/[).,;!?]+$/, '');
     
     // Skip if it's already handled by other systems
     if (

@@ -111,7 +111,7 @@ export function optimizeImageUrl(
   w: number = IMAGE_SIZES.INLINE.w,
   h: number = 0
 ): string {
-  if (!src) return src;
+  if (!src || typeof src !== 'string') return src as string;
 
   // GIFs — pass through unmodified (optimization strips animation)
   if (isAnimatedGif(src)) return src;

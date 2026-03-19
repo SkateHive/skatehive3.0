@@ -175,7 +175,7 @@ export default function PostCard({
 
     const uniqueImages = Array.from(new Set(images));
     const validImages = uniqueImages
-      .filter((img) => !failedImages.has(img))
+      .filter((img) => typeof img === 'string' && img.length > 0 && !failedImages.has(img))
       .map((img) => optimizeImageUrl(img, IMAGE_SIZES.SIDEBAR_THUMB.w, IMAGE_SIZES.SIDEBAR_THUMB.h));
     if (validImages.length > 0) {
       return { imageUrls: validImages, youtubeLinks: [] as LinkWithDomain[] };
