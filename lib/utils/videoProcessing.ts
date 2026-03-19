@@ -373,8 +373,3 @@ async function tryServer(
     }
   }
 }
-Source) {
-      eventSource.close();
-    }
-  }
-}
