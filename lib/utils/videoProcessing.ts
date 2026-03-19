@@ -111,9 +111,9 @@ export async function processVideoOnServer(
 
   enhancedOptions?.onServerFailed?.(primaryServer.key, primaryResult.error);
 
-  // SECONDARY: Mac Mini M4 (has real-time SSE progress streaming)
+  // SECONDARY: Oracle Cloud
   const secondaryServer = SERVER_CONFIG[1];
-  const secondaryUrl = 'https://minivlad.tail83ea3e.ts.net/video';
+  const secondaryUrl = 'https://146-235-239-243.sslip.io';
 
   console.log(`🔍 Checking ${secondaryServer.name} health...`);
   const isSecondaryHealthy = await checkServerHealth(secondaryUrl);
@@ -369,6 +369,11 @@ async function tryServer(
   } finally {
     // Clean up SSE connection
     if (eventSource) {
+      eventSource.close();
+    }
+  }
+}
+Source) {
       eventSource.close();
     }
   }
