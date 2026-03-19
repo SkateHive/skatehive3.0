@@ -286,6 +286,3 @@ export async function checkAPIAvailability(): Promise<{
     fallbackAPI: fallbackAPI.status === 'fulfilled' && fallbackAPI.value,
   };
 }
-lbackAPI.status === 'fulfilled' && fallbackAPI.value,
-  };
-}
