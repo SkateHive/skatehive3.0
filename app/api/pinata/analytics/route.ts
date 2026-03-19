@@ -66,6 +66,13 @@ export async function GET(request: NextRequest) {
         if (!analyticsRes.ok) {
             const text = await analyticsRes.text();
             console.error('Pinata analytics error:', analyticsRes.status, text);
+            // 402/403 = plan limitation — return empty gracefully instead of 502
+            if (analyticsRes.status === 402 || analyticsRes.status === 403 || analyticsRes.status === 404) {
+                return NextResponse.json(
+                    { analytics: [], creator: creator ?? 'all', days, by, total: 0, note: 'Analytics not available on current plan' },
+                    { status: 200 }
+                );
+            }
             return NextResponse.json({ error: 'Analytics unavailable' }, { status: 502 });
         }
 
