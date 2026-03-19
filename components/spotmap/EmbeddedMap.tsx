@@ -90,6 +90,7 @@ export default function EmbeddedMap({
   const [isNearMe, setIsNearMe] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
+  const [mapInteractive, setMapInteractive] = useState(false);
 
   // Composer dialog
   const {
@@ -196,15 +197,9 @@ export default function EmbeddedMap({
 
   // Handler to accept Partial<Discussion> and cast to Discussion
   const handleNewSpot = (newComment: Partial<Discussion>) => {
-    if (typeof window !== "undefined") {
-    }
     setNewSpot(newComment as Discussion); // Optimistic update, safe for UI
-    // Clear the newSpot after 5 seconds to prevent conflicts
-    setTimeout(() => {
-      if (typeof window !== "undefined") {
-      }
-      setNewSpot(null);
-    }, 5000);
+    // Refresh the list after Hive has indexed the new spot
+    setTimeout(() => refresh(), 6000);
   };
 
   const handleClose = () => {
@@ -309,6 +304,7 @@ export default function EmbeddedMap({
             border="2px solid"
             borderColor="primary"
             boxShadow="0 0 20px rgba(167, 255, 0, 0.15)"
+            onMouseLeave={() => setMapInteractive(false)}
           >
             {/* Map controls (helps mobile + no scroll wheel) */}
             <HStack
@@ -383,6 +379,34 @@ export default function EmbeddedMap({
               </Box>
             )}
 
+            {/* Scroll-capture overlay — prevents map from stealing page scroll.
+                Click to interact with the map; mouse-leave resets. */}
+            {!mapInteractive && (
+              <Box
+                position="absolute"
+                inset={0}
+                zIndex={4}
+                cursor="pointer"
+                onClick={() => setMapInteractive(true)}
+                display="flex"
+                alignItems="flex-end"
+                justifyContent="center"
+                pb={10}
+              >
+                <Box
+                  bg="rgba(0,0,0,0.55)"
+                  color="white"
+                  px={3}
+                  py={1}
+                  borderRadius="full"
+                  fontSize="xs"
+                  pointerEvents="none"
+                >
+                  Click to interact with map
+                </Box>
+              </Box>
+            )}
+
             <iframe
               src={mapSrc}
               style={{
@@ -390,6 +414,7 @@ export default function EmbeddedMap({
                 width: "100%",
                 height: "100%",
                 display: "block",
+                pointerEvents: mapInteractive ? "auto" : "none",
               }}
               allowFullScreen
             ></iframe>
@@ -408,6 +433,7 @@ export default function EmbeddedMap({
             mx={4}
             maxH="85vh"
             overflowY="auto"
+            onDragOver={(e) => e.preventDefault()}
           >
             <ModalHeader
               color="primary"
