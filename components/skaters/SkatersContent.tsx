@@ -329,7 +329,7 @@ export default function SkatersContent() {
             <Center py={20}>
               <VStack spacing={2}>
                 <Text color="gray.500">No skaters with location found.</Text>
-                <Text color="gray.600" fontSize="sm">Try switching to "All Skaters" view.</Text>
+                <Text color="gray.600" fontSize="sm">Try switching to &quot;All Skaters&quot; view.</Text>
               </VStack>
             </Center>
           ) : (
