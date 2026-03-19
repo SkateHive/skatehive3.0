@@ -22,8 +22,8 @@ export type ServerKey = 'macmini' | 'oracle' | 'pi';
 
 /** Server configuration - SINGLE SOURCE OF TRUTH for server order */
 export const SERVER_CONFIG: Array<{ key: ServerKey; name: string; emoji: string; priority: string }> = [
-  { key: 'oracle', name: 'Oracle', emoji: '🔮', priority: 'PRIMARY' },
-  { key: 'macmini', name: 'Mac Mini', emoji: '🍎', priority: 'SECONDARY' },
+  { key: 'macmini', name: 'Mac Mini M4', emoji: '🍎', priority: 'PRIMARY' },
+  { key: 'oracle', name: 'Oracle', emoji: '🔮', priority: 'SECONDARY' },
   { key: 'pi', name: 'Raspberry Pi', emoji: '🫐', priority: 'TERTIARY' },
 ];
 
