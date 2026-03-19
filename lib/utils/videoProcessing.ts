@@ -76,9 +76,9 @@ export async function processVideoOnServer(
   username: string = 'anonymous',
   enhancedOptions?: EnhancedProcessingOptions
 ): Promise<ProcessingResult> {
-  // PRIMARY: Oracle Cloud
+  // PRIMARY: Mac Mini M4
   const primaryServer = SERVER_CONFIG[0];
-  const primaryUrl = 'https://146-235-239-243.sslip.io';
+  const primaryUrl = 'https://minivlad.tail83ea3e.ts.net/video';
 
   console.log(`🔍 Checking ${primaryServer.name} health...`);
   const isPrimaryHealthy = await checkServerHealth(primaryUrl);
