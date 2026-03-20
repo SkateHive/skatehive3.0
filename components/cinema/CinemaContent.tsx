@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Box,
   Container,
@@ -98,9 +99,14 @@ const PlaylistItem = React.memo(function PlaylistItem({
 
 // ─── Main Component ──────────────────────────────────────
 
-export default function CinemaContent() {
+function brandToSlug(brand: string): string {
+  return brand.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+export default function CinemaContent({ initialBrand }: { initialBrand?: string }) {
+  const router = useRouter();
   const videos = cinemaData.videos as CinemaVideo[];
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(initialBrand || null);
   const [currentPage, setCurrentPage] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [shuffle, setShuffle] = useState(false);
@@ -185,7 +191,7 @@ export default function CinemaContent() {
               bg={!selectedBrand ? "primary" : "transparent"}
               color={!selectedBrand ? "background" : "gray.400"}
               borderColor="whiteAlpha.200" borderRadius="sm"
-              onClick={() => { setSelectedBrand(null); setCurrentPage(0); }}
+              onClick={() => { setSelectedBrand(null); setCurrentPage(0); router.push("/cinema", { scroll: false }); }}
               _hover={{ borderColor: "primary", color: !selectedBrand ? "background" : "primary" }}
               px={3}
             >
@@ -201,7 +207,7 @@ export default function CinemaContent() {
                   bg={isActive ? "primary" : "transparent"}
                   color={isActive ? "background" : "gray.400"}
                   borderColor="whiteAlpha.200" borderRadius="sm"
-                  onClick={() => { setSelectedBrand(brand); setCurrentPage(0); }}
+                  onClick={() => { setSelectedBrand(brand); setCurrentPage(0); router.push(`/cinema/${brandToSlug(brand)}`, { scroll: false }); }}
                   _hover={{ borderColor: "primary", color: isActive ? "background" : "primary" }}
                   px={3}
                 >

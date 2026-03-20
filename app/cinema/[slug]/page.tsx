@@ -4,6 +4,7 @@ import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import cinemaData from "@/public/data/cinema.json";
 import CinemaVideoPage from "@/components/cinema/CinemaVideoPage";
+import CinemaContent from "@/components/cinema/CinemaContent";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 
@@ -20,9 +21,21 @@ interface CinemaVideo {
 }
 
 const videos = cinemaData.videos as CinemaVideo[];
+const brands = cinemaData.brands as string[];
+
+function brandSlug(brand: string): string {
+  return brand.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+const brandSlugMap = new Map<string, string>();
+for (const brand of brands) {
+  brandSlugMap.set(brandSlug(brand), brand);
+}
 
 export async function generateStaticParams() {
-  return videos.map((v) => ({ slug: v.slug }));
+  const videoParams = videos.map((v) => ({ slug: v.slug }));
+  const brandParams = brands.map((b) => ({ slug: brandSlug(b) }));
+  return [...videoParams, ...brandParams];
 }
 
 export async function generateMetadata({
@@ -31,6 +44,26 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+
+  // Check if slug is a brand
+  const brandName = brandSlugMap.get(slug);
+  if (brandName) {
+    const count = videos.filter((v) => v.brand === brandName).length;
+    return {
+      title: `${brandName} Skate Videos — Skatehive Cinema`,
+      description: `Watch ${count} classic ${brandName} skateboarding videos. Full-length films and edits from the Skatehive cinema archive.`,
+      keywords: [brandName.toLowerCase(), "skateboard video", "classic skate video", "full length", "skateboarding film"],
+      openGraph: {
+        title: `${brandName} Skate Videos — Skatehive Cinema`,
+        description: `Watch ${count} classic ${brandName} skateboarding videos.`,
+        url: `${BASE_URL}/cinema/${slug}`,
+        siteName: "Skatehive",
+        type: "website",
+      },
+      alternates: { canonical: `${BASE_URL}/cinema/${slug}` },
+    };
+  }
+
   const video = videos.find((v) => v.slug === slug);
   if (!video) return { title: "Video Not Found" };
 
@@ -72,6 +105,27 @@ export default async function CinemaSlugPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+
+  // Brand page: /cinema/zero → show cinema filtered to Zero
+  const brandName = brandSlugMap.get(slug);
+  if (brandName) {
+    const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: `${brandName} Skate Videos`,
+      description: `Classic ${brandName} skateboarding videos from the Skatehive cinema archive.`,
+      url: `${BASE_URL}/cinema/${slug}`,
+      isPartOf: { "@type": "WebSite", name: "Skatehive", url: BASE_URL },
+    };
+    return (
+      <>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }} />
+        <CinemaContent initialBrand={brandName} />
+      </>
+    );
+  }
+
+  // Video page: /cinema/girl-yeah-right-2003
   const video = videos.find((v) => v.slug === slug);
   if (!video) notFound();
 
@@ -86,16 +140,9 @@ export default async function CinemaSlugPage({
     uploadDate: video.year ? `${video.year}-01-01` : undefined,
     embedUrl: video.embedUrl,
     url: `${BASE_URL}/cinema/${slug}`,
-    publisher: {
-      "@type": "Organization",
-      name: "Skatehive",
-      url: BASE_URL,
-    },
+    publisher: { "@type": "Organization", name: "Skatehive", url: BASE_URL },
     ...(video.brand !== "Other" && {
-      productionCompany: {
-        "@type": "Organization",
-        name: video.brand,
-      },
+      productionCompany: { "@type": "Organization", name: video.brand },
     }),
   };
 
