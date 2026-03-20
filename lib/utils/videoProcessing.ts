@@ -243,9 +243,8 @@ async function tryServer(
     formData.append('correlationId', requestId);
 
     // Start SSE listener for progress updates BEFORE sending request
-    // Only Mac Mini supports SSE progress streaming - Oracle and Pi don't have /progress endpoint
-    const supportsSSE = serverBaseUrl.includes('minivlad') || serverBaseUrl.includes('vladsberry');
-    if (enhancedOptions?.onProgress && supportsSSE) {
+    // All servers now support /progress SSE endpoint
+    if (enhancedOptions?.onProgress) {
       const progressUrl = `${serverBaseUrl}/progress/${requestId}`;
 
       try {
