@@ -407,11 +407,11 @@ const VideoUploader = forwardRef<VideoUploaderRef, VideoUploaderProps>(
             const emoji = serverConfig?.emoji || '🔄';
             terminal.addLine(t('terminal.tryingServer').replace('{emoji}', emoji).replace('{name}', serverName).replace('{priority}', priority), "server", serverKey, "trying");
           },
-          // Dynamic server failure notifications  
+          // Dynamic server failure notifications (warning, not error - still trying other servers)
           onServerFailed: (serverKey) => {
             const serverConfig = SERVER_CONFIG.find(s => s.key === serverKey);
             const name = serverConfig?.name || serverKey;
-            terminal.addLine(`✗ ${t('terminal.serverFailed').replace('{name}', name)}`, "error", serverKey, "failed");
+            terminal.addLine(`⚠ ${name} unavailable, trying next server...`, "warning", serverKey, "failed");
           }
         };
 
