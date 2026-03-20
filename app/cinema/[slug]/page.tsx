@@ -20,6 +20,8 @@ interface CinemaVideo {
   link: string;
   soundtrack?: { part: string; song: string }[];
   skaters?: string[];
+  dataSource?: string;
+  svsSlug?: string;
 }
 
 const videos = cinemaData.videos as CinemaVideo[];

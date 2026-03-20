@@ -30,6 +30,8 @@ interface CinemaVideo {
   link: string;
   soundtrack?: { part: string; song: string }[];
   skaters?: string[];
+  dataSource?: string;
+  svsSlug?: string;
 }
 
 export default function CinemaVideoPage({
@@ -121,6 +123,13 @@ export default function CinemaVideoPage({
           {video.description && (
             <Text fontFamily="mono" fontSize="xs" color="gray.400" lineHeight="1.6">
               {video.description}
+            </Text>
+          )}
+          
+          {/* Data credits */}
+          {video.dataSource === "skatevideosite" && (
+            <Text fontFamily="mono" fontSize="2xs" color="gray.600" mt={2}>
+              Soundtrack data: <ChakraLink href={`https://skatevideosite.com/videos/${video.svsSlug}`} isExternal color="primary" _hover={{ textDecoration: "underline" }}>SkateVideoSite</ChakraLink>
             </Text>
           )}
         </Box>
