@@ -139,7 +139,7 @@ export const usePostEdit = (discussion: Discussion) => {
             if (result && result.success) {
                 toast({
                     title: "Post updated on blockchain!",
-                    description: `tx: ${typeof result.result === "string" ? result.result.slice(0, 20) + "..." : "confirmed"}`,
+                    description: "Changes may take a few seconds to appear after refresh.",
                     status: "success",
                     duration: 5000,
                     isClosable: true,
