@@ -26,6 +26,8 @@ interface CinemaVideo {
   description: string;
   channel: string;
   link: string;
+  soundtrack?: { part: string; song: string }[];
+  skaters?: string[];
 }
 
 export default function CinemaVideoPage({
@@ -89,6 +91,43 @@ export default function CinemaVideoPage({
             </Text>
           )}
         </Box>
+
+        {/* Soundtrack */}
+        {video.soundtrack && video.soundtrack.length > 0 && (
+          <Box mb={6}>
+            <Text fontFamily="mono" fontSize="sm" fontWeight="bold" color="text" mb={3}>
+              soundtrack
+            </Text>
+            <VStack align="stretch" spacing={2}>
+              {video.soundtrack.map((item, index) => (
+                <HStack key={index} spacing={3} p={2} borderRadius="sm" bg="whiteAlpha.50">
+                  <Text fontFamily="mono" fontSize="2xs" color="primary" minW="100px" fontWeight="bold">
+                    {item.part}
+                  </Text>
+                  <Text fontFamily="mono" fontSize="xs" color="gray.300">
+                    {item.song}
+                  </Text>
+                </HStack>
+              ))}
+            </VStack>
+          </Box>
+        )}
+
+        {/* Skaters */}
+        {video.skaters && video.skaters.length > 0 && (
+          <Box mb={6}>
+            <Text fontFamily="mono" fontSize="sm" fontWeight="bold" color="text" mb={3}>
+              skaters ({video.skaters.length})
+            </Text>
+            <HStack spacing={2} flexWrap="wrap">
+              {video.skaters.map((skater, index) => (
+                <Text key={index} fontFamily="mono" fontSize="xs" color="gray.400" px={2} py={1} bg="whiteAlpha.50" borderRadius="sm">
+                  {skater}
+                </Text>
+              ))}
+            </HStack>
+          </Box>
+        )}
 
         {/* Related Videos */}
         {relatedVideos.length > 0 && (

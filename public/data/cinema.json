@@ -1000,7 +1000,88 @@
       "thumbnail": "https://thumbs.odycdn.com/fab06846720b7a3ca31d1e5d90036963.webp",
       "description": "Zero - Dying To Live (2002)[Deinterlace/59.94fps]Chapters0:00:00 Opening Montage0:01:47 Jon Allie0:03:55 John Rattray0:06:43 Matt Mumford0:09:15 Ryan Bobier0:10:32 Friends0:13:55 Adrian Lopez0:15:57 Lindsey Stress0:16:48 Lindsey Robertson0:19:21 Ryan Smith0:21:10 Chris Cole0:24:35 Jamie Thomas0:28:3",
       "channel": "Skate Video Archive",
-      "link": "https://odysee.com/Zero-Dying-To-Live-2002:8c6fc04b81dcffa1f62812a0acafe47c8ea91d85"
+      "link": "https://odysee.com/Zero-Dying-To-Live-2002:8c6fc04b81dcffa1f62812a0acafe47c8ea91d85",
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "The Who - Won't Get Fooled Again"
+        },
+        {
+          "part": "Jon Allie",
+          "song": "Slayer - Tormentor"
+        },
+        {
+          "part": "John Rattray",
+          "song": "The Proclaimers - I'm Going To Be (500 Miles)"
+        },
+        {
+          "part": "Matt Mumford",
+          "song": "Queen - One Vision"
+        },
+        {
+          "part": "Ryan Bobier",
+          "song": "The Adverts - One Chord Wonders"
+        },
+        {
+          "part": "Friends",
+          "song": "Neil Young - Rockin' In The Free World"
+        },
+        {
+          "part": "Adrian Lopez",
+          "song": "Gipsy Kings - Djobi, Djoba"
+        },
+        {
+          "part": "Lindsey Robertson #1",
+          "song": "Bob Marley - Simmer Down"
+        },
+        {
+          "part": "Lindsey Robertson #2",
+          "song": "Jefferson Airplane - White Rabbit"
+        },
+        {
+          "part": "Ryan Smith",
+          "song": "Nirvana - Territorial Pissings"
+        },
+        {
+          "part": "Chris Cole",
+          "song": "Styx - Renegade"
+        },
+        {
+          "part": "Jamie Thomas #1",
+          "song": "Ennio Morricone - Trio (Main Title)"
+        },
+        {
+          "part": "Jamie Thomas #2",
+          "song": "Rush - Overture & The Temples of Syrinx"
+        },
+        {
+          "part": "Jamie Thomas #3",
+          "song": "Ennio Morricone - Ecstacy of Gold"
+        },
+        {
+          "part": "Slams",
+          "song": "Lard - Forkboy"
+        },
+        {
+          "part": "Credits",
+          "song": "Archers of Loaf - White Trash Heroes"
+        },
+        {
+          "part": "Outro",
+          "song": "Derek & The Dominos - Layla"
+        }
+      ],
+      "skaters": [
+        "Adrian Lopez",
+        "Chris Cole",
+        "Jamie Thomas",
+        "John Rattray",
+        "Jon Allie",
+        "Lindsey Robertson",
+        "Matt Mumford",
+        "Ryan Smith",
+        "Ryan Bobier"
+      ]
     },
     {
       "slug": "real-seeing-double-2002",

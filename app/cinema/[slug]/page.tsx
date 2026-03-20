@@ -18,6 +18,8 @@ interface CinemaVideo {
   description: string;
   channel: string;
   link: string;
+  soundtrack?: { part: string; song: string }[];
+  skaters?: string[];
 }
 
 const videos = cinemaData.videos as CinemaVideo[];
