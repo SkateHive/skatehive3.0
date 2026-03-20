@@ -1,336 +1,474 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Box,
   Container,
-  Heading,
   Text,
-  SimpleGrid,
   Spinner,
   Center,
   Button,
   VStack,
-  Badge,
+  HStack,
   Image,
   Link as ChakraLink,
   Flex,
   Icon,
+  Avatar,
+  IconButton,
+  Tooltip,
 } from "@chakra-ui/react";
 import { Discussion } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
 import { extractImageUrls } from "@/lib/utils/extractImageUrls";
+import { parsePayout } from "@/lib/utils/postUtils";
+import { getPostDate } from "@/lib/utils/GetPostDate";
 import NextLink from "next/link";
 import HubNavigation from "@/components/shared/HubNavigation";
-import { FaYoutube, FaVideo } from "react-icons/fa";
-import { SiIpfs } from "react-icons/si";
+import {
+  FaYoutube,
+  FaVideo,
+  FaPlay,
+  FaComment,
+  FaArrowUp,
+  FaStepForward,
+  FaStepBackward,
+  FaRandom,
+  FaRedo,
+  FaExternalLinkAlt,
+} from "react-icons/fa";
+import { SiIpfs, SiOdysee } from "react-icons/si";
 import { trackLandingPageVisit } from "@/lib/analytics/events";
+import dynamic from "next/dynamic";
+import { useComments } from "@/hooks/useComments";
+import type { IconType } from "react-icons";
+
+const VideoRenderer = dynamic(() => import("@/components/layout/VideoRenderer"), { ssr: false });
+const HiveMarkdown = dynamic(() => import("@/components/shared/HiveMarkdown"), { ssr: false });
+
+// ─── Types ───────────────────────────────────────────────
+
+type VideoPlatform = "youtube" | "3speak" | "ipfs" | "odysee" | "other";
+
+interface VideoInfo {
+  platform: VideoPlatform;
+  embedUrl: string | null;
+}
+
+interface PlatformConfig {
+  label: string;
+  color: string;
+  icon: IconType;
+}
+
+interface PostMeta {
+  platform: VideoPlatform;
+  thumbnail: string;
+  cleanAuthor: string;
+}
+
+// ─── Video detection ─────────────────────────────────────
+
+const VIDEO_PATTERNS: { platform: VideoPlatform; test: RegExp; extract?: RegExp }[] = [
+  { platform: "youtube", test: /youtu\.?be/i, extract: /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/ },
+  { platform: "3speak", test: /3speak\.tv/i, extract: /3speak\.tv\/watch\?v=([a-zA-Z0-9._-]+\/[a-zA-Z0-9_-]+)/ },
+  { platform: "odysee", test: /odysee\.com/i, extract: /https?:\/\/odysee\.com\/([^\s"'<>]+)/ },
+  { platform: "ipfs", test: /<iframe[^>]*src=["'][^"']*ipfs/i, extract: /<iframe[^>]*src=["'](https?:\/\/[^"']*ipfs[^"']*)/i },
+  { platform: "ipfs", test: /https?:\/\/[^\s"'<>]+\.(mp4|webm|mov|avi)(\?[^\s"'<>]*)?/i, extract: /(https?:\/\/[^\s"'<>]+\.(mp4|webm|mov)(\?[^\s"'<>]*)?)/i },
+  { platform: "other", test: /<iframe[^>]*src=["']https?:\/\/(www\.)?(youtube|3speak|odysee|rumble)/i },
+  { platform: "other", test: /<video[\s>]/i },
+];
+
+function detectPlatform(body: string): VideoPlatform {
+  if (!body) return "other";
+  for (const p of VIDEO_PATTERNS) { if (p.test.test(body)) return p.platform; }
+  return "other";
+}
+
+function hasVideoContent(body: string): boolean {
+  return !!body && VIDEO_PATTERNS.some((p) => p.test.test(body));
+}
+
+function extractVideoInfo(body: string): VideoInfo {
+  if (!body) return { platform: "other", embedUrl: null };
+  for (const pattern of VIDEO_PATTERNS) {
+    if (!pattern.extract || !pattern.test.test(body)) continue;
+    const match = body.match(pattern.extract);
+    if (!match) continue;
+    switch (pattern.platform) {
+      case "youtube": return { platform: "youtube", embedUrl: `https://www.youtube.com/embed/${match[1]}?autoplay=1` };
+      case "3speak": return { platform: "3speak", embedUrl: `https://play.3speak.tv/watch?v=${match[1]}&mode=iframe&layout=desktop` };
+      case "odysee": { const url = `https://odysee.com/${match[1]}`; return { platform: "odysee", embedUrl: url.includes("/$/embed/") ? url : url.replace("odysee.com/", "odysee.com/$/embed/") }; }
+      case "ipfs": return { platform: "ipfs", embedUrl: match[1] || match[0] };
+    }
+  }
+  return { platform: "other", embedUrl: null };
+}
+
+function getYouTubeThumbnail(body: string): string | null {
+  const match = body.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+  return match ? `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg` : null;
+}
+
+function computePostMeta(post: Discussion): PostMeta {
+  const platform = detectPlatform(post.body);
+  const ytThumb = platform === "youtube" ? getYouTubeThumbnail(post.body) : null;
+  const images = extractImageUrls(post.body);
+  return { platform, thumbnail: ytThumb || images[0] || "/ogimage.png", cleanAuthor: post.author.startsWith("@") ? post.author.slice(1) : post.author };
+}
+
+const PLATFORM_CONFIG: Record<VideoPlatform, PlatformConfig> = {
+  youtube: { label: "YouTube", color: "red.500", icon: FaYoutube },
+  "3speak": { label: "3Speak", color: "purple.400", icon: FaVideo },
+  odysee: { label: "Odysee", color: "pink.400", icon: SiOdysee },
+  ipfs: { label: "IPFS", color: "cyan.400", icon: SiIpfs },
+  other: { label: "Video", color: "primary", icon: FaVideo },
+};
+
+const FILTERS: { key: VideoPlatform | "all"; label: string }[] = [
+  { key: "all", label: "all" }, { key: "youtube", label: "youtube" }, { key: "3speak", label: "3speak" }, { key: "ipfs", label: "ipfs" }, { key: "odysee", label: "odysee" },
+];
+
+const POSTS_PER_PAGE = 20;
+const BATCH_SIZE = 20;
+const MAX_ATTEMPTS = 8;
+
+// ─── Playlist Item ───────────────────────────────────────
+
+const PlaylistItem = React.memo(function PlaylistItem({
+  post, meta, isActive, index, onClick,
+}: { post: Discussion; meta: PostMeta; isActive: boolean; index: number; onClick: () => void; }) {
+  const config = PLATFORM_CONFIG[meta.platform];
+  return (
+    <HStack spacing={3} p={2} py={3} cursor="pointer" onClick={onClick}
+      bg={isActive ? "whiteAlpha.100" : "transparent"} borderLeft="3px solid"
+      borderColor={isActive ? "primary" : "transparent"} _hover={{ bg: "whiteAlpha.50" }}
+      transition="all 0.15s" borderRadius="sm">
+      <Text fontFamily="mono" fontSize="xs" color="gray.600" w="20px" textAlign="center" flexShrink={0}>
+        {isActive ? <Icon as={FaPlay} boxSize={2.5} color="primary" /> : index + 1}
+      </Text>
+      <Box position="relative" w="120px" h="68px" flexShrink={0} borderRadius="sm" overflow="hidden" bg="background">
+        <Image src={meta.thumbnail} alt="" w="100%" h="100%" objectFit="cover" />
+        <Icon as={config.icon} position="absolute" bottom={1} right={1} boxSize={3} color={config.color} />
+      </Box>
+      <VStack align="start" spacing={0.5} flex={1} minW={0}>
+        <Text fontFamily="mono" fontSize="xs" color={isActive ? "primary" : "text"} noOfLines={2} lineHeight="1.4" fontWeight={isActive ? "bold" : "normal"}>
+          {post.title || "Untitled"}
+        </Text>
+        <HStack spacing={1}>
+          <Avatar size="2xs" name={meta.cleanAuthor} src={`https://images.hive.blog/u/${meta.cleanAuthor}/avatar/small`} />
+          <Text fontFamily="mono" fontSize="2xs" color="gray.500">{meta.cleanAuthor}</Text>
+          <Text fontFamily="mono" fontSize="2xs" color="gray.700">· {getPostDate(post.created)}</Text>
+        </HStack>
+      </VStack>
+    </HStack>
+  );
+});
+
+// ─── Comments ────────────────────────────────────────────
+
+function VideoComments({ author, permlink }: { author: string; permlink: string }) {
+  const { comments, isLoading } = useComments(author, permlink, false);
+  return (
+    <Box px={4} pb={4} borderTop="1px solid" borderColor="whiteAlpha.100">
+      <HStack py={3} spacing={2}>
+        <Text fontFamily="mono" fontSize="xs" fontWeight="bold" color="text">comments</Text>
+        <Text fontFamily="mono" fontSize="2xs" color="gray.500">{isLoading ? "..." : comments.length}</Text>
+      </HStack>
+      {isLoading ? (
+        <Center py={4}><Spinner size="sm" color="primary" /></Center>
+      ) : comments.length === 0 ? (
+        <Text fontFamily="mono" fontSize="xs" color="gray.600" py={2}>no comments yet — be the first on the full post page</Text>
+      ) : (
+        <VStack align="stretch" spacing={0} maxH="400px" overflowY="auto">
+          {comments.map((c) => <CommentItem key={`${c.author}/${c.permlink}`} comment={c} />)}
+        </VStack>
+      )}
+    </Box>
+  );
+}
+
+function CommentItem({ comment }: { comment: Discussion }) {
+  const author = comment.author;
+  const payout = parsePayout(comment.pending_payout_value);
+  return (
+    <HStack align="start" spacing={3} py={3} borderBottom="1px solid" borderColor="whiteAlpha.50">
+      <ChakraLink as={NextLink} href={`/user/${author}`} flexShrink={0}>
+        <Avatar size="sm" name={author} src={`https://images.hive.blog/u/${author}/avatar/small`} />
+      </ChakraLink>
+      <Box flex={1} minW={0}>
+        <HStack spacing={2} mb={1}>
+          <ChakraLink as={NextLink} href={`/user/${author}`} _hover={{ textDecoration: "none" }}>
+            <Text fontFamily="mono" fontSize="xs" fontWeight="bold" color="gray.300" _hover={{ color: "primary" }}>@{author}</Text>
+          </ChakraLink>
+          <Text fontFamily="mono" fontSize="2xs" color="gray.600">{getPostDate(comment.created)}</Text>
+          {payout > 0 && <Text fontFamily="mono" fontSize="2xs" color="primary">${payout.toFixed(2)}</Text>}
+        </HStack>
+        <Box fontFamily="mono" fontSize="xs" color="gray.400" lineHeight="1.5"
+          sx={{ "& p": { mb: 1 }, "& img": { maxH: "200px", borderRadius: "sm", my: 1 }, "& a": { color: "primary" } }}>
+          <HiveMarkdown markdown={comment.body} rawIframes />
+        </Box>
+        <HStack spacing={3} mt={1}>
+          <HStack spacing={1}>
+            <Icon as={FaArrowUp} boxSize={2.5} color="gray.600" />
+            <Text fontFamily="mono" fontSize="2xs" color="gray.600">{comment.active_votes?.length || 0}</Text>
+          </HStack>
+          {comment.children > 0 && (
+            <HStack spacing={1}>
+              <Icon as={FaComment} boxSize={2.5} color="gray.600" />
+              <Text fontFamily="mono" fontSize="2xs" color="gray.600">{comment.children}</Text>
+            </HStack>
+          )}
+        </HStack>
+      </Box>
+    </HStack>
+  );
+}
+
+// ─── Main Player ─────────────────────────────────────────
+
+function MainPlayer({ videoInfo }: { videoInfo: VideoInfo }) {
+  if (!videoInfo.embedUrl) {
+    return <Center w="100%" h="100%" bg="background"><Text fontFamily="mono" fontSize="sm" color="gray.500">video format not supported</Text></Center>;
+  }
+  if (videoInfo.platform === "ipfs" || /\.(mp4|webm|mov)(\?|$)/i.test(videoInfo.embedUrl)) {
+    return <VideoRenderer src={videoInfo.embedUrl} disableAutoplay={false} />;
+  }
+  return (
+    <iframe src={videoInfo.embedUrl}
+      style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }}
+      allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+  );
+}
+
+const cinemaFrameStyles = {
+  "& > div": { position: "absolute !important", inset: "0 !important", minWidth: "100% !important", paddingTop: "0 !important", display: "flex !important", alignItems: "center !important", justifyContent: "center !important" },
+  "& picture": { position: "absolute !important", inset: 0, display: "flex !important", alignItems: "center !important", justifyContent: "center !important" },
+  "& video": { objectFit: "contain !important", width: "100% !important", height: "100% !important", maxHeight: "100% !important", marginBottom: "0 !important", position: "absolute !important", inset: 0 },
+} as Record<string, any>;
+
+// ─── Main Component ──────────────────────────────────────
 
 export default function VideosContent() {
   const [posts, setPosts] = useState<Discussion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [page, setPage] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [autoPlay, setAutoPlay] = useState(true);
+  const [shuffle, setShuffle] = useState(false);
+  const [filter, setFilter] = useState<VideoPlatform | "all">("all");
+  const playlistRef = useRef<HTMLDivElement>(null);
+  const cursorRef = useRef<{ author?: string; permlink?: string }>({});
 
-  const POSTS_PER_PAGE = 12;
-
-  // Track landing page visit on mount
   useEffect(() => {
-    trackLandingPageVisit({ page: 'videos' });
+    trackLandingPageVisit({ page: "videos" });
+    loadPosts(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    loadPosts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
-
-  const loadPosts = async () => {
-    setIsLoading(true);
+  const loadPosts = useCallback(async (initial = false) => {
+    if (initial) setIsLoading(true); else setIsLoadingMore(true);
     try {
-      // Fetch from hive-173115 community (sorted by created)
-      const result = await HiveClient.call("bridge", "get_ranked_posts", {
-        sort: "created",
-        tag: "hive-173115",
-        limit: POSTS_PER_PAGE + 10, // fetch extra to filter for videos
-        start_author: page > 0 ? posts[posts.length - 1]?.author : undefined,
-        start_permlink: page > 0 ? posts[posts.length - 1]?.permlink : undefined,
-      });
-
-      if (result && result.length > 0) {
-        // Filter only posts that have video content
-        const videoPosts = (page > 0 ? result.slice(1) : result).filter((p: Discussion) =>
-          hasVideoContent(p.body)
-        );
-
-        if (videoPosts.length > 0) {
-          setPosts((prev) => [...prev, ...videoPosts.slice(0, POSTS_PER_PAGE)]);
-          setHasMore(result.length === POSTS_PER_PAGE + 10);
-        } else {
-          setHasMore(false);
-        }
-      } else {
-        setHasMore(false);
+      const collected: Discussion[] = [];
+      let { author: cursorAuthor, permlink: cursorPermlink } = initial ? {} : cursorRef.current;
+      for (let attempt = 0; attempt < MAX_ATTEMPTS && collected.length < POSTS_PER_PAGE; attempt++) {
+        const result = await HiveClient.call("bridge", "get_ranked_posts", {
+          sort: "created", tag: "hive-173115", limit: BATCH_SIZE,
+          start_author: cursorAuthor, start_permlink: cursorPermlink,
+        });
+        if (!result || result.length === 0) { setHasMore(false); break; }
+        const fresh = (cursorAuthor ? result.slice(1) : result) as Discussion[];
+        if (fresh.length === 0) { setHasMore(false); break; }
+        collected.push(...fresh.filter((p: Discussion) => hasVideoContent(p.body)));
+        const last = result[result.length - 1];
+        cursorAuthor = last.author; cursorPermlink = last.permlink;
+        if (result.length < BATCH_SIZE) { setHasMore(false); break; }
       }
+      if (collected.length > 0) {
+        const toAdd = collected.slice(0, POSTS_PER_PAGE);
+        setPosts((prev) => {
+          const next = initial ? toAdd : [...prev, ...toAdd];
+          const seen = new Set<string>();
+          return next.filter((p) => { const key = `${p.author}/${p.permlink}`; if (seen.has(key)) return false; seen.add(key); return true; });
+        });
+        const lastAdded = toAdd[toAdd.length - 1];
+        cursorRef.current = { author: lastAdded.author, permlink: lastAdded.permlink };
+      } else { setHasMore(false); }
     } catch (error) {
-      console.error("Error loading video posts:", error);
-      setHasMore(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      console.error("Error loading video posts:", error); setHasMore(false);
+    } finally { setIsLoading(false); setIsLoadingMore(false); }
+  }, []);
 
-  const loadMore = () => {
-    if (!isLoading && hasMore) {
-      setPage((p) => p + 1);
-    }
-  };
+  const postMetaMap = useMemo(() => {
+    const map = new Map<string, PostMeta>();
+    for (const post of posts) map.set(`${post.author}/${post.permlink}`, computePostMeta(post));
+    return map;
+  }, [posts]);
 
-  // Helper: detect if post body contains video content
-  const hasVideoContent = (body: string): boolean => {
-    if (!body) return false;
-    // YouTube
-    if (/youtu\.?be/i.test(body)) return true;
-    // 3Speak
-    if (/3speak\.tv/i.test(body)) return true;
-    // IPFS video (rough heuristic — links to IPFS gateways with video-like paths)
-    if (/ipfs\.(skatehive\.app|io|pinata\.cloud).*\/(video|mp4|webm|mov)/i.test(body)) return true;
-    // iframe with src containing video platforms
-    if (/<iframe[^>]*src=["']https?:\/\/(www\.)?(youtube|3speak)/i.test(body)) return true;
-    return false;
-  };
+  const filteredPosts = useMemo(() => {
+    if (filter === "all") return posts;
+    return posts.filter((p) => postMetaMap.get(`${p.author}/${p.permlink}`)?.platform === filter);
+  }, [posts, filter, postMetaMap]);
 
-  // Helper: extract video platform icon
-  const getVideoPlatform = (body: string): "youtube" | "3speak" | "ipfs" | "other" => {
-    if (/youtu\.?be/i.test(body)) return "youtube";
-    if (/3speak\.tv/i.test(body)) return "3speak";
-    if (/ipfs\./i.test(body)) return "ipfs";
-    return "other";
-  };
+  const activePost = filteredPosts[activeIndex] || null;
+  const activeVideoInfo = useMemo(
+    () => (activePost ? extractVideoInfo(activePost.body) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activePost?.author, activePost?.permlink]
+  );
+
+  const cleanAuthor = activePost?.author?.startsWith("@") ? activePost.author.slice(1) : activePost?.author || "";
+  const payout = activePost ? parsePayout(activePost.pending_payout_value) : 0;
+
+  const goTo = useCallback((index: number) => {
+    setActiveIndex((prev) => {
+      if (index < 0 || index >= filteredPosts.length) return prev;
+      setTimeout(() => { document.getElementById(`playlist-item-${index}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, 50);
+      return index;
+    });
+  }, [filteredPosts.length]);
+
+  const goNext = useCallback(() => {
+    setActiveIndex((prev) => {
+      if (shuffle) return Math.floor(Math.random() * filteredPosts.length);
+      return prev < filteredPosts.length - 1 ? prev + 1 : 0;
+    });
+  }, [filteredPosts.length, shuffle]);
+
+  const goPrev = useCallback(() => {
+    setActiveIndex((prev) => (prev > 0 ? prev - 1 : filteredPosts.length - 1));
+  }, [filteredPosts.length]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "n" || e.key === "N") goNext();
+      if (e.key === "p" || e.key === "P") goPrev();
+      if (e.key === "s" || e.key === "S") setShuffle((s) => !s);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [goNext, goPrev]);
+
+  useEffect(() => {
+    if (activeIndex >= filteredPosts.length - 3 && hasMore && !isLoadingMore) loadPosts(false);
+  }, [activeIndex, filteredPosts.length, hasMore, isLoadingMore, loadPosts]);
+
+  if (isLoading) {
+    return (
+      <Box minH="100vh"><Container maxW="container.xl" px={{ base: 2, md: 4 }}><HubNavigation />
+        <Center py={20}><VStack spacing={3}><Spinner size="lg" color="primary" /><Text fontFamily="mono" fontSize="xs" color="gray.500">loading videos...</Text></VStack></Center>
+      </Container></Box>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <Box minH="100vh"><Container maxW="container.xl" px={{ base: 2, md: 4 }}><HubNavigation />
+        <Center py={20}><VStack spacing={2}><Icon as={FaVideo} boxSize={8} color="gray.600" /><Text fontFamily="mono" fontSize="sm" color="gray.500">no skate videos found yet</Text></VStack></Center>
+      </Container></Box>
+    );
+  }
 
   return (
-    <Box minH="100vh" py={8}>
-      <Container maxW="container.xl">
-        {/* Hub Navigation */}
+    <Box minH="100vh">
+      <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
         <HubNavigation />
 
-        {/* Hero Section */}
-        <VStack spacing={4} mb={10} textAlign="center">
-          <Heading
-            as="h1"
-            className="fretqwik-title"
-            fontSize={{ base: "4xl", md: "6xl" }}
-            fontWeight="extrabold"
-            color="primary"
-            letterSpacing="wider"
-          >
-            Skate Videos
-          </Heading>
-          <Text fontSize={{ base: "md", md: "lg" }} color="gray.400" maxW="2xl">
-            Watch skateboarding videos from the Skatehive community — street skating clips,
-            park sessions, full edits, and raw footage from skaters worldwide.
-          </Text>
-          <Badge colorScheme="green" fontSize="sm" px={3} py={1}>
-            3Speak • YouTube • IPFS
-          </Badge>
-        </VStack>
+        <Flex direction={{ base: "column", lg: "row" }} gap={0} mt={4}
+          border="1px solid" borderColor="whiteAlpha.100" borderRadius="md" overflow="hidden" bg="background">
 
-        {/* SEO Content */}
-        <Box
-          mb={8}
-          p={6}
-          bg="rgba(20,20,20,0.4)"
-          border="1px solid"
-          borderColor="whiteAlpha.200"
-          borderRadius="lg"
-        >
-          <Heading as="h2" fontSize="xl" mb={3} color="primary">
-            Skateboarding Videos from the Community
-          </Heading>
-          <Text fontSize="sm" color="gray.300" mb={2}>
-            Discover skateboarding videos posted by real skaters from around the world.
-            From raw street skating clips to polished full edits — all hosted on decentralized
-            platforms like 3Speak, IPFS, and YouTube.
-          </Text>
-          <Text fontSize="sm" color="gray.300">
-            Upload your own videos to Skatehive and share your skating with the global community.
-            Every video you watch supports the skater who posted it through blockchain-based rewards.
-          </Text>
-        </Box>
+          {/* Player Column */}
+          <Box flex={1} minW={0} overflowY={{ base: "visible", lg: "auto" }} maxH={{ base: "none", lg: "calc(100vh - 80px)" }}>
+            <Box w="100%" sx={{ aspectRatio: "16 / 9" }} bg="background" position="relative" overflow="hidden" css={cinemaFrameStyles}>
+              {activePost && activeVideoInfo && <MainPlayer videoInfo={activeVideoInfo} />}
+            </Box>
 
-        {/* Videos Grid */}
-        <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={6} mb={8}>
-          {posts.map((post) => {
-            const images = extractImageUrls(post.body);
-            const thumbnail = images[0] || "/ogimage.png";
-            const cleanAuthor = post.author.startsWith("@")
-              ? post.author.slice(1)
-              : post.author;
-            const platform = getVideoPlatform(post.body);
+            <Box p={4} bg="background" borderTop="1px solid" borderColor="whiteAlpha.100">
+              <HStack spacing={1} mb={3}>
+                <Tooltip label="Previous (P)" hasArrow><IconButton aria-label="Previous" icon={<FaStepBackward />} size="xs" variant="ghost" color="gray.400" onClick={goPrev} _hover={{ color: "primary" }} /></Tooltip>
+                <Tooltip label="Next (N)" hasArrow><IconButton aria-label="Next" icon={<FaStepForward />} size="xs" variant="ghost" color="gray.400" onClick={goNext} _hover={{ color: "primary" }} /></Tooltip>
+                <Tooltip label={`Shuffle ${shuffle ? "on" : "off"} (S)`} hasArrow><IconButton aria-label="Shuffle" icon={<FaRandom />} size="xs" variant="ghost" color={shuffle ? "primary" : "gray.400"} onClick={() => setShuffle((s) => !s)} _hover={{ color: "primary" }} /></Tooltip>
+                <Tooltip label={`Auto-play ${autoPlay ? "on" : "off"}`} hasArrow><IconButton aria-label="Auto-play" icon={<FaRedo />} size="xs" variant="ghost" color={autoPlay ? "primary" : "gray.400"} onClick={() => setAutoPlay((a) => !a)} _hover={{ color: "primary" }} /></Tooltip>
+                <Box flex={1} />
+                {activeVideoInfo && (
+                  <HStack spacing={1} px={2} py={0.5} bg="whiteAlpha.50" borderRadius="sm">
+                    <Icon as={PLATFORM_CONFIG[activeVideoInfo.platform].icon} boxSize={3} color={PLATFORM_CONFIG[activeVideoInfo.platform].color} />
+                    <Text fontFamily="mono" fontSize="2xs" color="gray.400">{PLATFORM_CONFIG[activeVideoInfo.platform].label}</Text>
+                  </HStack>
+                )}
+                <Text fontFamily="mono" fontSize="2xs" color="gray.600">{activeIndex + 1} / {filteredPosts.length}</Text>
+              </HStack>
 
-            return (
-              <NextLink
-                key={`${post.author}/${post.permlink}`}
-                href={`/post/${cleanAuthor}/${post.permlink}`}
-                passHref
-                legacyBehavior
-              >
-                <ChakraLink
-                  _hover={{ textDecoration: "none" }}
-                  display="block"
-                  bg="rgba(20,20,20,0.6)"
-                  border="1px solid"
-                  borderColor="whiteAlpha.200"
-                  borderRadius="lg"
-                  overflow="hidden"
-                  transition="all 0.3s"
-                  _groupHover={{
-                    borderColor: "primary",
-                    transform: "translateY(-4px)",
-                    boxShadow: "0 0 20px rgba(138, 255, 0, 0.3)",
-                  }}
-                  role="group"
-                >
-                  <Box
-                    position="relative"
-                    paddingBottom="56.25%"
-                    bg="gray.900"
-                    overflow="hidden"
-                  >
-                    <Image
-                      src={thumbnail}
-                      alt={post.title || "Skate video"}
-                      position="absolute"
-                      top={0}
-                      left={0}
-                      w="100%"
-                      h="100%"
-                      objectFit="cover"
-                      transition="transform 0.3s"
-                      _groupHover={{ transform: "scale(1.05)" }}
-                    />
-                    {/* Platform badge */}
-                    <Badge
-                      position="absolute"
-                      top={2}
-                      right={2}
-                      colorScheme={
-                        platform === "youtube"
-                          ? "red"
-                          : platform === "3speak"
-                          ? "purple"
-                          : "blue"
-                      }
-                      fontSize="xs"
-                      px={2}
-                      py={1}
-                      display="flex"
-                      alignItems="center"
-                      gap={1}
-                    >
-                      <Icon
-                        as={
-                          platform === "youtube"
-                            ? FaYoutube
-                            : platform === "ipfs"
-                            ? SiIpfs
-                            : FaVideo
-                        }
-                        boxSize={3}
-                      />
-                      {platform === "youtube"
-                        ? "YT"
-                        : platform === "3speak"
-                        ? "3Speak"
-                        : "IPFS"}
-                    </Badge>
-                    {/* Play button overlay */}
-                    <Flex
-                      position="absolute"
-                      top="50%"
-                      left="50%"
-                      transform="translate(-50%, -50%)"
-                      bg="rgba(0,0,0,0.7)"
-                      borderRadius="full"
-                      p={3}
-                      transition="all 0.3s"
-                      _groupHover={{ bg: "primary", transform: "translate(-50%, -50%) scale(1.1)" }}
-                    >
-                      <Icon as={FaVideo} boxSize={6} color="white" _groupHover={{ color: "background" }} />
-                    </Flex>
-                  </Box>
-                  <Box p={4}>
-                    <Heading
-                      as="h3"
-                      fontSize="md"
-                      fontWeight="bold"
-                      color="white"
-                      mb={2}
-                      noOfLines={2}
-                      _groupHover={{ color: "primary" }}
-                    >
-                      {post.title || "Untitled"}
-                    </Heading>
-                    <Flex justify="space-between" align="center">
-                      <Text fontSize="xs" color="gray.500">
-                        by @{cleanAuthor}
-                      </Text>
-                      <Badge colorScheme="green" fontSize="xs">
-                        {post.children} comments
-                      </Badge>
-                    </Flex>
-                  </Box>
+              <Text fontFamily="mono" fontSize="sm" fontWeight="bold" color="text" mb={2} noOfLines={2}>{activePost?.title || "Untitled"}</Text>
+
+              <HStack justify="space-between" align="center">
+                <ChakraLink as={NextLink} href={`/user/${cleanAuthor}`} _hover={{ textDecoration: "none" }}>
+                  <HStack spacing={2}>
+                    <Avatar size="xs" name={cleanAuthor} src={`https://images.hive.blog/u/${cleanAuthor}/avatar/small`} />
+                    <Text fontFamily="mono" fontSize="xs" color="gray.400" _hover={{ color: "primary" }}>@{cleanAuthor}</Text>
+                    {activePost && <Text fontFamily="mono" fontSize="2xs" color="gray.600">{getPostDate(activePost.created)}</Text>}
+                  </HStack>
                 </ChakraLink>
-              </NextLink>
-            );
-          })}
-        </SimpleGrid>
+                <HStack spacing={4}>
+                  <HStack spacing={1}><Icon as={FaArrowUp} boxSize={3} color="gray.500" /><Text fontFamily="mono" fontSize="xs" color="gray.500">{activePost?.active_votes?.length || 0}</Text></HStack>
+                  <HStack spacing={1}><Icon as={FaComment} boxSize={3} color="gray.500" /><Text fontFamily="mono" fontSize="xs" color="gray.500">{activePost?.children || 0}</Text></HStack>
+                  {payout > 0 && <Text fontFamily="mono" fontSize="xs" color="primary" fontWeight="bold">${payout.toFixed(2)}</Text>}
+                  <ChakraLink as={NextLink} href={`/post/${cleanAuthor}/${activePost?.permlink}`} _hover={{ textDecoration: "none" }}>
+                    <Tooltip label="Open full post" hasArrow><span><Icon as={FaExternalLinkAlt} boxSize={3} color="gray.500" _hover={{ color: "primary" }} cursor="pointer" /></span></Tooltip>
+                  </ChakraLink>
+                </HStack>
+              </HStack>
+            </Box>
 
-        {/* Loading State */}
-        {isLoading && (
-          <Center py={10}>
-            <Spinner size="xl" color="primary" />
-          </Center>
-        )}
+            {activePost && <VideoComments author={activePost.author} permlink={activePost.permlink} />}
+          </Box>
 
-        {/* Load More Button */}
-        {!isLoading && hasMore && (
-          <Center>
-            <Button
-              onClick={loadMore}
-              colorScheme="green"
-              size="lg"
-              variant="outline"
-              borderColor="primary"
-              color="primary"
-              _hover={{ bg: "primary", color: "background" }}
-            >
-              Load More Videos
-            </Button>
-          </Center>
-        )}
+          {/* Playlist Sidebar */}
+          <Box w={{ base: "100%", lg: "420px" }} flexShrink={0} bg="background"
+            borderLeft={{ base: "none", lg: "1px solid" }} borderTop={{ base: "1px solid", lg: "none" }}
+            borderColor="whiteAlpha.100" display="flex" flexDirection="column"
+            maxH={{ base: "50vh", lg: "calc(100vh - 120px)" }} overflowY={{ base: "auto", lg: "hidden" }}>
 
-        {/* No More Posts */}
-        {!isLoading && !hasMore && posts.length > 0 && (
-          <Center>
-            <Text color="gray.500" fontSize="sm">
-              End of videos list
-            </Text>
-          </Center>
-        )}
+            <Box px={4} py={3} borderBottom="1px solid" borderColor="whiteAlpha.100">
+              <HStack justify="space-between" align="center" mb={2}>
+                <Text fontFamily="mono" fontSize="sm" fontWeight="bold" color="text">community videos</Text>
+                <Text fontFamily="mono" fontSize="xs" color="gray.500">{filteredPosts.length} videos</Text>
+              </HStack>
+              <HStack spacing={1} flexWrap="wrap">
+                {FILTERS.map((f) => (
+                  <Button key={f.key} size="xs" h="26px" fontFamily="mono" fontSize="xs" variant="ghost"
+                    color={filter === f.key ? "primary" : "gray.500"} bg={filter === f.key ? "whiteAlpha.100" : "transparent"}
+                    borderRadius="sm" onClick={() => { setFilter(f.key); setActiveIndex(0); }}
+                    _hover={{ color: "primary", bg: "whiteAlpha.50" }} px={3}>{f.label}</Button>
+                ))}
+              </HStack>
+            </Box>
 
-        {/* No Posts Found */}
-        {!isLoading && posts.length === 0 && (
-          <Center py={20}>
-            <VStack spacing={4}>
-              <Text color="gray.500" fontSize="lg">
-                No skate videos found yet.
-              </Text>
-              <Text color="gray.600" fontSize="sm">
-                Be the first to share a video!
-              </Text>
-            </VStack>
-          </Center>
-        )}
+            <Box ref={playlistRef} flex={1} overflowY="auto" py={1}>
+              {filteredPosts.map((post, i) => (
+                <Box key={`${post.author}/${post.permlink}`} id={`playlist-item-${i}`}>
+                  <PlaylistItem post={post} meta={postMetaMap.get(`${post.author}/${post.permlink}`)!}
+                    isActive={i === activeIndex} index={i} onClick={() => goTo(i)} />
+                </Box>
+              ))}
+              {hasMore && (
+                <Center py={3}>
+                  {isLoadingMore ? <Spinner size="sm" color="primary" /> : (
+                    <Button size="xs" fontFamily="mono" fontSize="2xs" variant="ghost" color="gray.500"
+                      onClick={() => loadPosts(false)} _hover={{ color: "primary" }}>load more</Button>
+                  )}
+                </Center>
+              )}
+            </Box>
+          </Box>
+        </Flex>
+
+        <Box srOnly>
+          <h1>Skateboarding Videos - SkateHive Community</h1>
+          <p>Watch skateboarding videos from the SkateHive community and classic skate video archive.</p>
+        </Box>
       </Container>
     </Box>
   );
