@@ -346,7 +346,7 @@ const ProfileHeader = function ProfileHeader({
         </Tooltip>
       )}
 
-      {debugPayload && <ProfileDebugControl payload={debugPayload} />}
+      {debugPayload && process.env.NODE_ENV === "development" && <ProfileDebugControl payload={debugPayload} />}
     </HStack>
   );
 

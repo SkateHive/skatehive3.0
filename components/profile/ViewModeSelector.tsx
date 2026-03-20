@@ -9,8 +9,8 @@ import {
   FaCamera,
   FaFileAlt,
   FaCoins,
-  FaComment,
 } from "react-icons/fa";
+import { SiFarcaster } from "react-icons/si";
 
 interface ViewModeSelectorProps {
   viewMode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts";
@@ -50,7 +50,7 @@ const getMainTabs = (
 
   // Add casts tab if user has a Farcaster profile
   if (hasFarcasterProfile) {
-    tabsWithExtras.push({ key: "casts", label: "Casts", icon: FaComment });
+    tabsWithExtras.push({ key: "casts", label: "Casts", icon: SiFarcaster });
   }
 
   return tabsWithExtras;

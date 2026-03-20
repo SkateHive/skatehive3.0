@@ -450,6 +450,11 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
 
       isTransitioning.current = true;
 
+      // Sync profile header view with content tab
+      if (mode === "casts") setActiveProfileView("farcaster");
+      else if (mode === "tokens") setActiveProfileView("zora");
+      else if (mode === "snaps" || mode === "grid" || mode === "list" || mode === "magazine") setActiveProfileView("hive");
+
       // Debounce the view mode change to prevent rapid switching
       viewModeTimer.current = setTimeout(() => {
         // Use requestIdleCallback if available for non-blocking execution

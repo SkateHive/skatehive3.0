@@ -95,7 +95,12 @@ function CastItem({ cast }: { cast: FarcasterCast }) {
 
       if (imgUrl) {
         images.push(imgUrl);
-      } else if (rawUrl.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i)) {
+      } else if (
+        rawUrl.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i) ||
+        rawUrl.includes("imagedelivery.net") ||
+        rawUrl.includes("i.imgur.com") ||
+        rawUrl.includes("res.cloudinary.com")
+      ) {
         images.push(rawUrl);
       } else if (rawUrl && !rawUrl.includes("warpcast.com")) {
         // Clean URL for display
@@ -308,25 +313,6 @@ export default function FarcasterCastsView({ fid, username }: FarcasterCastsView
 
   return (
     <Box border="1px solid" borderColor="whiteAlpha.100" borderRadius="md" overflow="hidden">
-      {/* Feed header */}
-      <HStack px={4} py={3} borderBottom="1px solid" borderColor="whiteAlpha.100">
-        <Icon as={SiFarcaster} boxSize={4} color="purple.400" />
-        <Text fontFamily="mono" fontSize="xs" fontWeight="bold" color="text">
-          casts
-        </Text>
-        <Text fontFamily="mono" fontSize="2xs" color="gray.500">
-          {casts.length}
-        </Text>
-        {username && (
-          <Link href={`https://warpcast.com/${username}`} isExternal ml="auto"
-            _hover={{ textDecoration: "none" }}>
-            <Text fontFamily="mono" fontSize="2xs" color="gray.500" _hover={{ color: "primary" }}>
-              @{username} on warpcast
-            </Text>
-          </Link>
-        )}
-      </HStack>
-
       {/* Cast feed */}
       <VStack spacing={0} align="stretch">
         {casts.map((cast) => (
