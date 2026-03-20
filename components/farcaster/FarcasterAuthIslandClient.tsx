@@ -83,6 +83,12 @@ function FarcasterAuthInner({
   // Expose methods to parent via window (for cross-component communication)
   useEffect(() => {
     if (typeof window !== "undefined") {
+      console.log("[FC Island] Setting window.__farcasterAuth", {
+        hasSignIn: typeof signIn === "function",
+        hasConnect: typeof connect === "function",
+        channelToken: channelToken ? "set" : "null",
+        url: url ? "set" : "null",
+      });
       (window as any).__farcasterAuth = {
         signIn,
         signOut: () => {
