@@ -51,6 +51,53 @@ const VIDEOS_PER_PAGE = 15;
 // Top brands for the filter bar (by frequency in the catalog)
 const TOP_BRANDS = cinemaData.brands.slice(0, 20);
 
+// Brand name → logo filename mapping
+const BRAND_LOGOS: Record<string, string> = {
+  "Real": "real.svg",
+  "Zero": "zero.png",
+  "Cliché": "cliche.svg",
+  "CKY": "cky.png",
+  "Circa": "circa.png",
+  "Girl": "girl.png",
+  "Emerica": "emerica.png",
+  "Element": "element.png",
+  "DC Shoes": "dc.png",
+  "Mystery": "mystery.svg",
+  "FKD": "fkd.png",
+  "Enjoi": "enjoi.png",
+  "Darkstar": "darkstar.svg",
+  "Baker": "baker.svg",
+  "Almost": "almost.png",
+  "Deathwish": "deathwish.png",
+  "Habitat": "habitat.png",
+  "Globe": "globe.png",
+  "Volcom": "volcom.png",
+  "Etnies": "etnies.png",
+  "Adio": "adio.svg",
+  "Shorty's": "shortys.svg",
+  "éS": "es.png",
+  "Vox": "vox.png",
+  "TransWorld": "transworld.png",
+  "411VM": "411vm.png",
+  "Blind": "blind.png",
+  "Chocolate": "chocolate.png",
+  "Anti Hero": "antihero.svg",
+  "Alien Workshop": "alienworkshop.png",
+  "Birdhouse": "birdhouse.png",
+  "DVS": "dvs.png",
+  "Foundation": "foundation.png",
+  "Krooked": "krooked.png",
+  "Lakai": "lakai.png",
+  "Plan B": "planb.png",
+  "Santa Cruz": "santacruz.png",
+  "Toy Machine": "toymachine.png",
+};
+
+function getBrandLogo(brand: string): string | null {
+  const file = BRAND_LOGOS[brand];
+  return file ? `/logos/brands/${file}` : null;
+}
+
 // ─── Playlist Item ───────────────────────────────────────
 
 const PlaylistItem = React.memo(function PlaylistItem({
@@ -200,18 +247,31 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
             {TOP_BRANDS.map((brand) => {
               const count = videos.filter((v) => v.brand === brand).length;
               const isActive = selectedBrand === brand;
+              const logo = getBrandLogo(brand);
               return (
                 <Button
-                  key={brand} size="xs" fontFamily="mono" fontSize="xs" h="28px"
+                  key={brand} size="xs" fontFamily="mono" fontSize="xs" h="32px"
                   variant={isActive ? "solid" : "outline"}
                   bg={isActive ? "primary" : "transparent"}
                   color={isActive ? "background" : "gray.400"}
-                  borderColor="whiteAlpha.200" borderRadius="sm"
+                  borderColor={isActive ? "primary" : "whiteAlpha.200"} borderRadius="sm"
                   onClick={() => { setSelectedBrand(brand); setCurrentPage(0); router.push(`/cinema/${brandToSlug(brand)}`, { scroll: false }); }}
                   _hover={{ borderColor: "primary", color: isActive ? "background" : "primary" }}
-                  px={3}
+                  px={3} gap={1.5}
                 >
-                  {brand} ({count})
+                  {logo && (
+                    <Image
+                      src={logo}
+                      alt={brand}
+                      h="16px"
+                      w="auto"
+                      maxW="40px"
+                      objectFit="contain"
+                      filter={isActive ? "brightness(0)" : "brightness(0) invert(1)"}
+                      opacity={isActive ? 1 : 0.6}
+                    />
+                  )}
+                  {!logo && brand} ({count})
                 </Button>
               );
             })}
