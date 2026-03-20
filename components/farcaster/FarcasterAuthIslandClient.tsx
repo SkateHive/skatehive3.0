@@ -1,8 +1,6 @@
 "use client";
 
 import { AuthKitProvider, SignInButton, useSignIn } from "@farcaster/auth-kit";
-// CSS import removed - it was processed at build time even with dynamic ssr:false,
-// potentially including auth-kit side-effects in server bundle
 import { APP_CONFIG } from "@/config/app.config";
 import { useEffect } from "react";
 import { Box } from "@chakra-ui/react";
@@ -27,13 +25,9 @@ interface FarcasterAuthIslandClientProps {
 }
 
 /**
- * INTERNAL CLIENT COMPONENT - DO NOT IMPORT DIRECTLY
- * 
- * This component is ONLY loaded via dynamic import with ssr:false.
- * It contains all @farcaster/auth-kit imports and must NEVER be
- * imported statically anywhere in the app.
+ * Inner component that uses useSignIn — MUST be inside AuthKitProvider.
  */
-export default function FarcasterAuthIslandClient({
+function FarcasterAuthInner({
   onSuccess,
   onError,
   onSignOut,
@@ -57,7 +51,6 @@ export default function FarcasterAuthIslandClient({
     validSignature,
   } = useSignIn({
     onSuccess: (res: any) => {
-      // Save session to localStorage for useFarcasterSession hook
       if (res?.fid && res?.username) {
         saveFarcasterSession({
           fid: res.fid,
@@ -69,7 +62,6 @@ export default function FarcasterAuthIslandClient({
           verifications: res.verifications,
         });
       }
-      
       onSuccess?.(res);
     },
     onError: (err: any) => {
@@ -115,18 +107,8 @@ export default function FarcasterAuthIslandClient({
       }
     };
   }, [
-    signIn,
-    signOut,
-    connect,
-    reconnect,
-    isSuccess,
-    isError,
-    error,
-    channelToken,
-    url,
-    data,
-    validSignature,
-    onSignOut,
+    signIn, signOut, connect, reconnect, isSuccess, isError,
+    error, channelToken, url, data, validSignature, onSignOut,
   ]);
 
   if (!renderButton) {
@@ -144,13 +126,22 @@ export default function FarcasterAuthIslandClient({
     : {};
 
   return (
+    <Box style={buttonStyle}>
+      <SignInButton onSuccess={onSuccess} onError={onError} />
+    </Box>
+  );
+}
+
+/**
+ * INTERNAL CLIENT COMPONENT - DO NOT IMPORT DIRECTLY
+ *
+ * This component is ONLY loaded via dynamic import with ssr:false.
+ * It wraps everything in AuthKitProvider so useSignIn has context.
+ */
+export default function FarcasterAuthIslandClient(props: FarcasterAuthIslandClientProps) {
+  return (
     <AuthKitProvider config={config}>
-      <Box style={buttonStyle}>
-        <SignInButton
-          onSuccess={onSuccess}
-          onError={onError}
-        />
-      </Box>
+      <FarcasterAuthInner {...props} />
     </AuthKitProvider>
   );
 }
