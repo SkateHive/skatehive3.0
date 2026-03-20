@@ -53,7 +53,7 @@ const TOP_BRANDS = cinemaData.brands.slice(0, 20);
 
 // Brand name → logo filename mapping
 const BRAND_LOGOS: Record<string, string> = {
-  "Real": "real.svg",
+  "Real": "real.jpg",
   "Zero": "zero.png",
   "Cliché": "cliche.svg",
   "CKY": "cky.png",
@@ -65,8 +65,8 @@ const BRAND_LOGOS: Record<string, string> = {
   "Mystery": "mystery.svg",
   "FKD": "fkd.png",
   "Enjoi": "enjoi.png",
-  "Darkstar": "darkstar.svg",
-  "Baker": "baker.svg",
+  "Darkstar": "darkstar.jpg",
+  "Baker": "baker.png",
   "Almost": "almost.png",
   "Deathwish": "deathwish.png",
   "Habitat": "habitat.png",
