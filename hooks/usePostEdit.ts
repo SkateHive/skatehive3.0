@@ -117,7 +117,7 @@ export const usePostEdit = (discussion: Discussion) => {
                 "comment",
                 {
                     parent_author: discussion.parent_author || "",
-                    parent_permlink: discussion.parent_permlink || "",
+                    parent_permlink: discussion.parent_permlink || discussion.category || "",
                     author: user,
                     permlink: discussion.permlink,
                     title: discussion.title || "",
@@ -126,12 +126,14 @@ export const usePostEdit = (discussion: Discussion) => {
                 },
             ];
 
+            console.log("[EditPost] Broadcasting operation:", JSON.stringify(operation[1], null, 2));
 
             // Use aioha to broadcast the edit
             const result = await aioha.signAndBroadcastTx([operation], KeyTypes.Posting);
 
+            console.log("[EditPost] Broadcast result:", JSON.stringify(result, null, 2));
 
-            if (result && !result.error) {
+            if (result && result.success) {
                 toast({
                     title: "Post updated successfully!",
                     status: "success",
