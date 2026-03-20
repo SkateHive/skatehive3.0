@@ -72,7 +72,8 @@ export async function generateMetadata({
   if (!video) return { title: "Video Not Found" };
 
   const title = `${video.title} — Skatehive Cinema`;
-  const description = video.description || `Watch ${video.title} from ${video.brand}. Classic skateboarding video from the Skatehive cinema archive.`;
+  const rawDescription = video.description || `Watch ${video.title} from ${video.brand}. Classic skateboarding video from the Skatehive cinema archive.`;
+  const description = rawDescription.length > 160 ? rawDescription.substring(0, 157) + "..." : rawDescription;
 
   return {
     title,
