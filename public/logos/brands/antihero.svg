@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="12" fill="#1a1a1a"/>
-  <text x="64" y="68" font-family="Arial,sans-serif" font-size="16" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">ANTIHERO</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="80" viewBox="0 0 200 80">
+  <rect width="200" height="80" rx="4" fill="#1a1a1a"/>
+  <text x="100" y="35" font-family="Impact,Arial Black,sans-serif" font-size="28" fill="#e63946" text-anchor="middle" font-weight="bold">ANTI</text>
+  <text x="100" y="62" font-family="Impact,Arial Black,sans-serif" font-size="28" fill="white" text-anchor="middle" font-weight="bold">HERO</text>
 </svg>

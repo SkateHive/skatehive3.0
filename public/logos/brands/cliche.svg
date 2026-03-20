@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="12" fill="#1a1a1a"/>
-  <text x="64" y="68" font-family="Arial,sans-serif" font-size="16" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">CLICHE</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="70" viewBox="0 0 200 70">
+  <rect width="200" height="70" rx="4" fill="#000"/>
+  <text x="100" y="45" font-family="'Courier New',monospace" font-size="36" fill="white" text-anchor="middle" dominant-baseline="middle" font-weight="bold">CLICHÉ</text>
 </svg>
