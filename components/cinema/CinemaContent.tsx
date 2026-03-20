@@ -227,14 +227,14 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
     if (index >= 0 && index < paginatedVideos.length) {
       setActiveIndex(index);
       const video = paginatedVideos[index];
-      if (video) {
-        router.push(`/cinema/${video.slug}`, { scroll: false });
+      if (video && typeof window !== "undefined") {
+        window.history.pushState({}, "", `/cinema/${video.slug}`);
       }
       setTimeout(() => {
         document.getElementById(`cinema-item-${index}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 50);
     }
-  }, [paginatedVideos, router]);
+  }, [paginatedVideos]);
 
   const goNext = useCallback(() => {
     if (shuffle) {
