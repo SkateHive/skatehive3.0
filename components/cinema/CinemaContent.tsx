@@ -158,14 +158,7 @@ const PlaylistItem = React.memo(function PlaylistItem({
         </VStack>
       </HStack>
 
-      {/* Description only in sidebar */}
-      {video.description && (
-        <Box px={2} pb={2} pl="35px">
-          <Text fontFamily="mono" fontSize="2xs" color="gray.500" noOfLines={2}>
-            {video.description}
-          </Text>
-        </Box>
-      )}
+
     </VStack>
   );
 });
