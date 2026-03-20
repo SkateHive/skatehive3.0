@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import HiveClient from '@/lib/hive/hiveclient';
 import { APP_CONFIG, HIVE_CONFIG } from '@/config/app.config';
+import cinemaData from '@/public/data/cinema.json';
 
 // === CONFIG ===
 const REVALIDATE_SECONDS = 60 * 60; // 1 hour
@@ -220,6 +221,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: `${baseUrl}/skateshops`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
         { url: `${baseUrl}/videos`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
         { url: `${baseUrl}/skaters`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+        { url: `${baseUrl}/cinema`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
         { url: `${baseUrl}/spots`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
         { url: `${baseUrl}/dao`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 },
         { url: `${baseUrl}/map/near-me`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
@@ -336,7 +338,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             });
         }
 
-        console.log(`[Sitemap] Total URLs: ${urls.length} (${authors.size} authors, ${tags.size} tags)`);
+        // Cinema: individual video pages
+        for (const video of cinemaData.videos) {
+            pushUrl({
+                url: `${baseUrl}/cinema/${video.slug}`,
+                lastModified: new Date(),
+                changeFrequency: 'monthly',
+                priority: 0.7,
+            });
+        }
+
+        // Cinema: brand pages
+        const brandSlugs = new Set<string>();
+        for (const brand of cinemaData.brands) {
+            const slug = brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            if (!brandSlugs.has(slug)) {
+                brandSlugs.add(slug);
+                pushUrl({
+                    url: `${baseUrl}/cinema/${slug}`,
+                    lastModified: new Date(),
+                    changeFrequency: 'monthly',
+                    priority: 0.8,
+                });
+            }
+        }
+
+        console.log(`[Sitemap] Total URLs: ${urls.length} (${authors.size} authors, ${tags.size} tags, ${cinemaData.videos.length} cinema videos, ${brandSlugs.size} cinema brands)`);
         return urls;
     } catch (error) {
         console.error('Error generating sitemap:', error);

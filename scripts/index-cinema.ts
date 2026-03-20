@@ -118,7 +118,7 @@ const BRAND_OVERRIDES: Record<string, string> = {
 // Title-based brand detection for videos without colon/dash pattern
 const TITLE_BRAND_MAP: [RegExp, string][] = [
   [/\bforecast\b.*paul rodriguez/i, "Paul Rodriguez"],
-  [/\bwhat if\b/i, "What If"],
+  [/\bwhat if\b/i, "Blind"],
   [/\btrilogy\b/i, "Trilogy"],
   [/\bcariuma\b/i, "Cariuma"],
   [/\bneighbours\b/i, "Independent"],
