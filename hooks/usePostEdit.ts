@@ -131,13 +131,17 @@ export const usePostEdit = (discussion: Discussion) => {
             // Use aioha to broadcast the edit
             const result = await aioha.signAndBroadcastTx([operation], KeyTypes.Posting);
 
-            console.log("[EditPost] Broadcast result:", JSON.stringify(result, null, 2));
+            console.log("[EditPost] Broadcast result:", result);
+            console.log("[EditPost] result.success:", result?.success);
+            console.log("[EditPost] result.result:", result?.result);
+            console.log("[EditPost] result.error:", result?.error);
 
             if (result && result.success) {
                 toast({
-                    title: "Post updated successfully!",
+                    title: "Post updated on blockchain!",
+                    description: `tx: ${typeof result.result === "string" ? result.result.slice(0, 20) + "..." : "confirmed"}`,
                     status: "success",
-                    duration: 3000,
+                    duration: 5000,
                     isClosable: true,
                 });
 
