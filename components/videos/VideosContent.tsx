@@ -41,6 +41,7 @@ import {
   FaStepBackward,
   FaRandom,
   FaExternalLinkAlt,
+  FaRedo,
 } from "react-icons/fa";
 import { SiIpfs, SiOdysee } from "react-icons/si";
 import { trackLandingPageVisit } from "@/lib/analytics/events";
@@ -418,6 +419,81 @@ function CommentItem({ comment }: { comment: Discussion }) {
   );
 }
 
+// ─── Countdown Overlay ───────────────────────────────────
+
+const AUTOPLAY_DELAY = 15; // seconds
+
+function CountdownOverlay({
+  seconds,
+  total,
+  nextTitle,
+  onCancel,
+  onSkip,
+}: {
+  seconds: number;
+  total: number;
+  nextTitle: string;
+  onCancel: () => void;
+  onSkip: () => void;
+}) {
+  const progress = ((total - seconds) / total) * 100;
+  const circumference = 2 * Math.PI * 28;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+
+  return (
+    <Flex
+      position="absolute"
+      inset={0}
+      bg="blackAlpha.800"
+      zIndex={10}
+      align="center"
+      justify="center"
+      flexDirection="column"
+      gap={4}
+    >
+      {/* Circular progress */}
+      <Box position="relative" cursor="pointer" onClick={onSkip}>
+        <svg width="72" height="72" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+          <circle
+            cx="32" cy="32" r="28" fill="none" stroke="#a3e635" strokeWidth="3"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            transform="rotate(-90 32 32)"
+            style={{ transition: "stroke-dashoffset 1s linear" }}
+          />
+        </svg>
+        <Text
+          position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)"
+          fontFamily="mono" fontSize="lg" fontWeight="bold" color="white"
+        >
+          {seconds}
+        </Text>
+      </Box>
+
+      <VStack spacing={1}>
+        <Text fontFamily="mono" fontSize="2xs" color="gray.400">up next</Text>
+        <Text fontFamily="mono" fontSize="xs" color="white" noOfLines={1} maxW="300px" textAlign="center">
+          {nextTitle}
+        </Text>
+      </VStack>
+
+      <HStack spacing={3}>
+        <Button size="xs" fontFamily="mono" fontSize="2xs" variant="outline"
+          borderColor="whiteAlpha.300" color="gray.300" onClick={onCancel}
+          _hover={{ borderColor: "white", color: "white" }}>
+          cancel
+        </Button>
+        <Button size="xs" fontFamily="mono" fontSize="2xs" bg="primary" color="background"
+          onClick={onSkip} _hover={{ opacity: 0.9 }}>
+          play now
+        </Button>
+      </HStack>
+    </Flex>
+  );
+}
+
 // ─── Main Player ─────────────────────────────────────────
 
 function MainPlayer({ videoInfo }: { videoInfo: VideoInfo }) {
@@ -490,7 +566,10 @@ export default function VideosContent() {
   const [hasMore, setHasMore] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [shuffle, setShuffle] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(true);
   const [filter, setFilter] = useState<VideoPlatform | "all">("all");
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const playlistRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<{ author?: string; permlink?: string }>({});
 
@@ -610,7 +689,13 @@ export default function VideosContent() {
     [filteredPosts.length],
   );
 
+  const cancelCountdown = useCallback(() => {
+    setCountdown(null);
+    if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+  }, []);
+
   const goNext = useCallback(() => {
+    cancelCountdown();
     setActiveIndex((prev) => {
       if (shuffle && filteredPosts.length > 1) {
         let next;
@@ -621,11 +706,45 @@ export default function VideosContent() {
       }
       return prev < filteredPosts.length - 1 ? prev + 1 : 0;
     });
-  }, [filteredPosts.length, shuffle]);
+  }, [filteredPosts.length, shuffle, cancelCountdown]);
 
   const goPrev = useCallback(() => {
+    cancelCountdown();
     setActiveIndex((prev) => (prev > 0 ? prev - 1 : filteredPosts.length - 1));
-  }, [filteredPosts.length]);
+  }, [filteredPosts.length, cancelCountdown]);
+
+  // Start autoplay countdown
+  const startCountdown = useCallback(() => {
+    if (!autoPlay || filteredPosts.length <= 1) return;
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setCountdown(AUTOPLAY_DELAY);
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+          goNext();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [autoPlay, filteredPosts.length, goNext]);
+
+  const skipCountdown = useCallback(() => {
+    cancelCountdown();
+    goNext();
+  }, [cancelCountdown, goNext]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+  }, []);
+
+  // Cancel countdown when user manually selects a video
+  const goToAndCancel = useCallback((index: number) => {
+    cancelCountdown();
+    goTo(index);
+  }, [cancelCountdown, goTo]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -716,6 +835,23 @@ export default function VideosContent() {
               {activePost && activeVideoInfo && (
                 <MainPlayer videoInfo={activeVideoInfo} />
               )}
+              {countdown !== null && (
+                <CountdownOverlay
+                  seconds={countdown}
+                  total={AUTOPLAY_DELAY}
+                  nextTitle={
+                    filteredPosts[
+                      shuffle
+                        ? Math.floor(Math.random() * filteredPosts.length)
+                        : activeIndex < filteredPosts.length - 1
+                          ? activeIndex + 1
+                          : 0
+                    ]?.title || "Next video"
+                  }
+                  onCancel={cancelCountdown}
+                  onSkip={skipCountdown}
+                />
+              )}
             </Box>
 
             <Box
@@ -761,6 +897,33 @@ export default function VideosContent() {
                     _hover={{ color: "primary" }}
                   />
                 </Tooltip>
+                <Tooltip
+                  label={`Auto-play ${autoPlay ? "on" : "off"}`}
+                  hasArrow
+                >
+                  <IconButton
+                    aria-label="Auto-play"
+                    icon={<FaRedo />}
+                    size="xs"
+                    variant="ghost"
+                    color={autoPlay ? "primary" : "gray.400"}
+                    onClick={() => { setAutoPlay((a) => !a); cancelCountdown(); }}
+                    _hover={{ color: "primary" }}
+                  />
+                </Tooltip>
+                {autoPlay && countdown === null && (
+                  <Tooltip label="Start countdown to next video" hasArrow>
+                    <IconButton
+                      aria-label="Start countdown"
+                      icon={<FaStepForward />}
+                      size="xs"
+                      variant="ghost"
+                      color="gray.500"
+                      onClick={startCountdown}
+                      _hover={{ color: "primary" }}
+                    />
+                  </Tooltip>
+                )}
                 <Box flex={1} />
                 {activeVideoInfo && (
                   <HStack
@@ -943,7 +1106,7 @@ export default function VideosContent() {
                     meta={postMetaMap.get(`${post.author}/${post.permlink}`)!}
                     isActive={i === activeIndex}
                     index={i}
-                    onClick={() => goTo(i)}
+                    onClick={() => goToAndCancel(i)}
                   />
                 </Box>
               ))}
