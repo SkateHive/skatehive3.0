@@ -96,6 +96,9 @@ const BRAND_OVERRIDES: Record<string, string> = {
   "dvs": "DVS",
   "lakai": "Lakai",
   "lakai footwear": "Lakai",
+  "huflez": "Huflez",
+  "huflez crew": "Huflez",
+  "hzc": "Huflez",
   "tony hawk's project 8": "Tony Hawk",
   "round one": "Round One",
   "round two": "Round Two",
@@ -122,6 +125,78 @@ const TITLE_BRAND_MAP: [RegExp, string][] = [
   [/\btrilogy\b/i, "Trilogy"],
   [/\bcariuma\b/i, "Cariuma"],
   [/\bneighbours\b/i, "Independent"],
+];
+
+// ─── Manual YouTube entries (not from RSS feeds) ─────────
+// These are added alongside the RSS videos and survive re-indexing.
+
+const MANUAL_VIDEOS: CinemaVideo[] = [
+  {
+    slug: "huflez-greenmonk-parte-1",
+    title: "Huflez: Greenmonk Parte 1",
+    brand: "Huflez",
+    year: null,
+    embedUrl: "https://www.youtube.com/embed/-KpyGwiERcg",
+    thumbnail: "https://img.youtube.com/vi/-KpyGwiERcg/hqdefault.jpg",
+    description: "Huflez Crew presents Greenmonk Parte 1. Brazilian skateboarding at its finest.",
+    channel: "Huflez Crew",
+    link: "https://www.youtube.com/watch?v=-KpyGwiERcg",
+  },
+  {
+    slug: "huflez-tudo-sem-padrin",
+    title: "Huflez: Tudo Sem Padrin",
+    brand: "Huflez",
+    year: null,
+    embedUrl: "https://www.youtube.com/embed/kZD0rc398WM",
+    thumbnail: "https://img.youtube.com/vi/kZD0rc398WM/hqdefault.jpg",
+    description: "Huflez Crew presents Tudo Sem Padrin. Raw street skateboarding from Brazil.",
+    channel: "Huflez Crew",
+    link: "https://www.youtube.com/watch?v=kZD0rc398WM",
+  },
+  {
+    slug: "huflez-presente",
+    title: "Huflez: Presente",
+    brand: "Huflez",
+    year: null,
+    embedUrl: "https://www.youtube.com/embed/nbkzXgV8uyM",
+    thumbnail: "https://img.youtube.com/vi/nbkzXgV8uyM/hqdefault.jpg",
+    description: "Huflez Presente. Full-length skateboarding video from Huflez Crew.",
+    channel: "Huflez Crew",
+    link: "https://www.youtube.com/watch?v=nbkzXgV8uyM",
+  },
+  {
+    slug: "huflez-smoke-machine",
+    title: "Huflez: Smoke Machine",
+    brand: "Huflez",
+    year: null,
+    embedUrl: "https://www.youtube.com/embed/AHEm8ou7O7c",
+    thumbnail: "https://img.youtube.com/vi/AHEm8ou7O7c/hqdefault.jpg",
+    description: "Huflez Crew presents Smoke Machine. Street skating video from Brazil.",
+    channel: "Huflez Crew",
+    link: "https://www.youtube.com/watch?v=AHEm8ou7O7c",
+  },
+  {
+    slug: "huflez-vol-3",
+    title: "Huflez: Vol. 3",
+    brand: "Huflez",
+    year: null,
+    embedUrl: "https://www.youtube.com/embed/ta-bo4j0hjM",
+    thumbnail: "https://img.youtube.com/vi/ta-bo4j0hjM/hqdefault.jpg",
+    description: "HZC Vol. 3 — Huflez Crew skateboarding video.",
+    channel: "Huflez Crew",
+    link: "https://www.youtube.com/watch?v=ta-bo4j0hjM",
+  },
+  {
+    slug: "huflez-enter-the-hu-flez",
+    title: "Huflez: Enter the Hu-Flez! 33 Dompas",
+    brand: "Huflez",
+    year: null,
+    embedUrl: "https://www.youtube.com/embed/H5PZ9P1hoAU",
+    thumbnail: "https://img.youtube.com/vi/H5PZ9P1hoAU/hqdefault.jpg",
+    description: "Enter the Hu-Flez! 33 Dompas — Huflez Crew full skateboarding video.",
+    channel: "Huflez Crew",
+    link: "https://www.youtube.com/watch?v=H5PZ9P1hoAU",
+  },
 ];
 
 interface CinemaVideo {
@@ -252,7 +327,8 @@ async function main() {
   console.log("🎬 Cinema Indexer — Starting...\n");
 
   const results = await Promise.all(RSS_FEEDS.map(parseFeed));
-  const all = results.flat();
+  const all = [...results.flat(), ...MANUAL_VIDEOS];
+  console.log(`  Manual entries: ${MANUAL_VIDEOS.length}`);
 
   // Deduplicate by title (normalized)
   const seen = new Set<string>();

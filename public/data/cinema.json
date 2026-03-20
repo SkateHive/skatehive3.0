@@ -1,6 +1,6 @@
 {
   "generatedAt": "2026-03-20",
-  "count": 150,
+  "count": 156,
   "brands": [
     "Real",
     "Emerica",
@@ -11,6 +11,7 @@
     "éS",
     "Cliché",
     "Digital",
+    "Huflez",
     "Circa",
     "CKY",
     "Round One",
@@ -1483,6 +1484,72 @@
       "description": "Check out more Blind - What If: https://odysee.com/@SkatePlaza:f?view=content&t=Blind+-+What+If",
       "channel": "Skate Plaza",
       "link": "https://odysee.com/GrantPattersonWhatIfPart:08f369d2ba426fef33e0c3b03d6d98adfc0f6360"
+    },
+    {
+      "slug": "huflez-enter-the-hu-flez",
+      "title": "Huflez: Enter the Hu-Flez! 33 Dompas",
+      "brand": "Huflez",
+      "year": null,
+      "embedUrl": "https://www.youtube.com/embed/H5PZ9P1hoAU",
+      "thumbnail": "https://img.youtube.com/vi/H5PZ9P1hoAU/hqdefault.jpg",
+      "description": "Enter the Hu-Flez! 33 Dompas — Huflez Crew full skateboarding video.",
+      "channel": "Huflez Crew",
+      "link": "https://www.youtube.com/watch?v=H5PZ9P1hoAU"
+    },
+    {
+      "slug": "huflez-greenmonk-parte-1",
+      "title": "Huflez: Greenmonk Parte 1",
+      "brand": "Huflez",
+      "year": null,
+      "embedUrl": "https://www.youtube.com/embed/-KpyGwiERcg",
+      "thumbnail": "https://img.youtube.com/vi/-KpyGwiERcg/hqdefault.jpg",
+      "description": "Huflez Crew presents Greenmonk Parte 1. Brazilian skateboarding at its finest.",
+      "channel": "Huflez Crew",
+      "link": "https://www.youtube.com/watch?v=-KpyGwiERcg"
+    },
+    {
+      "slug": "huflez-presente",
+      "title": "Huflez: Presente",
+      "brand": "Huflez",
+      "year": null,
+      "embedUrl": "https://www.youtube.com/embed/nbkzXgV8uyM",
+      "thumbnail": "https://img.youtube.com/vi/nbkzXgV8uyM/hqdefault.jpg",
+      "description": "Huflez Presente. Full-length skateboarding video from Huflez Crew.",
+      "channel": "Huflez Crew",
+      "link": "https://www.youtube.com/watch?v=nbkzXgV8uyM"
+    },
+    {
+      "slug": "huflez-smoke-machine",
+      "title": "Huflez: Smoke Machine",
+      "brand": "Huflez",
+      "year": null,
+      "embedUrl": "https://www.youtube.com/embed/AHEm8ou7O7c",
+      "thumbnail": "https://img.youtube.com/vi/AHEm8ou7O7c/hqdefault.jpg",
+      "description": "Huflez Crew presents Smoke Machine. Street skating video from Brazil.",
+      "channel": "Huflez Crew",
+      "link": "https://www.youtube.com/watch?v=AHEm8ou7O7c"
+    },
+    {
+      "slug": "huflez-tudo-sem-padrin",
+      "title": "Huflez: Tudo Sem Padrin",
+      "brand": "Huflez",
+      "year": null,
+      "embedUrl": "https://www.youtube.com/embed/kZD0rc398WM",
+      "thumbnail": "https://img.youtube.com/vi/kZD0rc398WM/hqdefault.jpg",
+      "description": "Huflez Crew presents Tudo Sem Padrin. Raw street skateboarding from Brazil.",
+      "channel": "Huflez Crew",
+      "link": "https://www.youtube.com/watch?v=kZD0rc398WM"
+    },
+    {
+      "slug": "huflez-vol-3",
+      "title": "Huflez: Vol. 3",
+      "brand": "Huflez",
+      "year": null,
+      "embedUrl": "https://www.youtube.com/embed/ta-bo4j0hjM",
+      "thumbnail": "https://img.youtube.com/vi/ta-bo4j0hjM/hqdefault.jpg",
+      "description": "HZC Vol. 3 — Huflez Crew skateboarding video.",
+      "channel": "Huflez Crew",
+      "link": "https://www.youtube.com/watch?v=ta-bo4j0hjM"
     },
     {
       "slug": "jake-brown-what-if-part",

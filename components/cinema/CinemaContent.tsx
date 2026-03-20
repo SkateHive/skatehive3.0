@@ -29,7 +29,7 @@ import {
   FaChevronLeft,
   FaChevronRight,
 } from "react-icons/fa";
-import { SiOdysee } from "react-icons/si";
+import { SiOdysee, SiYoutube } from "react-icons/si";
 import cinemaData from "@/public/data/cinema.json";
 
 // ─── Types ───────────────────────────────────────────────
@@ -48,8 +48,12 @@ interface CinemaVideo {
 
 const VIDEOS_PER_PAGE = 15;
 
-// Top brands for the filter bar (by frequency in the catalog)
-const TOP_BRANDS = cinemaData.brands.slice(0, 20);
+// Priority brands shown first, then rest by frequency
+const PRIORITY_BRANDS = ["Girl", "Zero", "Huflez", "éS"];
+const TOP_BRANDS = [
+  ...PRIORITY_BRANDS.filter((b) => cinemaData.brands.includes(b)),
+  ...cinemaData.brands.filter((b) => !PRIORITY_BRANDS.includes(b)),
+].slice(0, 25);
 
 // Brand name → logo filename mapping
 const BRAND_LOGOS: Record<string, string> = {
@@ -311,8 +315,11 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
                 </Tooltip>
                 <Box flex={1} />
                 <HStack spacing={1} px={2} py={0.5} bg="whiteAlpha.50" borderRadius="sm">
-                  <Icon as={SiOdysee} boxSize={3} color="pink.400" />
-                  <Text fontFamily="mono" fontSize="2xs" color="gray.400">Odysee</Text>
+                  {activeVideo?.embedUrl?.includes("youtube") ? (
+                    <><Icon as={SiYoutube} boxSize={3} color="red.500" /><Text fontFamily="mono" fontSize="2xs" color="gray.400">YouTube</Text></>
+                  ) : (
+                    <><Icon as={SiOdysee} boxSize={3} color="pink.400" /><Text fontFamily="mono" fontSize="2xs" color="gray.400">Odysee</Text></>
+                  )}
                 </HStack>
                 <Text fontFamily="mono" fontSize="2xs" color="gray.600">{globalIndex} / {filteredVideos.length}</Text>
               </HStack>
@@ -332,7 +339,7 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
                 </HStack>
                 {activeVideo?.link && (
                   <ChakraLink href={activeVideo.link} isExternal _hover={{ textDecoration: "none" }}>
-                    <Tooltip label="Watch on Odysee" hasArrow>
+                    <Tooltip label={activeVideo?.link?.includes("youtube") ? "Watch on YouTube" : "Watch on Odysee"} hasArrow>
                       <span><Icon as={FaExternalLinkAlt} boxSize={3} color="gray.500" _hover={{ color: "primary" }} cursor="pointer" /></span>
                     </Tooltip>
                   </ChakraLink>
