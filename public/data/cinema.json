@@ -965,7 +965,79 @@
       "thumbnail": "https://thumbs.odycdn.com/8b82161cfae1168f906c6e5ff2df87e9.webp",
       "description": "Cliché - Déjà Vu (2008)[Interpolate/59.94fps]Chapters00:00 Intro01:19 JB Gillet05:23 Ricardo Fonseca07:56 Joey Brezinski11:59 Cale Nuske16:01 Javier Mendizabal19:59 Charles Collet23:07 Jeremie Daclin25:54 Andrew Brophy29:06 Lucas Puig37:02 Credits50:03 Gypsy Tour 2",
       "channel": "Skate Video Archive",
-      "link": "https://odysee.com/@SkateOrDie:7/Clich-Dj-Vu-2008:a"
+      "link": "https://odysee.com/@SkateOrDie:7/Clich-Dj-Vu-2008:a",
+      "soundtrack": [
+        {
+          "part": "intro #1",
+          "song": "Daft Punk - Digital Love"
+        },
+        {
+          "part": "intro #2",
+          "song": "Prefuse 73 - Pagina Dos (feat. The Books)"
+        },
+        {
+          "part": "JB Gillet",
+          "song": "Biggie Smalls - Juicy"
+        },
+        {
+          "part": "Ricardo Fonseca",
+          "song": "The Black Keys - Busted"
+        },
+        {
+          "part": "Joey Brezinski",
+          "song": "Nelly Furtado - Say It Right"
+        },
+        {
+          "part": "Cale Nuske",
+          "song": "Neil Young - Revolution Blues"
+        },
+        {
+          "part": "Javier Mendizabal",
+          "song": "Blind Faith - Can't Find My Way Home"
+        },
+        {
+          "part": "Charles Collet #1",
+          "song": "Grace Jones - Pull Up To The Bumper"
+        },
+        {
+          "part": "Charles Collet #2",
+          "song": "Pet Shop Boys - West End Girls"
+        },
+        {
+          "part": "Charles Collet #3",
+          "song": "N.W.A - Fuck Tha Police"
+        },
+        {
+          "part": "Charles Collet #4",
+          "song": "Grinderman - No Pussy Blues"
+        },
+        {
+          "part": "Charles Collet #5",
+          "song": "Sex Pistols - Anarchy In The Uk"
+        },
+        {
+          "part": "Jeremie Daclin",
+          "song": "Devo - Smart Patrol/Mr. DNA"
+        },
+        {
+          "part": "Andrew Brophy",
+          "song": "Prince - Get Off"
+        },
+        {
+          "part": "Lucas Puig",
+          "song": "M83 - The Highest Journey"
+        },
+        {
+          "part": "credits",
+          "song": "Serge Gainsbourg - Aux armes et Caetera"
+        },
+        {
+          "part": "outro",
+          "song": "Nina Simone - Sinnerman"
+        }
+      ],
+      "svsSlug": "cliche-deja-vu",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "mystery-promo-video-2008",
@@ -976,7 +1048,27 @@
       "thumbnail": "https://thumbs.odycdn.com/3bcaf17b2c4e613945fb57d79a024339.webp",
       "description": "Mystery - Promo Video (2008)[Interpolate/59.94fps]Chapters0:00 Intro2:50 Everen Stallion4:59 Montage8:38 Pete Eldridge",
       "channel": "Skate Video Archive",
-      "link": "https://odysee.com/Mystery-Promo-Video-2008:da559914d75d2e82078349e07f2ed9fc3ef820f7"
+      "link": "https://odysee.com/Mystery-Promo-Video-2008:da559914d75d2e82078349e07f2ed9fc3ef820f7",
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "Chuck Berry - Downbound Train"
+        },
+        {
+          "part": "Everen Stallion",
+          "song": "Smith - Baby It's You"
+        },
+        {
+          "part": "Montage",
+          "song": "Sly & The Family Stone - Underdog"
+        },
+        {
+          "part": "Pete Eldridge",
+          "song": "Sean Price - King Kong"
+        }
+      ],
+      "svsSlug": "mystery-promo-2008",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "it-crew-it-2-2008",
@@ -1557,7 +1649,39 @@
       "thumbnail": "https://thumbs.odycdn.com/025749ec5e3c8ce0492b32ae3caac515.webp",
       "description": "Digital Skateboarding Presents: “Imagine”Produced by Dennis Martin and Bill Weiss for Digital Skateboarding. Featuring Aaron Artis, Aaron Snyder, Adam Dyet, Adelmo Jr., Andrew Gourdouros, Andrew Pott, Antwuan Dixon, B Sheppard, Bjorn Johnston, Braydon Szafranski, Brazilian Man, Caswell Berry, Chima ",
       "channel": "Skate Video Library",
-      "link": "https://odysee.com/Digital-Skateboarding-14-Imagine-2007:ce797d08773c9cf416fee59d1ecf7e6fac2d1f2a"
+      "link": "https://odysee.com/Digital-Skateboarding-14-Imagine-2007:ce797d08773c9cf416fee59d1ecf7e6fac2d1f2a",
+      "soundtrack": [
+        {
+          "part": "",
+          "song": "Mikael Varis - Helvettiin"
+        },
+        {
+          "part": "",
+          "song": "Cosmobile - The Finger"
+        },
+        {
+          "part": "",
+          "song": "Stepa feat. Laineen Kasperi - Ei"
+        },
+        {
+          "part": "",
+          "song": "Bigblind Willie - Paper Thin"
+        },
+        {
+          "part": "",
+          "song": "Moses Hazy - Flow of Life"
+        },
+        {
+          "part": "",
+          "song": "Sur-rur - Maisema"
+        },
+        {
+          "part": "",
+          "song": "Mikael Varis - 27"
+        }
+      ],
+      "svsSlug": "133",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "skate-1-sponsor-videos-2007",
@@ -1579,7 +1703,35 @@
       "thumbnail": "https://thumbs.odycdn.com/b036beb31578c42a0642ac8dd036a1fc.webp",
       "description": "Circa - Committed To Skateboarding (2006)[Interpolate/59.94fps]6:46 Photo Gallery",
       "channel": "Skate Video Archive",
-      "link": "https://odysee.com/Circa-Committed-To-Skateboarding-2006:244193197fc70a5e5269900e06a500973ae31405"
+      "link": "https://odysee.com/Circa-Committed-To-Skateboarding-2006:244193197fc70a5e5269900e06a500973ae31405",
+      "soundtrack": [
+        {
+          "part": "",
+          "song": "Foghat - I Just Want To Make Love To You"
+        },
+        {
+          "part": "",
+          "song": "AC/DC - Riff Raff"
+        },
+        {
+          "part": "",
+          "song": "Betty Blowtorch - Rock'n'Roll 69"
+        },
+        {
+          "part": "",
+          "song": "Motorhead - No Class"
+        },
+        {
+          "part": "Part 1",
+          "song": "http://www.youtube.com/watch?v=eJmuJlZ5w-8&feature=channel"
+        },
+        {
+          "part": "Part 2",
+          "song": "http://www.youtube.com/watch?v=xEnLv0mYK6Y&feature=channel"
+        }
+      ],
+      "svsSlug": "crimson-bleed-skateboarding",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "circa-its-time-2006",
@@ -1590,7 +1742,67 @@
       "thumbnail": "https://thumbs.odycdn.com/abb6f988e91bad88ed7f0dedbde814c5.webp",
       "description": "Circa - It's Time (2006)[Deinterlace/59.94fps]Chapters00:00 It's Time Intro02:03 Jon Allie05:06 Sierra Fellers08:22 Holla At Ya' Real Soon I...08:43 Impala09:03 Adrian Lopez11:08 Holla At Ya' Real Soon II...11:25 Windsor James13:44 Dennis Durrant17:15 My Best Day Skating...18:22 Colt Cannon22:09 New",
       "channel": "Skate Video Archive",
-      "link": "https://odysee.com/Circa-Its-Time-2006:a802c3bcd04a9d2795958289d6c610b4efa9ff5a"
+      "link": "https://odysee.com/Circa-Its-Time-2006:a802c3bcd04a9d2795958289d6c610b4efa9ff5a",
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "Rare Earth - (I know) I'm Losing You"
+        },
+        {
+          "part": "Jon Allie",
+          "song": "Black Sabbath - Gypsy"
+        },
+        {
+          "part": "Sierra Fellers",
+          "song": "Zwan - Lyric"
+        },
+        {
+          "part": "Adrian Lopez",
+          "song": "Jr. Walker & The All Stars - Shotgun"
+        },
+        {
+          "part": "Windsor James",
+          "song": "Sam & Dave - Hold On, I'm Comin'"
+        },
+        {
+          "part": "Dennis Durrant Intro",
+          "song": "Tosca - Session 2 Einschlaf"
+        },
+        {
+          "part": "Dennis Durrant",
+          "song": "Throwing Muses - Not Too Soon"
+        },
+        {
+          "part": "Colt Cannon",
+          "song": "The Doobie Brothers - Takin' It To The Streets"
+        },
+        {
+          "part": "New Shit Hot Shit",
+          "song": "Cab Calloway - Jitterbug Party"
+        },
+        {
+          "part": "Tony Tave",
+          "song": "Michael Jackson - Working Day And Night"
+        },
+        {
+          "part": "Peter Ramondetta Intro",
+          "song": "Roky Erickson & The Aliens - Stand For The Fire Demon"
+        },
+        {
+          "part": "Peter Ramondetta",
+          "song": "AC/DC - Walk All Over You"
+        },
+        {
+          "part": "Credits #1",
+          "song": "Gladys Knight & The Pips - Midnight Train To Georgia"
+        },
+        {
+          "part": "Credits #2",
+          "song": "The Rolling Stones - Worried About You"
+        }
+      ],
+      "svsSlug": "circa-its-time",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "enjoi-bag-of-suck-2006",
@@ -1911,7 +2123,55 @@
       "thumbnail": "https://thumbs.odycdn.com/cf3fde74b05b7cff114f5de3c1871d28.webp",
       "description": "Etnies Footwear Presents: “Restless”Video by Pierre Andre Senizergues and Mike Manzoori for Etnies Footwear. Featuring Alessandro Magnani, Ali Boulala, Arto Saari, Bastien Salabanzi, Charles Collet, Conhuir Lynn, Dominik Dietrich, Elissa Steamer, Eric Fletcher, Jason Dill, Javier Mendizabal, Julian ",
       "channel": "Skate Video Library",
-      "link": "https://odysee.com/Etnies-Footwear-Restless-2006:745f538ab750772e19f008f6c340ae29e4ea782d"
+      "link": "https://odysee.com/Etnies-Footwear-Restless-2006:745f538ab750772e19f008f6c340ae29e4ea782d",
+      "soundtrack": [
+        {
+          "part": "intro/theme",
+          "song": "Ali Boulala - Restless"
+        },
+        {
+          "part": "Mallorca 1",
+          "song": "Jesse Fritsch - Kinda Kinky"
+        },
+        {
+          "part": "Arizona 1",
+          "song": "Textures of Reality - Funky Ham"
+        },
+        {
+          "part": "Arizona 2",
+          "song": "Textures of Reality - Diosa Maya"
+        },
+        {
+          "part": "Arizona 3",
+          "song": "Ali Boulala - Slider Blues"
+        },
+        {
+          "part": "Rune Glifberg",
+          "song": "Lightman - Spring Time"
+        },
+        {
+          "part": "Mallorca 2",
+          "song": "Jesse Fritsch - Motor Blues"
+        },
+        {
+          "part": "team montage",
+          "song": "Sans Void - Dripping Smile"
+        },
+        {
+          "part": "credits",
+          "song": "Lightman - Countryside"
+        },
+        {
+          "part": "bonus - Copenhagen",
+          "song": "Textures of Reality - Advanced 8th Note"
+        },
+        {
+          "part": "bonus - Helsinki",
+          "song": "Ali Boulala - Finish Blues"
+        }
+      ],
+      "svsSlug": "etnies-restless",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "wesc-clothing-dc-shoes-neighbours-2006",
@@ -1955,7 +2215,51 @@
       "thumbnail": "https://thumbs.odycdn.com/fad9e77941f45f855cf5224ecc3ce085.webp",
       "description": "Element Skateboards Presents: “Elementality Volume Two”A video journal that documents the travels, skateboarding and life of the Element family.Video by Johnny Schillereff and Kirk Dianda for Element Skateboards. Featuring Bam Margera, Brent Atchley, Brian Ball, Bucky Lasek, Collin Provost, Dallas R",
       "channel": "Skate Video Library",
-      "link": "https://odysee.com/Element-Skateboards-Elementality-Volume-Two-2006:431e7fb20608f21fbceb6e83384569e170abf3b2"
+      "link": "https://odysee.com/Element-Skateboards-Elementality-Volume-Two-2006:431e7fb20608f21fbceb6e83384569e170abf3b2",
+      "soundtrack": [
+        {
+          "part": "team montage",
+          "song": "Clinic - Walking With Thee"
+        },
+        {
+          "part": "Fishtales",
+          "song": "Aesop Rock & Big Wiz"
+        },
+        {
+          "part": "Dallas Rockvam",
+          "song": "Climber - Escape"
+        },
+        {
+          "part": "credits",
+          "song": "Climber - Escape"
+        },
+        {
+          "part": "Bam boards",
+          "song": "Digdug - Tallest Trees"
+        },
+        {
+          "part": "Tosh shoe talk",
+          "song": "Digdug - Zipperheads Unitei"
+        },
+        {
+          "part": "Delphi art show",
+          "song": "Dana Dianda - Untitled Track"
+        },
+        {
+          "part": "Brent Atchley pro debut video",
+          "song": "Freestyle Fellowship - Cornbread"
+        },
+        {
+          "part": "demo",
+          "song": "Matt Vucic - Card I Play"
+        },
+        {
+          "part": "trailer",
+          "song": "Clinic - Walking With Thee"
+        }
+      ],
+      "svsSlug": "element-elementality-volume-2",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "digital-skateboarding-13-get-tricks-or-die-tryin-2006",
@@ -4615,7 +4919,79 @@
       "thumbnail": "https://thumbs.odycdn.com/d8b7cb1138238cb98baf563939b05e20.webp",
       "description": "Gold Wheels Presents: “Got Gold?”Video by Adam Royer and Eli Soto for Gold Wheels. Featuring Brad Johnson, Devin Calloway, Forrest Kirby, Henry Sanchez, Jack Curtin, Jason Wussler, Javier Nuñes, Jeron Wilson, John Igei, Kelly Hart, Lee Smith, Lennie Rivas, Marcus McBride, Mike Wright, Pat Washington",
       "channel": "Skate Video Library",
-      "link": "https://odysee.com/Gold-Wheels-Got-Gold-2002:5705f90f0b1fff8205ce3501d605e7f726e615f2"
+      "link": "https://odysee.com/Gold-Wheels-Got-Gold-2002:5705f90f0b1fff8205ce3501d605e7f726e615f2",
+      "soundtrack": [
+        {
+          "part": "Outro",
+          "song": "Coo Coo Cal - My Projects"
+        },
+        {
+          "part": "Intro",
+          "song": "DMX - Intro"
+        },
+        {
+          "part": "Forrest Kirby",
+          "song": "Cameo - Candy"
+        },
+        {
+          "part": "Jeron Wilson, Lee Smith & Stevie Williams",
+          "song": "Puff Daddy & The Notorious B.I.G. - Victory"
+        },
+        {
+          "part": "Mike Wright, Stevie Lewis & Kelly Hart",
+          "song": "Juvenile - A Million and One Things"
+        },
+        {
+          "part": "Pat Washington & Henry Sanchez",
+          "song": "P.W. Esquire - ?"
+        },
+        {
+          "part": "Ryan Gallant",
+          "song": "Quim Cardona - ?"
+        },
+        {
+          "part": "Jason Wussler",
+          "song": "Trick Daddy - Take It To The House (feat. Trina)"
+        },
+        {
+          "part": "Marcus McBride",
+          "song": "Shyne - Bonnie & Shyne"
+        },
+        {
+          "part": "Credits",
+          "song": "Cameo - Word Up"
+        },
+        {
+          "part": "Bonus - Javier Nunez & Lenny Rivas",
+          "song": "Freeway - Flipside"
+        },
+        {
+          "part": "Bonus - Marcus McBride & John Igei",
+          "song": "Biggie Smalls - Dead Wrong"
+        },
+        {
+          "part": "Bonus - Spencer Fujimoto",
+          "song": "Slimm Cutta Calhoun - The Cut Song"
+        },
+        {
+          "part": "Bonus - Kelly Hart",
+          "song": "Chingy - Gettin' In"
+        },
+        {
+          "part": "Bonus - Jack Curtin",
+          "song": "50 Cent - Blood Hound"
+        },
+        {
+          "part": "Brad Johnson & Devine Calloway",
+          "song": "N.W.A - I'd Rather Fuck You"
+        },
+        {
+          "part": "Spencer Fujimoto",
+          "song": "Cam'ron - Oh Boy (feat. Juelz Santana)"
+        }
+      ],
+      "svsSlug": "gold-got-gold",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "cky-cky3-2001",
@@ -6082,7 +6458,87 @@
       "thumbnail": "https://thumbs.odycdn.com/04587e898230b17c0c95f9b429526684.webp",
       "description": "Check out more World Industries Video Parts: https://odysee.com/@OodlesofOs:f?view=content&t=World+Industries+Video+Parts",
       "channel": "Skate Plaza",
-      "link": "https://odysee.com/CLYDESINGLETONTRILOGYPART:fb6a238b57ca49b58a43f8f1b9c6ecb8ec31f48e"
+      "link": "https://odysee.com/CLYDESINGLETONTRILOGYPART:fb6a238b57ca49b58a43f8f1b9c6ecb8ec31f48e",
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "Garage Monsters - Powerhouse"
+        },
+        {
+          "part": "Dan Rogers #1",
+          "song": "Girl Trouble - Hot Monkey Love"
+        },
+        {
+          "part": "Dan Rogers #2",
+          "song": "Gas Huffer - Nisqually"
+        },
+        {
+          "part": "Mike Sinclair #1",
+          "song": "Phamtom Surfers - Move It"
+        },
+        {
+          "part": "Mike Sinclair #2",
+          "song": "Phantom Surfers - Besame Mucho"
+        },
+        {
+          "part": "Eric Conner",
+          "song": "Groovie Ghoulies - King Kong"
+        },
+        {
+          "part": "Rick Jaramillo",
+          "song": "Trash Can School - Baby Lust"
+        },
+        {
+          "part": "Brian Boyd",
+          "song": "Gas Huffer - All That Guff"
+        },
+        {
+          "part": "Skate Camp",
+          "song": "Bone Games - Dog Tom"
+        },
+        {
+          "part": "Jeremy Wray",
+          "song": "Girl Trouble - Hurt Your Heart"
+        },
+        {
+          "part": "Steve Teague & Manuel Palacios",
+          "song": "Groovie Ghoulies - Armageddon 2000"
+        },
+        {
+          "part": "Mark Wyndham",
+          "song": "Trash Can School - Yes, I Mean No"
+        },
+        {
+          "part": "Laban Pheidias #2",
+          "song": "Groovie Ghoulies - My Computer Said \"Kill\""
+        },
+        {
+          "part": "Jason Dill",
+          "song": "Ned's Atomic Dustbin - Throwing Things"
+        },
+        {
+          "part": "Carlstrom, Mark, Penny & Lemen",
+          "song": "Ned's Atomic Dustbin - Kill Your Television"
+        },
+        {
+          "part": "Laban Pheidias #1",
+          "song": "The Muffs - I Don't Like You"
+        },
+        {
+          "part": "Credits",
+          "song": "?"
+        },
+        {
+          "part": "Montage #1",
+          "song": "?"
+        },
+        {
+          "part": "Montage #2",
+          "song": "?"
+        }
+      ],
+      "svsSlug": "5",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "corey-sheppard-what-if",
@@ -6303,7 +6759,123 @@
       "thumbnail": "https://thumbs.odycdn.com/bd99d097f942bcc34c35d4c1f9e0a3c6.webp",
       "description": "Check out more Emerica-Stay Gold: https://odysee.com/@SkatePlaza:f?view=content&t=Emerica-Stay+Gold",
       "channel": "Skate Plaza",
-      "link": "https://odysee.com/EmericaStayGoldBSideJerryHsu:5e1dcad4186ce43d354daed783d78843bd8d532a"
+      "link": "https://odysee.com/EmericaStayGoldBSideJerryHsu:5e1dcad4186ce43d354daed783d78843bd8d532a",
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "Dead Meadow - Sleepy Silver Door"
+        },
+        {
+          "part": "Brandon Westgate",
+          "song": "Earthless - Jull"
+        },
+        {
+          "part": "Bryan Herman #1",
+          "song": "Tom Waits - Top Of The Hill"
+        },
+        {
+          "part": "Marquis Preston",
+          "song": "John Cale - Big White Cloud"
+        },
+        {
+          "part": "Kevin Long",
+          "song": "Captain Beefheart - Electricity"
+        },
+        {
+          "part": "Collin Provost",
+          "song": "Dead Meadow - Green Sky Green Lake"
+        },
+        {
+          "part": "Jamie Tancowny",
+          "song": "Comets on Fire - The Swallow's Eye"
+        },
+        {
+          "part": "Aaron Suski",
+          "song": "Flower Travlin' Band - Satori Pt. 2"
+        },
+        {
+          "part": "Braydon Szafranski",
+          "song": "Hawkwind - We Took The Wrong Steps Years Ago"
+        },
+        {
+          "part": "Justin Figueroa",
+          "song": "Dead Meadow - That Old Temple"
+        },
+        {
+          "part": "Jerry Hsu",
+          "song": "Ultimate Spinach III - Somedays You Just Can't Win"
+        },
+        {
+          "part": "Leo Romero",
+          "song": "Mott the Hoople - Thunderbuck Ram"
+        },
+        {
+          "part": "Andrew Reynolds",
+          "song": "Edward Sharpe & The Magnetic Zeros - Om Nashi Me"
+        },
+        {
+          "part": "Credits",
+          "song": "Earthless - No Road To Follow"
+        },
+        {
+          "part": "Bryan Herman #2",
+          "song": "Black Sabbath - Fairies Wear Boots"
+        },
+        {
+          "part": "Bonus - Andrew Reynolds & The Madness #1",
+          "song": "Chali 2na - 4 Be Be (instrumental)"
+        },
+        {
+          "part": "Bonus - Andrew Reynolds & The Madness #2",
+          "song": "Chali 2na - Controlled Coincidence (instrumental)"
+        },
+        {
+          "part": "Bonus - Andrew Reynolds & The Madness #3",
+          "song": "Years - Don't Let The Blind Go Deaf"
+        },
+        {
+          "part": "Bonus - Ed Templeton - Stay Gold Deluxe",
+          "song": "Tristeza - Golden Hill"
+        },
+        {
+          "part": "Bonus - Emerica Europe #1",
+          "song": "Graveyard - Lost In Confusion"
+        },
+        {
+          "part": "Bonus - Emerica Europe #2",
+          "song": "Earthless - Devil-Eyed Woman"
+        },
+        {
+          "part": "Bonus - International Montage",
+          "song": "Sleep - Aquarian"
+        },
+        {
+          "part": "DVD Easter Egg - Heath Kirchart",
+          "song": "Joy Division - Atmosphere"
+        },
+        {
+          "part": "DVD Easter Egg - Barrier Kult",
+          "song": "Vomitor - Crimson Tide"
+        },
+        {
+          "part": "Bonus - Flow Bros",
+          "song": "Comets On Fire - The Bee And The Cracking Egg"
+        },
+        {
+          "part": "Bonus - Emerica Europe",
+          "song": "http://vimeo.com/27280221"
+        },
+        {
+          "part": "Easter Egg - Barrier Kult",
+          "song": "http://vimeo.com/21331404"
+        },
+        {
+          "part": "Easter Egg - Heath Kirchart",
+          "song": "http://www.youtube.com/watch?v=X95vOpF0ZiI"
+        }
+      ],
+      "svsSlug": "emerica-stay-gold",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "emerica-stay-gold-b-side-justin-figgy-figueroa",
@@ -6336,7 +6908,123 @@
       "thumbnail": "https://thumbs.odycdn.com/60a2fb1d086e2dfae707f4575403a0db.webp",
       "description": "Check out more Emerica-Stay Gold: https://odysee.com/@SkatePlaza:f?view=content&t=Emerica-Stay+Gold",
       "channel": "Skate Plaza",
-      "link": "https://odysee.com/EmericaStayGoldBSideLeoRomero:e59e83392bee6b4be74f670a3250c23b20c93731"
+      "link": "https://odysee.com/EmericaStayGoldBSideLeoRomero:e59e83392bee6b4be74f670a3250c23b20c93731",
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "Dead Meadow - Sleepy Silver Door"
+        },
+        {
+          "part": "Brandon Westgate",
+          "song": "Earthless - Jull"
+        },
+        {
+          "part": "Bryan Herman #1",
+          "song": "Tom Waits - Top Of The Hill"
+        },
+        {
+          "part": "Marquis Preston",
+          "song": "John Cale - Big White Cloud"
+        },
+        {
+          "part": "Kevin Long",
+          "song": "Captain Beefheart - Electricity"
+        },
+        {
+          "part": "Collin Provost",
+          "song": "Dead Meadow - Green Sky Green Lake"
+        },
+        {
+          "part": "Jamie Tancowny",
+          "song": "Comets on Fire - The Swallow's Eye"
+        },
+        {
+          "part": "Aaron Suski",
+          "song": "Flower Travlin' Band - Satori Pt. 2"
+        },
+        {
+          "part": "Braydon Szafranski",
+          "song": "Hawkwind - We Took The Wrong Steps Years Ago"
+        },
+        {
+          "part": "Justin Figueroa",
+          "song": "Dead Meadow - That Old Temple"
+        },
+        {
+          "part": "Jerry Hsu",
+          "song": "Ultimate Spinach III - Somedays You Just Can't Win"
+        },
+        {
+          "part": "Leo Romero",
+          "song": "Mott the Hoople - Thunderbuck Ram"
+        },
+        {
+          "part": "Andrew Reynolds",
+          "song": "Edward Sharpe & The Magnetic Zeros - Om Nashi Me"
+        },
+        {
+          "part": "Credits",
+          "song": "Earthless - No Road To Follow"
+        },
+        {
+          "part": "Bryan Herman #2",
+          "song": "Black Sabbath - Fairies Wear Boots"
+        },
+        {
+          "part": "Bonus - Andrew Reynolds & The Madness #1",
+          "song": "Chali 2na - 4 Be Be (instrumental)"
+        },
+        {
+          "part": "Bonus - Andrew Reynolds & The Madness #2",
+          "song": "Chali 2na - Controlled Coincidence (instrumental)"
+        },
+        {
+          "part": "Bonus - Andrew Reynolds & The Madness #3",
+          "song": "Years - Don't Let The Blind Go Deaf"
+        },
+        {
+          "part": "Bonus - Ed Templeton - Stay Gold Deluxe",
+          "song": "Tristeza - Golden Hill"
+        },
+        {
+          "part": "Bonus - Emerica Europe #1",
+          "song": "Graveyard - Lost In Confusion"
+        },
+        {
+          "part": "Bonus - Emerica Europe #2",
+          "song": "Earthless - Devil-Eyed Woman"
+        },
+        {
+          "part": "Bonus - International Montage",
+          "song": "Sleep - Aquarian"
+        },
+        {
+          "part": "DVD Easter Egg - Heath Kirchart",
+          "song": "Joy Division - Atmosphere"
+        },
+        {
+          "part": "DVD Easter Egg - Barrier Kult",
+          "song": "Vomitor - Crimson Tide"
+        },
+        {
+          "part": "Bonus - Flow Bros",
+          "song": "Comets On Fire - The Bee And The Cracking Egg"
+        },
+        {
+          "part": "Bonus - Emerica Europe",
+          "song": "http://vimeo.com/27280221"
+        },
+        {
+          "part": "Easter Egg - Barrier Kult",
+          "song": "http://vimeo.com/21331404"
+        },
+        {
+          "part": "Easter Egg - Heath Kirchart",
+          "song": "http://www.youtube.com/watch?v=X95vOpF0ZiI"
+        }
+      ],
+      "svsSlug": "emerica-stay-gold",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "emerica-stay-gold-b-side-marquis-preston",
@@ -6913,7 +7601,39 @@
       "thumbnail": "https://thumbs.odycdn.com/b13af71ab1177db391b3636c53ee61d1.webp",
       "description": "Check out more Blind - What If: https://odysee.com/@SkatePlaza:f?view=content&t=Blind+-+What+If",
       "channel": "Skate Plaza",
-      "link": "https://odysee.com/GrantPattersonWhatIfPart:08f369d2ba426fef33e0c3b03d6d98adfc0f6360"
+      "link": "https://odysee.com/GrantPattersonWhatIfPart:08f369d2ba426fef33e0c3b03d6d98adfc0f6360",
+      "soundtrack": [
+        {
+          "part": "Ben Gore intro",
+          "song": "The Original Brothers - Black Out"
+        },
+        {
+          "part": "Ben Gore",
+          "song": "Tyrone Ashley's Funky Music Machine - Gotta Clean Up The World (part 1)"
+        },
+        {
+          "part": "intro",
+          "song": "Friends of the Family - Percussive Movement"
+        },
+        {
+          "part": "team #1",
+          "song": "El Michels Affair - This One's For My Baby"
+        },
+        {
+          "part": "team #2",
+          "song": "Bronx River Parkway - La Valla"
+        },
+        {
+          "part": "team #3",
+          "song": "Zafari - Addis Ababa"
+        },
+        {
+          "part": "credits",
+          "song": "Tony Manfre"
+        }
+      ],
+      "svsSlug": "96",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "huflez-enter-the-hu-flez",
@@ -7155,7 +7875,27 @@
       "thumbnail": "https://thumbs.odycdn.com/806fd736994b9bd382a89c1b707024af.webp",
       "description": "Check out more Blind - What If: https://odysee.com/@SkatePlaza:f?view=content&t=Blind+-+What+If",
       "channel": "Skate Plaza",
-      "link": "https://odysee.com/JakeDuncombeWhatIfPart:48bd77d7b371a6d473325191f77211c3f0b6730f"
+      "link": "https://odysee.com/JakeDuncombeWhatIfPart:48bd77d7b371a6d473325191f77211c3f0b6730f",
+      "soundtrack": [
+        {
+          "part": "4963",
+          "song": "\\N"
+        },
+        {
+          "part": "4774",
+          "song": "\\N"
+        },
+        {
+          "part": "4265",
+          "song": "\\N"
+        },
+        {
+          "part": "2009-07-17 18:09:59+00",
+          "song": "Nolli Fs Heel Doubleset"
+        }
+      ],
+      "svsSlug": "824",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "james-craig-what-if-part",
@@ -7166,7 +7906,43 @@
       "thumbnail": "https://thumbs.odycdn.com/1935c0eef2db5a506b5f5823e725174a.webp",
       "description": "Check out more Blind - What If: https://odysee.com/@SkatePlaza:f?view=content&t=Blind+-+What+If",
       "channel": "Skate Plaza",
-      "link": "https://odysee.com/JamesCraigWhatIfPart:b4a48450f11cf21a2cc40e37e6ee3d84873ac8b7"
+      "link": "https://odysee.com/JamesCraigWhatIfPart:b4a48450f11cf21a2cc40e37e6ee3d84873ac8b7",
+      "soundtrack": [
+        {
+          "part": "Pontus Alv",
+          "song": "Cake - The Distance"
+        },
+        {
+          "part": "Rob Welsh",
+          "song": "The Pharcyde - Drop"
+        },
+        {
+          "part": "Bobby Puleo",
+          "song": "Pixies - La La Love You"
+        },
+        {
+          "part": "Scott Johnston",
+          "song": "Gang Starr - Here Today, Gone Tomorrow"
+        },
+        {
+          "part": "Karl Watson",
+          "song": "Ween - The Mollusk"
+        },
+        {
+          "part": "Credits",
+          "song": "Gang Starr - Here Today, Gone Tomorrow"
+        },
+        {
+          "part": "Intro",
+          "song": "Herb Alpert & the Tijuana Brass - I'm Getting Sentimental Over You"
+        },
+        {
+          "part": "Montage",
+          "song": "Cal Tjader - Ginza Samba"
+        }
+      ],
+      "svsSlug": "42",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "jason-wakuzawa-forecast-by-paul-rodriguez-05",
@@ -7390,7 +8166,71 @@
       "thumbnail": "https://thumbs.odycdn.com/b19bd06eff70ee0785ab6d0e0dc24fcc.webp",
       "description": "Check out more World Industries Video Parts: https://odysee.com/@OodlesofOs:f?view=content&t=World+Industries+Video+Parts",
       "channel": "Skate Plaza",
-      "link": "https://odysee.com/RoundOneCreager:588344aa1139d8c08c12a9547a1974c89cd85ac2"
+      "link": "https://odysee.com/RoundOneCreager:588344aa1139d8c08c12a9547a1974c89cd85ac2",
+      "soundtrack": [
+        {
+          "part": "intro",
+          "song": "Rick Ross feat. Dre - Boss (instrumental)"
+        },
+        {
+          "part": "Petr Horvat & Lukas Danek",
+          "song": "Frankie Valli - Beggin'"
+        },
+        {
+          "part": "Pavlacic, Rinda, Zaprazny intro",
+          "song": "Zion I - Geek To The Beat"
+        },
+        {
+          "part": "Mato Pavlacic, Martin Rinda, Marek Zaprazny",
+          "song": "Killah Priest & Chief Kamachi - Illest (feat. Planet Asia)"
+        },
+        {
+          "part": "friends",
+          "song": "MGMT - Time To Pretend"
+        },
+        {
+          "part": "Honza Minol",
+          "song": "CunninLynguists - Broken Van (Thinking of You)"
+        },
+        {
+          "part": "Martin Pek intro",
+          "song": "The Jackson 5 - Maybe Tomorrow"
+        },
+        {
+          "part": "Martin Pek",
+          "song": "Beck - Girl"
+        },
+        {
+          "part": "Tomas Svoboda intro",
+          "song": "Notorious B.I.G. & Frank Sinatra - Nasty Boy/For Every Man There's A Woman"
+        },
+        {
+          "part": "Tomas Svoboda",
+          "song": "LL Cool J - I've Changed"
+        },
+        {
+          "part": "Maxim Habanec intro",
+          "song": "Syl Johnson - Could I Be Falling In Love"
+        },
+        {
+          "part": "Maxim Habanec #1",
+          "song": "Mark Ronson - Stop Me"
+        },
+        {
+          "part": "Maxim Habanec #2",
+          "song": "Bronze Nazareth - The Bronzeman"
+        },
+        {
+          "part": "outro",
+          "song": "Rick Ross feat. Dre - Boss (instrumental)"
+        },
+        {
+          "part": "trailer",
+          "song": "Andrew D Twiggs - The Truth"
+        }
+      ],
+      "svsSlug": "96",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "round-one-daewon-world-ind",
@@ -7423,7 +8263,51 @@
       "thumbnail": "https://thumbs.odycdn.com/5189dff404a1dd4236ec9d5aaa6a3f67.webp",
       "description": "Check out more World Industries Video Parts: https://odysee.com/@OodlesofOs:f?view=content&t=World+Industries+Video+Parts",
       "channel": "Skate Plaza",
-      "link": "https://odysee.com/ROUNDTWOBlind:9432de94e78c66608cb18b8ccac2e1eb1290fc9d"
+      "link": "https://odysee.com/ROUNDTWOBlind:9432de94e78c66608cb18b8ccac2e1eb1290fc9d",
+      "soundtrack": [
+        {
+          "part": "",
+          "song": "-V- - 40 Feet Under The Sea"
+        },
+        {
+          "part": "",
+          "song": "-V- - Lady Nowhere"
+        },
+        {
+          "part": "",
+          "song": "Növalis Impuls - Strasbourg Town"
+        },
+        {
+          "part": "",
+          "song": "Original Folks - Daze"
+        },
+        {
+          "part": "",
+          "song": "-V- - Bright Eyes No Tears"
+        },
+        {
+          "part": "",
+          "song": "Lova Mi Amor - Sad Waltz"
+        },
+        {
+          "part": "bonus - Portugal #1",
+          "song": "The Feelies - Only Life"
+        },
+        {
+          "part": "bonus - Portugal #2",
+          "song": "Teitur - Louis Louis"
+        },
+        {
+          "part": "bonus - Teneriffe #1",
+          "song": "The Wild Swans - Revolutionary Spirit"
+        },
+        {
+          "part": "bonus - Teneriffe #2",
+          "song": "Jo Lorenz - Trouble"
+        }
+      ],
+      "svsSlug": "90",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "round-two-chet-darkstar",
@@ -7680,7 +8564,19 @@
       "description": "Discord Server Skate Video Archive / Skate Video Library: https://discord.me/skatevideolibrary\n\nSkate Video Archive: https://www.youtube.com/channel/UCI93zR95xMw-fvI7JLwsOwA\n\nSkate Video Library:...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=11MIplQqB3o",
-      "duration": 2850
+      "duration": 2850,
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "Six by Seven - Candlelight"
+        },
+        {
+          "part": "Credits",
+          "song": "Six by Seven - Oh! Dear"
+        }
+      ],
+      "svsSlug": "transworld-starting-point-2",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "tbkd-team-bk-productions-presents-a-new-horizon-2000",
@@ -10221,7 +11117,27 @@
       "description": "Discord Server Skate Video Archive / Skate Video Library: https://discord.me/skatevideolibrary\n\nSkate Video Archive: https://www.youtube.com/channel/UCI93zR95xMw-fvI7JLwsOwA\n\nSkate Video Library:...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=fivJ1_KM4aw",
-      "duration": 882
+      "duration": 882,
+      "soundtrack": [
+        {
+          "part": "Dylan Reider",
+          "song": "The Libertines - The Man Who Would Be King"
+        },
+        {
+          "part": "Omar Hassan",
+          "song": "Youth Brigade - You Don't Understand-BYO Records"
+        },
+        {
+          "part": "team",
+          "song": "Pinback - Sender"
+        },
+        {
+          "part": "Marseille",
+          "song": "The Briggs - Top 40"
+        }
+      ],
+      "svsSlug": "quiksilver-promo",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "paul-rodriguez-presents-forecast-directed-by-nka-paul-rodriguez-presents-forecast-directed-by-nka-2005",
@@ -10646,7 +11562,19 @@
       "description": "Discord Server Skate Video Archive / Skate Video Library: https://discord.me/skatevideolibrary\n\nSkate Video Archive: https://www.youtube.com/channel/UCI93zR95xMw-fvI7JLwsOwA\n\nSkate Video Library:...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=iiAGvibRwY8",
-      "duration": 867
+      "duration": 867,
+      "soundtrack": [
+        {
+          "part": "Shane O'Neill",
+          "song": "Whitley - Facades II"
+        },
+        {
+          "part": "Without Music",
+          "song": "http://vimeo.com/17018965"
+        }
+      ],
+      "svsSlug": "skate-mental-shane-oneill",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "blind-skateboards-what-if--2005",
@@ -11158,7 +12086,99 @@
       "description": "Discord Server Skate Video Archive / Skate Video Library: https://discord.me/skatevideolibrary\n\nSkate Video Archive: https://www.youtube.com/channel/UCI93zR95xMw-fvI7JLwsOwA\n\nSkate Video Library:...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=Z44d4uke24w",
-      "duration": 3845
+      "duration": 3845,
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "Wolf Parade - Disco Sheets"
+        },
+        {
+          "part": "Matt Fennel",
+          "song": "The Organs - Love, Love, Love"
+        },
+        {
+          "part": "Dan Zvereff",
+          "song": "Metric - Dead Disco"
+        },
+        {
+          "part": "Brad Miller",
+          "song": "Electric Light Orchestra - Sweet Talkin' Woman"
+        },
+        {
+          "part": "Friends",
+          "song": "Hot Chip - And I Was A Boy From School"
+        },
+        {
+          "part": "Tim Nichols",
+          "song": "Eric Clapton - Strange Brew"
+        },
+        {
+          "part": "Dracut",
+          "song": "Iron Maiden - Fear Of The Dark"
+        },
+        {
+          "part": "Dave Bachinsky",
+          "song": "Talking Heads - Thank You For Sending Me An Angel"
+        },
+        {
+          "part": "Alex Gourdouros",
+          "song": "W.A.S.P - Animal (Fuck Like A Beast)"
+        },
+        {
+          "part": "John Coyne",
+          "song": "Eazy-E - Ruthless Villain"
+        },
+        {
+          "part": "Tommy Wisdom",
+          "song": "Jay-Z - So Ghetto"
+        },
+        {
+          "part": "Manny Santiago",
+          "song": "Juelz Santana - Oh Yes"
+        },
+        {
+          "part": "Outro",
+          "song": "Imogen Heap - Hide And Seek"
+        },
+        {
+          "part": "Trailer",
+          "song": "The Beatles - Hello Goodbye"
+        },
+        {
+          "part": "Matt Fennel",
+          "song": "http://www.youtube.com/watch?v=yZ3Qqfqnld4"
+        },
+        {
+          "part": "Brad Miller",
+          "song": "http://www.youtube.com/watch?v=TTIuqc_gvzk"
+        },
+        {
+          "part": "Friends",
+          "song": "http://www.youtube.com/watch?v=6pWhih9dvuM"
+        },
+        {
+          "part": "Dave Bachinsky",
+          "song": "http://www.youtube.com/watch?v=0DsO6sk2diY"
+        },
+        {
+          "part": "John Coyne",
+          "song": "http://www.youtube.com/watch?v=RU_8pHn-wNA"
+        },
+        {
+          "part": "Tommy Wisdom",
+          "song": "http://www.youtube.com/watch?v=A4AN2o8GvF0"
+        },
+        {
+          "part": "Dan Zvereff",
+          "song": "http://www.youtube.com/watch?v=ldyeFPd9Fqk"
+        },
+        {
+          "part": "Alex Gourdouros",
+          "song": "http://www.youtube.com/watch?v=U5mFiDBNl34"
+        }
+      ],
+      "svsSlug": "thanks-camera-2-hello-goodbye",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "xyz-apparel-the-xyz-video-1998",
@@ -11278,7 +12298,151 @@
       "description": "Discord Server Skate Video Archive / Skate Video Library: https://discord.me/skatevideolibrary\n\nSkate Video Archive: https://www.youtube.com/channel/UCI93zR95xMw-fvI7JLwsOwA\n\nSkate Video Library:...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=-Nj7eJpDGso",
-      "duration": 2618
+      "duration": 2618,
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "The Rolling Stones - Can You Hear The Music"
+        },
+        {
+          "part": "Silas Baxter-Neal #1",
+          "song": "Cream - Those Were the Days"
+        },
+        {
+          "part": "Silas Baxter-Neal #2",
+          "song": "Hot Tuna - Serpent of Dreams"
+        },
+        {
+          "part": "Inhabitants Section",
+          "song": "Windsor For The Derby - The Melody Of A Fallen Tree"
+        },
+        {
+          "part": "Danny Garcia",
+          "song": "A Band of Bees - Hourglass"
+        },
+        {
+          "part": "Fred Gall",
+          "song": "Black Sabbath - Lord Of This World"
+        },
+        {
+          "part": "Austyn Gillette Intro",
+          "song": "White Limestone Blues - To Ride A White Horse"
+        },
+        {
+          "part": "Austyn Gillette",
+          "song": "The Brian Jonestown Massacre - Going to Hell"
+        },
+        {
+          "part": "Guru Khalsa",
+          "song": "The Rolling Stones - The Last Time"
+        },
+        {
+          "part": "Tim O'Connor & Ed Selego",
+          "song": "The Youngbloods - Four In The Morning"
+        },
+        {
+          "part": "Steve Durante",
+          "song": "Curtis Mayfield - Underground"
+        },
+        {
+          "part": "Kerry Getz",
+          "song": "The Rolling Stones - Monkey Man"
+        },
+        {
+          "part": "Raymond Molinar",
+          "song": "Brass Buttons - Hell Will Take Care Of Her"
+        },
+        {
+          "part": "Stefan Janoski #1",
+          "song": "The Kinks - Animal Farm"
+        },
+        {
+          "part": "Stefan Janoski #2",
+          "song": "The Velvet Underground - Ocean"
+        },
+        {
+          "part": "Credits #1",
+          "song": "The Kinks - Thank You For The Days"
+        },
+        {
+          "part": "Credits #2",
+          "song": "Sixto Rodriguez - Hate Street Dialogue"
+        },
+        {
+          "part": "Bonus - Gunes Ozdogan",
+          "song": "Cymande - Promised Heights"
+        },
+        {
+          "part": "Bonus - International Intro",
+          "song": "Essence - Fever (instrumental)"
+        },
+        {
+          "part": "Bonus - International Montage",
+          "song": "The Remains - Once Before"
+        },
+        {
+          "part": "Bonus - Tennis or Skating",
+          "song": "Danielson - Did I Step On Your Trumpet"
+        },
+        {
+          "part": "Bonus - Oregon Trip With Garcia & Silas",
+          "song": "Holly Golightly - Walk A Mile"
+        },
+        {
+          "part": "Bonus - Tel Aviv Trip",
+          "song": "The Concretes - You Can't Hurry Love"
+        },
+        {
+          "part": "Bonus - Oz And Stuff",
+          "song": "The Castaways - Liar, Liar"
+        },
+        {
+          "part": "Bonus - Metal Demo",
+          "song": "David Allan Coe - Nothing Sacred"
+        },
+        {
+          "part": "Bonus - The Ashtray",
+          "song": "?"
+        },
+        {
+          "part": "Bonus - Habitat East Coast Trip",
+          "song": "The Kinks - Till The End Of The Day"
+        },
+        {
+          "part": "Bonus - Hariff's House",
+          "song": "?"
+        },
+        {
+          "part": "Bonus - Raymond & Friends",
+          "song": "?"
+        },
+        {
+          "part": "Bonus - Bye Bye Barcelona",
+          "song": "?"
+        },
+        {
+          "part": "Bonus - Regal Road #1",
+          "song": "The Kinks - A Well Respected Man"
+        },
+        {
+          "part": "Bonus - Regal Road #2",
+          "song": "Pink Floyd - Fearless"
+        },
+        {
+          "part": "Bonus - Regal Road #3",
+          "song": "Led Zeppelin - Travelling Riverside Blues"
+        },
+        {
+          "part": "Trailer",
+          "song": "Devo - Be Stiff"
+        },
+        {
+          "part": "2006-05-13 18:11:42+00",
+          "song": "Kickflip bs 5-o"
+        }
+      ],
+      "svsSlug": "habitat-inhabitants",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "411-video-magazine-tampa-series-video-02-tampa-pro-2000--411-video-magazine-tampa-series-video-02-tampa-pro-2000--2000",
@@ -13012,7 +14176,39 @@
       "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=2BUKs6Wu_CM",
-      "duration": 880
+      "duration": 880,
+      "soundtrack": [
+        {
+          "part": "",
+          "song": "AC/DC - Big Balls"
+        },
+        {
+          "part": "",
+          "song": "Dead Milkmen - I Walk The Thinnest Line"
+        },
+        {
+          "part": "",
+          "song": "Cream - White Room"
+        },
+        {
+          "part": "",
+          "song": "Blondie - One Way Or Another"
+        },
+        {
+          "part": "",
+          "song": "Cream - Crossroads"
+        },
+        {
+          "part": "",
+          "song": "Charles Manson - In The Eyes Of The Dreamer"
+        },
+        {
+          "part": "",
+          "song": "Miles Davis - Walkin"
+        }
+      ],
+      "svsSlug": "foundation-cocktails",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "shorty-s-skateboards-fulfill-the-dream-1998",
@@ -13164,7 +14360,15 @@
       "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=CrrvyaPNGJs",
-      "duration": 1306
+      "duration": 1306,
+      "soundtrack": [
+        {
+          "part": "Jeremy Klein",
+          "song": "The Breeders - Cannonball"
+        }
+      ],
+      "svsSlug": "birdhouse-projects-untitled",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "krux-trucks-blown-out--2004",
@@ -14097,7 +15301,215 @@
       "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=UuWhO6uGmwI",
-      "duration": 3225
+      "duration": 3225,
+      "soundtrack": [
+        {
+          "part": "Intro #1",
+          "song": "Radiohead - Everything In Its Right Place"
+        },
+        {
+          "part": "Intro #2",
+          "song": "Cody Chesnutt - Looking Good In Leather"
+        },
+        {
+          "part": "Intro #3",
+          "song": "OutKast - Ghetto Musick"
+        },
+        {
+          "part": "Montage 1",
+          "song": "Fischerspooner - Emerge"
+        },
+        {
+          "part": "Spy Cam",
+          "song": "Afrika Bambaataa - Planet Rock"
+        },
+        {
+          "part": "Mike York Intro",
+          "song": "N.A.S.A. - Hip-Hop (Instrumental)"
+        },
+        {
+          "part": "Mike York",
+          "song": "Andre Nickatina - Ayo For Yayo"
+        },
+        {
+          "part": "Montage 2",
+          "song": "Broken Spindles - Videosection"
+        },
+        {
+          "part": "Kenny Anderson",
+          "song": "Yeah Yeah Yeahs - Y Control"
+        },
+        {
+          "part": "Stress #1",
+          "song": "Squeak E. Clean - India"
+        },
+        {
+          "part": "Stress #2",
+          "song": "Peaches - I Don't Give A Fuck"
+        },
+        {
+          "part": "Gino Iannucci",
+          "song": "The Streets - Turn The Page"
+        },
+        {
+          "part": "Justin Eldridge Intro",
+          "song": "Death In Vegas - Leather"
+        },
+        {
+          "part": "Justin Eldridge",
+          "song": "New Order - Ceremony"
+        },
+        {
+          "part": "Group Skating",
+          "song": "Bjork - Synchronicity"
+        },
+        {
+          "part": "Chico Brenes. Richard Mulder, Scott Johnston",
+          "song": "The Flaming Lips - Yoshimi Battles The Pink Robots Pt. 1"
+        },
+        {
+          "part": "Chris Roberts",
+          "song": "Caipirahna - Ceasefire Vs Deadly Avenger"
+        },
+        {
+          "part": "Tour Montage",
+          "song": "The Walkmen - The Rat"
+        },
+        {
+          "part": "Magic Burning Board #1",
+          "song": "Jungle Brothers - True Blue (Aphrodite remix)"
+        },
+        {
+          "part": "Magic Burning Board #2",
+          "song": "Fatlip - Today's Your Day (feat. J-5)"
+        },
+        {
+          "part": "Marc Johnson Intro",
+          "song": "Squeak E. Clean - Scratchathon"
+        },
+        {
+          "part": "Marc Johnson",
+          "song": "New Order - Ceremony"
+        },
+        {
+          "part": "End Of The Tour",
+          "song": "Fischerspooner - The 15th"
+        },
+        {
+          "part": "Credits",
+          "song": "Yeah Yeah Yeahs - Maps"
+        },
+        {
+          "part": "Bonus - Girl - High Fives Up The I-5 #1",
+          "song": "Van Halen - Running With The Devil"
+        },
+        {
+          "part": "Bonus - Girl - High Fives Up The I-5 #2",
+          "song": "Van Halen - Panama"
+        },
+        {
+          "part": "Bonus - Girl - High Fives Up The I-5 #3",
+          "song": "Ratt - Round And Round"
+        },
+        {
+          "part": "5125",
+          "song": "\\N"
+        },
+        {
+          "part": "2426",
+          "song": "\\N"
+        },
+        {
+          "part": "2400",
+          "song": "\\N"
+        },
+        {
+          "part": "2377",
+          "song": "\\N"
+        },
+        {
+          "part": "2302",
+          "song": "\\N"
+        },
+        {
+          "part": "1953",
+          "song": "\\N"
+        },
+        {
+          "part": "1930",
+          "song": "\\N"
+        },
+        {
+          "part": "1596",
+          "song": "\\N"
+        },
+        {
+          "part": "2005-12-21 06:38:10+00",
+          "song": "1.5 Hour of Skating"
+        },
+        {
+          "part": "2006-01-16 03:38:28+00",
+          "song": "Bs Flip"
+        },
+        {
+          "part": "2006-01-16 03:39:56+00",
+          "song": "Nollie Flip"
+        },
+        {
+          "part": "2006-01-27 16:44:51+00",
+          "song": "Skating 03-12-05 Zwolle"
+        },
+        {
+          "part": "2006-02-14 04:10:25+00",
+          "song": "Aurich 11-02-06"
+        },
+        {
+          "part": "2006-02-14 04:15:41+00",
+          "song": "Aurich 11-02-06"
+        },
+        {
+          "part": "2006-03-22 07:04:35+00",
+          "song": "Tre Flip 18-03-06"
+        },
+        {
+          "part": "2006-03-22 07:06:36+00",
+          "song": "fs 50-50 rail"
+        },
+        {
+          "part": "2006-06-29 06:57:45+00",
+          "song": "Ollie Gapje"
+        },
+        {
+          "part": "2006-06-29 07:00:18+00",
+          "song": "Nosewheelie"
+        },
+        {
+          "part": "2006-10-31 06:24:24+00",
+          "song": "Manuals"
+        },
+        {
+          "part": "2007-02-03 19:18:18+00",
+          "song": "Nosemanual Biggie Out"
+        },
+        {
+          "part": "2007-03-22 02:09:09+00",
+          "song": "Some Wheelies"
+        },
+        {
+          "part": "2007-05-02 06:19:17+00",
+          "song": "Flip To Nosemanny"
+        },
+        {
+          "part": "2007-06-06 03:21:05+00",
+          "song": "Flip To Fakie"
+        },
+        {
+          "part": "2007-06-06 03:24:31+00",
+          "song": "Another Flip To Fakie"
+        }
+      ],
+      "svsSlug": "chocolate-hot-chocolate",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "st-ssy-apparel-it-ain-t-where-ya-from-it-s-where-ya-at--2006",
@@ -14109,7 +15521,43 @@
       "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=A7GUXWU33Es",
-      "duration": 1589
+      "duration": 1589,
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "Nina Simone - It Don't Mean A Thing"
+        },
+        {
+          "part": "Bryce Golder",
+          "song": "Yeah Yeah Yeahs - Turn Into"
+        },
+        {
+          "part": "Al Wilson (TM) & Leif McCaughley",
+          "song": "The Rolling Stones - Under My Thumb"
+        },
+        {
+          "part": "Friends",
+          "song": "T. Rex - Metal Guru"
+        },
+        {
+          "part": "Tom Cuthbertson",
+          "song": "Lighthouse Family - Free"
+        },
+        {
+          "part": "Ben Menzies & Nath Olver",
+          "song": "DJ Shadow - High Noon"
+        },
+        {
+          "part": "Kurt Winter",
+          "song": "The Moody Blues - Go Now"
+        },
+        {
+          "part": "Credits",
+          "song": "?"
+        }
+      ],
+      "svsSlug": "stussy-it-aint-where-ya-from-its-where-ya-at",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "northside-projects-presents-north-2002",
@@ -15174,7 +16622,67 @@
       "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=J4cpy3uF5vE",
-      "duration": 2423
+      "duration": 2423,
+      "soundtrack": [
+        {
+          "part": "Opening Section",
+          "song": "Enoch - Krylon"
+        },
+        {
+          "part": "Opening Montage",
+          "song": "DJ Craze - Zoo York Intro"
+        },
+        {
+          "part": "Todd Jordan",
+          "song": "Percee-P - Zoo York Bounce"
+        },
+        {
+          "part": "Anthony Correa",
+          "song": "Grand Prix - Gully"
+        },
+        {
+          "part": "Brian Brown",
+          "song": "Shabaam Shadeeq - Sometimes"
+        },
+        {
+          "part": "Montage",
+          "song": "Harold Hunter - Ditty Bop (Remix)"
+        },
+        {
+          "part": "Jesse Fritsch",
+          "song": "The Allies - Develop Klever and Infamous"
+        },
+        {
+          "part": "Friends",
+          "song": "The Allies - Attack"
+        },
+        {
+          "part": "Zered Bassett #1",
+          "song": "A-Trak - Beatdown Routine"
+        },
+        {
+          "part": "Zered Bassett #2",
+          "song": "Jeru Tha Damaja/Lil Dap - Enoch"
+        },
+        {
+          "part": "Danny Supa",
+          "song": "Tragedy - Art Of Boards"
+        },
+        {
+          "part": "Credits",
+          "song": "Enoch - Krylon"
+        },
+        {
+          "part": "Adam Graham",
+          "song": "Skam - Freestyle"
+        },
+        {
+          "part": "Ending",
+          "song": "The Allies - Klever"
+        }
+      ],
+      "svsSlug": "zoo-york-unbreakable-mix-tape-2",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "blueprint-skateboards-lost-and-found-2005",
@@ -15662,7 +17170,35 @@
       "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=srw4W-7B8dQ",
-      "duration": 1226
+      "duration": 1226,
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "?"
+        },
+        {
+          "part": "Marquise Henry",
+          "song": "Willie Hutch - Brother's Gonna Work It Out"
+        },
+        {
+          "part": "Matt Miller",
+          "song": "Chamber Brothers - Love, Peace, and Happiness"
+        },
+        {
+          "part": "Greg Myers",
+          "song": "Nihilist - Destroyer"
+        },
+        {
+          "part": "Evan Smith",
+          "song": "Indyns - Champagne Girlz"
+        },
+        {
+          "part": "Wes Kremer",
+          "song": "RBL Posse - G's By The 1, 2, 3's"
+        }
+      ],
+      "svsSlug": "dc-skateboarding-is-forever",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "celentani-projects-presents-trouble-shooters-1998",
@@ -16116,7 +17652,31 @@
       "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=P6A_WtYmcmw",
-      "duration": 406
+      "duration": 406,
+      "soundtrack": [
+        {
+          "part": "intro",
+          "song": "?"
+        },
+        {
+          "part": "Zeppelin #1",
+          "song": "?"
+        },
+        {
+          "part": "Zeppelin #2",
+          "song": "Simon & Garfunkel - The Sound Of Silence"
+        },
+        {
+          "part": "Ray Barbee",
+          "song": "Firehose - In My Mind"
+        },
+        {
+          "part": "last skate session",
+          "song": "Cher - If I Could Turn Back Time"
+        }
+      ],
+      "svsSlug": "the-firm-dedicated-to-skateboarding",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "emerica-footwear-kids-in-emerica-2004",
@@ -16128,7 +17688,39 @@
       "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=7Sq2G8KzqeE",
-      "duration": 1163
+      "duration": 1163,
+      "soundtrack": [
+        {
+          "part": "intro #1",
+          "song": "Unwound - Sensible"
+        },
+        {
+          "part": "intro #2",
+          "song": "The Locust - That Halfie in Your Pants"
+        },
+        {
+          "part": "airport",
+          "song": "Unwound - But Pardon"
+        },
+        {
+          "part": "skatepark demo",
+          "song": "Roxy Music - Love is the Drug"
+        },
+        {
+          "part": "cement skatepark session",
+          "song": "Unwound - Valentine Card"
+        },
+        {
+          "part": "This is Skateboarding montage",
+          "song": "Roxy Music - Street Life"
+        },
+        {
+          "part": "outro",
+          "song": "My Bloody Valentine - Sometimes"
+        }
+      ],
+      "svsSlug": "emerica-kids-in-emerica",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "vox-footwear-skate-4-change-volume-1-2011",
@@ -17041,7 +18633,67 @@
       "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=QfUx8jyEpP4",
-      "duration": 1410
+      "duration": 1410,
+      "soundtrack": [
+        {
+          "part": "intro",
+          "song": "Black Mountain - Druganaut"
+        },
+        {
+          "part": "Paul Shier #1",
+          "song": "Ideal Free Distribution - Apples and Oranges"
+        },
+        {
+          "part": "Paul Shier #2",
+          "song": "The Hidden Cameras - Heji"
+        },
+        {
+          "part": "Euro dudes #1",
+          "song": "Jens Lekman - Black Cab"
+        },
+        {
+          "part": "Euro dudes #2",
+          "song": "M. Ward - Color of Water"
+        },
+        {
+          "part": "US dudes",
+          "song": "Zero Zero - Team Minus Zero"
+        },
+        {
+          "part": "outro",
+          "song": "Ariel Pink's Haunted Graffiti - Creepshow"
+        },
+        {
+          "part": "Torey Pudwill",
+          "song": "Windsor For The Derby - The Melody of a Fallen Tree"
+        },
+        {
+          "part": "closing & credits",
+          "song": "Black Mountain - No Satisfaction"
+        },
+        {
+          "part": "?",
+          "song": "Greenskeepers - Lotion"
+        },
+        {
+          "part": "intro, Paul Shier",
+          "song": "http://www.youtube.com/watch?v=BHy089Kz3G4"
+        },
+        {
+          "part": "Euro Dudes",
+          "song": "http://www.youtube.com/watch?v=v4R-p7aDFfw"
+        },
+        {
+          "part": "US Dudes",
+          "song": "http://www.youtube.com/watch?v=V2B1PfG8Fy0"
+        },
+        {
+          "part": "Torey Pudwill, closing montage",
+          "song": "http://www.youtube.com/watch?v=gMxBSsv0GGc"
+        }
+      ],
+      "svsSlug": "dvs-dudes-dudes-dudes",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "900-films-presents-tony-hawk-s-secret-skatepark-tour-3-2007",
@@ -18906,7 +20558,55 @@
       "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=pOVHaYntejg",
-      "duration": 1317
+      "duration": 1317,
+      "soundtrack": [
+        {
+          "part": "Nao Nussbaum & Luy-Pa Sin",
+          "song": "De La Soul - My Rites"
+        },
+        {
+          "part": "JB Gillet",
+          "song": "Method Man & Redman - Da Rockwilder (instrumental)"
+        },
+        {
+          "part": "outro 2",
+          "song": "Wendy Rene - After Laughter"
+        },
+        {
+          "part": "outro #1",
+          "song": "Marvin Gaye & Tammi Terrell - You're All I Need to Get By"
+        },
+        {
+          "part": "intro",
+          "song": "Free The Funk - ?"
+        },
+        {
+          "part": "Stephane Larance",
+          "song": "Funky Maestro - ?"
+        },
+        {
+          "part": "Stephane Larance, Luy-Pa Sin, Nao Nussbaum intro",
+          "song": "DJ Poska - ?"
+        },
+        {
+          "part": "tours & contests",
+          "song": "DJ Taré - ?"
+        },
+        {
+          "part": "JB Gillet, Enrique Lorenzo, Franck Barattiero, Bastien Salabanzi intro",
+          "song": "Craig Armstrong - ?"
+        },
+        {
+          "part": "Franck Barattiero",
+          "song": "DJ Orbit and Appalossa - ?"
+        },
+        {
+          "part": "Bastien Salabanzi",
+          "song": "Yogi - ?"
+        }
+      ],
+      "svsSlug": "lordz-conspiracy",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "santa-cruz-skateboards-uprising-2001",
@@ -19403,7 +21103,35 @@
       "description": "",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=RxTjaroOGZA",
-      "duration": 1798
+      "duration": 1798,
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "?"
+        },
+        {
+          "part": "Marquise Henry",
+          "song": "Willie Hutch - Brother's Gonna Work It Out"
+        },
+        {
+          "part": "Matt Miller",
+          "song": "Chamber Brothers - Love, Peace, and Happiness"
+        },
+        {
+          "part": "Greg Myers",
+          "song": "Nihilist - Destroyer"
+        },
+        {
+          "part": "Evan Smith",
+          "song": "Indyns - Champagne Girlz"
+        },
+        {
+          "part": "Wes Kremer",
+          "song": "RBL Posse - G's By The 1, 2, 3's"
+        }
+      ],
+      "svsSlug": "dc-skateboarding-is-forever",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "big-brother-video-magazine-04-crap-2001",
@@ -19664,7 +21392,87 @@
       "description": "",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=SAs4CjC6z1k",
-      "duration": 1864
+      "duration": 1864,
+      "soundtrack": [
+        {
+          "part": "intro",
+          "song": "?"
+        },
+        {
+          "part": "Chad Fernandez",
+          "song": "Eran James - Get Lifted"
+        },
+        {
+          "part": "Tim O'Connor",
+          "song": "The Jam - Town Called Malice"
+        },
+        {
+          "part": "Satva Leung",
+          "song": "James Brown - Soul Power"
+        },
+        {
+          "part": "Mike Maldonado",
+          "song": "?"
+        },
+        {
+          "part": "Tim McKenny",
+          "song": "Sonic Youth - Dirty Boots"
+        },
+        {
+          "part": "Donny Barley, John Cardiel, Ron Whaley",
+          "song": "Black Sabbath - Symptom Of The Universe"
+        },
+        {
+          "part": "Dave Mayhew",
+          "song": "Iggy & The Stooges - I Wanna Be Your Dog"
+        },
+        {
+          "part": "Brad Hayes & Tim Brauch",
+          "song": "Motorhead - Ace Of Spades"
+        },
+        {
+          "part": "Mako Urabe",
+          "song": "Devo - Satisfaction"
+        },
+        {
+          "part": "Dave Duren",
+          "song": "Flying Lizards - Money"
+        },
+        {
+          "part": "Brain Patch, Chris Gentry, Mattias Ringstrom, Darren Navarette, Remy Stratton",
+          "song": "Dead Kennedys - I Spy"
+        },
+        {
+          "part": "Kenny Hughes",
+          "song": "De La Soul - The Bizness"
+        },
+        {
+          "part": "Gershon Mosley",
+          "song": "?"
+        },
+        {
+          "part": "Dan Drehobl & Phil Shao",
+          "song": "The Adolescents - Kids Of The Black Hole"
+        },
+        {
+          "part": "Marc Johnson",
+          "song": "David Bowie - Unwashed And Somewhat Slightly Dazed"
+        },
+        {
+          "part": "Chris Senn",
+          "song": "Black Flag - Depression"
+        },
+        {
+          "part": "Jamie Thomas & Adrian Lopez",
+          "song": "Danzig - Am I Demon"
+        },
+        {
+          "part": "credits",
+          "song": "?"
+        }
+      ],
+      "svsSlug": "emerica-yellow",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "deca-skateboards-sneak-preview-2001",
@@ -19867,7 +21675,59 @@
       "description": "",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=XIH9IVtI1PI",
-      "duration": 1067
+      "duration": 1067,
+      "soundtrack": [
+        {
+          "part": "",
+          "song": "The Brothers Johnson - Strawberry Letter"
+        },
+        {
+          "part": "",
+          "song": "The Beatles - In My Life"
+        },
+        {
+          "part": "",
+          "song": "Intuition - Bye, Baby"
+        },
+        {
+          "part": "",
+          "song": "Code 4-15 - Casualty"
+        },
+        {
+          "part": "",
+          "song": "Pennywise - Falling Down"
+        },
+        {
+          "part": "",
+          "song": "Rockwell - Somebody's Watching Me"
+        },
+        {
+          "part": "",
+          "song": "Stereo Total - Je Suis Une Poupee"
+        },
+        {
+          "part": "",
+          "song": "Aaron Estes - Downtime"
+        },
+        {
+          "part": "",
+          "song": "The Faint - The Conductor"
+        },
+        {
+          "part": "",
+          "song": "The Beatles - Sea Of Monsters"
+        },
+        {
+          "part": "",
+          "song": "Ghostface Killah - Apollo Kids (Instrumental)"
+        },
+        {
+          "part": "",
+          "song": "Dave Metty - Rose Of Sharon"
+        }
+      ],
+      "svsSlug": "element-skate-camp-tour-de-forest",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "foundation-skateboards-art-bars-subtitles-and-seagulls-2001",
@@ -20196,7 +22056,39 @@
       "description": "",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=ns2G2M0azeE",
-      "duration": 2082
+      "duration": 2082,
+      "soundtrack": [
+        {
+          "part": "Intro\\r\\n",
+          "song": "Sarah Corcoran - Original Piece\\r\\n"
+        },
+        {
+          "part": "Ellie Colley\\r\\n",
+          "song": "Wolf Gang - Stay And Defend\\r\\n"
+        },
+        {
+          "part": "Montage\\r\\n",
+          "song": "Death In Vegas - Silver Time Machine\\r\\n"
+        },
+        {
+          "part": "Miguel Daniel, Will Ian Spence And Friends\\r\\n",
+          "song": "Death In Vegas - Black Hole\\r\\n"
+        },
+        {
+          "part": "Sam Williams\\r\\n",
+          "song": "UNKLE - The Answer (Feat. Big In Japan)\\r\\n"
+        },
+        {
+          "part": "Laurie Colley\\r\\n",
+          "song": "M83 - Raconte Moi Une Histoire\\r\\n"
+        },
+        {
+          "part": "Credits\\r\\n",
+          "song": "Tony Lucca - Devil Town"
+        }
+      ],
+      "svsSlug": "big-skateboards",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "thrasher-magazine-king-of-the-road-2003-2003",
@@ -20518,7 +22410,111 @@
       "description": "",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=Kgr48SPEyS4",
-      "duration": 3430
+      "duration": 3430,
+      "soundtrack": [
+        {
+          "part": "intro",
+          "song": "Primus - Los Bastardos"
+        },
+        {
+          "part": "Matt Hensley",
+          "song": "The Jam - News Of The World"
+        },
+        {
+          "part": "Patt Duffy #1",
+          "song": "This Martal Coil - Andialu"
+        },
+        {
+          "part": "Pat Duffy #2",
+          "song": "Primus - Tommy The Cat"
+        },
+        {
+          "part": "Pat Duffy #3",
+          "song": "The Doors - Riders On The Storm"
+        },
+        {
+          "part": "Colin McKay #1",
+          "song": "Naughty by Nature - O.P.P. (live)"
+        },
+        {
+          "part": "Colin McKay #2",
+          "song": "Iron Maiden - Aces High"
+        },
+        {
+          "part": "Ryan Fabry",
+          "song": "Bad Brains - Don't Blow Bubbles"
+        },
+        {
+          "part": "mini-ramp",
+          "song": "Olivelawn - College Volume Pedal"
+        },
+        {
+          "part": "Sean Sheffey",
+          "song": "Del Tha Funkee Homosapien - Ahonetwo, Ahonetwo"
+        },
+        {
+          "part": "Sal Barbier",
+          "song": "Fu-Schnickens - La Schmoove"
+        },
+        {
+          "part": "Rodney Mullen #1",
+          "song": "Louis Armstrong - What a Wonderful World"
+        },
+        {
+          "part": "Rodney Mullen #2",
+          "song": "Cat Stevens - If You Want To Sing Out, Sing Out"
+        },
+        {
+          "part": "contests & demos #1",
+          "song": "Green Day - Disappearing Boy"
+        },
+        {
+          "part": "contests & demos #2",
+          "song": "Pennywise - No Reason Why"
+        },
+        {
+          "part": "Mike Carroll #1",
+          "song": "Beastie Boys - The Biz vs. The Nuge"
+        },
+        {
+          "part": "Mike Carroll #2",
+          "song": "Beastie Boys - Time For Livin'"
+        },
+        {
+          "part": "Mike Carroll #3",
+          "song": "Del Tha Funkee Homosapien - Burnt"
+        },
+        {
+          "part": "Mike Carroll #4",
+          "song": "Beastie Boys - Stand Together"
+        },
+        {
+          "part": "Rick Howard",
+          "song": "Ned's Atomic Dustbin - Grey Cell Green"
+        },
+        {
+          "part": "slams",
+          "song": "Pennywise - Fun And Games"
+        },
+        {
+          "part": "Danny Way #1",
+          "song": "Big Drill Car - Take Away"
+        },
+        {
+          "part": "Danny Way #2",
+          "song": "Bad Religion - Heaven is Falling"
+        },
+        {
+          "part": "Danny Way #3",
+          "song": "Pennywise - Living For Today"
+        },
+        {
+          "part": "credits",
+          "song": "Dead Can Dance - Saltarello"
+        }
+      ],
+      "svsSlug": "plan-b-questionable",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "birdhouse-skateboards-feasters-1992",
@@ -20530,7 +22526,39 @@
       "description": "",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=qUnePcoML00",
-      "duration": 1168
+      "duration": 1168,
+      "soundtrack": [
+        {
+          "part": "intro / Tony Hawk",
+          "song": "Peter & The Test Tube Babies - Blown Out Again"
+        },
+        {
+          "part": "Steve Berra #1",
+          "song": "Pixies - Debaser"
+        },
+        {
+          "part": "Steve Berra #2",
+          "song": "New Model Army - Vengeance"
+        },
+        {
+          "part": "Willy Santos",
+          "song": "New Model Army - Get Me Out"
+        },
+        {
+          "part": "Jeremy Klein",
+          "song": "Shibibinman 3 - ?"
+        },
+        {
+          "part": "outro",
+          "song": "Bucky Lasek - Like A Prayer"
+        },
+        {
+          "part": "2005-12-15 03:11:06+00",
+          "song": "Nollie Heel Noseslide"
+        }
+      ],
+      "svsSlug": "birdhouse-projects-feasters",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "lakai-limited-footwear-beware-of-the-flare-2002",
@@ -21035,7 +23063,63 @@
       "description": "",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=zyIl2GCgSLc",
-      "duration": 2077
+      "duration": 2077,
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "Agnostic Front - With Time"
+        },
+        {
+          "part": "Mike Hastie",
+          "song": "Ten Years After - I'd Love To Change The World"
+        },
+        {
+          "part": "Sven Kilchenmann",
+          "song": "The Streets - Same Old Thing"
+        },
+        {
+          "part": "Windsor James",
+          "song": "Gang Starr - Playtawin"
+        },
+        {
+          "part": "Chris Dobstaff",
+          "song": "Murs - Got Damned?"
+        },
+        {
+          "part": "Ryan Kenreich",
+          "song": "Cut Chemist - Periodic Table"
+        },
+        {
+          "part": "Guy Kampfen #1",
+          "song": "Unkle - Celestial Annihilation"
+        },
+        {
+          "part": "Guy Kampfen #2",
+          "song": "Amon Tobin - Sordid"
+        },
+        {
+          "part": "Chet Thomas",
+          "song": "Murder City Devils - Press Gang"
+        },
+        {
+          "part": "Gailea Momolu #1",
+          "song": "Jahson - Take Over"
+        },
+        {
+          "part": "Gailea Momolu #2",
+          "song": "Andre Nickatina - All Star Chuck Taylors (DJ Pause)"
+        },
+        {
+          "part": "Paul Machnau",
+          "song": "Creeper - Garden Gate of Evil"
+        },
+        {
+          "part": "Credits",
+          "song": "Andre Nickatina - Ayo (feat. Quinn)"
+        }
+      ],
+      "svsSlug": "darkstar-battalion",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "plan-b-skateboards-superfuture-2008",
@@ -21047,7 +23131,43 @@
       "description": "",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=K9V5h8XcVVQ",
-      "duration": 884
+      "duration": 884,
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "Jimi Hendrix - And The Gods Made Love"
+        },
+        {
+          "part": "Scott Decenzo",
+          "song": "The Beatles - Revolution"
+        },
+        {
+          "part": "Danny Way/Team Montage",
+          "song": "Pink Floyd - Time"
+        },
+        {
+          "part": "Ryan Sheckler",
+          "song": "Guns N' Roses - Live and Let Die"
+        },
+        {
+          "part": "Bonus - B-Roll Montage",
+          "song": "Jimi Hendrix - Crosstown Traffic"
+        },
+        {
+          "part": "Bonus - B-Roll Scott Decenzo",
+          "song": "Led Zeppelin - Communication Breakdown"
+        },
+        {
+          "part": "Part 2",
+          "song": "http://www.youtube.com/watch?v=-ZVN1N4f7uY"
+        },
+        {
+          "part": "Part 1",
+          "song": "http://www.youtube.com/watch?v=YXH1VGusx3k"
+        }
+      ],
+      "svsSlug": "plan-b-superfuture",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "element-skateboards-rise-up-2005",
@@ -22789,7 +24909,67 @@
       "description": "411VM - Best of Vol #8 (FULL MOVIE)\n(2002)\nSkateboard Movie\n\nYou can Subscribe to Odysee/LBRY with this Link Below & Get 15 LBC credit for yourself and 15 for me! But mostly, this means an immense support!\nhttps://odysee.com/$/invite/@SkateOrDie:7 ",
       "channel": "SkateOrDie",
       "link": "https://odysee.com/@SkateOrDie:7/411VM-BestofVol8(2002):6",
-      "duration": 3361
+      "duration": 3361,
+      "soundtrack": [
+        {
+          "part": "Chaos #1",
+          "song": "Vast - Lady Of Dreams"
+        },
+        {
+          "part": "Chaos #2",
+          "song": "Vast - The Last One Alive"
+        },
+        {
+          "part": "Daewon Song Day In The Life",
+          "song": "California Music Authority - Over All"
+        },
+        {
+          "part": "Caswell Berry Wheels Of Fortune #1",
+          "song": "Murs - Track 7"
+        },
+        {
+          "part": "Caswell Berry Wheels Of Fortune #2",
+          "song": "Atmosphere - Party For The Fight To Write"
+        },
+        {
+          "part": "Caswell Berry Wheels Of Fortune #3",
+          "song": "Living Legend - Moody Bitch"
+        },
+        {
+          "part": "Rick McCrank Check Up",
+          "song": "Beanfield - The Season"
+        },
+        {
+          "part": "Jb Gillet Rookie",
+          "song": "Lunatic - Groupe Sangain"
+        },
+        {
+          "part": "Controlled Chaos",
+          "song": "Blonde Redhead - A Cure"
+        },
+        {
+          "part": "Tosh Townend Wheels Of Fortune",
+          "song": "The Enkindels - December By Change"
+        },
+        {
+          "part": "Stussy London Road Trip",
+          "song": "The Nextman - Break The Mould (feat. Grap Luva)"
+        },
+        {
+          "part": "Chad Tim Tim Wheels Of Fortune #1",
+          "song": "Euphone - Do You Up"
+        },
+        {
+          "part": "Chad Tim Tim Wheels Of Fortune #2",
+          "song": "Hip Hop For Respect - One For Love (instrumental)"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=vUbJr8JXK4c",
+          "song": "9551"
+        }
+      ],
+      "svsSlug": "411vm-best-of-8",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "411vm-best-of-vol-7",
@@ -22801,7 +24981,95 @@
       "description": "411VM - Best of Vol #7 (FULL MOVIE)\n(2001)\nSkateboard Movie\n\nYou can Subscribe to Odysee/LBRY with this Link Below & Get 15 LBC credit for yourself and 15 for me! But mostly, this means an immense support!\nhttps://odysee.com/$/invite/@SkateOrDie:7 ",
       "channel": "SkateOrDie",
       "link": "https://odysee.com/@SkateOrDie:7/411VM-BestofVol7(2001):0",
-      "duration": 3526
+      "duration": 3526,
+      "soundtrack": [
+        {
+          "part": "Rodrigo Teixeira Arruda Wheels Of Fortune",
+          "song": "The People Under The Stairs - San Francisco Knights"
+        },
+        {
+          "part": "Kenny Anderson Profiles",
+          "song": "Ray Barbee - A Word Aptly Spoken"
+        },
+        {
+          "part": "Ronnie Creager Day In The Life",
+          "song": "Femi Kuti - Truth Don Die"
+        },
+        {
+          "part": "Ronnie Creager Day In The Life",
+          "song": "Felakati - Water Get No Enemy"
+        },
+        {
+          "part": "Steve Berra Day In The Life",
+          "song": "Noogie - Remote Controller"
+        },
+        {
+          "part": "Steve Berra Day In The Life",
+          "song": "King Kooba - Koobesq"
+        },
+        {
+          "part": "Steve Berra Day In The Life",
+          "song": "Slippers - Beard And Buttered Corn"
+        },
+        {
+          "part": "Steve Berra Day In The Life",
+          "song": "Ashes - Sometimes"
+        },
+        {
+          "part": "Chaos Chaos",
+          "song": "Leona Naess - Charm Attack"
+        },
+        {
+          "part": "Kristian Svitak Rookies",
+          "song": "Smut Peddlers - Recreational Doper"
+        },
+        {
+          "part": "Javier Sarmiento Rookies",
+          "song": "The People Under The Stairs - We?ll Be There"
+        },
+        {
+          "part": "Colt Cannon Wheels Of Fortune",
+          "song": "Mystik Journeymen - Hymns"
+        },
+        {
+          "part": "Colt Cannon Wheels Of Fortune",
+          "song": "Mystik Journeymen - Araingus"
+        },
+        {
+          "part": "Chaos Chaos",
+          "song": "Tony Stark - Trailer"
+        },
+        {
+          "part": "Alex Trainwreck Gall Wheels Of Fortune",
+          "song": "Naked Raygun - I Will Never Follow"
+        },
+        {
+          "part": "credits",
+          "song": "Mos Def - May-december"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=NTCi-Du0K6g",
+          "song": "14565"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=AnnrLImfiGM",
+          "song": "14584"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=WIvIctF_W98",
+          "song": "15610"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=xSEv9Md-egw",
+          "song": "19560"
+        },
+        {
+          "part": "https://www.youtube.com/watch?v=27c6z_aRHk4",
+          "song": "28160"
+        }
+      ],
+      "svsSlug": "411vm-best-of-7",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "411vm-best-of-vol-6",
@@ -22813,7 +25081,91 @@
       "description": "411VM - Best of Vol #6 (FULL MOVIE)\n(1999)\nSkateboard Movie\n\nYou can Subscribe to Odysee/LBRY with this Link Below & Get 15 LBC credit for yourself and 15 for me! But mostly, this means an immense support!\nhttps://odysee.com/$/invite/@SkateOrDie:7 ",
       "channel": "SkateOrDie",
       "link": "https://odysee.com/@SkateOrDie:7/411VM-BestofVol6(1999):9",
-      "duration": 3095
+      "duration": 3095,
+      "soundtrack": [
+        {
+          "part": "Chaos Chaos",
+          "song": "Vast - Touched"
+        },
+        {
+          "part": "Rob Gonzalez / Danny Montoya Rookies",
+          "song": "Cannonball - Sticks"
+        },
+        {
+          "part": "Rob Gonzalez / Danny Montoya Rookies",
+          "song": "Ditc - Way Of Life"
+        },
+        {
+          "part": "Arto Saari Wheels Of Fortune",
+          "song": "Sonic Youth - Purr"
+        },
+        {
+          "part": "Warner Ave. Crew Day In The Life",
+          "song": "7 Seconds - Young Til I Die"
+        },
+        {
+          "part": "Warner Ave. Crew Day In The Life",
+          "song": "Marginal Man - Fallen Pieces"
+        },
+        {
+          "part": "Warner Ave. Crew Day In The Life",
+          "song": "Bouncing Souls - 87"
+        },
+        {
+          "part": "Adio Europe Road Trip",
+          "song": "Fugazi - Version"
+        },
+        {
+          "part": "Adio Europe Road Trip",
+          "song": "7 Seconds - 99 Red Balloons"
+        },
+        {
+          "part": "Stacey Lowery Rookies",
+          "song": "Fugazi - Arpeggiator"
+        },
+        {
+          "part": "Pat Channita Profiles",
+          "song": "Styles Of Beyond - Spies Like Us"
+        },
+        {
+          "part": "Dc Euro Supertour Road Trip",
+          "song": "Mood - Diplomats"
+        },
+        {
+          "part": "Danny Garcia / James Craig Wheels Of Fortune",
+          "song": "Shabaam Sahdeeq - Arabian Nights"
+        },
+        {
+          "part": "Danny Garcia / James Craig Wheels Of Fortune",
+          "song": "The Grouch - Conception (instrumental)"
+        },
+        {
+          "part": "Danny Garcia / James Craig Wheels Of Fortune",
+          "song": "The Anonymous - When We Were Kings (instrumental)"
+        },
+        {
+          "part": "Chad Bartie Rookies",
+          "song": "Vast - Here"
+        },
+        {
+          "part": "Geoff Rowley Profiles",
+          "song": "Dag Nasty - Under Your Influence"
+        },
+        {
+          "part": "Geoff Rowley Profiles",
+          "song": "Stiff Little Fingers - At The Edge"
+        },
+        {
+          "part": "credits",
+          "song": "The Wiseguys - Start The Commotion"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=BigfflvK6lY",
+          "song": "12556"
+        }
+      ],
+      "svsSlug": "411vm-best-of-6",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "411vm-best-of-vol-5",
@@ -22825,7 +25177,71 @@
       "description": "411VM - Best of Vol #5 (FULL MOVIE)\n(1998)\nSkateboard Movie\n\nYou can Subscribe to Odysee/LBRY with this Link Below & Get 15 LBC credit for yourself and 15 for me! But mostly, this means an immense support!\nhttps://odysee.com/$/invite/@SkateOrDie:7 ",
       "channel": "SkateOrDie",
       "link": "https://odysee.com/@SkateOrDie:7/411VM-BestofVol5(1998):c",
-      "duration": 3596
+      "duration": 3596,
+      "soundtrack": [
+        {
+          "part": "Chaos Chaos",
+          "song": "Throwing Muses - Buzz"
+        },
+        {
+          "part": "Adam McNatt Profiles",
+          "song": "Dr Know - Slice Of Life"
+        },
+        {
+          "part": "Contests Contests",
+          "song": "Semisonic - Never You Mind"
+        },
+        {
+          "part": "Evan Schiefelbine Wheels Of Fortune",
+          "song": "Eligh - Riddles"
+        },
+        {
+          "part": "Hook-ups Shoes Road Trip",
+          "song": "Pixies - Gigantic"
+        },
+        {
+          "part": "Jerry Fowler Rookies",
+          "song": "DJ Krush - A Whim"
+        },
+        {
+          "part": "Burnside Spot Check",
+          "song": "Fu Manchu - Evil Eye"
+        },
+        {
+          "part": "Switchstance Switchstance",
+          "song": "The Giant - Hold Mines"
+        },
+        {
+          "part": "Furnace Industry",
+          "song": "Unkle - Ape Shall Never Kill Ape"
+        },
+        {
+          "part": "Tum Yeto Canada Road Trip",
+          "song": "Minor Threat - Look Back And Laugh"
+        },
+        {
+          "part": "Anthony Van Engelen Wheels Of Fortune",
+          "song": "12 Jewelz - Clash Of The Continents"
+        },
+        {
+          "part": "Plan B Industry",
+          "song": "Primus - Tommy The Cat"
+        },
+        {
+          "part": "credits",
+          "song": "Supple - Stayin' Alive"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=3B2fPrOcZSc",
+          "song": "5849"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=16nNFm42Ddc",
+          "song": "6353"
+        }
+      ],
+      "svsSlug": "411vm-best-of-5",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "411vm-best-of-vol-4",
@@ -22837,7 +25253,75 @@
       "description": "411VM - Best of Vol #4 (FULL MOVIE)\n(1997)\nSkateboard Movie\n\nYou can Subscribe to Odysee/LBRY with this Link Below & Get 15 LBC credit for yourself and 15 for me! But mostly, this means an immense support!\nhttps://odysee.com/$/invite/@SkateOrDie:7 ",
       "channel": "SkateOrDie",
       "link": "https://odysee.com/@SkateOrDie:7/411VM-BestofVol4(1997):0",
-      "duration": 3882
+      "duration": 3882,
+      "soundtrack": [
+        {
+          "part": "Marc Johnson Profiles",
+          "song": "The Promise Ring - A Picture Postcard"
+        },
+        {
+          "part": "Chaos Chaos",
+          "song": "Luscious Jackson - Naked Eye"
+        },
+        {
+          "part": "Chad Fernandez Rookies",
+          "song": "The Faction - Tenebrae"
+        },
+        {
+          "part": "Jerry Hsu Wheels Of Fortune",
+          "song": "Everclear - Fire Maple Song (acoustic)"
+        },
+        {
+          "part": "Cairo Foster Wheels Of Fortune",
+          "song": "Xzibit - The Foundation"
+        },
+        {
+          "part": "Sad Rookies",
+          "song": "Curtis Mayfield - Move On Up"
+        },
+        {
+          "part": "Adrian Lopez Wheels Of Fortune",
+          "song": "Misfits - She"
+        },
+        {
+          "part": "Pat Channita Rookies",
+          "song": "Souls of Mischief - 76 Seville (remix)"
+        },
+        {
+          "part": "Rune Glifberg Profiles",
+          "song": "The John Coltrane Quartet - Africa"
+        },
+        {
+          "part": "Jim Greco Wheels Of Fortune",
+          "song": "The Faction - California Dreamin'"
+        },
+        {
+          "part": "Enrique Lorenzo Wheels Of Fortune",
+          "song": "Mobb Deep - Extortion"
+        },
+        {
+          "part": "Brad Hayes Rookies",
+          "song": "Lynyrd Skynyrd - Poison Whiskey"
+        },
+        {
+          "part": "Contests Contests",
+          "song": "Jamiroquai - Virtual Insanity"
+        },
+        {
+          "part": "Rodney Mullen / Daewon Song Profiles",
+          "song": "The Dixie Hummingbirds - If Anybody Asks You"
+        },
+        {
+          "part": "Rodney Mullen / Daewon Song Profiles",
+          "song": "Epmd - Never Seen Before"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=8TfCfczGx1A",
+          "song": "14751"
+        }
+      ],
+      "svsSlug": "411vm-best-of-4",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "411vm-volume-14-issue-2",
@@ -23243,7 +25727,111 @@
       "description": "411VM - The Basics Of Skateboarding (FULL MOVIE)\nSkateboard Movie\n\nYou can Subscribe to Odysee/LBRY with this Link Below & Get 15 LBC credit for yourself and 15 for me! But mostly, this means an immense support!\nhttps://odysee.com/$/invite/@SkateOrDie:7 ",
       "channel": "SkateOrDie",
       "link": "https://odysee.com/@SkateOrDie:7/411VM-TheBasicsOfSkateboarding:9",
-      "duration": 1737
+      "duration": 1737,
+      "soundtrack": [
+        {
+          "part": "Intro",
+          "song": "Tortoise - Seneca"
+        },
+        {
+          "part": "Heath Kirchart",
+          "song": "Mellow - Shinda Shima"
+        },
+        {
+          "part": "Bryan Herman",
+          "song": "The Richmond Sluts - Drive Me Wild"
+        },
+        {
+          "part": "Ed Templeton",
+          "song": "Butter 08 - It's the Rage"
+        },
+        {
+          "part": "Austin Stephens",
+          "song": "Belle & Sebastian - I Don't Love Anyone"
+        },
+        {
+          "part": "Aaron Suski",
+          "song": "Habanero - Eva"
+        },
+        {
+          "part": "Montage",
+          "song": "Bleed The Sky - 999"
+        },
+        {
+          "part": "Darren Navarrette",
+          "song": "Jesse & Josh of Operatic - Sheblacc"
+        },
+        {
+          "part": "Erik Ellington",
+          "song": "Danzig - 777"
+        },
+        {
+          "part": "Tosh Townend",
+          "song": "Lee Perry & The Upsetters - Blackboard Jungle Dub"
+        },
+        {
+          "part": "Chris Senn",
+          "song": "Jesse & Josh of Operatic - Senn dog"
+        },
+        {
+          "part": "Kevin \"Spanky\" Long",
+          "song": "The Cure - Close To Me"
+        },
+        {
+          "part": "Andrew Reynolds",
+          "song": "Jimi Hendrix - Burning of the Midnight Lamp"
+        },
+        {
+          "part": "Credits",
+          "song": "Mogwai - Tracy (Kid Loco's Playing With the Young Team remix)"
+        },
+        {
+          "part": "Bonus - Montage 1",
+          "song": "Mudhoney - Touch Me I'm Sick"
+        },
+        {
+          "part": "Bonus - Heath Kirchart Dance of Despair",
+          "song": "Jack Nitzsche - #1"
+        },
+        {
+          "part": "Bonus - Montage 2",
+          "song": "Can - Pinch"
+        },
+        {
+          "part": "Bonus - Photo Gallery",
+          "song": "Aerial M - Last Caress"
+        },
+        {
+          "part": "Bonus - Andrew Reynolds Extra Part",
+          "song": "The Sea and Cake - Sound & Vision"
+        },
+        {
+          "part": "Bonus - Outtakes Montage",
+          "song": "Papa M - Up North Kids"
+        },
+        {
+          "part": "Trailer",
+          "song": "Papa M - Krusty"
+        },
+        {
+          "part": "Bonus - Secret Outtakes #1",
+          "song": "http://www.youtube.com/watch?v=f-4FkbDp0no"
+        },
+        {
+          "part": "Bonus - Secret Outtakes #2",
+          "song": "http://www.youtube.com/watch?v=9Mu5AYO9yNw"
+        },
+        {
+          "part": "Bonus - Secret Outtakes #3",
+          "song": "http://www.youtube.com/watch?v=o85cDravcaE"
+        },
+        {
+          "part": "Bonus - Secret Outtakes #4",
+          "song": "http://www.youtube.com/watch?v=Y_icQiT1kzQ"
+        }
+      ],
+      "svsSlug": "emerica-this-is-skateboarding",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "411vm-best-of",
@@ -23255,7 +25843,63 @@
       "description": "411VM - Best of (FULL MOVIE)\nSkateboard Movie\n\nYou can Subscribe to Odysee/LBRY with this Link Below & Get 15 LBC credit for yourself and 15 for me! But mostly, this means an immense support!\nhttps://odysee.com/$/invite/@SkateOrDie:7 ",
       "channel": "SkateOrDie",
       "link": "https://odysee.com/@SkateOrDie:7/411VM-Bestof:f",
-      "duration": 3658
+      "duration": 3658,
+      "soundtrack": [
+        {
+          "part": "Jeremy Wray Profiles",
+          "song": "Gibb Droll - Melting Pot"
+        },
+        {
+          "part": "Aaron Bleasdale Wheels Of Fortune",
+          "song": "Gas Huffer - George Washington"
+        },
+        {
+          "part": "Paul Shapiro Wheels Of Fortune",
+          "song": "Crash Course - Prince Of The City"
+        },
+        {
+          "part": "Mike Hayes Wheels Of Fortune",
+          "song": "Uncle! - Piano Movers"
+        },
+        {
+          "part": "Jesse Paez Wheels Of Fortune",
+          "song": "Supreme Love Gods - Nothing"
+        },
+        {
+          "part": "Rob Carlyon Wheels Of Fortune",
+          "song": "Hemi - Dog Tied Again"
+        },
+        {
+          "part": "Sierra Tahoe Contests",
+          "song": "Shovelhead - Tired And Afraid"
+        },
+        {
+          "part": "London Metrospective",
+          "song": "Odd Numbers - So Many Girls"
+        },
+        {
+          "part": "Chaffey, Carlsbad, Pioneer, Huntington, Lockwood Schoolyards",
+          "song": "Hemi - Freeloader"
+        },
+        {
+          "part": "Playground Skatepark Street And Vert Contests",
+          "song": "Funky Beatniks - Morning Void"
+        },
+        {
+          "part": "Chaos",
+          "song": "3% Fat - Causin Chaos"
+        },
+        {
+          "part": "Chaos",
+          "song": "Supreme Love Gods - Fire"
+        },
+        {
+          "part": "Grapevine",
+          "song": "Gibb Droll - Unfaithful Woman"
+        }
+      ],
+      "svsSlug": "411vm-issue-1",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "411vm-best-of-vol-1",
@@ -23267,7 +25911,115 @@
       "description": "411VM - Best of Vol #1 (FULL MOVIE)\nSkateboard Movie\n\nYou can Subscribe to Odysee/LBRY with this Link Below & Get 15 LBC credit for yourself and 15 for me! But mostly, this means an immense support!\nhttps://odysee.com/$/invite/@SkateOrDie:7 ",
       "channel": "SkateOrDie",
       "link": "https://odysee.com/@SkateOrDie:7/411VM-BestofVol1:f",
-      "duration": 3688
+      "duration": 3688,
+      "soundtrack": [
+        {
+          "part": "Eric Koston Profiles",
+          "song": "Revenge Of The Pink - Give Me Some Mo?"
+        },
+        {
+          "part": "Eric Koston Profiles",
+          "song": "Gang Starr - No Shame In My Game"
+        },
+        {
+          "part": "Weston Correa Wheels Of Fortune",
+          "song": "Solsonics - Mountain Man"
+        },
+        {
+          "part": "Tas And Ben Pappas Wheels Of Fortune",
+          "song": "Pantera - Throes Of Rejection"
+        },
+        {
+          "part": "Woodward Skate Camp",
+          "song": "Pegboy - Witnessed"
+        },
+        {
+          "part": "Bam Margera Wheels Of Fortune",
+          "song": "DJ Takemura - Harmonium"
+        },
+        {
+          "part": "Ben Liversedge Wheels Of Fortune",
+          "song": "Time And Space - Time And Space Theme"
+        },
+        {
+          "part": "Transitions Transitions",
+          "song": "Blondie - The Tide Is High"
+        },
+        {
+          "part": "Scott Johnston Profiles",
+          "song": "Guru - No Time To Play"
+        },
+        {
+          "part": "Richard Mulder Wheels Of Fortune",
+          "song": "Buffalo Tom - Suppose"
+        },
+        {
+          "part": "World Skatepark Private Property",
+          "song": "Specials - Gangsters"
+        },
+        {
+          "part": "Australia Road Trip",
+          "song": "Seaweed - Go Your Own Way"
+        },
+        {
+          "part": "Switchstance Switchstance",
+          "song": "Fretblanket - Twisted"
+        },
+        {
+          "part": "Moses Itkonen Wheels Of Fortune",
+          "song": "Solsonics - Ascension"
+        },
+        {
+          "part": "Max Schaaf Wheels Of Fortune",
+          "song": "Rpm - Food Of My De-rhythm"
+        },
+        {
+          "part": "Jeron Wilson Wheels Of Fortune",
+          "song": "Gang Starr - Illest Brother"
+        },
+        {
+          "part": "Chaos Chaos",
+          "song": "Sinead Oconnor - I Want Your Hands (on Me)"
+        },
+        {
+          "part": "Jeremy Wray Profiles",
+          "song": "Corduroy - High Havoc"
+        },
+        {
+          "part": "credits",
+          "song": "Boys Choir Of Harlem - Amazing Grace"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=tdDwETCaLys",
+          "song": "9076"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=B4uFz9wX1xw",
+          "song": "9482"
+        },
+        {
+          "part": "http://www.vimeo.com/8082626",
+          "song": "10138"
+        },
+        {
+          "part": "http://vimeo.com/10796619",
+          "song": "11830"
+        },
+        {
+          "part": "http://vimeo.com/15085250",
+          "song": "13662"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=0szmCGOy3eU",
+          "song": "5923"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=ETxhWsas0Wg",
+          "song": "18233"
+        }
+      ],
+      "svsSlug": "411vm-best-of-1",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "411vm-best-of-vol-2",
@@ -23279,7 +26031,79 @@
       "description": "411VM - Best of Vol #2 (FULL MOVIE)\nSkateboard Movie\n\nYou can Subscribe to Odysee/LBRY with this Link Below & Get 15 LBC credit for yourself and 15 for me! But mostly, this means an immense support!\nhttps://odysee.com/$/invite/@SkateOrDie:7 ",
       "channel": "SkateOrDie",
       "link": "https://odysee.com/@SkateOrDie:7/411VM-BestofVo2:c",
-      "duration": 3357
+      "duration": 3357,
+      "soundtrack": [
+        {
+          "part": "Mike Vallely Profiles",
+          "song": "Palmskin Productions - In A Silent Way"
+        },
+        {
+          "part": "Jerry Fowler Rookies",
+          "song": "Pegboy - Never A Question"
+        },
+        {
+          "part": "Chaos Chaos",
+          "song": "Bracket - Closed Caption"
+        },
+        {
+          "part": "Chad Muska Wheels Of Fortune",
+          "song": "Extra Prolific - Cash Money"
+        },
+        {
+          "part": "Philadelphia Metrospective",
+          "song": "Rhythm Collision - Now"
+        },
+        {
+          "part": "Girl / Chocolate / Firm Road Trip",
+          "song": "Coolio - I Remember (instrumental)"
+        },
+        {
+          "part": "Paul Zitzer Profiles",
+          "song": "Ill Repute - Dat Marley Song"
+        },
+        {
+          "part": "Clyde Singleton Rookies",
+          "song": "Ben Harper - Ground On Down"
+        },
+        {
+          "part": "Contests Contests",
+          "song": "Cranberries - I Can't Be With You"
+        },
+        {
+          "part": "Lennie Kirk Wheels Of Fortune",
+          "song": "Shrinking Violets - Dead Popstars"
+        },
+        {
+          "part": "Drake Jones Wheels Of Fortune",
+          "song": "Mcm And The Monster - Big Black Cadillac"
+        },
+        {
+          "part": "Transitions Transitions",
+          "song": "Ramones - I Don't Wanna Grow Up"
+        },
+        {
+          "part": "Moses Itkonen Rookies",
+          "song": "Mobb Deep - Cradle To The Grave"
+        },
+        {
+          "part": "Ed Templeton Profiles",
+          "song": "Fluf - Rooked"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=C2yS6eme84Q",
+          "song": "5235"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=Wr13GEoAC9g",
+          "song": "9076"
+        },
+        {
+          "part": "http://www.youtube.com/watch?v=BMwGJ4jbFHc",
+          "song": "5084"
+        }
+      ],
+      "svsSlug": "411vm-best-of-2",
+      "dataSource": "skatevideosite"
     },
     {
       "slug": "411vm-volume-14-issue-4",
