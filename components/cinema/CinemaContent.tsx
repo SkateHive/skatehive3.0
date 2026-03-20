@@ -283,52 +283,93 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
         <HubNavigation />
 
         {/* Brand Filter Bar */}
-        <Box overflowX="auto" mb={4} css={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>
-          <HStack spacing={2} py={2} minW="max-content">
-            <Button
-              size="xs" fontFamily="mono" fontSize="xs" h="28px"
-              variant={!selectedBrand ? "solid" : "outline"}
-              bg={!selectedBrand ? "primary" : "transparent"}
-              color={!selectedBrand ? "background" : "gray.400"}
-              borderColor="whiteAlpha.200" borderRadius="sm"
-              onClick={() => { setSelectedBrand(null); setCurrentPage(0); router.push("/cinema", { scroll: false }); }}
-              _hover={{ borderColor: "primary", color: !selectedBrand ? "background" : "primary" }}
-              px={3}
-            >
-              All ({videos.length})
-            </Button>
-            {TOP_BRANDS.map((brand) => {
-              const count = videos.filter((v) => v.brand === brand).length;
-              const isActive = selectedBrand === brand;
-              const logo = getBrandLogo(brand);
-              return (
-                <Button
-                  key={brand} size="xs" fontFamily="mono" fontSize="xs" h="32px"
-                  variant={isActive ? "solid" : "outline"}
-                  bg={isActive ? "primary" : "transparent"}
-                  color={isActive ? "background" : "gray.400"}
-                  borderColor={isActive ? "primary" : "whiteAlpha.200"} borderRadius="sm"
-                  onClick={() => { setSelectedBrand(brand); setCurrentPage(0); router.push(`/cinema/${brandToSlug(brand)}`, { scroll: false }); }}
-                  _hover={{ borderColor: "primary", color: isActive ? "background" : "primary" }}
-                  px={3} gap={1.5}
-                >
-                  {logo && (
-                    <Image
-                      src={logo}
-                      alt={brand}
-                      h="14px"
-                      w="auto"
-                      maxW="32px"
-                      objectFit="contain"
-                      filter={isActive ? "brightness(0)" : "brightness(0) invert(1)"}
-                      opacity={isActive ? 1 : 0.7}
-                    />
-                  )}
-                  {brand} ({count})
-                </Button>
-              );
-            })}
-          </HStack>
+        <Box position="relative" mb={4}>
+          <IconButton
+            aria-label="Scroll left"
+            icon={<Icon as={FaChevronLeft} />}
+            size="sm"
+            variant="ghost"
+            color="gray.400"
+            position="absolute"
+            left={0}
+            top="50%"
+            transform="translateY(-50%)"
+            zIndex={2}
+            bg="blackAlpha.800"
+            borderRadius="full"
+            _hover={{ bg: "blackAlpha.900", color: "primary" }}
+            onClick={() => {
+              const container = document.getElementById("brand-scroll-container");
+              if (container) container.scrollBy({ left: -250, behavior: "smooth" });
+            }}
+          />
+          <Box id="brand-scroll-container" overflowX="auto" px={10}
+            css={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>
+            <HStack spacing={2} py={2} minW="max-content">
+              <Button
+                size="xs" fontFamily="mono" fontSize="xs" h="28px"
+                variant={!selectedBrand ? "solid" : "outline"}
+                bg={!selectedBrand ? "primary" : "transparent"}
+                color={!selectedBrand ? "background" : "gray.400"}
+                borderColor="whiteAlpha.200" borderRadius="sm"
+                onClick={() => { setSelectedBrand(null); setCurrentPage(0); router.push("/cinema", { scroll: false }); }}
+                _hover={{ borderColor: "primary", color: !selectedBrand ? "background" : "primary" }}
+                px={3}
+              >
+                All ({videos.length})
+              </Button>
+              {TOP_BRANDS.map((brand) => {
+                const count = videos.filter((v) => v.brand === brand).length;
+                const isActive = selectedBrand === brand;
+                const logo = getBrandLogo(brand);
+                return (
+                  <Button
+                    key={brand} size="xs" fontFamily="mono" fontSize="xs" h="32px"
+                    variant={isActive ? "solid" : "outline"}
+                    bg={isActive ? "primary" : "transparent"}
+                    color={isActive ? "background" : "gray.400"}
+                    borderColor={isActive ? "primary" : "whiteAlpha.200"} borderRadius="sm"
+                    onClick={() => { setSelectedBrand(brand); setCurrentPage(0); router.push(`/cinema/${brandToSlug(brand)}`, { scroll: false }); }}
+                    _hover={{ borderColor: "primary", color: isActive ? "background" : "primary" }}
+                    px={3} gap={1.5}
+                  >
+                    {logo && (
+                      <Image
+                        src={logo}
+                        alt={brand}
+                        h="16px"
+                        w="auto"
+                        maxW="40px"
+                        objectFit="contain"
+                        filter={isActive ? "none" : "grayscale(100%) brightness(0.8)"}
+                        opacity={isActive ? 1 : 0.7}
+                      />
+                    )}
+                    {brand} ({count})
+                  </Button>
+                );
+              })}
+            </HStack>
+          </Box>
+          <IconButton
+            aria-label="Scroll right"
+            icon={<Icon as={FaChevronRight} />}
+            size="sm"
+            variant="ghost"
+            color="gray.400"
+            position="absolute"
+            right={0}
+            top="50%"
+            transform="translateY(-50%)"
+            zIndex={2}
+            bg="blackAlpha.800"
+            borderRadius="full"
+            _hover={{ bg: "blackAlpha.900", color: "primary" }}
+            onClick={() => {
+              const container = document.getElementById("brand-scroll-container");
+              if (container) container.scrollBy({ left: 250, behavior: "smooth" });
+            }}
+          />
         </Box>
 
         {/* Cinema Layout */}
