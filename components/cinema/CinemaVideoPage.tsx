@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Container,
@@ -10,10 +10,12 @@ import {
   Image,
   Link as ChakraLink,
   Icon,
+  IconButton,
+  Spinner,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 import HubNavigation from "@/components/shared/HubNavigation";
-import { FaFilm, FaArrowLeft, FaExternalLinkAlt } from "react-icons/fa";
+import { FaFilm, FaArrowLeft, FaExternalLinkAlt, FaPlay } from "react-icons/fa";
 import { SiOdysee } from "react-icons/si";
 
 interface CinemaVideo {
@@ -37,6 +39,37 @@ export default function CinemaVideoPage({
   video: CinemaVideo;
   relatedVideos: CinemaVideo[];
 }) {
+  const [playingSong, setPlayingSong] = useState<number | null>(null);
+  const [loadingSong, setLoadingSong] = useState<number | null>(null);
+  const [videoIds, setVideoIds] = useState<Record<number, string>>({});
+
+  const handlePlaySong = async (index: number, song: string) => {
+    if (playingSong === index) {
+      setPlayingSong(null);
+      return;
+    }
+
+    if (videoIds[index]) {
+      setPlayingSong(index);
+      return;
+    }
+
+    setLoadingSong(index);
+    try {
+      const res = await fetch(`/api/search-music?q=${encodeURIComponent(song)}`);
+      const data = await res.json();
+      
+      if (data.videoId) {
+        setVideoIds({ ...videoIds, [index]: data.videoId });
+        setPlayingSong(index);
+      }
+    } catch (error) {
+      console.error("Failed to load song:", error);
+    } finally {
+      setLoadingSong(null);
+    }
+  };
+
   return (
     <Box minH="100vh">
       <Container maxW="container.lg" px={{ base: 2, md: 4 }}>
@@ -100,14 +133,37 @@ export default function CinemaVideoPage({
             </Text>
             <VStack align="stretch" spacing={2}>
               {video.soundtrack.map((item, index) => (
-                <HStack key={index} spacing={3} p={2} borderRadius="sm" bg="whiteAlpha.50">
-                  <Text fontFamily="mono" fontSize="2xs" color="primary" minW="100px" fontWeight="bold">
-                    {item.part}
-                  </Text>
-                  <Text fontFamily="mono" fontSize="xs" color="gray.300">
-                    {item.song}
-                  </Text>
-                </HStack>
+                <Box key={index}>
+                  <HStack spacing={3} p={2} borderRadius="sm" bg="whiteAlpha.50" justify="space-between">
+                    <HStack spacing={3} flex={1}>
+                      <Text fontFamily="mono" fontSize="2xs" color="primary" minW="100px" fontWeight="bold">
+                        {item.part}
+                      </Text>
+                      <Text fontFamily="mono" fontSize="xs" color="gray.300">
+                        {item.song}
+                      </Text>
+                    </HStack>
+                    <IconButton
+                      aria-label="Play song"
+                      icon={loadingSong === index ? <Spinner size="xs" /> : <Icon as={FaPlay} boxSize={3} />}
+                      size="sm"
+                      variant="ghost"
+                      colorScheme={playingSong === index ? "green" : "gray"}
+                      onClick={() => handlePlaySong(index, item.song)}
+                      isDisabled={loadingSong !== null && loadingSong !== index}
+                    />
+                  </HStack>
+                  {playingSong === index && videoIds[index] && (
+                    <Box mt={2} w="100%" h="80px" borderRadius="sm" overflow="hidden">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${videoIds[index]}?autoplay=1`}
+                        style={{ width: "100%", height: "100%", border: 0 }}
+                        allow="autoplay; encrypted-media"
+                        allowFullScreen
+                      />
+                    </Box>
+                  )}
+                </Box>
               ))}
             </VStack>
           </Box>
