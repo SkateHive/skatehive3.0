@@ -53,34 +53,34 @@ export function FarcasterAuthIsland(props: FarcasterAuthIslandProps) {
  * 
  * @returns Auth methods and state (may be undefined if island not mounted)
  */
-export function useFarcasterAuthMethods() {
-  if (typeof window === "undefined") {
-    return {
-      signIn: () => {},
-      signOut: () => {},
-      connect: () => {},
-      reconnect: () => {},
-      isSuccess: false,
-      isError: false,
-      error: null,
-      channelToken: null,
-      url: null,
-      data: null,
-      validSignature: false,
-    };
-  }
+const NOOP_AUTH = {
+  signIn: () => {},
+  signOut: () => {},
+  connect: () => {},
+  reconnect: () => {},
+  isSuccess: false,
+  isError: false,
+  error: null,
+  channelToken: null,
+  url: null,
+  data: null,
+  validSignature: false,
+};
 
-  return (window as any).__farcasterAuth || {
-    signIn: () => {},
-    signOut: () => {},
-    connect: () => {},
-    reconnect: () => {},
-    isSuccess: false,
-    isError: false,
-    error: null,
-    channelToken: null,
-    url: null,
-    data: null,
-    validSignature: false,
-  };
+/**
+ * Returns a proxy that always reads the LATEST window.__farcasterAuth.
+ * This is necessary because the dynamic import of FarcasterAuthIslandClient
+ * sets window.__farcasterAuth AFTER this hook is first called.
+ * Without the proxy, signIn() would be a permanent no-op.
+ */
+export function useFarcasterAuthMethods() {
+  if (typeof window === "undefined") return NOOP_AUTH;
+
+  return new Proxy(NOOP_AUTH, {
+    get(_target, prop) {
+      const auth = (window as any).__farcasterAuth;
+      if (auth && prop in auth) return auth[prop];
+      return (NOOP_AUTH as any)[prop];
+    },
+  });
 }
