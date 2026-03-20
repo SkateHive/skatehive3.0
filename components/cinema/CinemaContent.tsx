@@ -23,7 +23,6 @@ import {
   FaStepForward,
   FaStepBackward,
   FaRandom,
-  FaRedo,
   FaExternalLinkAlt,
   FaFilm,
   FaChevronLeft,
@@ -104,7 +103,6 @@ export default function CinemaContent() {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [autoPlay, setAutoPlay] = useState(true);
   const [shuffle, setShuffle] = useState(false);
 
   const filteredVideos = useMemo(() => {
@@ -133,28 +131,31 @@ export default function CinemaContent() {
   }, [paginatedVideos.length]);
 
   const goNext = useCallback(() => {
-    setActiveIndex((prev) => {
-      if (shuffle) return Math.floor(Math.random() * paginatedVideos.length);
-      if (prev < paginatedVideos.length - 1) return prev + 1;
-      // Auto-advance to next page
-      if (currentPage < totalPages - 1) {
-        setCurrentPage((p) => p + 1);
-        return 0;
-      }
-      return 0; // loop
-    });
-  }, [paginatedVideos.length, shuffle, currentPage, totalPages]);
+    if (shuffle) {
+      setActiveIndex(Math.floor(Math.random() * paginatedVideos.length));
+      return;
+    }
+    if (activeIndex < paginatedVideos.length - 1) {
+      setActiveIndex(activeIndex + 1);
+    } else if (currentPage < totalPages - 1) {
+      setCurrentPage(currentPage + 1);
+      // activeIndex resets to 0 via the useEffect above
+    } else {
+      setActiveIndex(0);
+    }
+  }, [activeIndex, paginatedVideos.length, shuffle, currentPage, totalPages]);
 
   const goPrev = useCallback(() => {
-    setActiveIndex((prev) => {
-      if (prev > 0) return prev - 1;
-      if (currentPage > 0) {
-        setCurrentPage((p) => p - 1);
-        return VIDEOS_PER_PAGE - 1;
-      }
-      return paginatedVideos.length - 1;
-    });
-  }, [paginatedVideos.length, currentPage]);
+    if (activeIndex > 0) {
+      setActiveIndex(activeIndex - 1);
+    } else if (currentPage > 0) {
+      setCurrentPage(currentPage - 1);
+      // Will reset to 0 via useEffect, then we set to last item
+      setTimeout(() => setActiveIndex(VIDEOS_PER_PAGE - 1), 0);
+    } else {
+      setActiveIndex(paginatedVideos.length - 1);
+    }
+  }, [activeIndex, paginatedVideos.length, currentPage]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -241,9 +242,6 @@ export default function CinemaContent() {
                 </Tooltip>
                 <Tooltip label={`Shuffle ${shuffle ? "on" : "off"} (S)`} hasArrow>
                   <IconButton aria-label="Shuffle" icon={<FaRandom />} size="xs" variant="ghost" color={shuffle ? "primary" : "gray.400"} onClick={() => setShuffle((s) => !s)} _hover={{ color: "primary" }} />
-                </Tooltip>
-                <Tooltip label={`Auto-play ${autoPlay ? "on" : "off"}`} hasArrow>
-                  <IconButton aria-label="Auto-play" icon={<FaRedo />} size="xs" variant="ghost" color={autoPlay ? "primary" : "gray.400"} onClick={() => setAutoPlay((a) => !a)} _hover={{ color: "primary" }} />
                 </Tooltip>
                 <Box flex={1} />
                 <HStack spacing={1} px={2} py={0.5} bg="whiteAlpha.50" borderRadius="sm">

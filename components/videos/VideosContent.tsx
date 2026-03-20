@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   Box,
   Container,
@@ -34,7 +40,6 @@ import {
   FaStepForward,
   FaStepBackward,
   FaRandom,
-  FaRedo,
   FaExternalLinkAlt,
 } from "react-icons/fa";
 import { SiIpfs, SiOdysee } from "react-icons/si";
@@ -43,8 +48,13 @@ import dynamic from "next/dynamic";
 import { useComments } from "@/hooks/useComments";
 import type { IconType } from "react-icons";
 
-const VideoRenderer = dynamic(() => import("@/components/layout/VideoRenderer"), { ssr: false });
-const HiveMarkdown = dynamic(() => import("@/components/shared/HiveMarkdown"), { ssr: false });
+const VideoRenderer = dynamic(
+  () => import("@/components/layout/VideoRenderer"),
+  { ssr: false },
+);
+const HiveMarkdown = dynamic(() => import("@/components/shared/HiveMarkdown"), {
+  ssr: false,
+});
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -69,19 +79,49 @@ interface PostMeta {
 
 // ─── Video detection ─────────────────────────────────────
 
-const VIDEO_PATTERNS: { platform: VideoPlatform; test: RegExp; extract?: RegExp }[] = [
-  { platform: "youtube", test: /youtu\.?be/i, extract: /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/ },
-  { platform: "3speak", test: /3speak\.tv/i, extract: /3speak\.tv\/watch\?v=([a-zA-Z0-9._-]+\/[a-zA-Z0-9_-]+)/ },
-  { platform: "odysee", test: /odysee\.com/i, extract: /https?:\/\/odysee\.com\/([^\s"'<>]+)/ },
-  { platform: "ipfs", test: /<iframe[^>]*src=["'][^"']*ipfs/i, extract: /<iframe[^>]*src=["'](https?:\/\/[^"']*ipfs[^"']*)/i },
-  { platform: "ipfs", test: /https?:\/\/[^\s"'<>]+\.(mp4|webm|mov|avi)(\?[^\s"'<>]*)?/i, extract: /(https?:\/\/[^\s"'<>]+\.(mp4|webm|mov)(\?[^\s"'<>]*)?)/i },
-  { platform: "other", test: /<iframe[^>]*src=["']https?:\/\/(www\.)?(youtube|3speak|odysee|rumble)/i },
+const VIDEO_PATTERNS: {
+  platform: VideoPlatform;
+  test: RegExp;
+  extract?: RegExp;
+}[] = [
+  {
+    platform: "youtube",
+    test: /youtu\.?be/i,
+    extract:
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+  },
+  {
+    platform: "3speak",
+    test: /3speak\.tv/i,
+    extract: /3speak\.tv\/watch\?v=([a-zA-Z0-9._-]+\/[a-zA-Z0-9_-]+)/,
+  },
+  {
+    platform: "odysee",
+    test: /odysee\.com/i,
+    extract: /https?:\/\/odysee\.com\/([^\s"'<>]+)/,
+  },
+  {
+    platform: "ipfs",
+    test: /<iframe[^>]*src=["'][^"']*ipfs/i,
+    extract: /<iframe[^>]*src=["'](https?:\/\/[^"']*ipfs[^"']*)/i,
+  },
+  {
+    platform: "ipfs",
+    test: /https?:\/\/[^\s"'<>]+\.(mp4|webm|mov|avi)(\?[^\s"'<>]*)?/i,
+    extract: /(https?:\/\/[^\s"'<>]+\.(mp4|webm|mov)(\?[^\s"'<>]*)?)/i,
+  },
+  {
+    platform: "other",
+    test: /<iframe[^>]*src=["']https?:\/\/(www\.)?(youtube|3speak|odysee|rumble)/i,
+  },
   { platform: "other", test: /<video[\s>]/i },
 ];
 
 function detectPlatform(body: string): VideoPlatform {
   if (!body) return "other";
-  for (const p of VIDEO_PATTERNS) { if (p.test.test(body)) return p.platform; }
+  for (const p of VIDEO_PATTERNS) {
+    if (p.test.test(body)) return p.platform;
+  }
   return "other";
 }
 
@@ -96,25 +136,51 @@ function extractVideoInfo(body: string): VideoInfo {
     const match = body.match(pattern.extract);
     if (!match) continue;
     switch (pattern.platform) {
-      case "youtube": return { platform: "youtube", embedUrl: `https://www.youtube.com/embed/${match[1]}?autoplay=1` };
-      case "3speak": return { platform: "3speak", embedUrl: `https://play.3speak.tv/watch?v=${match[1]}&mode=iframe&layout=desktop` };
-      case "odysee": { const url = `https://odysee.com/${match[1]}`; return { platform: "odysee", embedUrl: url.includes("/$/embed/") ? url : url.replace("odysee.com/", "odysee.com/$/embed/") }; }
-      case "ipfs": return { platform: "ipfs", embedUrl: match[1] || match[0] };
+      case "youtube":
+        return {
+          platform: "youtube",
+          embedUrl: `https://www.youtube.com/embed/${match[1]}?autoplay=1`,
+        };
+      case "3speak":
+        return {
+          platform: "3speak",
+          embedUrl: `https://play.3speak.tv/watch?v=${match[1]}&mode=iframe&layout=desktop`,
+        };
+      case "odysee": {
+        const url = `https://odysee.com/${match[1]}`;
+        return {
+          platform: "odysee",
+          embedUrl: url.includes("/$/embed/")
+            ? url
+            : url.replace("odysee.com/", "odysee.com/$/embed/"),
+        };
+      }
+      case "ipfs":
+        return { platform: "ipfs", embedUrl: match[1] || match[0] };
     }
   }
   return { platform: "other", embedUrl: null };
 }
 
 function getYouTubeThumbnail(body: string): string | null {
-  const match = body.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+  const match = body.match(
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+  );
   return match ? `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg` : null;
 }
 
 function computePostMeta(post: Discussion): PostMeta {
   const platform = detectPlatform(post.body);
-  const ytThumb = platform === "youtube" ? getYouTubeThumbnail(post.body) : null;
+  const ytThumb =
+    platform === "youtube" ? getYouTubeThumbnail(post.body) : null;
   const images = extractImageUrls(post.body);
-  return { platform, thumbnail: ytThumb || images[0] || "/ogimage.png", cleanAuthor: post.author.startsWith("@") ? post.author.slice(1) : post.author };
+  return {
+    platform,
+    thumbnail: ytThumb || images[0] || "/ogimage.png",
+    cleanAuthor: post.author.startsWith("@")
+      ? post.author.slice(1)
+      : post.author,
+  };
 }
 
 const PLATFORM_CONFIG: Record<VideoPlatform, PlatformConfig> = {
@@ -126,7 +192,11 @@ const PLATFORM_CONFIG: Record<VideoPlatform, PlatformConfig> = {
 };
 
 const FILTERS: { key: VideoPlatform | "all"; label: string }[] = [
-  { key: "all", label: "all" }, { key: "youtube", label: "youtube" }, { key: "3speak", label: "3speak" }, { key: "ipfs", label: "ipfs" }, { key: "odysee", label: "odysee" },
+  { key: "all", label: "all" },
+  { key: "youtube", label: "youtube" },
+  { key: "3speak", label: "3speak" },
+  { key: "ipfs", label: "ipfs" },
+  { key: "odysee", label: "odysee" },
 ];
 
 const POSTS_PER_PAGE = 20;
@@ -136,29 +206,95 @@ const MAX_ATTEMPTS = 8;
 // ─── Playlist Item ───────────────────────────────────────
 
 const PlaylistItem = React.memo(function PlaylistItem({
-  post, meta, isActive, index, onClick,
-}: { post: Discussion; meta: PostMeta; isActive: boolean; index: number; onClick: () => void; }) {
+  post,
+  meta,
+  isActive,
+  index,
+  onClick,
+}: {
+  post: Discussion;
+  meta: PostMeta;
+  isActive: boolean;
+  index: number;
+  onClick: () => void;
+}) {
   const config = PLATFORM_CONFIG[meta.platform];
   return (
-    <HStack spacing={3} p={2} py={3} cursor="pointer" onClick={onClick}
-      bg={isActive ? "whiteAlpha.100" : "transparent"} borderLeft="3px solid"
-      borderColor={isActive ? "primary" : "transparent"} _hover={{ bg: "whiteAlpha.50" }}
-      transition="all 0.15s" borderRadius="sm">
-      <Text fontFamily="mono" fontSize="xs" color="gray.600" w="20px" textAlign="center" flexShrink={0}>
-        {isActive ? <Icon as={FaPlay} boxSize={2.5} color="primary" /> : index + 1}
+    <HStack
+      spacing={3}
+      p={2}
+      py={3}
+      cursor="pointer"
+      onClick={onClick}
+      bg={isActive ? "whiteAlpha.100" : "transparent"}
+      borderLeft="3px solid"
+      borderColor={isActive ? "primary" : "transparent"}
+      _hover={{ bg: "whiteAlpha.50" }}
+      transition="all 0.15s"
+      borderRadius="sm"
+    >
+      <Text
+        fontFamily="mono"
+        fontSize="xs"
+        color="gray.600"
+        w="20px"
+        textAlign="center"
+        flexShrink={0}
+      >
+        {isActive ? (
+          <Icon as={FaPlay} boxSize={2.5} color="primary" />
+        ) : (
+          index + 1
+        )}
       </Text>
-      <Box position="relative" w="120px" h="68px" flexShrink={0} borderRadius="sm" overflow="hidden" bg="background">
-        <Image src={meta.thumbnail} alt="" w="100%" h="100%" objectFit="cover" />
-        <Icon as={config.icon} position="absolute" bottom={1} right={1} boxSize={3} color={config.color} />
+      <Box
+        position="relative"
+        w="120px"
+        h="68px"
+        flexShrink={0}
+        borderRadius="sm"
+        overflow="hidden"
+        bg="background"
+      >
+        <Image
+          src={meta.thumbnail}
+          alt=""
+          w="100%"
+          h="100%"
+          objectFit="cover"
+        />
+        <Icon
+          as={config.icon}
+          position="absolute"
+          bottom={1}
+          right={1}
+          boxSize={3}
+          color={config.color}
+        />
       </Box>
       <VStack align="start" spacing={0.5} flex={1} minW={0}>
-        <Text fontFamily="mono" fontSize="xs" color={isActive ? "primary" : "text"} noOfLines={2} lineHeight="1.4" fontWeight={isActive ? "bold" : "normal"}>
+        <Text
+          fontFamily="mono"
+          fontSize="xs"
+          color={isActive ? "primary" : "text"}
+          noOfLines={2}
+          lineHeight="1.4"
+          fontWeight={isActive ? "bold" : "normal"}
+        >
           {post.title || "Untitled"}
         </Text>
         <HStack spacing={1}>
-          <Avatar size="2xs" name={meta.cleanAuthor} src={`https://images.hive.blog/u/${meta.cleanAuthor}/avatar/small`} />
-          <Text fontFamily="mono" fontSize="2xs" color="gray.500">{meta.cleanAuthor}</Text>
-          <Text fontFamily="mono" fontSize="2xs" color="gray.700">· {getPostDate(post.created)}</Text>
+          <Avatar
+            size="2xs"
+            name={meta.cleanAuthor}
+            src={`https://images.hive.blog/u/${meta.cleanAuthor}/avatar/small`}
+          />
+          <Text fontFamily="mono" fontSize="2xs" color="gray.500">
+            {meta.cleanAuthor}
+          </Text>
+          <Text fontFamily="mono" fontSize="2xs" color="gray.700">
+            · {getPostDate(post.created)}
+          </Text>
         </HStack>
       </VStack>
     </HStack>
@@ -167,21 +303,37 @@ const PlaylistItem = React.memo(function PlaylistItem({
 
 // ─── Comments ────────────────────────────────────────────
 
-function VideoComments({ author, permlink }: { author: string; permlink: string }) {
+function VideoComments({
+  author,
+  permlink,
+}: {
+  author: string;
+  permlink: string;
+}) {
   const { comments, isLoading } = useComments(author, permlink, false);
   return (
     <Box px={4} pb={4} borderTop="1px solid" borderColor="whiteAlpha.100">
       <HStack py={3} spacing={2}>
-        <Text fontFamily="mono" fontSize="xs" fontWeight="bold" color="text">comments</Text>
-        <Text fontFamily="mono" fontSize="2xs" color="gray.500">{isLoading ? "..." : comments.length}</Text>
+        <Text fontFamily="mono" fontSize="xs" fontWeight="bold" color="text">
+          comments
+        </Text>
+        <Text fontFamily="mono" fontSize="2xs" color="gray.500">
+          {isLoading ? "..." : comments.length}
+        </Text>
       </HStack>
       {isLoading ? (
-        <Center py={4}><Spinner size="sm" color="primary" /></Center>
+        <Center py={4}>
+          <Spinner size="sm" color="primary" />
+        </Center>
       ) : comments.length === 0 ? (
-        <Text fontFamily="mono" fontSize="xs" color="gray.600" py={2}>no comments yet — be the first on the full post page</Text>
+        <Text fontFamily="mono" fontSize="xs" color="gray.600" py={2}>
+          no comments yet — be the first on the full post page
+        </Text>
       ) : (
         <VStack align="stretch" spacing={0} maxH="400px" overflowY="auto">
-          {comments.map((c) => <CommentItem key={`${c.author}/${c.permlink}`} comment={c} />)}
+          {comments.map((c) => (
+            <CommentItem key={`${c.author}/${c.permlink}`} comment={c} />
+          ))}
         </VStack>
       )}
     </Box>
@@ -192,31 +344,72 @@ function CommentItem({ comment }: { comment: Discussion }) {
   const author = comment.author;
   const payout = parsePayout(comment.pending_payout_value);
   return (
-    <HStack align="start" spacing={3} py={3} borderBottom="1px solid" borderColor="whiteAlpha.50">
+    <HStack
+      align="start"
+      spacing={3}
+      py={3}
+      borderBottom="1px solid"
+      borderColor="whiteAlpha.50"
+    >
       <ChakraLink as={NextLink} href={`/user/${author}`} flexShrink={0}>
-        <Avatar size="sm" name={author} src={`https://images.hive.blog/u/${author}/avatar/small`} />
+        <Avatar
+          size="sm"
+          name={author}
+          src={`https://images.hive.blog/u/${author}/avatar/small`}
+        />
       </ChakraLink>
       <Box flex={1} minW={0}>
         <HStack spacing={2} mb={1}>
-          <ChakraLink as={NextLink} href={`/user/${author}`} _hover={{ textDecoration: "none" }}>
-            <Text fontFamily="mono" fontSize="xs" fontWeight="bold" color="gray.300" _hover={{ color: "primary" }}>@{author}</Text>
+          <ChakraLink
+            as={NextLink}
+            href={`/user/${author}`}
+            _hover={{ textDecoration: "none" }}
+          >
+            <Text
+              fontFamily="mono"
+              fontSize="xs"
+              fontWeight="bold"
+              color="gray.300"
+              _hover={{ color: "primary" }}
+            >
+              @{author}
+            </Text>
           </ChakraLink>
-          <Text fontFamily="mono" fontSize="2xs" color="gray.600">{getPostDate(comment.created)}</Text>
-          {payout > 0 && <Text fontFamily="mono" fontSize="2xs" color="primary">${payout.toFixed(2)}</Text>}
+          <Text fontFamily="mono" fontSize="2xs" color="gray.600">
+            {getPostDate(comment.created)}
+          </Text>
+          {payout > 0 && (
+            <Text fontFamily="mono" fontSize="2xs" color="primary">
+              ${payout.toFixed(2)}
+            </Text>
+          )}
         </HStack>
-        <Box fontFamily="mono" fontSize="xs" color="gray.400" lineHeight="1.5"
-          sx={{ "& p": { mb: 1 }, "& img": { maxH: "200px", borderRadius: "sm", my: 1 }, "& a": { color: "primary" } }}>
+        <Box
+          fontFamily="mono"
+          fontSize="xs"
+          color="gray.400"
+          lineHeight="1.5"
+          sx={{
+            "& p": { mb: 1 },
+            "& img": { maxH: "200px", borderRadius: "sm", my: 1 },
+            "& a": { color: "primary" },
+          }}
+        >
           <HiveMarkdown markdown={comment.body} rawIframes />
         </Box>
         <HStack spacing={3} mt={1}>
           <HStack spacing={1}>
             <Icon as={FaArrowUp} boxSize={2.5} color="gray.600" />
-            <Text fontFamily="mono" fontSize="2xs" color="gray.600">{comment.active_votes?.length || 0}</Text>
+            <Text fontFamily="mono" fontSize="2xs" color="gray.600">
+              {comment.active_votes?.length || 0}
+            </Text>
           </HStack>
           {comment.children > 0 && (
             <HStack spacing={1}>
               <Icon as={FaComment} boxSize={2.5} color="gray.600" />
-              <Text fontFamily="mono" fontSize="2xs" color="gray.600">{comment.children}</Text>
+              <Text fontFamily="mono" fontSize="2xs" color="gray.600">
+                {comment.children}
+              </Text>
             </HStack>
           )}
         </HStack>
@@ -229,22 +422,63 @@ function CommentItem({ comment }: { comment: Discussion }) {
 
 function MainPlayer({ videoInfo }: { videoInfo: VideoInfo }) {
   if (!videoInfo.embedUrl) {
-    return <Center w="100%" h="100%" bg="background"><Text fontFamily="mono" fontSize="sm" color="gray.500">video format not supported</Text></Center>;
+    return (
+      <Center w="100%" h="100%" bg="background">
+        <Text fontFamily="mono" fontSize="sm" color="gray.500">
+          video format not supported
+        </Text>
+      </Center>
+    );
   }
-  if (videoInfo.platform === "ipfs" || /\.(mp4|webm|mov)(\?|$)/i.test(videoInfo.embedUrl)) {
+  if (
+    videoInfo.platform === "ipfs" ||
+    /\.(mp4|webm|mov)(\?|$)/i.test(videoInfo.embedUrl)
+  ) {
     return <VideoRenderer src={videoInfo.embedUrl} disableAutoplay={false} />;
   }
   return (
-    <iframe src={videoInfo.embedUrl}
-      style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }}
-      allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+    <iframe
+      src={videoInfo.embedUrl}
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        border: 0,
+      }}
+      allowFullScreen
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    />
   );
 }
 
 const cinemaFrameStyles = {
-  "& > div": { position: "absolute !important", inset: "0 !important", minWidth: "100% !important", paddingTop: "0 !important", display: "flex !important", alignItems: "center !important", justifyContent: "center !important" },
-  "& picture": { position: "absolute !important", inset: 0, display: "flex !important", alignItems: "center !important", justifyContent: "center !important" },
-  "& video": { objectFit: "contain !important", width: "100% !important", height: "100% !important", maxHeight: "100% !important", marginBottom: "0 !important", position: "absolute !important", inset: 0 },
+  "& > div": {
+    position: "absolute !important",
+    inset: "0 !important",
+    minWidth: "100% !important",
+    paddingTop: "0 !important",
+    display: "flex !important",
+    alignItems: "center !important",
+    justifyContent: "center !important",
+  },
+  "& picture": {
+    position: "absolute !important",
+    inset: 0,
+    display: "flex !important",
+    alignItems: "center !important",
+    justifyContent: "center !important",
+  },
+  "& video": {
+    objectFit: "contain !important",
+    width: "100% !important",
+    height: "100% !important",
+    maxHeight: "100% !important",
+    marginBottom: "0 !important",
+    position: "absolute !important",
+    inset: 0,
+  },
 } as Record<string, any>;
 
 // ─── Main Component ──────────────────────────────────────
@@ -255,7 +489,6 @@ export default function VideosContent() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [autoPlay, setAutoPlay] = useState(true);
   const [shuffle, setShuffle] = useState(false);
   const [filter, setFilter] = useState<VideoPlatform | "all">("all");
   const playlistRef = useRef<HTMLDivElement>(null);
@@ -268,70 +501,124 @@ export default function VideosContent() {
   }, []);
 
   const loadPosts = useCallback(async (initial = false) => {
-    if (initial) setIsLoading(true); else setIsLoadingMore(true);
+    if (initial) setIsLoading(true);
+    else setIsLoadingMore(true);
     try {
       const collected: Discussion[] = [];
-      let { author: cursorAuthor, permlink: cursorPermlink } = initial ? {} : cursorRef.current;
-      for (let attempt = 0; attempt < MAX_ATTEMPTS && collected.length < POSTS_PER_PAGE; attempt++) {
+      let { author: cursorAuthor, permlink: cursorPermlink } = initial
+        ? {}
+        : cursorRef.current;
+      for (
+        let attempt = 0;
+        attempt < MAX_ATTEMPTS && collected.length < POSTS_PER_PAGE;
+        attempt++
+      ) {
         const result = await HiveClient.call("bridge", "get_ranked_posts", {
-          sort: "created", tag: "hive-173115", limit: BATCH_SIZE,
-          start_author: cursorAuthor, start_permlink: cursorPermlink,
+          sort: "created",
+          tag: "hive-173115",
+          limit: BATCH_SIZE,
+          start_author: cursorAuthor,
+          start_permlink: cursorPermlink,
         });
-        if (!result || result.length === 0) { setHasMore(false); break; }
+        if (!result || result.length === 0) {
+          setHasMore(false);
+          break;
+        }
         const fresh = (cursorAuthor ? result.slice(1) : result) as Discussion[];
-        if (fresh.length === 0) { setHasMore(false); break; }
-        collected.push(...fresh.filter((p: Discussion) => hasVideoContent(p.body)));
+        if (fresh.length === 0) {
+          setHasMore(false);
+          break;
+        }
+        collected.push(
+          ...fresh.filter((p: Discussion) => hasVideoContent(p.body)),
+        );
         const last = result[result.length - 1];
-        cursorAuthor = last.author; cursorPermlink = last.permlink;
-        if (result.length < BATCH_SIZE) { setHasMore(false); break; }
+        cursorAuthor = last.author;
+        cursorPermlink = last.permlink;
+        if (result.length < BATCH_SIZE) {
+          setHasMore(false);
+          break;
+        }
       }
       if (collected.length > 0) {
         const toAdd = collected.slice(0, POSTS_PER_PAGE);
         setPosts((prev) => {
           const next = initial ? toAdd : [...prev, ...toAdd];
           const seen = new Set<string>();
-          return next.filter((p) => { const key = `${p.author}/${p.permlink}`; if (seen.has(key)) return false; seen.add(key); return true; });
+          return next.filter((p) => {
+            const key = `${p.author}/${p.permlink}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
         });
         const lastAdded = toAdd[toAdd.length - 1];
-        cursorRef.current = { author: lastAdded.author, permlink: lastAdded.permlink };
-      } else { setHasMore(false); }
+        cursorRef.current = {
+          author: lastAdded.author,
+          permlink: lastAdded.permlink,
+        };
+      } else {
+        setHasMore(false);
+      }
     } catch (error) {
-      console.error("Error loading video posts:", error); setHasMore(false);
-    } finally { setIsLoading(false); setIsLoadingMore(false); }
+      console.error("Error loading video posts:", error);
+      setHasMore(false);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
   }, []);
 
   const postMetaMap = useMemo(() => {
     const map = new Map<string, PostMeta>();
-    for (const post of posts) map.set(`${post.author}/${post.permlink}`, computePostMeta(post));
+    for (const post of posts)
+      map.set(`${post.author}/${post.permlink}`, computePostMeta(post));
     return map;
   }, [posts]);
 
   const filteredPosts = useMemo(() => {
     if (filter === "all") return posts;
-    return posts.filter((p) => postMetaMap.get(`${p.author}/${p.permlink}`)?.platform === filter);
+    return posts.filter(
+      (p) => postMetaMap.get(`${p.author}/${p.permlink}`)?.platform === filter,
+    );
   }, [posts, filter, postMetaMap]);
 
   const activePost = filteredPosts[activeIndex] || null;
   const activeVideoInfo = useMemo(
     () => (activePost ? extractVideoInfo(activePost.body) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activePost?.author, activePost?.permlink]
+    [activePost?.author, activePost?.permlink],
   );
 
-  const cleanAuthor = activePost?.author?.startsWith("@") ? activePost.author.slice(1) : activePost?.author || "";
+  const cleanAuthor = activePost?.author?.startsWith("@")
+    ? activePost.author.slice(1)
+    : activePost?.author || "";
   const payout = activePost ? parsePayout(activePost.pending_payout_value) : 0;
 
-  const goTo = useCallback((index: number) => {
-    setActiveIndex((prev) => {
-      if (index < 0 || index >= filteredPosts.length) return prev;
-      setTimeout(() => { document.getElementById(`playlist-item-${index}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, 50);
-      return index;
-    });
-  }, [filteredPosts.length]);
+  const goTo = useCallback(
+    (index: number) => {
+      setActiveIndex((prev) => {
+        if (index < 0 || index >= filteredPosts.length) return prev;
+        setTimeout(() => {
+          document
+            .getElementById(`playlist-item-${index}`)
+            ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 50);
+        return index;
+      });
+    },
+    [filteredPosts.length],
+  );
 
   const goNext = useCallback(() => {
     setActiveIndex((prev) => {
-      if (shuffle) return Math.floor(Math.random() * filteredPosts.length);
+      if (shuffle && filteredPosts.length > 1) {
+        let next;
+        do {
+          next = Math.floor(Math.random() * filteredPosts.length);
+        } while (next === prev);
+        return next;
+      }
       return prev < filteredPosts.length - 1 ? prev + 1 : 0;
     });
   }, [filteredPosts.length, shuffle]);
@@ -342,7 +629,11 @@ export default function VideosContent() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
       if (e.key === "n" || e.key === "N") goNext();
       if (e.key === "p" || e.key === "P") goPrev();
       if (e.key === "s" || e.key === "S") setShuffle((s) => !s);
@@ -352,22 +643,43 @@ export default function VideosContent() {
   }, [goNext, goPrev]);
 
   useEffect(() => {
-    if (activeIndex >= filteredPosts.length - 3 && hasMore && !isLoadingMore) loadPosts(false);
+    if (activeIndex >= filteredPosts.length - 3 && hasMore && !isLoadingMore)
+      loadPosts(false);
   }, [activeIndex, filteredPosts.length, hasMore, isLoadingMore, loadPosts]);
 
   if (isLoading) {
     return (
-      <Box minH="100vh"><Container maxW="container.xl" px={{ base: 2, md: 4 }}><HubNavigation />
-        <Center py={20}><VStack spacing={3}><Spinner size="lg" color="primary" /><Text fontFamily="mono" fontSize="xs" color="gray.500">loading videos...</Text></VStack></Center>
-      </Container></Box>
+      <Box minH="100vh">
+        <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
+          <HubNavigation />
+          <Center py={20}>
+            <VStack spacing={3}>
+              <Spinner size="lg" color="primary" />
+              <Text fontFamily="mono" fontSize="xs" color="gray.500">
+                loading videos...
+              </Text>
+            </VStack>
+          </Center>
+        </Container>
+      </Box>
     );
   }
 
   if (posts.length === 0) {
     return (
-      <Box minH="100vh"><Container maxW="container.xl" px={{ base: 2, md: 4 }}><HubNavigation />
-        <Center py={20}><VStack spacing={2}><Icon as={FaVideo} boxSize={8} color="gray.600" /><Text fontFamily="mono" fontSize="sm" color="gray.500">no skate videos found yet</Text></VStack></Center>
-      </Container></Box>
+      <Box minH="100vh">
+        <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
+          <HubNavigation />
+          <Center py={20}>
+            <VStack spacing={2}>
+              <Icon as={FaVideo} boxSize={8} color="gray.600" />
+              <Text fontFamily="mono" fontSize="sm" color="gray.500">
+                no skate videos found yet
+              </Text>
+            </VStack>
+          </Center>
+        </Container>
+      </Box>
     );
   }
 
@@ -376,88 +688,281 @@ export default function VideosContent() {
       <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
         <HubNavigation />
 
-        <Flex direction={{ base: "column", lg: "row" }} gap={0} mt={4}
-          border="1px solid" borderColor="whiteAlpha.100" borderRadius="md" overflow="hidden" bg="background">
-
+        <Flex
+          direction={{ base: "column", lg: "row" }}
+          gap={0}
+          mt={4}
+          border="1px solid"
+          borderColor="whiteAlpha.100"
+          borderRadius="md"
+          overflow="hidden"
+          bg="background"
+        >
           {/* Player Column */}
-          <Box flex={1} minW={0} overflowY={{ base: "visible", lg: "auto" }} maxH={{ base: "none", lg: "calc(100vh - 80px)" }}>
-            <Box w="100%" sx={{ aspectRatio: "16 / 9" }} bg="background" position="relative" overflow="hidden" css={cinemaFrameStyles}>
-              {activePost && activeVideoInfo && <MainPlayer videoInfo={activeVideoInfo} />}
+          <Box
+            flex={1}
+            minW={0}
+            overflowY={{ base: "visible", lg: "auto" }}
+            maxH={{ base: "none", lg: "calc(100vh - 80px)" }}
+          >
+            <Box
+              w="100%"
+              sx={{ aspectRatio: "16 / 9" }}
+              bg="background"
+              position="relative"
+              overflow="hidden"
+              css={cinemaFrameStyles}
+            >
+              {activePost && activeVideoInfo && (
+                <MainPlayer videoInfo={activeVideoInfo} />
+              )}
             </Box>
 
-            <Box p={4} bg="background" borderTop="1px solid" borderColor="whiteAlpha.100">
+            <Box
+              p={4}
+              bg="background"
+              borderTop="1px solid"
+              borderColor="whiteAlpha.100"
+            >
               <HStack spacing={1} mb={3}>
-                <Tooltip label="Previous (P)" hasArrow><IconButton aria-label="Previous" icon={<FaStepBackward />} size="xs" variant="ghost" color="gray.400" onClick={goPrev} _hover={{ color: "primary" }} /></Tooltip>
-                <Tooltip label="Next (N)" hasArrow><IconButton aria-label="Next" icon={<FaStepForward />} size="xs" variant="ghost" color="gray.400" onClick={goNext} _hover={{ color: "primary" }} /></Tooltip>
-                <Tooltip label={`Shuffle ${shuffle ? "on" : "off"} (S)`} hasArrow><IconButton aria-label="Shuffle" icon={<FaRandom />} size="xs" variant="ghost" color={shuffle ? "primary" : "gray.400"} onClick={() => setShuffle((s) => !s)} _hover={{ color: "primary" }} /></Tooltip>
-                <Tooltip label={`Auto-play ${autoPlay ? "on" : "off"}`} hasArrow><IconButton aria-label="Auto-play" icon={<FaRedo />} size="xs" variant="ghost" color={autoPlay ? "primary" : "gray.400"} onClick={() => setAutoPlay((a) => !a)} _hover={{ color: "primary" }} /></Tooltip>
+                <Tooltip label="Previous (P)" hasArrow>
+                  <IconButton
+                    aria-label="Previous"
+                    icon={<FaStepBackward />}
+                    size="xs"
+                    variant="ghost"
+                    color="gray.400"
+                    onClick={goPrev}
+                    _hover={{ color: "primary" }}
+                  />
+                </Tooltip>
+                <Tooltip label="Next (N)" hasArrow>
+                  <IconButton
+                    aria-label="Next"
+                    icon={<FaStepForward />}
+                    size="xs"
+                    variant="ghost"
+                    color="gray.400"
+                    onClick={goNext}
+                    _hover={{ color: "primary" }}
+                  />
+                </Tooltip>
+                <Tooltip
+                  label={`Shuffle ${shuffle ? "on" : "off"} (S)`}
+                  hasArrow
+                >
+                  <IconButton
+                    aria-label="Shuffle"
+                    icon={<FaRandom />}
+                    size="xs"
+                    variant="ghost"
+                    color={shuffle ? "primary" : "gray.400"}
+                    onClick={() => setShuffle((s) => !s)}
+                    _hover={{ color: "primary" }}
+                  />
+                </Tooltip>
                 <Box flex={1} />
                 {activeVideoInfo && (
-                  <HStack spacing={1} px={2} py={0.5} bg="whiteAlpha.50" borderRadius="sm">
-                    <Icon as={PLATFORM_CONFIG[activeVideoInfo.platform].icon} boxSize={3} color={PLATFORM_CONFIG[activeVideoInfo.platform].color} />
-                    <Text fontFamily="mono" fontSize="2xs" color="gray.400">{PLATFORM_CONFIG[activeVideoInfo.platform].label}</Text>
+                  <HStack
+                    spacing={1}
+                    px={2}
+                    py={0.5}
+                    bg="whiteAlpha.50"
+                    borderRadius="sm"
+                  >
+                    <Icon
+                      as={PLATFORM_CONFIG[activeVideoInfo.platform].icon}
+                      boxSize={3}
+                      color={PLATFORM_CONFIG[activeVideoInfo.platform].color}
+                    />
+                    <Text fontFamily="mono" fontSize="2xs" color="gray.400">
+                      {PLATFORM_CONFIG[activeVideoInfo.platform].label}
+                    </Text>
                   </HStack>
                 )}
-                <Text fontFamily="mono" fontSize="2xs" color="gray.600">{activeIndex + 1} / {filteredPosts.length}</Text>
+                <Text fontFamily="mono" fontSize="2xs" color="gray.600">
+                  {activeIndex + 1} / {filteredPosts.length}
+                </Text>
               </HStack>
 
-              <Text fontFamily="mono" fontSize="sm" fontWeight="bold" color="text" mb={2} noOfLines={2}>{activePost?.title || "Untitled"}</Text>
+              <Text
+                fontFamily="mono"
+                fontSize="sm"
+                fontWeight="bold"
+                color="text"
+                mb={2}
+                noOfLines={2}
+              >
+                {activePost?.title || "Untitled"}
+              </Text>
 
               <HStack justify="space-between" align="center">
-                <ChakraLink as={NextLink} href={`/user/${cleanAuthor}`} _hover={{ textDecoration: "none" }}>
+                <ChakraLink
+                  as={NextLink}
+                  href={`/user/${cleanAuthor}`}
+                  _hover={{ textDecoration: "none" }}
+                >
                   <HStack spacing={2}>
-                    <Avatar size="xs" name={cleanAuthor} src={`https://images.hive.blog/u/${cleanAuthor}/avatar/small`} />
-                    <Text fontFamily="mono" fontSize="xs" color="gray.400" _hover={{ color: "primary" }}>@{cleanAuthor}</Text>
-                    {activePost && <Text fontFamily="mono" fontSize="2xs" color="gray.600">{getPostDate(activePost.created)}</Text>}
+                    <Avatar
+                      size="xs"
+                      name={cleanAuthor}
+                      src={`https://images.hive.blog/u/${cleanAuthor}/avatar/small`}
+                    />
+                    <Text
+                      fontFamily="mono"
+                      fontSize="xs"
+                      color="gray.400"
+                      _hover={{ color: "primary" }}
+                    >
+                      @{cleanAuthor}
+                    </Text>
+                    {activePost && (
+                      <Text fontFamily="mono" fontSize="2xs" color="gray.600">
+                        {getPostDate(activePost.created)}
+                      </Text>
+                    )}
                   </HStack>
                 </ChakraLink>
                 <HStack spacing={4}>
-                  <HStack spacing={1}><Icon as={FaArrowUp} boxSize={3} color="gray.500" /><Text fontFamily="mono" fontSize="xs" color="gray.500">{activePost?.active_votes?.length || 0}</Text></HStack>
-                  <HStack spacing={1}><Icon as={FaComment} boxSize={3} color="gray.500" /><Text fontFamily="mono" fontSize="xs" color="gray.500">{activePost?.children || 0}</Text></HStack>
-                  {payout > 0 && <Text fontFamily="mono" fontSize="xs" color="primary" fontWeight="bold">${payout.toFixed(2)}</Text>}
-                  <ChakraLink as={NextLink} href={`/post/${cleanAuthor}/${activePost?.permlink}`} _hover={{ textDecoration: "none" }}>
-                    <Tooltip label="Open full post" hasArrow><span><Icon as={FaExternalLinkAlt} boxSize={3} color="gray.500" _hover={{ color: "primary" }} cursor="pointer" /></span></Tooltip>
+                  <HStack spacing={1}>
+                    <Icon as={FaArrowUp} boxSize={3} color="gray.500" />
+                    <Text fontFamily="mono" fontSize="xs" color="gray.500">
+                      {activePost?.active_votes?.length || 0}
+                    </Text>
+                  </HStack>
+                  <HStack spacing={1}>
+                    <Icon as={FaComment} boxSize={3} color="gray.500" />
+                    <Text fontFamily="mono" fontSize="xs" color="gray.500">
+                      {activePost?.children || 0}
+                    </Text>
+                  </HStack>
+                  {payout > 0 && (
+                    <Text
+                      fontFamily="mono"
+                      fontSize="xs"
+                      color="primary"
+                      fontWeight="bold"
+                    >
+                      ${payout.toFixed(2)}
+                    </Text>
+                  )}
+                  <ChakraLink
+                    as={NextLink}
+                    href={`/post/${cleanAuthor}/${activePost?.permlink}`}
+                    _hover={{ textDecoration: "none" }}
+                  >
+                    <Tooltip label="Open full post" hasArrow>
+                      <span>
+                        <Icon
+                          as={FaExternalLinkAlt}
+                          boxSize={3}
+                          color="gray.500"
+                          _hover={{ color: "primary" }}
+                          cursor="pointer"
+                        />
+                      </span>
+                    </Tooltip>
                   </ChakraLink>
                 </HStack>
               </HStack>
             </Box>
 
-            {activePost && <VideoComments author={activePost.author} permlink={activePost.permlink} />}
+            {activePost && (
+              <VideoComments
+                author={activePost.author}
+                permlink={activePost.permlink}
+              />
+            )}
           </Box>
 
           {/* Playlist Sidebar */}
-          <Box w={{ base: "100%", lg: "420px" }} flexShrink={0} bg="background"
-            borderLeft={{ base: "none", lg: "1px solid" }} borderTop={{ base: "1px solid", lg: "none" }}
-            borderColor="whiteAlpha.100" display="flex" flexDirection="column"
-            maxH={{ base: "50vh", lg: "calc(100vh - 120px)" }} overflowY={{ base: "auto", lg: "hidden" }}>
-
-            <Box px={4} py={3} borderBottom="1px solid" borderColor="whiteAlpha.100">
+          <Box
+            w={{ base: "100%", lg: "420px" }}
+            flexShrink={0}
+            bg="background"
+            borderLeft={{ base: "none", lg: "1px solid" }}
+            borderTop={{ base: "1px solid", lg: "none" }}
+            borderColor="whiteAlpha.100"
+            display="flex"
+            flexDirection="column"
+            maxH={{ base: "50vh", lg: "calc(100vh - 120px)" }}
+            overflowY={{ base: "auto", lg: "hidden" }}
+          >
+            <Box
+              px={4}
+              py={3}
+              borderBottom="1px solid"
+              borderColor="whiteAlpha.100"
+            >
               <HStack justify="space-between" align="center" mb={2}>
-                <Text fontFamily="mono" fontSize="sm" fontWeight="bold" color="text">community videos</Text>
-                <Text fontFamily="mono" fontSize="xs" color="gray.500">{filteredPosts.length} videos</Text>
+                <Text
+                  fontFamily="mono"
+                  fontSize="sm"
+                  fontWeight="bold"
+                  color="text"
+                >
+                  community videos
+                </Text>
+                <Text fontFamily="mono" fontSize="xs" color="gray.500">
+                  {filteredPosts.length} videos
+                </Text>
               </HStack>
               <HStack spacing={1} flexWrap="wrap">
                 {FILTERS.map((f) => (
-                  <Button key={f.key} size="xs" h="26px" fontFamily="mono" fontSize="xs" variant="ghost"
-                    color={filter === f.key ? "primary" : "gray.500"} bg={filter === f.key ? "whiteAlpha.100" : "transparent"}
-                    borderRadius="sm" onClick={() => { setFilter(f.key); setActiveIndex(0); }}
-                    _hover={{ color: "primary", bg: "whiteAlpha.50" }} px={3}>{f.label}</Button>
+                  <Button
+                    key={f.key}
+                    size="xs"
+                    h="26px"
+                    fontFamily="mono"
+                    fontSize="xs"
+                    variant="ghost"
+                    color={filter === f.key ? "primary" : "gray.500"}
+                    bg={filter === f.key ? "whiteAlpha.100" : "transparent"}
+                    borderRadius="sm"
+                    onClick={() => {
+                      setFilter(f.key);
+                      setActiveIndex(0);
+                    }}
+                    _hover={{ color: "primary", bg: "whiteAlpha.50" }}
+                    px={3}
+                  >
+                    {f.label}
+                  </Button>
                 ))}
               </HStack>
             </Box>
 
             <Box ref={playlistRef} flex={1} overflowY="auto" py={1}>
               {filteredPosts.map((post, i) => (
-                <Box key={`${post.author}/${post.permlink}`} id={`playlist-item-${i}`}>
-                  <PlaylistItem post={post} meta={postMetaMap.get(`${post.author}/${post.permlink}`)!}
-                    isActive={i === activeIndex} index={i} onClick={() => goTo(i)} />
+                <Box
+                  key={`${post.author}/${post.permlink}`}
+                  id={`playlist-item-${i}`}
+                >
+                  <PlaylistItem
+                    post={post}
+                    meta={postMetaMap.get(`${post.author}/${post.permlink}`)!}
+                    isActive={i === activeIndex}
+                    index={i}
+                    onClick={() => goTo(i)}
+                  />
                 </Box>
               ))}
               {hasMore && (
                 <Center py={3}>
-                  {isLoadingMore ? <Spinner size="sm" color="primary" /> : (
-                    <Button size="xs" fontFamily="mono" fontSize="2xs" variant="ghost" color="gray.500"
-                      onClick={() => loadPosts(false)} _hover={{ color: "primary" }}>load more</Button>
+                  {isLoadingMore ? (
+                    <Spinner size="sm" color="primary" />
+                  ) : (
+                    <Button
+                      size="xs"
+                      fontFamily="mono"
+                      fontSize="2xs"
+                      variant="ghost"
+                      color="gray.500"
+                      onClick={() => loadPosts(false)}
+                      _hover={{ color: "primary" }}
+                    >
+                      load more
+                    </Button>
                   )}
                 </Center>
               )}
@@ -467,7 +972,10 @@ export default function VideosContent() {
 
         <Box srOnly>
           <h1>Skateboarding Videos - SkateHive Community</h1>
-          <p>Watch skateboarding videos from the SkateHive community and classic skate video archive.</p>
+          <p>
+            Watch skateboarding videos from the SkateHive community and classic
+            skate video archive.
+          </p>
         </Box>
       </Container>
     </Box>

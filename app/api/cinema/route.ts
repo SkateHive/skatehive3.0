@@ -89,7 +89,7 @@ export async function GET() {
     // Deduplicate by title (normalized)
     const seen = new Set<string>();
     const deduped = all.filter((v) => {
-      const key = v.title.toLowerCase().trim();
+      const key = `${v.channel}:${v.title}`.toLowerCase().trim();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -99,7 +99,10 @@ export async function GET() {
     deduped.sort((a, b) => {
       const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
       const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
-      return db - da;
+      // Handle NaN from invalid date strings
+      const safeA = Number.isNaN(da) ? 0 : da;
+      const safeB = Number.isNaN(db) ? 0 : db;
+      return safeB - safeA;
     });
 
     return NextResponse.json({

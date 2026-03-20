@@ -151,19 +151,22 @@ function extractBrand(title: string): string {
   const match = title.match(/^(.+?)(?::\s+|\s+-\s+)/);
   if (match) {
     const raw = match[1].trim().toLowerCase();
-    // Check overrides first (exact)
-    if (BRAND_OVERRIDES[raw]) return BRAND_OVERRIDES[raw];
-    // Check if any override key matches
-    for (const [key, value] of Object.entries(BRAND_OVERRIDES)) {
-      if (raw === key) return value;
+    // Skip if the extracted brand is just a year (4-digit number)
+    if (!/^\d{4}$/.test(raw)) {
+      // Check overrides first (exact)
+      if (BRAND_OVERRIDES[raw]) return BRAND_OVERRIDES[raw];
+      // Check if any override key matches
+      for (const [key, value] of Object.entries(BRAND_OVERRIDES)) {
+        if (raw === key) return value;
+      }
+      // Clean up common suffixes
+      let brand = match[1].trim();
+      brand = brand.replace(/\s+(skateboards?|shoes|footwear|clothing|wheels|bearings|video magazine|productions?)\s*$/i, "");
+      // Re-check overrides after cleanup
+      const cleaned = brand.toLowerCase();
+      if (BRAND_OVERRIDES[cleaned]) return BRAND_OVERRIDES[cleaned];
+      return brand;
     }
-    // Clean up common suffixes
-    let brand = match[1].trim();
-    brand = brand.replace(/\s+(skateboards?|shoes|footwear|clothing|wheels|bearings|video magazine|productions?)\s*$/i, "");
-    // Re-check overrides after cleanup
-    const cleaned = brand.toLowerCase();
-    if (BRAND_OVERRIDES[cleaned]) return BRAND_OVERRIDES[cleaned];
-    return brand;
   }
   // Check title-based brand patterns
   for (const [pattern, brand] of TITLE_BRAND_MAP) {
