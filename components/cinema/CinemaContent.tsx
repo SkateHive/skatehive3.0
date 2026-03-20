@@ -16,6 +16,11 @@ import {
   Icon,
   IconButton,
   Tooltip,
+  Accordion,
+  AccordionItem,
+  AccordionButton,
+  AccordionPanel,
+  AccordionIcon,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 import HubNavigation from "@/components/shared/HubNavigation";
@@ -44,6 +49,11 @@ interface CinemaVideo {
   description: string;
   channel: string;
   link: string;
+  soundtrack?: { part: string; song: string }[];
+  skaters?: string[];
+  cast?: string[];
+  dataSource?: string;
+  svsSlug?: string;
 }
 
 const VIDEOS_PER_PAGE = 15;
@@ -116,35 +126,80 @@ const PlaylistItem = React.memo(function PlaylistItem({
   onClick: () => void;
 }) {
   return (
-    <HStack
-      spacing={3} p={2} py={3} cursor="pointer" onClick={onClick}
-      bg={isActive ? "whiteAlpha.100" : "transparent"}
-      borderLeft="3px solid" borderColor={isActive ? "primary" : "transparent"}
-      _hover={{ bg: "whiteAlpha.50" }} transition="all 0.15s" borderRadius="sm"
-    >
-      <Text fontFamily="mono" fontSize="xs" color="gray.600" w="20px" textAlign="center" flexShrink={0}>
-        {isActive ? <Icon as={FaPlay} boxSize={2.5} color="primary" /> : index + 1}
-      </Text>
-      <Box position="relative" w="120px" h="68px" flexShrink={0} borderRadius="sm" overflow="hidden" bg="background">
-        <Image src={video.thumbnail} alt={video.title} w="100%" h="100%" objectFit="cover" />
-        {video.year && (
-          <Text position="absolute" bottom={0} right={0} fontFamily="mono" fontSize="2xs"
-            bg="blackAlpha.800" color="white" px={1}>{video.year}</Text>
-        )}
-      </Box>
-      <VStack align="start" spacing={0.5} flex={1} minW={0}>
-        <ChakraLink as={NextLink} href={`/cinema/${video.slug}`} _hover={{ textDecoration: "none" }} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-          <Text fontFamily="mono" fontSize="xs" color={isActive ? "primary" : "text"} noOfLines={2}
-            lineHeight="1.4" fontWeight={isActive ? "bold" : "normal"} _hover={{ color: "primary" }}>
-            {video.title}
-          </Text>
-        </ChakraLink>
-        <HStack spacing={1}>
-          <Text fontFamily="mono" fontSize="2xs" color="gray.500">{video.brand}</Text>
-          <Text fontFamily="mono" fontSize="2xs" color="gray.700">· {video.channel}</Text>
-        </HStack>
-      </VStack>
-    </HStack>
+    <VStack spacing={0} align="stretch">
+      <HStack
+        spacing={3} p={2} py={3} cursor="pointer" onClick={onClick}
+        bg={isActive ? "whiteAlpha.100" : "transparent"}
+        borderLeft="3px solid" borderColor={isActive ? "primary" : "transparent"}
+        _hover={{ bg: "whiteAlpha.50" }} transition="all 0.15s" borderRadius="sm"
+      >
+        <Text fontFamily="mono" fontSize="xs" color="gray.600" w="20px" textAlign="center" flexShrink={0}>
+          {isActive ? <Icon as={FaPlay} boxSize={2.5} color="primary" /> : index + 1}
+        </Text>
+        <Box position="relative" w="120px" h="68px" flexShrink={0} borderRadius="sm" overflow="hidden" bg="background">
+          <Image src={video.thumbnail} alt={video.title} w="100%" h="100%" objectFit="cover" />
+          {video.year && (
+            <Text position="absolute" bottom={0} right={0} fontFamily="mono" fontSize="2xs"
+              bg="blackAlpha.800" color="white" px={1}>{video.year}</Text>
+          )}
+        </Box>
+        <VStack align="start" spacing={0.5} flex={1} minW={0}>
+          <ChakraLink as={NextLink} href={`/cinema/${video.slug}`} _hover={{ textDecoration: "none" }} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+            <Text fontFamily="mono" fontSize="xs" color={isActive ? "primary" : "text"} noOfLines={2}
+              lineHeight="1.4" fontWeight={isActive ? "bold" : "normal"} _hover={{ color: "primary" }}>
+              {video.title}
+            </Text>
+          </ChakraLink>
+          <HStack spacing={1}>
+            <Text fontFamily="mono" fontSize="2xs" color="gray.500">{video.brand}</Text>
+            <Text fontFamily="mono" fontSize="2xs" color="gray.700">· {video.channel}</Text>
+          </HStack>
+        </VStack>
+      </HStack>
+
+      {/* Description & Soundtrack */}
+      {(video.description || video.soundtrack) && (
+        <Box px={2} pb={2} pl="35px">
+          {video.description && (
+            <Text fontFamily="mono" fontSize="2xs" color="gray.500" noOfLines={2} mb={1}>
+              {video.description}
+            </Text>
+          )}
+          
+          {video.soundtrack && (
+            <Accordion allowToggle>
+              <AccordionItem border="none">
+                <AccordionButton px={0} py={1} _hover={{ bg: "transparent" }} onClick={(e) => e.stopPropagation()}>
+                  <Text fontFamily="mono" fontSize="2xs" color="primary" flex={1} textAlign="left">
+                    🎵 Soundtrack ({video.soundtrack.length} songs)
+                  </Text>
+                  <AccordionIcon />
+                </AccordionButton>
+                <AccordionPanel px={0} py={2} maxH="200px" overflowY="auto">
+                  <VStack align="stretch" spacing={1}>
+                    {video.soundtrack.map((track, i) => (
+                      <HStack key={i} spacing={2} align="start">
+                        <Text fontFamily="mono" fontSize="2xs" color="gray.600" flexShrink={0}>
+                          {i + 1}.
+                        </Text>
+                        <VStack align="start" spacing={0} flex={1}>
+                          <Text fontFamily="mono" fontSize="2xs" color="text">{track.song}</Text>
+                          {track.part && (
+                            <Text fontFamily="mono" fontSize="2xs" color="gray.500" fontStyle="italic">
+                              {track.part}
+                            </Text>
+                          )}
+                        </VStack>
+                      </HStack>
+                    ))}
+                  </VStack>
+                </AccordionPanel>
+              </AccordionItem>
+            </Accordion>
+          )}
+        </Box>
+      )}
+    </VStack>
   );
 });
 
