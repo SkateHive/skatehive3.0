@@ -295,12 +295,21 @@ export default function AuthButton() {
 
     setIsFarcasterAuthInProgress(true);
     try {
-      farcasterAuth.signIn();
+      // Must call connect() first to create relay channel,
+      // then signIn() after channelToken is available (handled by useEffect below)
+      farcasterAuth.connect();
     } catch (err) {
-      console.error("Farcaster signIn failed", err);
+      console.error("Farcaster connect failed", err);
       setIsFarcasterAuthInProgress(false);
     }
   }, [isFarcasterAuthInProgress, isFarcasterConnected, farcasterAuth]);
+
+  // Once connect() sets channelToken, call signIn() to start polling
+  useEffect(() => {
+    if (isFarcasterAuthInProgress && farcasterAuth.channelToken) {
+      farcasterAuth.signIn();
+    }
+  }, [isFarcasterAuthInProgress, farcasterAuth.channelToken]);
 
   // Memoize modal close handler
   const handleCloseConnectionModal = useCallback(() => {

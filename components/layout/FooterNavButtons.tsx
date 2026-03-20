@@ -620,11 +620,9 @@ export default function FooterNavButtons() {
         return;
       }
 
-      // The signIn() function opens the Farcaster Auth Kit modal
-      // On desktop: Shows QR code modal
-      // On mobile: Shows deep link options and redirects
-      // Success/error handling is done via the onSuccess/onError callbacks above
-      signIn();
+      // Must call connect() first to create relay channel,
+      // then signIn() after channelToken is set (handled by useEffect)
+      connect();
     } catch (error) {
       console.error("Farcaster auth error:", error);
       clearAuthTimeout(); // Clear safety timeout on error
@@ -639,6 +637,13 @@ export default function FooterNavButtons() {
     }
     // Note: No finally block - let callbacks handle state reset for successful flows
   };
+
+  // Once connect() sets channelToken, call signIn() to start polling
+  React.useEffect(() => {
+    if (isFarcasterAuthInProgress && farcasterMethods.channelToken) {
+      signIn();
+    }
+  }, [isFarcasterAuthInProgress, farcasterMethods.channelToken, signIn]);
 
   // Only render on client to avoid hydration mismatch
   React.useEffect(() => {
