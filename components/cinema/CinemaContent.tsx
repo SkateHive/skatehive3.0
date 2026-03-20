@@ -157,46 +157,12 @@ const PlaylistItem = React.memo(function PlaylistItem({
         </VStack>
       </HStack>
 
-      {/* Description & Soundtrack */}
-      {(video.description || video.soundtrack) && (
+      {/* Description only in sidebar */}
+      {video.description && (
         <Box px={2} pb={2} pl="35px">
-          {video.description && (
-            <Text fontFamily="mono" fontSize="2xs" color="gray.500" noOfLines={2} mb={1}>
-              {video.description}
-            </Text>
-          )}
-          
-          {video.soundtrack && (
-            <Accordion allowToggle>
-              <AccordionItem border="none">
-                <AccordionButton px={0} py={1} _hover={{ bg: "transparent" }} onClick={(e) => e.stopPropagation()}>
-                  <Text fontFamily="mono" fontSize="2xs" color="primary" flex={1} textAlign="left">
-                    🎵 Soundtrack ({video.soundtrack.length} songs)
-                  </Text>
-                  <AccordionIcon />
-                </AccordionButton>
-                <AccordionPanel px={0} py={2} maxH="200px" overflowY="auto">
-                  <VStack align="stretch" spacing={1}>
-                    {video.soundtrack.map((track, i) => (
-                      <HStack key={i} spacing={2} align="start">
-                        <Text fontFamily="mono" fontSize="2xs" color="gray.600" flexShrink={0}>
-                          {i + 1}.
-                        </Text>
-                        <VStack align="start" spacing={0} flex={1}>
-                          <Text fontFamily="mono" fontSize="2xs" color="text">{track.song}</Text>
-                          {track.part && (
-                            <Text fontFamily="mono" fontSize="2xs" color="gray.500" fontStyle="italic">
-                              {track.part}
-                            </Text>
-                          )}
-                        </VStack>
-                      </HStack>
-                    ))}
-                  </VStack>
-                </AccordionPanel>
-              </AccordionItem>
-            </Accordion>
-          )}
+          <Text fontFamily="mono" fontSize="2xs" color="gray.500" noOfLines={2}>
+            {video.description}
+          </Text>
         </Box>
       )}
     </VStack>
@@ -236,11 +202,15 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
   const goTo = useCallback((index: number) => {
     if (index >= 0 && index < paginatedVideos.length) {
       setActiveIndex(index);
+      const video = paginatedVideos[index];
+      if (video) {
+        router.push(`/cinema/${video.slug}`, { scroll: false });
+      }
       setTimeout(() => {
         document.getElementById(`cinema-item-${index}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 50);
     }
-  }, [paginatedVideos.length]);
+  }, [paginatedVideos, router]);
 
   const goNext = useCallback(() => {
     if (shuffle) {
@@ -405,6 +375,41 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
                 <Text fontFamily="mono" fontSize="xs" color="gray.500" mt={3} noOfLines={3}>
                   {activeVideo.description}
                 </Text>
+              )}
+
+              {/* Soundtrack (collapsed) */}
+              {activeVideo?.soundtrack && activeVideo.soundtrack.length > 0 && (
+                <Box mt={3}>
+                  <Accordion allowToggle>
+                    <AccordionItem border="none">
+                      <AccordionButton px={0} py={1} _hover={{ bg: "transparent" }}>
+                        <Text fontFamily="mono" fontSize="xs" color="primary" flex={1} textAlign="left">
+                          🎵 Soundtrack ({activeVideo.soundtrack.length} songs)
+                        </Text>
+                        <AccordionIcon />
+                      </AccordionButton>
+                      <AccordionPanel px={0} py={2} maxH="300px" overflowY="auto">
+                        <VStack align="stretch" spacing={1}>
+                          {activeVideo.soundtrack.map((track, i) => (
+                            <HStack key={i} spacing={2} align="start">
+                              <Text fontFamily="mono" fontSize="2xs" color="gray.600" flexShrink={0}>
+                                {i + 1}.
+                              </Text>
+                              <VStack align="start" spacing={0} flex={1}>
+                                <Text fontFamily="mono" fontSize="2xs" color="text">{track.song}</Text>
+                                {track.part && (
+                                  <Text fontFamily="mono" fontSize="2xs" color="gray.500" fontStyle="italic">
+                                    {track.part}
+                                  </Text>
+                                )}
+                              </VStack>
+                            </HStack>
+                          ))}
+                        </VStack>
+                      </AccordionPanel>
+                    </AccordionItem>
+                  </Accordion>
+                </Box>
               )}
             </Box>
           </Box>
