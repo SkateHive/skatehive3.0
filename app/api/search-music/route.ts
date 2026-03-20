@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
 
-const execAsync = promisify(exec);
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || "***REMOVED***";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -13,17 +11,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Use yt-dlp to search YouTube and get first result
-    const { stdout } = await execAsync(
-      `yt-dlp --dump-json --playlist-end 1 "ytsearch:${query.replace(/"/g, '\\"')}" 2>/dev/null`
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=${encodeURIComponent(query)}&key=${YOUTUBE_API_KEY}`,
     );
 
-    const data = JSON.parse(stdout.trim());
+    if (!response.ok) {
+      throw new Error(`YouTube API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const firstResult = data.items?.[0];
+
+    if (!firstResult) {
+      return NextResponse.json({ error: "No results found" }, { status: 404 });
+    }
 
     return NextResponse.json({
-      videoId: data.id,
-      title: data.title,
-      duration: data.duration,
+      videoId: firstResult.id.videoId,
+      title: firstResult.snippet.title,
     });
   } catch (error) {
     console.error("YouTube search error:", error);
