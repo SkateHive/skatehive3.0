@@ -21,6 +21,7 @@ import {
   AccordionButton,
   AccordionPanel,
   AccordionIcon,
+  Spinner,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 import HubNavigation from "@/components/shared/HubNavigation";
@@ -182,6 +183,9 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
   const [currentPage, setCurrentPage] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [shuffle, setShuffle] = useState(false);
+  const [playingSong, setPlayingSong] = useState<number | null>(null);
+  const [loadingSong, setLoadingSong] = useState<number | null>(null);
+  const [videoIds, setVideoIds] = useState<Record<number, string>>({});
 
   const filteredVideos = useMemo(() => {
     if (!selectedBrand) return videos;
@@ -198,6 +202,33 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
 
   // Reset when filter/page changes
   useEffect(() => { setActiveIndex(0); }, [currentPage, selectedBrand]);
+
+  const handlePlaySong = useCallback(async (index: number, song: string) => {
+    if (playingSong === index) {
+      setPlayingSong(null);
+      return;
+    }
+
+    if (videoIds[index]) {
+      setPlayingSong(index);
+      return;
+    }
+
+    setLoadingSong(index);
+    try {
+      const res = await fetch(`/api/search-music?q=${encodeURIComponent(song)}`);
+      const data = await res.json();
+      
+      if (data.videoId) {
+        setVideoIds({ ...videoIds, [index]: data.videoId });
+        setPlayingSong(index);
+      }
+    } catch (error) {
+      console.error("Failed to load song:", error);
+    } finally {
+      setLoadingSong(null);
+    }
+  }, [playingSong, videoIds]);
 
   const goTo = useCallback((index: number) => {
     if (index >= 0 && index < paginatedVideos.length) {
@@ -312,7 +343,17 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
           border="1px solid" borderColor="whiteAlpha.100" borderRadius="md" overflow="hidden" bg="background">
 
           {/* ── Main Player ── */}
-          <Box flex={1} minW={0} overflowY={{ base: "visible", lg: "auto" }} maxH={{ base: "none", lg: "calc(100vh - 160px)" }}>
+          <Box flex={1} minW={0} overflowY={{ base: "visible", lg: "auto" }} maxH={{ base: "none", lg: "calc(100vh - 160px)" }}
+            sx={{
+              "&::-webkit-scrollbar": { width: "8px" },
+              "&::-webkit-scrollbar-track": { bg: "transparent" },
+              "&::-webkit-scrollbar-thumb": { bg: "transparent", borderRadius: "md" },
+              "&:hover::-webkit-scrollbar-thumb": { bg: "whiteAlpha.300" },
+              "&:hover::-webkit-scrollbar-thumb:hover": { bg: "whiteAlpha.400" },
+              scrollbarWidth: "thin",
+              scrollbarColor: "transparent transparent",
+              "&:hover": { scrollbarColor: "rgba(255,255,255,0.3) transparent" }
+            }}>
             {/* Video frame */}
             <Box w="100%" sx={{ aspectRatio: "16 / 9" }} bg="background" position="relative" overflow="hidden">
               {activeVideo && (
@@ -388,22 +429,57 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
                         </Text>
                         <AccordionIcon />
                       </AccordionButton>
-                      <AccordionPanel px={0} py={2} maxH="300px" overflowY="auto">
+                      <AccordionPanel px={0} py={2} maxH="300px" overflowY="auto"
+                        sx={{
+                          "&::-webkit-scrollbar": { width: "6px" },
+                          "&::-webkit-scrollbar-track": { bg: "transparent" },
+                          "&::-webkit-scrollbar-thumb": { bg: "transparent", borderRadius: "md" },
+                          "&:hover::-webkit-scrollbar-thumb": { bg: "whiteAlpha.300" },
+                          scrollbarWidth: "thin",
+                          scrollbarColor: "transparent transparent",
+                          "&:hover": { scrollbarColor: "rgba(255,255,255,0.3) transparent" }
+                        }}>
                         <VStack align="stretch" spacing={1}>
                           {activeVideo.soundtrack.map((track, i) => (
-                            <HStack key={i} spacing={2} align="start">
-                              <Text fontFamily="mono" fontSize="2xs" color="gray.600" flexShrink={0}>
-                                {i + 1}.
-                              </Text>
-                              <VStack align="start" spacing={0} flex={1}>
-                                <Text fontFamily="mono" fontSize="2xs" color="text">{track.song}</Text>
-                                {track.part && (
-                                  <Text fontFamily="mono" fontSize="2xs" color="gray.500" fontStyle="italic">
-                                    {track.part}
+                            <Box key={i}>
+                              <HStack spacing={3} align="center" justify="space-between" p={2} borderRadius="sm"
+                                bg={playingSong === i ? "whiteAlpha.100" : "transparent"} _hover={{ bg: "whiteAlpha.50" }}>
+                                <HStack spacing={2} align="start" flex={1}>
+                                  <Text fontFamily="mono" fontSize="2xs" color="gray.600" flexShrink={0}>
+                                    {i + 1}.
                                   </Text>
-                                )}
-                              </VStack>
-                            </HStack>
+                                  <VStack align="start" spacing={0} flex={1}>
+                                    <Text fontFamily="mono" fontSize="2xs" color="text">{track.song}</Text>
+                                    {track.part && (
+                                      <Text fontFamily="mono" fontSize="2xs" color="gray.500" fontStyle="italic">
+                                        {track.part}
+                                      </Text>
+                                    )}
+                                  </VStack>
+                                </HStack>
+                                <IconButton
+                                  aria-label="Play song"
+                                  icon={loadingSong === i ? <Spinner size="xs" /> : <Icon as={FaPlay} boxSize={3} />}
+                                  size="xs"
+                                  variant="ghost"
+                                  color={playingSong === i ? "primary" : "gray.400"}
+                                  onClick={() => handlePlaySong(i, track.song)}
+                                  _hover={{ color: "primary" }}
+                                  isDisabled={loadingSong === i}
+                                />
+                              </HStack>
+                              {playingSong === i && videoIds[i] && (
+                                <Box mt={1} ml={6} p={2} bg="blackAlpha.400" borderRadius="sm">
+                                  <iframe
+                                    width="100%"
+                                    height="80"
+                                    src={`https://www.youtube.com/embed/${videoIds[i]}?autoplay=1&controls=1&modestbranding=1&rel=0`}
+                                    allow="autoplay; encrypted-media"
+                                    style={{ border: 0, borderRadius: "4px" }}
+                                  />
+                                </Box>
+                              )}
+                            </Box>
                           ))}
                         </VStack>
                       </AccordionPanel>
@@ -418,7 +494,17 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
           <Box w={{ base: "100%", lg: "420px" }} flexShrink={0} bg="background"
             borderLeft={{ base: "none", lg: "1px solid" }} borderTop={{ base: "1px solid", lg: "none" }}
             borderColor="whiteAlpha.100" display="flex" flexDirection="column"
-            maxH={{ base: "50vh", lg: "calc(100vh - 160px)" }} overflowY={{ base: "auto", lg: "hidden" }}>
+            maxH={{ base: "50vh", lg: "calc(100vh - 160px)" }} overflowY={{ base: "auto", lg: "hidden" }}
+            sx={{
+              "&::-webkit-scrollbar": { width: "8px" },
+              "&::-webkit-scrollbar-track": { bg: "transparent" },
+              "&::-webkit-scrollbar-thumb": { bg: "transparent", borderRadius: "md" },
+              "&:hover::-webkit-scrollbar-thumb": { bg: "whiteAlpha.300" },
+              "&:hover::-webkit-scrollbar-thumb:hover": { bg: "whiteAlpha.400" },
+              scrollbarWidth: "thin",
+              scrollbarColor: "transparent transparent",
+              "&:hover": { scrollbarColor: "rgba(255,255,255,0.3) transparent" }
+            }}>
 
             {/* Header */}
             <Box px={4} py={3} borderBottom="1px solid" borderColor="whiteAlpha.100">
@@ -434,7 +520,17 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
             </Box>
 
             {/* Playlist */}
-            <Box flex={1} overflowY="auto" py={1}>
+            <Box flex={1} overflowY="auto" py={1}
+              sx={{
+                "&::-webkit-scrollbar": { width: "8px" },
+                "&::-webkit-scrollbar-track": { bg: "transparent" },
+                "&::-webkit-scrollbar-thumb": { bg: "transparent", borderRadius: "md" },
+                "&:hover::-webkit-scrollbar-thumb": { bg: "whiteAlpha.300" },
+                "&:hover::-webkit-scrollbar-thumb:hover": { bg: "whiteAlpha.400" },
+                scrollbarWidth: "thin",
+                scrollbarColor: "transparent transparent",
+                "&:hover": { scrollbarColor: "rgba(255,255,255,0.3) transparent" }
+              }}>
               {paginatedVideos.map((video, i) => (
                 <Box key={video.slug} id={`cinema-item-${i}`}>
                   <PlaylistItem video={video} isActive={i === activeIndex} index={currentPage * VIDEOS_PER_PAGE + i} onClick={() => goTo(i)} />
