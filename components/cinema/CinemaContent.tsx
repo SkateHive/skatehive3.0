@@ -263,15 +263,15 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
                     <Image
                       src={logo}
                       alt={brand}
-                      h="16px"
+                      h="14px"
                       w="auto"
-                      maxW="40px"
+                      maxW="32px"
                       objectFit="contain"
                       filter={isActive ? "brightness(0)" : "brightness(0) invert(1)"}
-                      opacity={isActive ? 1 : 0.6}
+                      opacity={isActive ? 1 : 0.7}
                     />
                   )}
-                  {!logo && brand} ({count})
+                  {brand} ({count})
                 </Button>
               );
             })}
