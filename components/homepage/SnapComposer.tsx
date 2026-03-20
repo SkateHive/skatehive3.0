@@ -794,6 +794,67 @@ const SnapComposer = React.memo(function SnapComposer({
     setIsDragOver(false);
   }, []);
 
+  // Paste image handler (Ctrl+V / Cmd+V)
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const imageFiles: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+
+    if (imageFiles.length === 0) return; // Let normal text paste through
+    e.preventDefault();
+
+    startUpload();
+    for (const file of imageFiles) {
+      // Check file size
+      const maxSize = (file.type === "image/gif" || file.type === "image/webp") ? 15 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast({
+          title: t('compose.fileTooLarge') || "File too large",
+          description: `${file.name} is ${(file.size / (1024 * 1024)).toFixed(2)}MB. Maximum: ${maxSize / (1024 * 1024)}MB`,
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        continue;
+      }
+
+      if (file.type === "image/gif" || file.type === "image/webp") {
+        const fakeEvent = {
+          target: { files: [file] },
+        } as unknown as React.ChangeEvent<HTMLInputElement>;
+        await handleGifWebpUpload(fakeEvent);
+      } else {
+        try {
+          const options = {
+            maxSizeMB: 2,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+          };
+          const compressedFile = await imageCompression(file, options);
+          const url = URL.createObjectURL(compressedFile);
+          await handleCompressedImageUpload(url, compressedFile.name);
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          toast({
+            title: t('compose.compressionError') || "Compression error",
+            description: err instanceof Error ? err.message : String(err),
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      }
+    }
+    finishUpload();
+  }, [startUpload, finishUpload, toast, t, handleGifWebpUpload, handleCompressedImageUpload]);
+
   // Video upload logic in handleDrop
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -1005,6 +1066,7 @@ const SnapComposer = React.memo(function SnapComposer({
             _placeholder={{ color: "text" }}
             isDisabled={isLoading}
             onKeyDown={handleKeyDown} // Attach the keydown handler
+            onPaste={handlePaste}
             _focusVisible={{ border: "tb1" }}
           />
 

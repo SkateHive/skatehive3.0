@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Box, Textarea, HStack, IconButton, Button, Flex, Text, useColorModeValue } from "@chakra-ui/react";
 import { useDropzone } from "react-dropzone";
 import HiveMarkdown from "../shared/HiveMarkdown";
@@ -58,6 +58,24 @@ export default function MarkdownEditor({
     },
     multiple: false,
   });
+
+  // Paste image handler (Ctrl+V / Cmd+V)
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const imageFiles: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+
+    if (imageFiles.length === 0) return; // Let normal text paste through
+    e.preventDefault();
+    onDrop(imageFiles);
+  }, [onDrop]);
 
   const handleGifCreated = async (gifBlob: Blob, fileName: string) => {
     const gifFileName = fileName.endsWith('.gif') ? fileName : `${fileName}.gif`;
@@ -262,6 +280,7 @@ export default function MarkdownEditor({
                 id="markdown-textarea"
                 value={markdown}
                 onChange={(e) => setMarkdown(e.target.value)}
+                onPaste={handlePaste}
                 placeholder="Write your content here..."
                 variant="unstyled"
                 resize="none"
@@ -325,6 +344,7 @@ export default function MarkdownEditor({
               id="markdown-textarea"
               value={markdown}
               onChange={(e) => setMarkdown(e.target.value)}
+              onPaste={handlePaste}
               placeholder="Write your content here..."
               variant="unstyled"
               resize="none"
