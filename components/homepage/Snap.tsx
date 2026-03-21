@@ -134,11 +134,10 @@ const Snap = ({
   const [activeVotes, setActiveVotes] = useState(discussion.active_votes || []);
   const [commentCount, setCommentCount] = useState(discussion.children ?? 0);
   
-  // Refresh votes and comment count using dhive (real-time)
-  // Only refresh if visible (performance optimization)
+  // One-time refresh on mount (no polling to avoid API spam)
+  // Bridge API data shown immediately, then corrected once
   useEffect(() => {
     let mounted = true;
-    let interval: NodeJS.Timeout | null = null;
 
     const refreshData = async () => {
       try {
@@ -158,19 +157,16 @@ const Snap = ({
         }
       } catch (error) {
         // Silent fail - use Bridge API data as fallback
+        // CORS errors are expected from client-side
       }
     };
 
-    // Initial refresh after 1 second (let Bridge API data show first)
-    const timeout = setTimeout(refreshData, 1000);
-    
-    // Refresh every 30 seconds
-    interval = setInterval(refreshData, 30000);
+    // Single refresh after 2 seconds (let Bridge API data show first)
+    const timeout = setTimeout(refreshData, 2000);
 
     return () => {
       mounted = false;
       clearTimeout(timeout);
-      if (interval) clearInterval(interval);
     };
   }, [discussion.author, discussion.permlink]);
   
