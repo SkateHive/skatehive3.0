@@ -606,12 +606,11 @@ export async function findPosts(query: string, params: any[]) {
       observer: ''
     });
     
-    // Bridge API returns incorrect children counts (always 0)
-    // Enrich with correct counts from condenser_api as fallback
-    const { enrichCommentCounts } = await import('./enrichCommentCounts');
-    const enrichedPosts = await enrichCommentCounts(posts);
+    // Note: Bridge API returns incorrect children counts (always 0)
+    // Client-side components (e.g. Snap.tsx) handle enrichment via useEffect
+    // to avoid overwhelming build process with API calls
     
-    return enrichedPosts;
+    return posts;
   } catch (error) {
     console.error('Error fetching posts with Bridge API:', error);
     throw error;
