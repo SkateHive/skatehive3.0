@@ -22,6 +22,7 @@ import { LuArrowUp, LuArrowDown, LuDollarSign } from "react-icons/lu";
 import { useAioha } from "@aioha/react-ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getPayoutValue } from "@/lib/hive/client-functions";
+import HiveClient from "@/lib/hive/hiveclient";
 import { EnhancedMarkdownRenderer } from "@/components/markdown/EnhancedMarkdownRenderer";
 import { getPostDate } from "@/lib/utils/GetPostDate";
 import SnapComposer from "./SnapComposer";
@@ -131,11 +132,48 @@ const Snap = ({
 
   const [showSlider, setShowSlider] = useState(false);
   const [activeVotes, setActiveVotes] = useState(discussion.active_votes || []);
+  const [commentCount, setCommentCount] = useState(discussion.children ?? 0);
   
-  // Debug: log if votes are missing
-  if (process.env.NODE_ENV === 'development' && (!discussion.active_votes || discussion.active_votes.length === 0)) {
-    console.log(`⚠️ Snap ${discussion.author}/${discussion.permlink}: active_votes missing or empty`);
-  }
+  // Refresh votes and comment count using dhive (real-time)
+  // Only refresh if visible (performance optimization)
+  useEffect(() => {
+    let mounted = true;
+    let interval: NodeJS.Timeout | null = null;
+
+    const refreshData = async () => {
+      try {
+        const content = await HiveClient.call('condenser_api', 'get_content', [
+          discussion.author,
+          discussion.permlink
+        ]);
+
+        if (mounted && content) {
+          if (content.active_votes && Array.isArray(content.active_votes)) {
+            setActiveVotes(content.active_votes);
+          }
+          
+          if (typeof content.children === 'number') {
+            setCommentCount(content.children);
+          }
+        }
+      } catch (error) {
+        // Silent fail - use Bridge API data as fallback
+      }
+    };
+
+    // Initial refresh after 1 second (let Bridge API data show first)
+    const timeout = setTimeout(refreshData, 1000);
+    
+    // Refresh every 30 seconds
+    interval = setInterval(refreshData, 30000);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
+  }, [discussion.author, discussion.permlink]);
+  
   const [rewardAmount, setRewardAmount] = useState(
     parseFloat(getPayoutValue(discussion))
   );
@@ -157,7 +195,6 @@ const Snap = ({
     softPost?.user?.id || null
   );
 
-  const [commentCount, setCommentCount] = useState(discussion.children ?? 0);
   const effectiveDepth = discussion.depth || 0;
 
   const { text, media } = useMemo(
