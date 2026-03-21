@@ -3,16 +3,18 @@
 import React, { useState, useRef, useCallback } from "react";
 import {
   Box,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
   Text,
   HStack,
+  VStack,
   IconButton,
   Image,
   useToast,
   Icon,
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerBody,
+  DrawerCloseButton,
 } from "@chakra-ui/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAioha } from "@aioha/react-ui";
@@ -31,26 +33,17 @@ import {
   FiMap,
   FiCreditCard,
   FiSettings,
-  FiMail,
   FiAward,
   FiTarget,
   FiTrendingUp,
   FiPlay,
   FiZap,
+  FiVideo,
+  FiFilm,
+  FiUsers,
+  FiMail,
+  FiLogOut,
 } from "react-icons/fi";
-
-// Icon component for menu items - using the same icons as desktop sidebar
-const MenuIcon = ({
-  icon,
-}: {
-  icon: any;
-}) => {
-  return (
-    <Box display="inline-block">
-      <Icon as={icon} boxSize={6} color="primary" />
-    </Box>
-  );
-};
 
 export default function FooterNavButtons() {
   const router = useRouter();
@@ -145,6 +138,9 @@ export default function FooterNavButtons() {
   const actualFarcasterConnection =
     isFarcasterConnected || (isInMiniapp && !!miniappUser);
   const actualFarcasterProfile = farcasterProfile || miniappUser;
+
+  // Drawer state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Connection modal state with proper management
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
@@ -705,85 +701,104 @@ export default function FooterNavButtons() {
     return null;
   }
 
-  // Navigation items with their routes and names
-  const navigationItems = [
-    { icon: FiHome, onClick: () => router.push("/"), name: t('home') },
+  // Drawer navigation helper
+  const navigateTo = (path: string) => {
+    setIsDrawerOpen(false);
+    router.push(path);
+  };
+
+  // Logout handler
+  const handleLogout = async () => {
+    setIsDrawerOpen(false);
+    try {
+      if (user) {
+        const { aioha } = await import("@aioha/react-ui").then(m => ({ aioha: null }));
+        // Use the aioha instance from the hook context
+      }
+      if (isFarcasterConnected && clearSession) {
+        clearSession();
+      }
+      // Reload to clear all state
+      window.location.href = "/";
+    } catch {
+      window.location.href = "/";
+    }
+  };
+
+  // Grouped navigation matching sidebar structure
+  const navGroups = [
     {
-      icon: FiBook,
-      onClick: () => router.push("/blog"),
-      name: t('magazine'),
+      label: "PRIMARY",
+      items: [
+        { icon: FiHome, href: "/", name: t('home') },
+        { icon: FiBook, href: "/blog", name: t('magazine') },
+        { icon: FiAward, href: "/leaderboard", name: t('leaderboard') },
+      ],
     },
     {
-      icon: FiAward,
-      onClick: () => router.push("/leaderboard"),
-      name: t('leaderboard'),
+      label: "EXPLORE",
+      items: [
+        { icon: FiMap, href: "/map", name: t('skatespots') },
+        { icon: FiZap, href: "/tricks", name: "Tricks" },
+        { icon: FiVideo, href: "/videos", name: "Videos" },
+        { icon: FiFilm, href: "/cinema", name: "Cinema" },
+        { icon: FiUsers, href: "/skaters", name: "Skaters" },
+      ],
     },
     {
-      icon: FiMap,
-      onClick: () => router.push("/map"),
-      name: t('skatespots'),
+      label: "COMMUNITY",
+      items: [
+        { icon: FiTarget, href: "/bounties", name: t('bounties') },
+        { icon: FiPlay, href: "/games", name: "Games" },
+        { icon: FiTrendingUp, href: "/auction", name: t('auction') },
+        ...(user ? [{ icon: FiMail, href: "/invite", name: t('invite') }] : []),
+      ],
     },
     {
-      icon: FiTarget,
-      onClick: () => router.push("/bounties"),
-      name: t('bounties'),
-    },
-    {
-      icon: FiPlay,
-      onClick: () => router.push("/games"),
-      name: "Games",
-    },
-    {
-      icon: FiZap,
-      onClick: () => router.push("/tricks"),
-      name: "Tricks",
-    },
-    // Only show auction button if not already on auction page
-    ...(!pathname.startsWith("/auction")
-      ? [
-          {
-            icon: FiTrendingUp, // Using trending up icon for auction
-            onClick: () => router.push("/auction"),
-            name: t('auction'),
-          },
-        ]
-      : []),
-    // Notifications (conditional - only for logged in users)
-    ...(user
-      ? [
-          {
-            icon: FiBell,
-            onClick: () => router.push("/notifications"),
-            name: t('notifications'),
-            badge: newNotificationCount,
-          },
-        ]
-      : []),
-    {
-      icon: FiCreditCard,
-      onClick: () => router.push("/wallet"),
-      name: t('wallet'),
-    },
-    {
-      icon: FiSettings,
-      onClick: () => router.push("/settings"),
-      name: t('settings'),
-    },
-    {
-      icon: FiUser,
-      onClick: () => {
-        if (user) {
-          router.push(`/user/${user}?view=snaps`);
-        } else {
-          setIsConnectionModalOpen(true);
-        }
-      },
-      name: user ? t('profile') : tCommon('login'),
+      label: "SYSTEM",
+      items: [
+        ...(user
+          ? [
+              {
+                icon: FiBell,
+                href: "/notifications",
+                name: t('notifications'),
+                badge: newNotificationCount,
+              },
+            ]
+          : []),
+        { icon: FiCreditCard, href: "/wallet", name: t('wallet') },
+        { icon: FiSettings, href: "/settings", name: t('settings') },
+        {
+          icon: FiUser,
+          href: user ? `/user/${user}?view=snaps` : "",
+          name: user ? t('profile') : tCommon('login'),
+          onClick: user ? undefined : () => { setIsDrawerOpen(false); setIsConnectionModalOpen(true); },
+        },
+      ],
     },
   ];
 
+  // Section label component for drawer
+  const DrawerSectionLabel = ({ label }: { label: string }) => (
+    <Text
+      fontSize="10px"
+      fontWeight={600}
+      letterSpacing="0.12em"
+      textTransform="uppercase"
+      color="dim"
+      pl={4}
+      pt={3}
+      pb={1}
+      userSelect="none"
+    >
+      {label}
+    </Text>
+  );
+
   return (
     <>
+      {/* Floating draggable button */}
       <Box
         ref={dragRef}
         position="fixed"
@@ -808,281 +823,201 @@ export default function FooterNavButtons() {
             : "none",
         }}
       >
-        {/* Drag handles positioned around the button, not overlapping */}
-        <Box
-          position="absolute"
-          top="-15px"
-          left="50%"
-          transform="translateX(-50%)"
-          width="40px"
-          height="15px"
-          cursor={isDragging ? "grabbing" : "grab"}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
-          onClick={(e) => e.stopPropagation()}
-          borderRadius="none"
-          bg="rgba(255, 255, 255, 0.1)"
-          _hover={{ bg: "rgba(255, 255, 255, 0.2)" }}
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-        >
-          {/* Drag indicator dots */}
-          <Box display="flex" gap="2px">
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-          </Box>
-        </Box>
-
-        <Box
-          position="absolute"
-          bottom="-15px"
-          left="50%"
-          transform="translateX(-50%)"
-          width="40px"
-          height="15px"
-          cursor={isDragging ? "grabbing" : "grab"}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
-          onClick={(e) => e.stopPropagation()}
-          borderRadius="none"
-          bg="rgba(255, 255, 255, 0.1)"
-          _hover={{ bg: "rgba(255, 255, 255, 0.2)" }}
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-        >
-          {/* Drag indicator dots */}
-          <Box display="flex" gap="2px">
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-          </Box>
-        </Box>
-
-        <Box
-          position="absolute"
-          left="-15px"
-          top="50%"
-          transform="translateY(-50%)"
-          width="15px"
-          height="40px"
-          cursor={isDragging ? "grabbing" : "grab"}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
-          onClick={(e) => e.stopPropagation()}
-          borderRadius="none"
-          bg="rgba(255, 255, 255, 0.1)"
-          _hover={{ bg: "rgba(255, 255, 255, 0.2)" }}
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          flexDirection="column"
-        >
-          {/* Drag indicator dots */}
-          <Box display="flex" flexDirection="column" gap="2px">
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-          </Box>
-        </Box>
-
-        <Box
-          position="absolute"
-          right="-15px"
-          top="50%"
-          transform="translateY(-50%)"
-          width="15px"
-          height="40px"
-          cursor={isDragging ? "grabbing" : "grab"}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
-          onClick={(e) => e.stopPropagation()}
-          borderRadius="none"
-          bg="rgba(255, 255, 255, 0.1)"
-          _hover={{ bg: "rgba(255, 255, 255, 0.2)" }}
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          flexDirection="column"
-        >
-          {/* Drag indicator dots */}
-          <Box display="flex" flexDirection="column" gap="2px">
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-            <Box
-              w="3px"
-              h="3px"
-              bg="rgba(255, 255, 255, 0.6)"
-              borderRadius="full"
-            />
-          </Box>
-        </Box>
-
-        <Menu placement="top-end">
-          <MenuButton
-            as={IconButton}
-            aria-label={t('home') + " " + t('menu') || "Navigation Menu"}
-            icon={
-              <Image
-                src="/logos/SKATE_HIVE_CIRCLE.svg"
-                alt="SkateHive Navigation Menu"
-                transition="all 0.3s ease"
-                transform={isDragging ? "rotate(-2deg)" : "rotate(0deg)"}
-              />
-            }
-            bg="primary"
-            color="background"
-            borderRadius="full"
-            size="xl"
-            boxShadow={
-              isDragging
-                ? "0 0 8px 8px var(--chakra-colors-primary), 0 8px 32px rgba(0, 0, 0, 0.4)"
-                : "0 0 4px 4px var(--chakra-colors-primary)"
-            }
-            _hover={{
-              bg: "primary",
-              transform: isDragging ? "scale(1)" : "scale(1.10)",
-              boxShadow: isDragging
-                ? "0 0 8px 8px var(--chakra-colors-primary), 0 8px 32px rgba(0, 0, 0, 0.4)"
-                : "0 0 32px 16px var(--chakra-colors-primary)",
-            }}
-            _active={{ bg: "primary" }}
-            position="relative"
-            minW="64px"
-            minH="64px"
-            pointerEvents={isDragging ? "none" : "auto"}
-            sx={{
-              animation: isDragging ? "none" : "glowPump 2.2s infinite",
-              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-              "@keyframes glowPump": {
-                "0%": { boxShadow: "0 0 2px 2px var(--chakra-colors-primary)" },
-                "50%": {
-                  boxShadow: "0 0 4px 4px var(--chakra-colors-primary)",
-                },
-                "100%": {
-                  boxShadow: "0 0 2px 2px var(--chakra-colors-primary)",
-                },
-              },
-            }}
+        {/* Drag handles */}
+        {[
+          { pos: "top", style: { top: "-15px", left: "50%", transform: "translateX(-50%)", width: "40px", height: "15px" }, dir: "row" as const },
+          { pos: "bottom", style: { bottom: "-15px", left: "50%", transform: "translateX(-50%)", width: "40px", height: "15px" }, dir: "row" as const },
+          { pos: "left", style: { left: "-15px", top: "50%", transform: "translateY(-50%)", width: "15px", height: "40px" }, dir: "column" as const },
+          { pos: "right", style: { right: "-15px", top: "50%", transform: "translateY(-50%)", width: "15px", height: "40px" }, dir: "column" as const },
+        ].map((handle) => (
+          <Box
+            key={handle.pos}
+            position="absolute"
+            {...handle.style}
+            cursor={isDragging ? "grabbing" : "grab"}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onClick={(e) => e.stopPropagation()}
+            borderRadius="none"
+            bg="rgba(255, 255, 255, 0.1)"
+            _hover={{ bg: "rgba(255, 255, 255, 0.2)" }}
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            flexDirection={handle.dir}
           >
-            {newNotificationCount > 0 && (
-              <Box
-                position="absolute"
-                top="-8px"
-                right="-8px"
-                bg="red.500"
-                color="white"
-                borderRadius="full"
-                fontSize="md"
-                minW="28px"
-                h="28px"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                fontWeight="bold"
-              >
-                {newNotificationCount}
-              </Box>
-            )}
-          </MenuButton>
-          <MenuList
-            bg="background"
-            border="1px solid"
-            borderColor="primary"
-            boxShadow="xl"
-            maxH="400px"
-            overflowY="auto"
-          >
-            {navigationItems.map((item, index) => (
-              <MenuItem
-                key={index}
-                onClick={item.onClick}
-                _hover={{ bg: "muted", color: "secondary" }}
-                display="flex"
-                alignItems="center"
-                position="relative"
-                color="primary"
-                bg={"background"}
-              >
-                <HStack spacing={3} w="full">
-                  <MenuIcon icon={item.icon} />
-                  <Text fontWeight="medium">{item.name}</Text>
-                  {item.badge && item.badge > 0 && (
-                    <Box
-                      bg="red.500"
-                      color="white"
-                      borderRadius="full"
-                      fontSize="xs"
-                      px={2}
-                      py={0.5}
-                      ml="auto"
-                    >
-                      {item.badge}
-                    </Box>
-                  )}
-                </HStack>
-              </MenuItem>
-            ))}
-          </MenuList>
-        </Menu>
+            <Box display="flex" flexDirection={handle.dir} gap="2px">
+              {[0, 1, 2].map((i) => (
+                <Box key={i} w="3px" h="3px" bg="rgba(255, 255, 255, 0.6)" borderRadius="full" />
+              ))}
+            </Box>
+          </Box>
+        ))}
+
+        {/* Main button - opens drawer */}
+        <IconButton
+          aria-label="Navigation Menu"
+          onClick={() => !isDragging && setIsDrawerOpen(true)}
+          icon={
+            <Image
+              src="/logos/SKATE_HIVE_CIRCLE.svg"
+              alt="SkateHive Navigation Menu"
+              transition="all 0.3s ease"
+              transform={isDragging ? "rotate(-2deg)" : "rotate(0deg)"}
+            />
+          }
+          bg="primary"
+          color="background"
+          borderRadius="full"
+          size="xl"
+          boxShadow={
+            isDragging
+              ? "0 0 8px 8px var(--chakra-colors-primary), 0 8px 32px rgba(0, 0, 0, 0.4)"
+              : "0 0 4px 4px var(--chakra-colors-primary)"
+          }
+          _hover={{
+            bg: "primary",
+            transform: isDragging ? "scale(1)" : "scale(1.10)",
+            boxShadow: isDragging
+              ? "0 0 8px 8px var(--chakra-colors-primary), 0 8px 32px rgba(0, 0, 0, 0.4)"
+              : "0 0 32px 16px var(--chakra-colors-primary)",
+          }}
+          _active={{ bg: "primary" }}
+          position="relative"
+          minW="64px"
+          minH="64px"
+          pointerEvents={isDragging ? "none" : "auto"}
+          sx={{
+            animation: isDragging ? "none" : "glowPump 2.2s infinite",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            "@keyframes glowPump": {
+              "0%": { boxShadow: "0 0 2px 2px var(--chakra-colors-primary)" },
+              "50%": { boxShadow: "0 0 4px 4px var(--chakra-colors-primary)" },
+              "100%": { boxShadow: "0 0 2px 2px var(--chakra-colors-primary)" },
+            },
+          }}
+        >
+          {newNotificationCount > 0 && (
+            <Box
+              position="absolute"
+              top="-8px"
+              right="-8px"
+              bg="red.500"
+              color="white"
+              borderRadius="full"
+              fontSize="md"
+              minW="28px"
+              h="28px"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              fontWeight="bold"
+            >
+              {newNotificationCount}
+            </Box>
+          )}
+        </IconButton>
       </Box>
+
+      {/* Navigation Drawer */}
+      <Drawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} placement="left" size="xs">
+        <DrawerOverlay bg="blackAlpha.700" />
+        <DrawerContent bg="background" borderRight="1px solid" borderColor="primary">
+          <DrawerCloseButton color="primary" />
+
+          {/* Logo */}
+          <Box pl={4} pt={4} pb={2}>
+            <Image
+              src="/logos/SKATE_HIVE_CIRCLE.svg"
+              alt="SkateHive"
+              w="48px"
+              h="48px"
+              cursor="pointer"
+              onClick={() => navigateTo("/")}
+            />
+          </Box>
+
+          <DrawerBody px={0} overflowY="auto">
+            <VStack spacing={0} align="stretch">
+              {navGroups.map((group) => (
+                <Box key={group.label}>
+                  <DrawerSectionLabel label={group.label} />
+                  <VStack spacing={0} align="stretch">
+                    {group.items.map((item) => {
+                      const isActive = item.href === "/"
+                        ? pathname === "/"
+                        : item.href && pathname?.startsWith(item.href);
+                      return (
+                        <Box
+                          key={item.href || item.name}
+                          display="flex"
+                          alignItems="center"
+                          pl={4}
+                          py={1.5}
+                          cursor="pointer"
+                          color={isActive ? "background" : "text"}
+                          bg={isActive ? "primary" : "transparent"}
+                          _hover={{ bg: "primary", color: "background" }}
+                          transition="all 0.15s ease"
+                          onClick={() => {
+                            if (item.onClick) {
+                              item.onClick();
+                            } else {
+                              navigateTo(item.href);
+                            }
+                          }}
+                        >
+                          <HStack spacing={3}>
+                            <Box position="relative">
+                              <Icon as={item.icon} boxSize={4} />
+                              {item.badge && item.badge > 0 ? (
+                                <Box
+                                  position="absolute"
+                                  top="-4px"
+                                  right="-6px"
+                                  bg="red.500"
+                                  borderRadius="full"
+                                  w="8px"
+                                  h="8px"
+                                />
+                              ) : null}
+                            </Box>
+                            <Text fontSize="sm">{item.name}</Text>
+                          </HStack>
+                        </Box>
+                      );
+                    })}
+                  </VStack>
+                </Box>
+              ))}
+
+              {/* Logout option */}
+              {(user || isFarcasterConnected) && (
+                <Box pt={4}>
+                  <DrawerSectionLabel label="" />
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    pl={4}
+                    py={1.5}
+                    cursor="pointer"
+                    color="error"
+                    _hover={{ bg: "primary", color: "background" }}
+                    transition="all 0.15s ease"
+                    onClick={handleLogout}
+                  >
+                    <HStack spacing={3}>
+                      <Icon as={FiLogOut} boxSize={4} />
+                      <Text fontSize="sm">Logout</Text>
+                    </HStack>
+                  </Box>
+                </Box>
+              )}
+            </VStack>
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
+
       <HiveLoginModal
         isOpen={modalDisplayed}
         onClose={() => setModalDisplayed(false)}
@@ -1094,11 +1029,9 @@ export default function FooterNavButtons() {
         onHiveLogin={handleHiveLogin}
         onFarcasterConnect={handleFarcasterConnect}
         isFarcasterAuthInProgress={isFarcasterAuthInProgress}
-        // Pass the actual connection states to avoid hook duplication
         actualFarcasterConnection={actualFarcasterConnection}
         actualFarcasterProfile={actualFarcasterProfile}
       />
-      {/* Farcaster Auth Island (provides auth methods via window) */}
       <FarcasterAuthIsland
         onSuccess={handleFarcasterSuccess}
         onError={handleFarcasterError}

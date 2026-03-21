@@ -20,7 +20,6 @@ import { Discussion } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
 import { extractImageUrls } from "@/lib/utils/extractImageUrls";
 import NextLink from "next/link";
-import HubNavigation from "@/components/shared/HubNavigation";
 import { trackLandingPageVisit } from "@/lib/analytics/events";
 
 export default function SkateshopsContent() {
@@ -76,9 +75,6 @@ export default function SkateshopsContent() {
   return (
     <Box minH="100vh" py={8}>
       <Container maxW="container.xl">
-        {/* Hub Navigation */}
-        <HubNavigation />
-
         {/* Hero Section */}
         <VStack spacing={4} mb={10} textAlign="center">
           <Heading

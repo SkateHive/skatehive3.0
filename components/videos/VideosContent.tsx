@@ -30,7 +30,6 @@ import { extractImageUrls } from "@/lib/utils/extractImageUrls";
 import { parsePayout } from "@/lib/utils/postUtils";
 import { getPostDate } from "@/lib/utils/GetPostDate";
 import NextLink from "next/link";
-import HubNavigation from "@/components/shared/HubNavigation";
 import {
   FaYoutube,
   FaVideo,
@@ -770,7 +769,6 @@ export default function VideosContent() {
     return (
       <Box minH="100vh">
         <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
-          <HubNavigation />
           <Center py={20}>
             <VStack spacing={3}>
               <Spinner size="lg" color="primary" />
@@ -788,7 +786,6 @@ export default function VideosContent() {
     return (
       <Box minH="100vh">
         <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
-          <HubNavigation />
           <Center py={20}>
             <VStack spacing={2}>
               <Icon as={FaVideo} boxSize={8} color="gray.600" />
@@ -805,8 +802,6 @@ export default function VideosContent() {
   return (
     <Box minH="100vh">
       <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
-        <HubNavigation />
-
         <Flex
           direction={{ base: "column", lg: "row" }}
           gap={0}

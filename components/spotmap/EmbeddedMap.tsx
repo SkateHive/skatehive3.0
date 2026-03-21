@@ -25,7 +25,7 @@ import SpotList from "@/components/spotmap/SpotList";
 import { useSkatespots } from "@/hooks/useSkatespots";
 import { Discussion } from "@hiveio/dhive";
 import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
-import HubNavigation from "@/components/shared/HubNavigation";
+
 
 const DEFAULT_MAP_SRC =
   "https://www.google.com/maps/d/u/1/embed?mid=1iiXzotKL-uJ3l7USddpTDvadGII&hl=en&ll=29.208380630280647%2C-100.5437214508988&z=4";
@@ -211,11 +211,6 @@ export default function EmbeddedMap({
   return (
     <>
       <Box height="auto" overflow="visible">
-        {/* Hub Navigation */}
-        <Box p={{ base: 2, md: 4 }} pb={0}>
-          <HubNavigation />
-        </Box>
-
         {/* Header — SEO-friendly with visible text */}
         <Box
           position={{ base: "relative", md: "sticky" }}

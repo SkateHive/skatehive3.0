@@ -26,6 +26,7 @@ import {
   FiVideo,
   FiFilm,
   FiUsers,
+  FiMail,
 } from "react-icons/fi";
 import { useTheme } from "@/app/themeProvider";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -130,6 +131,12 @@ export default function Sidebar() {
           prefetch: false,
         },
         { href: "/games", icon: FiPlay, label: "Games", prefetch: false },
+        {
+          href: "/invite",
+          icon: FiMail,
+          label: t("invite"),
+          show: canUseAppFeatures,
+        },
       ],
     },
     {

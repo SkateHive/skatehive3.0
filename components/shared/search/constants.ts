@@ -15,6 +15,7 @@ import {
   FaUser,
   FaGift,
   FaGamepad,
+  FaStore,
 } from "react-icons/fa";
 import { PageResult } from "./types";
 import { ETH_ADDRESSES } from "@/config/app.config";
@@ -82,6 +83,12 @@ export const STATIC_PAGES: PageResult[] = [
     path: "/map",
     description: "Discover skateboarding spots around the world",
     icon: FaMapMarkerAlt,
+  },
+  {
+    title: "Skate Shops",
+    path: "/skateshops",
+    description: "Find local skateboard shops and gear stores",
+    icon: FaStore,
   },
   {
     title: "Leaderboard",

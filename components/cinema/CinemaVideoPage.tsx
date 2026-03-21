@@ -14,7 +14,7 @@ import {
   Spinner,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
-import HubNavigation from "@/components/shared/HubNavigation";
+
 import { FaFilm, FaArrowLeft, FaExternalLinkAlt, FaPlay } from "react-icons/fa";
 import { SiOdysee } from "react-icons/si";
 
@@ -75,8 +75,6 @@ export default function CinemaVideoPage({
   return (
     <Box minH="100vh">
       <Container maxW="container.lg" px={{ base: 2, md: 4 }}>
-        <HubNavigation />
-
         {/* Back link */}
         <ChakraLink as={NextLink} href="/cinema" fontFamily="mono" fontSize="xs" color="gray.500"
           _hover={{ color: "primary", textDecoration: "none" }} display="inline-flex" alignItems="center" gap={1} mb={4}>

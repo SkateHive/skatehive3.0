@@ -24,7 +24,7 @@ import {
   Spinner,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
-import HubNavigation from "@/components/shared/HubNavigation";
+
 import {
   FaPlay,
   FaStepForward,
@@ -280,8 +280,6 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
   return (
     <Box minH="100vh">
       <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
-        <HubNavigation />
-
         {/* Brand Filter Bar */}
         <Box position="relative" mb={4}>
           <IconButton

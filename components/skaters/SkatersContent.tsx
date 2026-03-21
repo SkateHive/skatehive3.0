@@ -23,7 +23,6 @@ import {
 import { FaSearch, FaMapMarkerAlt, FaGlobe, FaTh } from "react-icons/fa";
 import HiveClient from "@/lib/hive/hiveclient";
 import NextLink from "next/link";
-import HubNavigation from "@/components/shared/HubNavigation";
 
 type SkaterProfile = {
   username: string;
@@ -220,8 +219,6 @@ export default function SkatersContent() {
   return (
     <Box minH="100vh" py={8}>
       <Container maxW="container.xl">
-        <HubNavigation />
-
         {/* Hero */}
         <VStack spacing={4} mb={8} textAlign="center">
           <Heading
