@@ -22,6 +22,7 @@ import { APP_CONFIG } from "@/config/app.config";
 import { ClickSoundProvider } from "./clickSoundProvider";
 import { SoundSettingsProvider } from "@/contexts/SoundSettingsContext";
 import UserbaseWalletBootstrapper from "@/components/userbase/UserbaseWalletBootstrapper";
+import { FarcasterFrameInit } from "@/components/providers/FarcasterFrameInit";
 
 const aioha = new Aioha();
 
@@ -104,6 +105,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                           <VoteWeightProvider>
                             <WindowProvider>
                               <CSSReset />
+                              <FarcasterFrameInit />
                               <UserbaseWalletBootstrapper />
                               {children}
                             </WindowProvider>
