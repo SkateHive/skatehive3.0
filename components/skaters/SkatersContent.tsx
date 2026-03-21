@@ -108,8 +108,8 @@ export default function SkatersContent() {
   const loadSkaters = async () => {
     setIsLoading(true);
     try {
-      // Pull from two sources in parallel for maximum coverage
-      const [subscribersRaw, postsRaw] = await Promise.allSettled([
+      // Pull from multiple sources for maximum coverage
+      const [subscribersRaw, recentPostsRaw, trendingPostsRaw] = await Promise.allSettled([
         HiveClient.call("bridge", "list_subscribers", {
           community: "hive-173115",
           limit: 100,
@@ -117,7 +117,12 @@ export default function SkatersContent() {
         HiveClient.call("bridge", "get_ranked_posts", {
           sort: "created",
           tag: "hive-173115",
-          limit: 100,
+          limit: 200, // Increased to catch more authors
+        }),
+        HiveClient.call("bridge", "get_ranked_posts", {
+          sort: "trending",
+          tag: "hive-173115",
+          limit: 100, // Get active/popular authors too
         }),
       ]);
 
@@ -131,13 +136,19 @@ export default function SkatersContent() {
         }
       }
 
-      if (postsRaw.status === "fulfilled" && Array.isArray(postsRaw.value)) {
-        for (const post of postsRaw.value) {
+      if (recentPostsRaw.status === "fulfilled" && Array.isArray(recentPostsRaw.value)) {
+        for (const post of recentPostsRaw.value) {
           if (post?.author) usernameSet.add(post.author);
         }
       }
 
-      const usernames = Array.from(usernameSet).slice(0, 150);
+      if (trendingPostsRaw.status === "fulfilled" && Array.isArray(trendingPostsRaw.value)) {
+        for (const post of trendingPostsRaw.value) {
+          if (post?.author) usernameSet.add(post.author);
+        }
+      }
+
+      const usernames = Array.from(usernameSet).slice(0, 250); // Increased limit
       const profiles = await fetchAccountsBatched(usernames);
 
       // Sort by location presence first, then by post count
