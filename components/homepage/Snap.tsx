@@ -22,7 +22,7 @@ import { LuArrowUp, LuArrowDown, LuDollarSign } from "react-icons/lu";
 import { useAioha } from "@aioha/react-ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getPayoutValue } from "@/lib/hive/client-functions";
-import HiveClient from "@/lib/hive/hiveclient";
+import { callHiveApi } from "@/lib/hive/client-proxy";
 import { EnhancedMarkdownRenderer } from "@/components/markdown/EnhancedMarkdownRenderer";
 import { getPostDate } from "@/lib/utils/GetPostDate";
 import SnapComposer from "./SnapComposer";
@@ -141,7 +141,7 @@ const Snap = ({
 
     const refreshData = async () => {
       try {
-        const content = await HiveClient.call('condenser_api', 'get_content', [
+        const content = await callHiveApi('condenser_api.get_content', [
           discussion.author,
           discussion.permlink
         ]);
