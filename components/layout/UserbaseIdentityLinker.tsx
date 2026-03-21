@@ -243,7 +243,7 @@ export default function UserbaseIdentityLinker({
     } finally {
       setLinkingType(null);
     }
-  }, [hiveHandle, aioha, fetchIdentities, refresh, bumpIdentitiesVersion, onLinked, toast, t]);
+  }, [hiveHandle, aioha, fetchIdentities, refresh, bumpIdentitiesVersion, onLinked, toast, t, confirm]);
 
   const linkFarcaster = useCallback(async () => {
     if (!farcasterFid) return;

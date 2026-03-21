@@ -285,7 +285,7 @@ const SnapComposer = React.memo(function SnapComposer({
   };
 
   // Handler for compressed image upload
-  const handleCompressedImageUpload = async (
+  const handleCompressedImageUpload = useCallback(async (
     url: string | null,
     fileName?: string
   ) => {
@@ -300,7 +300,7 @@ const SnapComposer = React.memo(function SnapComposer({
         type: blob.type,
       });
       console.log('🖼️ [SnapComposer] Created file:', file.name, 'type:', file.type, 'size:', file.size);
-      
+
       // SEO: Prompt user for image description
       const userDescription = await prompt(
         'Describe this image (for SEO & accessibility):',
@@ -311,7 +311,7 @@ const SnapComposer = React.memo(function SnapComposer({
           confirmColor: 'limegreen',
         }
       );
-      
+
       // Generate alt text (caption)
       let caption = '';
       if (userDescription && userDescription.trim()) {
@@ -324,12 +324,12 @@ const SnapComposer = React.memo(function SnapComposer({
           .replace(/\d{8,}/g, '')  // Remove timestamps
           .trim() || 'Skateboarding photo';
       }
-      
+
       // Ensure meaningful caption (min 10 chars)
       if (caption.length < 10) {
         caption = 'Skateboarding photo';
       }
-      
+
       console.log('🖼️ [SnapComposer] Uploading image (Hive → IPFS fallback)...');
 
       const uploadUrl = await uploadImageWithFallback(
@@ -353,9 +353,9 @@ const SnapComposer = React.memo(function SnapComposer({
       setIsLoading(false);
       finishUpload();
     }
-  };
+  }, [startUpload, finishUpload, prompt, compressedImages.length, t]);
 
-  const handleGifWebpUpload = async (
+  const handleGifWebpUpload = useCallback(async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
@@ -405,7 +405,7 @@ const SnapComposer = React.memo(function SnapComposer({
       finishUpload();
       e.target.value = ""; // Reset input
     }
-  };
+  }, [startUpload, finishUpload, toast, t, compressedImages.length]);
 
   // Simple video upload handler for ref-based input
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

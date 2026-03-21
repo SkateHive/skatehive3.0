@@ -438,7 +438,7 @@ export default function AccountLinkingModal({
     } finally {
       setLinkingType(null);
     }
-  }, [aioha, toast, bumpIdentitiesVersion, refresh, refreshUserbase, routeAfterLink, checkProfileMismatch, showSyncPrompt]);
+  }, [aioha, toast, bumpIdentitiesVersion, refresh, refreshUserbase, routeAfterLink, checkProfileMismatch, showSyncPrompt, confirm]);
 
   const linkEvm = useCallback(async (address: string) => {
     setLinkingType("evm");
@@ -619,7 +619,7 @@ export default function AccountLinkingModal({
     } finally {
       setLinkingType(null);
     }
-  }, [farcasterProfile, toast, bumpIdentitiesVersion, refresh, refreshUserbase, routeAfterLink]);
+  }, [farcasterProfile, toast, bumpIdentitiesVersion, refresh, refreshUserbase, routeAfterLink, confirm]);
 
   const handleLink = useCallback((opportunity: LinkingOpportunity) => {
     if (opportunity.type === "hive" && opportunity.handle) {

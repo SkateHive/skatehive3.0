@@ -199,13 +199,197 @@ export interface ProfileData {
   svs_profile?: string;
 }
 
+// Wrapper that isolates useFollowStatus + context hooks from ProfilePage.
+// Owns useAioha, useUserbaseAuth, useViewerHiveIdentity so their context
+// updates only re-render this wrapper, not the entire ProfilePage tree.
+const ProfileHeaderWithFollow = memo(function ProfileHeaderWithFollow({
+  followTarget,
+  isHiveProfile,
+  hiveLookupHandle,
+  userbaseUser: userbaseUserProp,
+  ...rest
+}: {
+  followTarget: string;
+  isHiveProfile: boolean;
+  hiveLookupHandle: string;
+  userbaseUser: { id: string } | null;
+} & Omit<
+  React.ComponentProps<typeof ProfileHeader>,
+  | "isFollowing"
+  | "isFollowLoading"
+  | "onFollowingChange"
+  | "onLoadingChange"
+  | "user"
+  | "isOwner"
+  | "isUserbaseOwner"
+  | "viewerHiveUsername"
+>) {
+  useProfileDebug("ProfileHeaderWithFollow");
+
+  // Context hooks — isolated here so their updates don't cascade to ProfilePage
+  const { user } = useAioha();
+  const { user: currentUserbaseUser } = useUserbaseAuth();
+  const viewerHiveUsername = useViewerHiveIdentity();
+
+  const { isFollowing, isFollowLoading, updateFollowing, updateLoading } =
+    useFollowStatus(isHiveProfile ? user : null, followTarget);
+
+  const isOwner = useMemo(
+    () => (isHiveProfile ? user === hiveLookupHandle : false),
+    [user, hiveLookupHandle, isHiveProfile]
+  );
+  const isUserbaseOwner = useMemo(
+    () =>
+      !!(
+        currentUserbaseUser &&
+        userbaseUserProp &&
+        currentUserbaseUser.id === userbaseUserProp.id
+      ),
+    [currentUserbaseUser, userbaseUserProp]
+  );
+
+  return (
+    <ProfileHeader
+      {...rest}
+      user={isHiveProfile ? user : null}
+      isOwner={isOwner}
+      isUserbaseOwner={isUserbaseOwner}
+      isFollowing={isFollowing}
+      isFollowLoading={isFollowLoading}
+      onFollowingChange={updateFollowing}
+      onLoadingChange={updateLoading}
+      viewerHiveUsername={viewerHiveUsername}
+    />
+  );
+});
+
+// Wrapper that isolates useProfilePosts state changes from ProfilePage
+// Also owns MagazineModal since it needs combinedPosts
+const ContentViewsWithData = memo(function ContentViewsWithData({
+  hivePostsHandle,
+  viewMode,
+  softPages,
+  softSnaps,
+  softPostsLoading,
+  videoPartsProps,
+  username,
+  snapsUsername,
+  ethereumAddress,
+  hasHiveProfile,
+  farcasterFid,
+  farcasterUsername,
+  magazineProps,
+  closeMagazine,
+}: {
+  hivePostsHandle: string;
+  viewMode: string;
+  softPages: Discussion[];
+  softSnaps: Discussion[];
+  softPostsLoading: boolean;
+  videoPartsProps: {
+    profileData: ProfileData;
+    username: string;
+    onProfileUpdate: (data: Partial<ProfileData>) => void;
+  };
+  username: string;
+  snapsUsername: string | null;
+  ethereumAddress?: string;
+  hasHiveProfile: boolean;
+  farcasterFid: number | null;
+  farcasterUsername: string | null;
+  magazineProps: {
+    hiveUsername: string;
+    zineCover?: string;
+    userProfileImage: string;
+    displayName: string;
+    userLocation: string;
+  };
+  closeMagazine: () => void;
+}) {
+  useProfileDebug("ContentViewsWithData");
+  // Fetch Hive posts only when on a tab that needs them
+  const needsHivePosts = !["casts", "tokens"].includes(viewMode);
+  const {
+    posts: hivePosts,
+    fetchPosts: fetchHivePosts,
+    isLoading: postsLoading,
+  } = useProfilePosts(hivePostsHandle, needsHivePosts);
+
+  const combinedPosts = useMemo(() => {
+    if (!["grid", "list", "magazine"].includes(viewMode)) {
+      return [];
+    }
+    return [...hivePosts, ...softPages].sort(
+      (a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()
+    );
+  }, [hivePosts, softPages, viewMode]);
+
+  const postProps = useMemo(() => {
+    if (!["grid", "list"].includes(viewMode)) {
+      return {
+        allPosts: [],
+        fetchPosts: () => Promise.resolve(),
+        viewMode: "grid" as const,
+        context: "profile" as const,
+        hideAuthorInfo: true,
+        isLoading: false,
+        hasMore: false,
+      };
+    }
+
+    return {
+      allPosts: combinedPosts,
+      fetchPosts: hivePostsHandle ? fetchHivePosts : () => Promise.resolve(),
+      viewMode: viewMode as "grid" | "list",
+      context: "profile" as const,
+      hideAuthorInfo: true,
+      isLoading: postsLoading || softPostsLoading,
+      hasMore: Boolean(hivePostsHandle),
+    };
+  }, [
+    combinedPosts,
+    fetchHivePosts,
+    viewMode,
+    postsLoading,
+    softPostsLoading,
+    hivePostsHandle,
+  ]);
+
+  return (
+    <>
+      {viewMode === "magazine" && (
+        <MagazineModal
+          isOpen={viewMode === "magazine"}
+          onClose={closeMagazine}
+          hiveUsername={magazineProps.hiveUsername}
+          posts={combinedPosts}
+          zineCover={magazineProps.zineCover}
+          userProfileImage={magazineProps.userProfileImage}
+          displayName={magazineProps.displayName}
+          userLocation={magazineProps.userLocation}
+        />
+      )}
+      <ContentViews
+        viewMode={viewMode}
+        postProps={postProps}
+        videoPartsProps={videoPartsProps}
+        username={username}
+        snapsUsername={snapsUsername}
+        softSnaps={softSnaps}
+        ethereumAddress={ethereumAddress}
+        hasHiveProfile={hasHiveProfile}
+        farcasterFid={farcasterFid}
+        farcasterUsername={farcasterUsername}
+      />
+    </>
+  );
+});
+
 const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const debug = useProfileDebug("ProfilePage");
 
   const { profile: userbaseProfile, isLoading: userbaseLoading, refresh: refreshUserbaseProfile } =
     useUserbaseProfile(username);
-  const { user: currentUserbaseUser } = useUserbaseAuth();
-  const viewerHiveUsername = useViewerHiveIdentity();
   const userbaseUser = userbaseProfile?.user ?? null;
   const userbaseIdentities = useMemo(
     () => userbaseProfile?.identities ?? [],
@@ -265,7 +449,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const isEvmAddress = /^0x[a-fA-F0-9]{40}$/.test(username);
   const hiveLookupHandle = hiveIdentityHandle || (isEvmAddress ? "" : username);
   const { hiveAccount, isLoading, error } = useHiveAccount(hiveLookupHandle);
-  const { user } = useAioha();
   const tCommon = useTranslations("common");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUserbaseEditModalOpen, setIsUserbaseEditModalOpen] = useState(false);
@@ -279,18 +462,9 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     hiveAccount
   );
   const followTarget = hiveAccount ? hiveLookupHandle : "";
-  const { isFollowing, isFollowLoading, updateFollowing, updateLoading } =
-    useFollowStatus(user, followTarget);
   const hivePostsHandle = hiveIdentityHandle || (hiveAccount ? hiveLookupHandle : "");
   const { viewMode, handleViewModeChange, closeMagazine } = useViewMode();
 
-  // Only fetch Hive posts when on a tab that needs them (not Casts or Tokens)
-  const needsHivePosts = !["casts", "tokens"].includes(viewMode);
-  const {
-    posts: hivePosts,
-    fetchPosts: fetchHivePosts,
-    isLoading: postsLoading,
-  } = useProfilePosts(hivePostsHandle, needsHivePosts);
   const isMobile = useIsMobile();
 
   // Debounce timer ref for view mode changes
@@ -319,14 +493,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     [softPosts]
   );
   const hasSoftSnaps = softSnaps.length > 0;
-  const isOwner = useMemo(
-    () => (isHiveProfile ? user === hiveLookupHandle : false),
-    [user, hiveLookupHandle, isHiveProfile]
-  );
-  const isUserbaseOwner = useMemo(
-    () => !!(currentUserbaseUser && userbaseUser && currentUserbaseUser.id === userbaseUser.id),
-    [currentUserbaseUser, userbaseUser]
-  );
 
   // EVM Address Priority:
   // 1. Best linked EVM identity (Hive wallets > Farcaster verified > Custody)
@@ -514,61 +680,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     [handleViewModeChange]
   );
 
-  // Memoize follow-related props to prevent ProfileHeader re-renders
-  const followProps = useMemo(
-    () => ({
-      isFollowing,
-      isFollowLoading,
-      onFollowingChange: updateFollowing,
-      onLoadingChange: updateLoading,
-    }),
-    [isFollowing, isFollowLoading, updateFollowing, updateLoading]
-  );
-
-  // Memoize chronologically sorted posts - only when needed for grid/list views
-  const combinedPosts = useMemo(() => {
-    // Skip expensive sorting if we're in snaps, videoparts or tokens mode
-    if (!["grid", "list", "magazine"].includes(viewMode)) {
-      return [];
-    }
-    return [...hivePosts, ...softPages].sort(
-      (a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()
-    );
-  }, [hivePosts, softPages, viewMode]);
-
-  // Memoize post-related props - only when needed for grid/list views
-  const postProps = useMemo(() => {
-    // Skip creating props if not in grid/list mode
-    if (!["grid", "list"].includes(viewMode)) {
-      return {
-        allPosts: [],
-        fetchPosts: () => Promise.resolve(),
-        viewMode: "grid" as const,
-        context: "profile" as const,
-        hideAuthorInfo: true,
-        isLoading: false,
-        hasMore: false,
-      };
-    }
-
-    return {
-      allPosts: combinedPosts,
-      fetchPosts: hivePostsHandle ? fetchHivePosts : () => Promise.resolve(),
-      viewMode: viewMode as "grid" | "list",
-      context: "profile" as const,
-      hideAuthorInfo: true,
-      isLoading: postsLoading || softPostsLoading,
-      hasMore: Boolean(hivePostsHandle),
-    };
-  }, [
-    combinedPosts,
-    fetchHivePosts,
-    viewMode,
-    postsLoading,
-    softPostsLoading,
-    hivePostsHandle,
-  ]);
-
   // Memoize video parts props
   const videoPartsProps = useMemo(
     () => ({
@@ -579,35 +690,13 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     [activeProfileData, hiveAccount, profileData, hiveLookupHandle, username, updateProfileData]
   );
 
-  const debugPayload = useMemo(() => {
-    // Debug payload available in all environments for profile debugging
-    return {
-      username,
-      viewMode,
-      isHiveProfile,
-      isOwner,
-      isUserbaseOwner,
-      currentUserbaseUserId: currentUserbaseUser?.id || null,
-      canShowHiveViews,
-      hiveLookupHandle,
-      hiveIdentityHandle,
-      hivePostsHandle,
-      userbaseMatch,
-      userbaseUser,
-      userbaseIdentities,
-      resolvedEthereumAddress,
-      hiveAccountName: hiveAccount?.name || null,
-      hiveAccountMetadata: hiveAccount?.metadata || null,
-      profileData: activeProfileData,
-      liteProfileData,
-    };
-  }, [
+  // Use ref for debug payload — mutate in-place to keep stable object identity
+  // so ProfileHeader's memo comparator (=== check) always passes for debugPayload
+  const debugPayloadRef = useRef<Record<string, any>>({});
+  Object.assign(debugPayloadRef.current, {
     username,
     viewMode,
     isHiveProfile,
-    isOwner,
-    isUserbaseOwner,
-    currentUserbaseUser?.id,
     canShowHiveViews,
     hiveLookupHandle,
     hiveIdentityHandle,
@@ -616,10 +705,11 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     userbaseUser,
     userbaseIdentities,
     resolvedEthereumAddress,
-    hiveAccount,
-    activeProfileData,
+    hiveAccountName: hiveAccount?.name || null,
+    hiveAccountMetadata: hiveAccount?.metadata || null,
+    profileData: activeProfileData,
     liteProfileData,
-  ]);
+  });
 
   const headerUsername = useMemo(() => {
     if (isHiveProfile) {
@@ -634,6 +724,18 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     }
     return username;
   }, [isHiveProfile, hiveLookupHandle, username, hiveIdentityHandle, userbaseUser?.handle]);
+
+  // Memoize magazine props to prevent ContentViewsWithData re-renders
+  const magazineProps = useMemo(
+    () => ({
+      hiveUsername: hiveLookupHandle || username,
+      zineCover: activeProfileData.zineCover,
+      userProfileImage: activeProfileData.profileImage,
+      displayName: activeProfileData.name,
+      userLocation: activeProfileData.location,
+    }),
+    [hiveLookupHandle, username, activeProfileData.zineCover, activeProfileData.profileImage, activeProfileData.name, activeProfileData.location]
+  );
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -668,7 +770,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
 
   const isProfileResolved =
     isHiveProfile || Boolean(userbaseUser) || isEvmAddress;
-  
+
   if (!isProfileResolved && (isLoading || userbaseLoading)) {
     return (
       <Box
@@ -700,19 +802,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
 
   return (
     <>
-      {/* Magazine Modal - Only render when needed with performance optimization */}
-      {viewMode === "magazine" && (
-          <MagazineModal
-            isOpen={viewMode === "magazine"}
-            onClose={throttledCloseMagazine}
-            hiveUsername={hiveLookupHandle || username}
-            posts={combinedPosts}
-            zineCover={activeProfileData.zineCover}
-            userProfileImage={activeProfileData.profileImage}
-            displayName={activeProfileData.name}
-            userLocation={activeProfileData.location}
-          />
-        )}
       <Center>
         <Container maxW="container.md" p={0} m={0}>
           {/* Main Profile Content */}
@@ -729,26 +818,25 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
           >
             {/* Cover Image now integrated into individual profile headers via ProfileHeaderWrapper */}
 
-            {/* Profile Header */}
-            <ProfileHeader
+            {/* Profile Header — follow status isolated in wrapper to prevent parent re-renders */}
+            <ProfileHeaderWithFollow
+              followTarget={followTarget}
+              isHiveProfile={!!isHiveProfile}
+              hiveLookupHandle={hiveLookupHandle}
+              userbaseUser={userbaseUser ? { id: userbaseUser.id } : null}
               profileData={activeProfileData}
               hiveProfileData={profileData}
               skateProfileData={liteProfileData}
               username={headerUsername}
-              isOwner={isOwner}
-              isUserbaseOwner={isUserbaseOwner}
-              user={isHiveProfile ? user : null}
-              {...followProps}
               onEditModalOpen={handleEditModalOpen}
               onUserbaseEditModalOpen={handleUserbaseEditModalOpen}
               onActiveViewChange={setActiveProfileView}
               onContentViewChange={memoizedViewModeChange}
-              debugPayload={debugPayload}
+              debugPayload={debugPayloadRef.current}
               hasHiveProfile={isHiveProfile || !!hiveIdentityHandle}
               hasUserbaseProfile={!!userbaseUser}
               farcasterProfile={farcasterProfileData}
               userbaseUserId={userbaseUser?.id}
-              viewerHiveUsername={viewerHiveUsername}
             />
 
             {/* View Mode Selector */}
@@ -762,18 +850,22 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               hasVideoParts={!!activeProfileData.video_parts?.length}
             />
 
-            {/* Content Views - Optimized conditional rendering */}
-            <ContentViews
+            {/* Content Views — posts fetching isolated in wrapper to prevent parent re-renders */}
+            <ContentViewsWithData
+              hivePostsHandle={hivePostsHandle}
               viewMode={viewMode}
-              postProps={postProps}
+              softPages={softPages}
+              softSnaps={softSnaps}
+              softPostsLoading={softPostsLoading}
               videoPartsProps={videoPartsProps}
               username={username}
               snapsUsername={hivePostsHandle || null}
-              softSnaps={softSnaps}
               ethereumAddress={resolvedEthereumAddress}
               hasHiveProfile={canShowHiveViews || hasSoftSnaps}
               farcasterFid={farcasterIdentityFid ? parseInt(farcasterIdentityFid, 10) : null}
               farcasterUsername={farcasterIdentityHandle}
+              magazineProps={magazineProps}
+              closeMagazine={throttledCloseMagazine}
             />
 
             {/* More From Author - Show on posts view */}
