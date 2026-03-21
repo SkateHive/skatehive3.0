@@ -32,10 +32,15 @@ export default function HomePageClient() {
     setNewComment(newComment as Discussion);
   };
 
-  // Handle conversation navigation
-  // Show conversation drawer on both desktop and mobile
+  // Handle conversation navigation based on device type
   const handleSetConversation = (discussion: Discussion | undefined) => {
-    setConversation(discussion);
+    if (discussion && !isMobile) {
+      // Desktop: Navigate to post page
+      router.push(`/post/${discussion.author}/${discussion.permlink}`);
+    } else {
+      // Mobile: Set conversation for drawer
+      setConversation(discussion);
+    }
   };
 
   const snaps = useSnaps();
@@ -73,15 +78,17 @@ export default function HomePageClient() {
           data={snaps}
         />
 
-        {/* Conversation drawer - show on all devices when conversation exists */}
+        {/* Mobile conversation drawer - only show on mobile when conversation exists */}
         {conversation && (
-          <Conversation
-            discussion={conversation}
-            setConversation={setConversation}
-            onOpen={onOpen}
-            setReply={setReply}
-            isOpen={!!conversation}
-          />
+          <Box display={{ base: "block", md: "none" }}>
+            <Conversation
+              discussion={conversation}
+              setConversation={setConversation}
+              onOpen={onOpen}
+              setReply={setReply}
+              isOpen={!!conversation}
+            />
+          </Box>
         )}
       </Box>
 
