@@ -23,6 +23,7 @@ import {
   AccordionIcon,
   Spinner,
   Heading,
+  Badge,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 
@@ -281,17 +282,32 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
   return (
     <Box minH="100vh">
       <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
-        <Heading
-          as="h1"
-          className="fretqwik-title"
-          color="primary"
-          fontSize={{ base: "2xl", md: "3xl" }}
-          fontWeight="bold"
-          mt={4}
-          mb={4}
-        >
-          Cinema
-        </Heading>
+        <VStack spacing={3} mb={6} mt={4} align={{ base: "center", md: "start" }}>
+          <HStack spacing={3} align="center">
+            <Icon as={FaFilm} boxSize={{ base: 6, md: 8 }} color="yellow.400" />
+            <Heading
+              as="h1"
+              className="fretqwik-title"
+              fontSize={{ base: "4xl", md: "6xl" }}
+              fontWeight="extrabold"
+              color="primary"
+              letterSpacing="wider"
+            >
+              Cinema
+            </Heading>
+          </HStack>
+          <Text fontSize={{ base: "sm", md: "md" }} color="gray.400" maxW="2xl">
+            Full-length skate videos from legendary brands. Browse by brand, watch classics and new releases.
+          </Text>
+          <HStack spacing={3} flexWrap="wrap">
+            <Badge colorScheme="yellow" fontSize="sm" px={3} py={1}>
+              {videos.length} Films
+            </Badge>
+            <Badge colorScheme="green" fontSize="sm" px={3} py={1}>
+              {cinemaData.brands.length} Brands
+            </Badge>
+          </HStack>
+        </VStack>
         {/* Brand Filter Bar */}
         <Box position="relative" mb={4}>
           <IconButton

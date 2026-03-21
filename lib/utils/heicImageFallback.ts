@@ -4,26 +4,18 @@
  * Client-side fallback for HEIC images already stored on IPFS/Hive.
  *
  * When the browser can't decode a .heic image, we:
- * 1. Fetch the raw HEIC blob
- * 2. Convert it to JPEG via heic2any (lazy-loaded)
- * 3. Replace the broken <img> src with a blob URL
- * 4. Retry up to 2 times with lower quality for large files
- * 5. Show a placeholder if all attempts fail
+ * 1. Hide the broken <img> and show a "converting..." overlay
+ * 2. Fetch the raw HEIC blob
+ * 3. Convert it to JPEG via heic2any (lazy-loaded)
+ * 4. Replace the broken <img> src with a blob URL
+ * 5. Show a "tap to open" fallback if all attempts fail
  *
- * This runs as a MutationObserver on markdown-body containers so it
- * catches images rendered via dangerouslySetInnerHTML.
+ * Uses DOM overlays instead of SVG data URIs to avoid browser
+ * native loading spinners on <img> elements.
  */
 
 const HEIC_PATTERN = /\.hei[cf](\?.*)?$/i;
 const processedImages = new WeakSet<HTMLImageElement>();
-
-// Fallback placeholder for when conversion completely fails
-const FALLBACK_PLACEHOLDER =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect fill='%230a0a0a' width='400' height='300' rx='4'/%3E%3Crect x='150' y='90' width='100' height='80' rx='8' fill='none' stroke='%23a7ff00' stroke-width='1.5' opacity='0.4'/%3E%3Cpath d='M185 110 L200 130 L215 115 L225 125 L175 125 Z' fill='%23a7ff00' opacity='0.3'/%3E%3Ccircle cx='210' cy='108' r='5' fill='%23a7ff00' opacity='0.3'/%3E%3Ctext x='200' y='200' text-anchor='middle' fill='%23a7ff00' font-family='monospace' font-size='11' opacity='0.7'%3EHEIC — tap to open%3C/text%3E%3C/svg%3E";
-
-// Loading placeholder shown during conversion
-const LOADING_PLACEHOLDER =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Cstyle%3E@keyframes spin%7B0%25%7Btransform:rotate(0deg)%7D100%25%7Btransform:rotate(360deg)%7D%7D@keyframes pulse%7B0%25,100%25%7Bopacity:.4%7D50%25%7Bopacity:1%7D%7D%3C/style%3E%3Crect fill='%230a0a0a' width='400' height='300' rx='4'/%3E%3Cg transform='translate(200,130)'%3E%3Ccircle r='20' fill='none' stroke='%23a7ff00' stroke-width='2' stroke-dasharray='80 40' style='animation:spin 1.5s linear infinite;transform-origin:center'/%3E%3Ccircle r='12' fill='none' stroke='%23a7ff00' stroke-width='1.5' stroke-dasharray='50 30' opacity='0.5' style='animation:spin 2s linear infinite reverse;transform-origin:center'/%3E%3C/g%3E%3Ctext x='200' y='175' text-anchor='middle' fill='%23a7ff00' font-family='monospace' font-size='11' style='animation:pulse 1.5s ease infinite'%3Econverting image...%3C/text%3E%3C/svg%3E";
 
 /** Check if a URL points to a HEIC/HEIF file */
 function isHeicUrl(src: string): boolean {
@@ -80,14 +72,50 @@ function convertWithTimeout(
   });
 }
 
-/** Show fallback placeholder with link to original */
+/** Create a simple text overlay div positioned over the hidden image */
+function createOverlay(img: HTMLImageElement, text: string): HTMLDivElement {
+  // Remove any existing overlay
+  removeOverlay(img);
+
+  const overlay = document.createElement("div");
+  overlay.setAttribute("data-heic-overlay", "true");
+  overlay.style.cssText = `
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 200px;
+    background: #0a0a0a;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #a7ff00;
+    opacity: 0.6;
+  `;
+  overlay.textContent = text;
+
+  // Insert overlay right after the image
+  img.style.display = "none";
+  img.insertAdjacentElement("afterend", overlay);
+
+  return overlay;
+}
+
+/** Remove overlay and restore image visibility */
+function removeOverlay(img: HTMLImageElement): void {
+  const next = img.nextElementSibling;
+  if (next?.getAttribute("data-heic-overlay") === "true") {
+    next.remove();
+  }
+  img.style.display = "";
+}
+
+/** Show fallback overlay with link to original */
 function showFallback(img: HTMLImageElement, originalSrc: string): void {
-  img.src = FALLBACK_PLACEHOLDER;
-  img.style.opacity = "1";
-  img.style.cursor = "pointer";
-  img.alt = "HEIC image — tap to open";
-  img.title = "Open original HEIC image";
-  img.onclick = () => window.open(originalSrc, "_blank");
+  const overlay = createOverlay(img, "HEIC — tap to open");
+  overlay.style.cursor = "pointer";
+  overlay.style.opacity = "0.7";
+  overlay.onclick = () => window.open(originalSrc, "_blank");
 }
 
 /** Convert a single broken HEIC <img> to a JPEG blob URL with retry */
@@ -99,10 +127,8 @@ async function convertHeicImage(img: HTMLImageElement): Promise<void> {
   if (!originalSrc || !isHeicUrl(originalSrc)) return;
 
   try {
-    // Show animated loading placeholder
-    img.src = LOADING_PLACEHOLDER;
-    img.style.opacity = "1";
-    img.alt = "Converting image...";
+    // Hide broken image, show text overlay
+    createOverlay(img, "converting image...");
 
     // Fetch with 20s timeout (balanced for large files)
     const response = await fetchWithTimeout(originalSrc, 20000);
@@ -135,12 +161,10 @@ async function convertHeicImage(img: HTMLImageElement): Promise<void> {
         );
         const blobUrl = URL.createObjectURL(jpegBlob);
 
-        // Success!
+        // Success — remove overlay, show converted image
+        removeOverlay(img);
         img.src = blobUrl;
-        img.style.opacity = "1";
         img.alt = "";
-        img.style.cursor = "";
-        img.onclick = null;
         return;
       } catch (err) {
         lastError = err as Error;
@@ -151,7 +175,7 @@ async function convertHeicImage(img: HTMLImageElement): Promise<void> {
       }
     }
 
-    // All retries failed — show fallback
+    // All retries failed
     console.warn("All HEIC conversion attempts failed for:", originalSrc, lastError);
     showFallback(img, originalSrc);
   } catch (err) {

@@ -24,6 +24,7 @@ import {
   IconButton,
   Tooltip,
   Heading,
+  Badge,
 } from "@chakra-ui/react";
 import { Discussion } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
@@ -766,21 +767,37 @@ export default function VideosContent() {
       loadPosts(false);
   }, [activeIndex, filteredPosts.length, hasMore, isLoadingMore, loadPosts]);
 
+  const videosHeader = (
+    <VStack spacing={3} mb={6} mt={4} align={{ base: "center", md: "start" }}>
+      <HStack spacing={3} align="center">
+        <Icon as={FaVideo} boxSize={{ base: 6, md: 8 }} color="primary" />
+        <Heading
+          as="h1"
+          className="fretqwik-title"
+          fontSize={{ base: "4xl", md: "6xl" }}
+          fontWeight="extrabold"
+          color="primary"
+          letterSpacing="wider"
+        >
+          Videos
+        </Heading>
+      </HStack>
+      <Text fontSize={{ base: "sm", md: "md" }} color="gray.400" maxW="2xl">
+        Community skate clips from the Hive blockchain. YouTube, 3Speak, IPFS and more.
+      </Text>
+      {posts.length > 0 && (
+        <Badge colorScheme="green" fontSize="sm" px={3} py={1}>
+          {posts.length} Videos
+        </Badge>
+      )}
+    </VStack>
+  );
+
   if (isLoading) {
     return (
       <Box minH="100vh">
         <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
-          <Heading
-            as="h1"
-            className="fretqwik-title"
-            color="primary"
-            fontSize={{ base: "2xl", md: "3xl" }}
-            fontWeight="bold"
-            mt={4}
-            mb={2}
-          >
-            Videos
-          </Heading>
+          {videosHeader}
           <Center py={20}>
             <VStack spacing={3}>
               <Spinner size="lg" color="primary" />
@@ -798,17 +815,7 @@ export default function VideosContent() {
     return (
       <Box minH="100vh">
         <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
-          <Heading
-            as="h1"
-            className="fretqwik-title"
-            color="primary"
-            fontSize={{ base: "2xl", md: "3xl" }}
-            fontWeight="bold"
-            mt={4}
-            mb={2}
-          >
-            Videos
-          </Heading>
+          {videosHeader}
           <Center py={20}>
             <VStack spacing={2}>
               <Icon as={FaVideo} boxSize={8} color="gray.600" />
@@ -825,10 +832,10 @@ export default function VideosContent() {
   return (
     <Box minH="100vh">
       <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
+        {videosHeader}
         <Flex
           direction={{ base: "column", lg: "row" }}
           gap={0}
-          mt={4}
           border="1px solid"
           borderColor="whiteAlpha.100"
           borderRadius="md"
@@ -1150,18 +1157,6 @@ export default function VideosContent() {
             </Box>
           </Box>
         </Flex>
-
-        <Heading
-          as="h1"
-          className="fretqwik-title"
-          color="primary"
-          fontSize={{ base: "2xl", md: "3xl" }}
-          fontWeight="bold"
-          mt={4}
-          mb={2}
-        >
-          Videos
-        </Heading>
       </Container>
     </Box>
   );
