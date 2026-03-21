@@ -108,48 +108,21 @@ export default function SkatersContent() {
   const loadSkaters = async () => {
     setIsLoading(true);
     try {
-      // Pull from multiple sources for maximum coverage
-      const [subscribersRaw, recentPostsRaw, trendingPostsRaw] = await Promise.allSettled([
-        HiveClient.call("bridge", "list_subscribers", {
-          community: "hive-173115",
-          limit: 100,
-        }),
-        HiveClient.call("bridge", "get_ranked_posts", {
-          sort: "created",
-          tag: "hive-173115",
-          limit: 200, // Increased to catch more authors
-        }),
-        HiveClient.call("bridge", "get_ranked_posts", {
-          sort: "trending",
-          tag: "hive-173115",
-          limit: 100, // Get active/popular authors too
-        }),
-      ]);
+      // Fetch from skatehive-api (1830+ skaters with full data)
+      const res = await fetch("https://api.skatehive.app/api/v2/leaderboard");
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      
+      const apiData = await res.json();
+      if (!Array.isArray(apiData)) throw new Error("Invalid API response");
 
-      const usernameSet = new Set<string>();
+      // Extract usernames who have posted (post_count > 0 or have points)
+      const activeUsernames = apiData
+        .filter((skater: any) => skater.hive_author && (skater.post_count > 0 || skater.points > 0))
+        .map((skater: any) => skater.hive_author)
+        .slice(0, 300); // Limit to 300 most active
 
-      if (subscribersRaw.status === "fulfilled" && Array.isArray(subscribersRaw.value)) {
-        for (const sub of subscribersRaw.value) {
-          // list_subscribers returns [account, role, label, created]
-          const name = Array.isArray(sub) ? sub[0] : sub.account;
-          if (name) usernameSet.add(name);
-        }
-      }
-
-      if (recentPostsRaw.status === "fulfilled" && Array.isArray(recentPostsRaw.value)) {
-        for (const post of recentPostsRaw.value) {
-          if (post?.author) usernameSet.add(post.author);
-        }
-      }
-
-      if (trendingPostsRaw.status === "fulfilled" && Array.isArray(trendingPostsRaw.value)) {
-        for (const post of trendingPostsRaw.value) {
-          if (post?.author) usernameSet.add(post.author);
-        }
-      }
-
-      const usernames = Array.from(usernameSet).slice(0, 250); // Increased limit
-      const profiles = await fetchAccountsBatched(usernames);
+      // Fetch full profiles from Hive
+      const profiles = await fetchAccountsBatched(activeUsernames);
 
       // Sort by location presence first, then by post count
       profiles.sort((a, b) => {
