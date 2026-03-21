@@ -605,7 +605,13 @@ export async function findPosts(query: string, params: any[]) {
       start_permlink: start_permlink || undefined,
       observer: ''
     });
-    return posts;
+    
+    // Bridge API returns incorrect children counts (always 0)
+    // Enrich with correct counts from condenser_api as fallback
+    const { enrichCommentCounts } = await import('./enrichCommentCounts');
+    const enrichedPosts = await enrichCommentCounts(posts);
+    
+    return enrichedPosts;
   } catch (error) {
     console.error('Error fetching posts with Bridge API:', error);
     throw error;
