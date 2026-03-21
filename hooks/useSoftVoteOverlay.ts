@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect, useMemo, useState, createContext } from "react";
+import { useContext, useEffect, useMemo, useRef, useState, createContext } from "react";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 
 export interface SoftVoteOverlay {
@@ -65,29 +65,39 @@ export function useSoftVoteOverlays(
   }, [signature, userId]);
 
   const [overlays, setOverlays] = useState<Record<string, SoftVoteOverlay>>({});
+  const prevOverlaysRef = useRef(overlays);
+  prevOverlaysRef.current = overlays;
+
+  // Merge new entries into state only if they add or change something
+  function mergeOverlays(entries: Record<string, SoftVoteOverlay>) {
+    setOverlays((prev) => {
+      let hasChanges = false;
+      for (const key of Object.keys(entries)) {
+        if (prev[key] !== entries[key]) {
+          hasChanges = true;
+          break;
+        }
+      }
+      if (!hasChanges) return prev; // Same reference = no re-render
+      return { ...prev, ...entries };
+    });
+  }
 
   useEffect(() => {
     let mounted = true;
-    if (!userId) {
-      if (mounted) {
-        setOverlays({});
-      }
-      return;
-    }
-    if (keys.length === 0) {
-      if (mounted) {
-        setOverlays({});
-      }
-      return;
+    if (!userId || keys.length === 0) {
+      return () => { mounted = false; };
     }
 
-    const cached: Record<string, SoftVoteOverlay> = {};
+    const newEntries: Record<string, SoftVoteOverlay> = {};
     const missing: Array<{ author: string; permlink: string }> = [];
 
     keys.forEach((key) => {
       const cachedValue = overlayCache.get(key);
       if (cachedValue) {
-        cached[key] = cachedValue;
+        if (prevOverlaysRef.current[key] !== cachedValue) {
+          newEntries[key] = cachedValue;
+        }
         return;
       }
       if (cachedValue === null) {
@@ -98,12 +108,12 @@ export function useSoftVoteOverlays(
       missing.push({ author, permlink });
     });
 
-    if (mounted) {
-      setOverlays(cached);
+    if (mounted && Object.keys(newEntries).length > 0) {
+      mergeOverlays(newEntries);
     }
 
     if (missing.length === 0) {
-      return;
+      return () => { mounted = false; };
     }
 
     const batchKey = `${userId}:${missing
@@ -113,16 +123,16 @@ export function useSoftVoteOverlays(
     if (inflight.has(batchKey)) {
       inflight.get(batchKey)!.finally(() => {
         if (!mounted) return;
-        const next: Record<string, SoftVoteOverlay> = {};
+        const fetched: Record<string, SoftVoteOverlay> = {};
         keys.forEach((key) => {
           const cachedValue = overlayCache.get(key);
           if (cachedValue) {
-            next[key] = cachedValue;
+            fetched[key] = cachedValue;
           }
         });
-        setOverlays(next);
+        mergeOverlays(fetched);
       });
-      return;
+      return () => { mounted = false; };
     }
 
     const request = fetchVotes(missing)
@@ -148,14 +158,14 @@ export function useSoftVoteOverlays(
       .finally(() => {
         inflight.delete(batchKey);
         if (!mounted) return;
-        const next: Record<string, SoftVoteOverlay> = {};
+        const fetched: Record<string, SoftVoteOverlay> = {};
         keys.forEach((key) => {
           const cachedValue = overlayCache.get(key);
           if (cachedValue) {
-            next[key] = cachedValue;
+            fetched[key] = cachedValue;
           }
         });
-        setOverlays(next);
+        mergeOverlays(fetched);
       });
 
     inflight.set(batchKey, request);

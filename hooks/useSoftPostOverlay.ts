@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export interface SoftPostOverlayUser {
   id: string;
@@ -86,20 +86,35 @@ export function useSoftPostOverlays(
   }, [posts]);
 
   const [overlays, setOverlays] = useState<Record<string, SoftPostOverlay>>({});
+  const prevOverlaysRef = useRef(overlays);
+  prevOverlaysRef.current = overlays;
+
+  // Merge new entries into state only if they add or change something
+  function mergeOverlays(entries: Record<string, SoftPostOverlay>) {
+    setOverlays((prev) => {
+      // Check if there are any actual changes
+      let hasChanges = false;
+      for (const key of Object.keys(entries)) {
+        if (prev[key] !== entries[key]) {
+          hasChanges = true;
+          break;
+        }
+      }
+      if (!hasChanges) return prev; // Same reference = no re-render
+      return { ...prev, ...entries };
+    });
+  }
 
   useEffect(() => {
     let isMounted = true;
 
     if (keys.length === 0) {
-      if (isMounted) {
-        setOverlays({});
-      }
       return () => {
         isMounted = false;
       };
     }
 
-    const cached: Record<string, SoftPostOverlay> = {};
+    const newEntries: Record<string, SoftPostOverlay> = {};
     const missing: Array<{
       author: string;
       permlink: string;
@@ -109,7 +124,10 @@ export function useSoftPostOverlays(
     keys.forEach((key) => {
       const cachedEntry = overlayCache.get(key);
       if (cachedEntry?.value) {
-        cached[key] = cachedEntry.value;
+        // Only track if not already in state
+        if (prevOverlaysRef.current[key] !== cachedEntry.value) {
+          newEntries[key] = cachedEntry.value;
+        }
         return;
       }
       const slashIndex = key.indexOf("/");
@@ -135,8 +153,9 @@ export function useSoftPostOverlays(
       });
     });
 
-    if (isMounted) {
-      setOverlays(cached);
+    // Merge cached entries without replacing entire state
+    if (isMounted && Object.keys(newEntries).length > 0) {
+      mergeOverlays(newEntries);
     }
 
     if (missing.length === 0) {
@@ -154,14 +173,14 @@ export function useSoftPostOverlays(
     if (inflight.has(batchKey)) {
       inflight.get(batchKey)!.finally(() => {
         if (!isMounted) return;
-        const next: Record<string, SoftPostOverlay> = {};
+        const fetched: Record<string, SoftPostOverlay> = {};
         keys.forEach((key) => {
           const cachedEntry = overlayCache.get(key);
           if (cachedEntry?.value) {
-            next[key] = cachedEntry.value;
+            fetched[key] = cachedEntry.value;
           }
         });
-        setOverlays(next);
+        mergeOverlays(fetched);
       });
       return () => {
         isMounted = false;
@@ -190,14 +209,14 @@ export function useSoftPostOverlays(
       .finally(() => {
         inflight.delete(batchKey);
         if (!isMounted) return;
-        const next: Record<string, SoftPostOverlay> = {};
+        const fetched: Record<string, SoftPostOverlay> = {};
         keys.forEach((key) => {
           const cachedEntry = overlayCache.get(key);
           if (cachedEntry?.value) {
-            next[key] = cachedEntry.value;
+            fetched[key] = cachedEntry.value;
           }
         });
-        setOverlays(next);
+        mergeOverlays(fetched);
       });
 
     inflight.set(batchKey, request);

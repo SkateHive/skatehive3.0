@@ -1,3 +1,4 @@
+import React, { useMemo } from "react";
 import MediaCarousel from "@/components/shared/MediaCarousel";
 import OpenGraphPreview from "@/components/shared/OpenGraphPreview";
 import SnapshotPreview from "@/components/shared/SnapshotPreview";
@@ -10,9 +11,9 @@ interface MediaRendererProps {
   fullContent: string; // Add full content to extract URLs from
 }
 
-const MediaRenderer = ({ mediaContent, fullContent }: MediaRendererProps) => {
-  const mediaItems = parseMediaContent(mediaContent);
-  const lastUrl = extractLastUrl(fullContent);
+const MediaRenderer = React.memo(function MediaRenderer({ mediaContent, fullContent }: MediaRendererProps) {
+  const mediaItems = useMemo(() => parseMediaContent(mediaContent), [mediaContent]);
+  const lastUrl = useMemo(() => extractLastUrl(fullContent), [fullContent]);
 
   return (
     <>
@@ -31,6 +32,6 @@ const MediaRenderer = ({ mediaContent, fullContent }: MediaRendererProps) => {
       )}
     </>
   );
-};
+});
 
 export default MediaRenderer;

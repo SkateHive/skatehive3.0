@@ -64,9 +64,13 @@ const VoteListPopover = ({ trigger, votes, post }: VoteListPopoverProps) => {
     }
   }, [post?.author, post?.permlink]);
 
+  // Fetch only when popover is opened, not on mount
+  const [hasOpened, setHasOpened] = useState(false);
   useEffect(() => {
-    fetchVotePercents();
-  }, [fetchVotePercents]);
+    if (hasOpened) {
+      fetchVotePercents();
+    }
+  }, [hasOpened, fetchVotePercents]);
 
   // Deduplicate votes by voter (keep the last occurrence)
   const uniqueVotesMap = new Map();
@@ -92,7 +96,7 @@ const VoteListPopover = ({ trigger, votes, post }: VoteListPopoverProps) => {
   const valueColor = useColorModeValue("green.600", "green.300");
   const emptyColor = useColorModeValue("gray.500", "gray.400");
   return (
-    <Popover placement="auto" isLazy>
+    <Popover placement="auto" isLazy onOpen={() => setHasOpened(true)}>
       <PopoverTrigger>{trigger}</PopoverTrigger>
       <PopoverContent w="320px" maxH="300px" overflowY="auto" bg={"background"}>
         <PopoverHeader fontWeight="bold">Voters</PopoverHeader>

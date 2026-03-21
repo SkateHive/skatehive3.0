@@ -26,6 +26,7 @@ export function VideoEmbed({ type, id, index }: VideoEmbedProps) {
           src={id}
           style={{ width: "100%", aspectRatio: "16 / 9", border: 0 }}
           allowFullScreen
+          loading="lazy"
           id={`odysee-iframe-${index}`}
         />
       );

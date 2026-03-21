@@ -82,9 +82,7 @@ export default function BountyPreview({ chainId, id }: BountyPreviewProps) {
   const { data: ethPrice } = useQuery<number>({
     queryKey: ["eth-price"],
     queryFn: async () => {
-      const res = await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
-      );
+      const res = await fetch("/api/prices");
       if (!res.ok) return 2500;
       const data = await res.json();
       return data?.ethereum?.usd ?? 2500;

@@ -93,7 +93,7 @@ export default function SnapList({
   // Update displayed comments when data.comments changes or newComment is added
   useEffect(() => {
     if (comments) {
-      setDisplayedComments([...comments]);
+      setDisplayedComments(comments);
     }
   }, [comments]);
 

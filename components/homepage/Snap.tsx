@@ -20,7 +20,7 @@ import { Discussion } from "@hiveio/dhive";
 import { FaRegComment } from "react-icons/fa";
 import { LuArrowUp, LuArrowDown, LuDollarSign } from "react-icons/lu";
 import { useAioha } from "@aioha/react-ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { getPayoutValue } from "@/lib/hive/client-functions";
 import { callHiveApi } from "@/lib/hive/client-proxy";
 import { EnhancedMarkdownRenderer } from "@/components/markdown/EnhancedMarkdownRenderer";
@@ -64,14 +64,14 @@ interface SnapProps {
   onDelete?: (permlink: string) => void;
 }
 
-const Snap = ({
+const Snap = React.memo(function Snap({
   discussion,
   onOpen,
   setReply,
   setConversation,
   onCommentAdded,
   onDelete,
-}: SnapProps) => {
+}: SnapProps) {
   const { user: walletUser } = useAioha();
   const { handle: effectiveUser } = useEffectiveHiveUser();
   const { vote, canVote } = useHiveVote();
@@ -134,8 +134,8 @@ const Snap = ({
   const [activeVotes, setActiveVotes] = useState(discussion.active_votes || []);
   const [commentCount, setCommentCount] = useState(discussion.children ?? 0);
   
-  // One-time refresh on mount (no polling to avoid API spam)
-  // Bridge API data shown immediately, then corrected once
+  // Refresh vote/comment counts from Hive (API doesn't include subcomments)
+  // Safe because MediaRenderer is React.memo'd — this state change won't destroy iframes
   useEffect(() => {
     let mounted = true;
 
@@ -150,18 +150,16 @@ const Snap = ({
           if (content.active_votes && Array.isArray(content.active_votes)) {
             setActiveVotes(content.active_votes);
           }
-          
+
           if (typeof content.children === 'number') {
             setCommentCount(content.children);
           }
         }
       } catch (error) {
-        // Silent fail - use Bridge API data as fallback
-        // CORS errors are expected from client-side
+        // Silent fail - use API data as fallback
       }
     };
 
-    // Single refresh after 2 seconds (let Bridge API data show first)
     const timeout = setTimeout(refreshData, 2000);
 
     return () => {
@@ -667,6 +665,6 @@ const Snap = ({
       </Box>
     </Box>
   );
-};
+});
 
 export default Snap;

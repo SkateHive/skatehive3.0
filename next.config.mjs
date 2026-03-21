@@ -181,6 +181,9 @@ const nextConfig = {
             ...config.resolve.alias,
             'memcpy': false,
             'pino-pretty': false,
+            // Silence MetaMask SDK warning — it tries to import React Native storage
+            // which doesn't exist in browser. RainbowKit uses wagmi's injected connector instead.
+            '@react-native-async-storage/async-storage': false,
         };
         
         // Add externals for server-side only modules

@@ -102,9 +102,7 @@ function CommunityTotalPayout() {
         // Fetch open bounties and ETH price in parallel
         const [bountiesRes, priceRes] = await Promise.all([
           fetch("/api/poidh/bounties?status=open&limit=100&filterSkate=true"),
-          fetch(
-            "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
-          ),
+          fetch("/api/prices"),
         ]);
 
         if (!bountiesRes.ok) return;

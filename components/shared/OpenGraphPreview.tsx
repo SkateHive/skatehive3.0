@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Image,
@@ -27,6 +27,8 @@ const OpenGraphPreview: React.FC<OpenGraphPreviewProps> = ({ url }) => {
   const [ogData, setOgData] = useState<OpenGraphData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Skip OpenGraph preview for coin URLs, Snapshot URLs, game URLs, and Google Maps links since they're handled by specific components
   const shouldSkip =
@@ -41,10 +43,27 @@ const OpenGraphPreview: React.FC<OpenGraphPreviewProps> = ({ url }) => {
     url.includes("goo.gl/maps") ||
     url.includes("maps.app.goo.gl");
 
+  // Only fetch when scrolled into view
   useEffect(() => {
-    // Don't fetch if we should skip this URL
-    if (shouldSkip) {
-      setLoading(false);
+    if (shouldSkip || !containerRef.current) return;
+    const el = containerRef.current;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [shouldSkip]);
+
+  useEffect(() => {
+    // Don't fetch if we should skip this URL or not visible yet
+    if (shouldSkip || !isVisible) {
+      if (shouldSkip) setLoading(false);
       return;
     }
 
@@ -53,12 +72,9 @@ const OpenGraphPreview: React.FC<OpenGraphPreviewProps> = ({ url }) => {
         setLoading(true);
         setError(false);
 
-        // Use a service to fetch OpenGraph data
-        // For now, we'll create a simple fallback with domain extraction
         const urlObj = new URL(url);
         const domain = urlObj.hostname.replace("www.", "");
 
-        // Try to fetch from our API endpoint (you'll need to create this)
         try {
           const response = await fetch(
             `/api/opengraph?url=${encodeURIComponent(url)}`
@@ -87,7 +103,7 @@ const OpenGraphPreview: React.FC<OpenGraphPreviewProps> = ({ url }) => {
     };
 
     fetchOpenGraphData();
-  }, [url, shouldSkip]);
+  }, [url, shouldSkip, isVisible]);
 
   // Early return after all hooks have been called
   if (shouldSkip) {
@@ -96,7 +112,7 @@ const OpenGraphPreview: React.FC<OpenGraphPreviewProps> = ({ url }) => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" mt={2} mb={2}>
+      <Box ref={containerRef} display="flex" justifyContent="center" mt={2} mb={2}>
         <Box
           border="1px solid"
           borderColor="gray.200"

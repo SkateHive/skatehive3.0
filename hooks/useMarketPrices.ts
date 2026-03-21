@@ -45,9 +45,7 @@ export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPri
       setIsPriceLoading(true);
       setError(null);
 
-      const response = await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=hive,hive_dollar,ethereum&vs_currencies=usd"
-      );
+      const response = await fetch("/api/prices");
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

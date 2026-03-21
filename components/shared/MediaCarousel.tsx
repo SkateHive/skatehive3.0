@@ -24,7 +24,7 @@ interface MediaCarouselProps {
   mediaItems: MediaItem[];
 }
 
-const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems }) => {
+const MediaCarousel: React.FC<MediaCarouselProps> = React.memo(function MediaCarousel({ mediaItems }) {
   const isMobile = useBreakpointValue({ base: true, md: false });
   const [containerHeight, setContainerHeight] = useState<number>(500);
   const [currentSlide, setCurrentSlide] = useState<number>(0);
@@ -153,7 +153,7 @@ const MediaCarousel: React.FC<MediaCarouselProps> = ({ mediaItems }) => {
       </Box>
     </Box>
   );
-};
+});
 
 function renderMediaItem(
   item: MediaItem,
