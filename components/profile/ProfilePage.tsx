@@ -93,60 +93,83 @@ const ContentViews = memo(function ContentViews({
   farcasterFid?: number | null;
   farcasterUsername?: string | null;
 }) {
-  // Keep all views mounted but hidden to prevent re-fetching when switching tabs
+  // Lazy mount: only render a tab's content once it's been visited.
+  // After first visit, keep it mounted (display:none) to avoid re-fetching.
+  const [visited, setVisited] = useState<Set<string>>(new Set([viewMode]));
+
+  useEffect(() => {
+    setVisited((prev) => {
+      if (prev.has(viewMode)) return prev;
+      return new Set(prev).add(viewMode);
+    });
+  }, [viewMode]);
+
+  const isPostsTab = ["grid", "list"].includes(viewMode);
+  const hasVisitedPosts = visited.has("grid") || visited.has("list");
+
   return (
     <>
       {hasHiveProfile && (
         <>
-          <Box display={viewMode === "videoparts" ? "block" : "none"}>
-            <VideoPartsView {...videoPartsProps} />
-          </Box>
+          {visited.has("videoparts") && (
+            <Box display={viewMode === "videoparts" ? "block" : "none"}>
+              <VideoPartsView {...videoPartsProps} />
+            </Box>
+          )}
 
-          <Box display={viewMode === "snaps" ? "block" : "none"}>
-            {snapsUsername && <MemoizedSnapsGrid username={snapsUsername} />}
-            <SoftSnapsGrid snaps={softSnaps || []} />
-          </Box>
+          {visited.has("snaps") && (
+            <Box display={viewMode === "snaps" ? "block" : "none"}>
+              {snapsUsername && <MemoizedSnapsGrid username={snapsUsername} />}
+              <SoftSnapsGrid snaps={softSnaps || []} />
+            </Box>
+          )}
         </>
       )}
 
-      <Box display={viewMode === "tokens" ? "block" : "none"}>
-        <ZoraTokensView ethereumAddress={ethereumAddress} />
-      </Box>
+      {visited.has("tokens") && (
+        <Box display={viewMode === "tokens" ? "block" : "none"}>
+          <ZoraTokensView ethereumAddress={ethereumAddress} />
+        </Box>
+      )}
 
-      <Box display={viewMode === "casts" ? "block" : "none"}>
-        {farcasterFid ? (
-          <FarcasterCastsView
-            fid={farcasterFid}
-            username={farcasterUsername || undefined}
-          />
-        ) : (
-          <Box
-            minH="400px"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-          >
+      {visited.has("casts") && (
+        <Box display={viewMode === "casts" ? "block" : "none"}>
+          {farcasterFid ? (
+            <FarcasterCastsView
+              fid={farcasterFid}
+              username={farcasterUsername || undefined}
+            />
+          ) : (
             <Box
-              p={6}
-              border="1px solid"
-              borderColor="dim"
-              borderRadius="none"
-              bg="muted"
+              minH="400px"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
             >
-              <Text color="dim" fontFamily="mono" fontSize="sm">
-                No Farcaster account linked
-              </Text>
+              <Box
+                p={6}
+                border="1px solid"
+                borderColor="dim"
+                borderRadius="none"
+                bg="muted"
+              >
+                <Text color="dim" fontFamily="mono" fontSize="sm">
+                  No Farcaster account linked
+                </Text>
+              </Box>
             </Box>
-          </Box>
-        )}
-      </Box>
+          )}
+        </Box>
+      )}
 
-      <Box display={["grid", "list"].includes(viewMode) ? "block" : "none"}>
-        <MemoizedPostInfiniteScroll
-          key={`posts-${viewMode}`}
-          {...postProps}
-        />
-      </Box>
+      {hasVisitedPosts && (
+        <Box display={isPostsTab ? "block" : "none"}>
+          <MemoizedPostInfiniteScroll
+            key={`posts-${viewMode}`}
+            {...postProps}
+          />
+        </Box>
+      )}
     </>
   );
 });

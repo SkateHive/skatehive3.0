@@ -369,9 +369,10 @@ export default function SkatersContent() {
 
 function SkaterCard({ skater }: { skater: SkaterProfile }) {
   return (
-    <NextLink href={`/user/${skater.username}`} passHref legacyBehavior>
-      <ChakraLink
-        _hover={{ textDecoration: "none" }}
+    <ChakraLink
+      as={NextLink}
+      href={`/user/${skater.username}`}
+      _hover={{ textDecoration: "none" }}
         display="block"
         bg="rgba(20,20,20,0.6)"
         border="1px solid"
@@ -419,6 +420,5 @@ function SkaterCard({ skater }: { skater: SkaterProfile }) {
           </Badge>
         </VStack>
       </ChakraLink>
-    </NextLink>
   );
 }

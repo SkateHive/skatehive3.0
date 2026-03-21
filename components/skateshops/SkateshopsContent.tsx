@@ -128,14 +128,11 @@ export default function SkateshopsContent() {
               : post.author;
 
             return (
-              <NextLink
+              <ChakraLink
+                as={NextLink}
                 key={`${post.author}/${post.permlink}`}
                 href={`/post/${cleanAuthor}/${post.permlink}`}
-                passHref
-                legacyBehavior
-              >
-                <ChakraLink
-                  _hover={{ textDecoration: "none" }}
+                _hover={{ textDecoration: "none" }}
                   display="block"
                   bg="rgba(20,20,20,0.6)"
                   border="1px solid"
@@ -191,7 +188,6 @@ export default function SkateshopsContent() {
                     </Flex>
                   </Box>
                 </ChakraLink>
-              </NextLink>
             );
           })}
         </SimpleGrid>

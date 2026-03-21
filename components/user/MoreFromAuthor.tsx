@@ -83,14 +83,11 @@ export default function MoreFromAuthor({ author, limit = 6 }: MoreFromAuthorProp
             : post.author;
 
           return (
-            <NextLink
+            <ChakraLink
+              as={NextLink}
               key={`${post.author}/${post.permlink}`}
               href={`/post/${cleanAuthor}/${post.permlink}`}
-              passHref
-              legacyBehavior
-            >
-              <ChakraLink
-                _hover={{ textDecoration: "none" }}
+              _hover={{ textDecoration: "none" }}
                 display="block"
                 bg="rgba(20,20,20,0.4)"
                 border="1px solid"
@@ -145,7 +142,6 @@ export default function MoreFromAuthor({ author, limit = 6 }: MoreFromAuthorProp
                   </Flex>
                 </Box>
               </ChakraLink>
-            </NextLink>
           );
         })}
       </SimpleGrid>

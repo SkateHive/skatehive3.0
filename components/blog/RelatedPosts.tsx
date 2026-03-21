@@ -114,15 +114,12 @@ export default function RelatedPosts({
             : post.author;
 
           return (
-            <NextLink
+            <ChakraLink
+              as={NextLink}
               key={`${post.author}/${post.permlink}`}
               href={`/post/${cleanAuthor}/${post.permlink}`}
-              passHref
-              legacyBehavior
-            >
-              <ChakraLink
-                onClick={() => handleLinkClick(cleanAuthor, post.permlink, index + 1)}
-                _hover={{ textDecoration: "none" }}
+              onClick={() => handleLinkClick(cleanAuthor, post.permlink, index + 1)}
+              _hover={{ textDecoration: "none" }}
                 display="block"
                 bg="rgba(20,20,20,0.4)"
                 border="1px solid"
@@ -177,7 +174,6 @@ export default function RelatedPosts({
                   </Flex>
                 </Box>
               </ChakraLink>
-            </NextLink>
           );
         })}
       </SimpleGrid>

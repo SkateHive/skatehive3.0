@@ -195,10 +195,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://rpc.ecency.com" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* Preload critical fonts */}
-        <link rel="preload" href="/fonts/joystix.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
-        <link rel="preload" href="/fonts/Logoskate.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
-        <link rel="preload" href="/fonts/Logoskate2.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        {/* Custom fonts loaded on-demand via @font-face in CSS */}
         {/* JSON-LD structured data */}
         <script
           type="application/ld+json"
