@@ -492,11 +492,8 @@ const Snap = ({
               borderRadius="md"
               cursor="pointer"
               onClick={() => {
-                if (effectiveDepth > 0) {
-                  handleReplyButtonClick(discussion.permlink);
-                } else {
-                  handleConversation();
-                }
+                // Always open inline composer for replies
+                handleReplyButtonClick(discussion.permlink);
               }}
               opacity={0.9}
               _hover={{ opacity: 0.7 }}
