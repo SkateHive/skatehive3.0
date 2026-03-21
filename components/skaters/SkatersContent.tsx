@@ -35,10 +35,11 @@ type SkaterProfile = {
   postCount?: number;
 };
 
-// Country → flag emoji
+// Country → flag emoji (includes both full names and ISO codes)
 const COUNTRY_FLAGS: Record<string, string> = {
-  "Brazil": "🇧🇷", "USA": "🇺🇸", "United States": "🇺🇸", "US": "🇺🇸",
-  "United Kingdom": "🇬🇧", "UK": "🇬🇧", "Germany": "🇩🇪", "France": "🇫🇷",
+  // Full names
+  "Brazil": "🇧🇷", "USA": "🇺🇸", "United States": "🇺🇸",
+  "United Kingdom": "🇬🇧", "Germany": "🇩🇪", "France": "🇫🇷",
   "Spain": "🇪🇸", "Portugal": "🇵🇹", "Italy": "🇮🇹", "Netherlands": "🇳🇱",
   "Australia": "🇦🇺", "Canada": "🇨🇦", "Japan": "🇯🇵", "Mexico": "🇲🇽",
   "Argentina": "🇦🇷", "Colombia": "🇨🇴", "Chile": "🇨🇱", "Peru": "🇵🇪",
@@ -53,11 +54,52 @@ const COUNTRY_FLAGS: Record<string, string> = {
   "Costa Rica": "🇨🇷", "Panama": "🇵🇦", "Guatemala": "🇬🇹", "Honduras": "🇭🇳",
   "El Salvador": "🇸🇻", "Nicaragua": "🇳🇮", "Cuba": "🇨🇺", "Puerto Rico": "🇵🇷",
   "Dominican Republic": "🇩🇴", "Jamaica": "🇯🇲", "Trinidad": "🇹🇹",
+  
+  // ISO codes (2-letter)
+  "BR": "🇧🇷", "US": "🇺🇸", "UK": "🇬🇧", "GB": "🇬🇧", "DE": "🇩🇪", "FR": "🇫🇷",
+  "ES": "🇪🇸", "PT": "🇵🇹", "IT": "🇮🇹", "NL": "🇳🇱", "AU": "🇦🇺", "CA": "🇨🇦",
+  "JP": "🇯🇵", "MX": "🇲🇽", "AR": "🇦🇷", "CO": "🇨🇴", "CL": "🇨🇱", "PE": "🇵🇪",
+  "VE": "🇻🇪", "EC": "🇪🇨", "BO": "🇧🇴", "UY": "🇺🇾", "SE": "🇸🇪", "NO": "🇳🇴",
+  "DK": "🇩🇰", "FI": "🇫🇮", "PL": "🇵🇱", "RU": "🇷🇺", "UA": "🇺🇦", "CZ": "🇨🇿",
+  "AT": "🇦🇹", "CH": "🇨🇭", "BE": "🇧🇪", "GR": "🇬🇷", "TR": "🇹🇷", "IL": "🇮🇱",
+  "ZA": "🇿🇦", "NG": "🇳🇬", "KE": "🇰🇪", "EG": "🇪🇬", "ID": "🇮🇩", "PH": "🇵🇭",
+  "TH": "🇹🇭", "VN": "🇻🇳", "IN": "🇮🇳", "PK": "🇵🇰", "CN": "🇨🇳", "KR": "🇰🇷",
+  "TW": "🇹🇼", "NZ": "🇳🇿", "CR": "🇨🇷", "PA": "🇵🇦", "GT": "🇬🇹", "HN": "🇭🇳",
+  "SV": "🇸🇻", "NI": "🇳🇮", "CU": "🇨🇺", "PR": "🇵🇷", "DO": "🇩🇴", "JM": "🇯🇲",
+  "TT": "🇹🇹", "UG": "🇺🇬",
 };
+
+// ISO code → full name (for display normalization)
+const ISO_TO_NAME: Record<string, string> = {
+  "BR": "Brazil", "US": "United States", "GB": "United Kingdom", "DE": "Germany",
+  "FR": "France", "ES": "Spain", "PT": "Portugal", "IT": "Italy", "NL": "Netherlands",
+  "AU": "Australia", "CA": "Canada", "JP": "Japan", "MX": "Mexico", "AR": "Argentina",
+  "CO": "Colombia", "CL": "Chile", "PE": "Peru", "VE": "Venezuela", "EC": "Ecuador",
+  "BO": "Bolivia", "UY": "Uruguay", "SE": "Sweden", "NO": "Norway", "DK": "Denmark",
+  "FI": "Finland", "PL": "Poland", "RU": "Russia", "UA": "Ukraine", "CZ": "Czech Republic",
+  "AT": "Austria", "CH": "Switzerland", "BE": "Belgium", "GR": "Greece", "TR": "Turkey",
+  "IL": "Israel", "ZA": "South Africa", "NG": "Nigeria", "KE": "Kenya", "EG": "Egypt",
+  "ID": "Indonesia", "PH": "Philippines", "TH": "Thailand", "VN": "Vietnam", "IN": "India",
+  "PK": "Pakistan", "CN": "China", "KR": "South Korea", "TW": "Taiwan", "NZ": "New Zealand",
+  "CR": "Costa Rica", "PA": "Panama", "GT": "Guatemala", "HN": "Honduras", "SV": "El Salvador",
+  "NI": "Nicaragua", "CU": "Cuba", "PR": "Puerto Rico", "DO": "Dominican Republic",
+  "JM": "Jamaica", "TT": "Trinidad", "UG": "Uganda",
+};
+
+function normalizeCountry(raw: string): string {
+  const trimmed = raw.trim().toUpperCase();
+  // If it's a 2-letter ISO code, convert to full name
+  if (trimmed.length === 2 && ISO_TO_NAME[trimmed]) {
+    return ISO_TO_NAME[trimmed];
+  }
+  // Otherwise return as-is (might be full name already)
+  return raw.trim();
+}
 
 function getFlag(country?: string) {
   if (!country) return "🌍";
-  return COUNTRY_FLAGS[country.trim()] || "🌍";
+  const key = country.trim();
+  return COUNTRY_FLAGS[key] || COUNTRY_FLAGS[key.toUpperCase()] || "🌍";
 }
 
 function parseProfile(acc: any): SkaterProfile | null {
@@ -76,7 +118,8 @@ function parseProfile(acc: any): SkaterProfile | null {
   const location = (profile.location || "").trim();
   const parts = location.split(",").map((s: string) => s.trim());
   const city = parts.length > 1 ? parts[0] : "";
-  const country = parts.length > 1 ? parts[parts.length - 1] : parts[0] || "";
+  const rawCountry = parts.length > 1 ? parts[parts.length - 1] : parts[0] || "";
+  const country = normalizeCountry(rawCountry);
 
   return {
     username: acc.name,
