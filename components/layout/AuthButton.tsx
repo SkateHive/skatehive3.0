@@ -291,45 +291,16 @@ export default function AuthButton() {
   }, [aioha]);
 
   const handleFarcasterConnect = useCallback(() => {
-    console.log("[FC] handleFarcasterConnect called", {
-      isFarcasterAuthInProgress,
-      isFarcasterConnected,
-      hasWindowAuth: typeof window !== "undefined" && !!(window as any).__farcasterAuth,
-      authMethods: typeof window !== "undefined" ? Object.keys((window as any).__farcasterAuth || {}) : [],
-      connectType: typeof farcasterAuth.connect,
-      signInType: typeof farcasterAuth.signIn,
-    });
-
-    if (isFarcasterAuthInProgress) {
-      console.log("[FC] blocked: already in progress");
-      return;
-    }
-    if (isFarcasterConnected) {
-      console.log("[FC] blocked: already connected");
-      return;
-    }
+    if (isFarcasterAuthInProgress || isFarcasterConnected) return;
 
     setIsFarcasterAuthInProgress(true);
     try {
-      console.log("[FC] calling farcasterAuth.connect()...");
       farcasterAuth.connect();
-      console.log("[FC] connect() called successfully");
-    } catch (err) {
-      console.error("[FC] connect() threw:", err);
+      // signIn() is auto-called by FarcasterAuthIslandClient when channelToken is ready
+    } catch {
       setIsFarcasterAuthInProgress(false);
     }
   }, [isFarcasterAuthInProgress, isFarcasterConnected, farcasterAuth]);
-
-  // Once connect() sets channelToken, call signIn() to start polling
-  useEffect(() => {
-    const token = farcasterAuth.channelToken;
-    const url = farcasterAuth.url;
-    console.log("[FC] channelToken effect:", { isFarcasterAuthInProgress, token, url });
-    if (isFarcasterAuthInProgress && token) {
-      console.log("[FC] channelToken ready, calling signIn()...");
-      farcasterAuth.signIn();
-    }
-  }, [isFarcasterAuthInProgress, farcasterAuth.channelToken]);
 
   // Memoize modal close handler
   const handleCloseConnectionModal = useCallback(() => {
@@ -459,8 +430,6 @@ export default function AuthButton() {
 
       {/* Farcaster Auth Island (hidden) */}
       <FarcasterAuthIsland
-        hidden
-        renderButton
         onSuccess={({ fid, username }: any) => {
           setIsFarcasterAuthInProgress(false);
           setIsConnectionModalOpen(false);
@@ -481,7 +450,6 @@ export default function AuthButton() {
           }, 200);
         }}
         onError={(error: any) => {
-          console.error("❌ Farcaster Sign In Error:", error);
           setIsFarcasterAuthInProgress(false);
           toast({
             status: "error",

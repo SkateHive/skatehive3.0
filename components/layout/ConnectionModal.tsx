@@ -511,6 +511,8 @@ export default function ConnectionModal({
                     onClick={() => {
                       if (userbaseUser) signOutUserbase();
                       if (user) handleHiveLogout();
+                      if (isFarcasterConnected) handleFarcasterDisconnect();
+                      if (isEthereumConnected) disconnectEth();
                       onClose();
                     }}
                     _hover={{ color: "red.400" }}

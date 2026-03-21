@@ -1,16 +1,22 @@
 "use client";
 
-import { AuthKitProvider, SignInButton, useSignIn } from "@farcaster/auth-kit";
+import { AuthKitProvider, useSignIn } from "@farcaster/auth-kit";
 import { APP_CONFIG } from "@/config/app.config";
-import { useEffect } from "react";
-import { Box } from "@chakra-ui/react";
+import { useEffect, useRef } from "react";
 import { saveFarcasterSession } from "@/hooks/useFarcasterSession";
+
+const isLocalhost =
+  typeof window !== "undefined" && window.location.hostname === "localhost";
 
 const config = {
   relay: "https://relay.farcaster.xyz",
   rpcUrl: "https://mainnet.optimism.io",
-  siweUri: APP_CONFIG.BASE_URL || "https://skatehive.app",
-  domain: APP_CONFIG.DOMAIN || "skatehive.app",
+  siweUri: isLocalhost
+    ? `http://localhost:${typeof window !== "undefined" ? window.location.port : "3000"}`
+    : APP_CONFIG.BASE_URL || "https://skatehive.app",
+  domain: isLocalhost
+    ? "localhost"
+    : APP_CONFIG.DOMAIN || "skatehive.app",
 };
 
 interface FarcasterAuthIslandClientProps {
@@ -18,25 +24,33 @@ interface FarcasterAuthIslandClientProps {
   onError?: (error: any) => void;
   onSignOut?: () => void;
   onStatusResponse?: (data: any) => void;
-  renderButton?: boolean;
   autoConnect?: boolean;
-  hidden?: boolean;
   nonce?: () => Promise<string>;
 }
 
 /**
  * Inner component that uses useSignIn — MUST be inside AuthKitProvider.
+ *
+ * No UI is rendered. connect/signIn are handled programmatically via
+ * window.__farcasterAuth. The hidden <SignInButton> was removed to avoid
+ * a competing useSignIn instance in the same AuthKitProvider.
  */
 function FarcasterAuthInner({
   onSuccess,
   onError,
   onSignOut,
   onStatusResponse,
-  renderButton = true,
   autoConnect = false,
-  hidden = false,
   nonce,
 }: FarcasterAuthIslandClientProps) {
+  // Workaround for auth-kit v0.8.2 race condition:
+  // `data` gets cleared before `isSuccess` becomes true, so the internal
+  // onSuccess callback (which requires data && isSuccess && validSignature
+  // all truthy simultaneously) never fires. We capture the completed response
+  // in a ref and manually fire onSuccess when isSuccess + validSignature are set.
+  const completedDataRef = useRef<any>(null);
+  const didFireSuccessRef = useRef(false);
+
   const {
     signIn,
     signOut,
@@ -50,92 +64,106 @@ function FarcasterAuthInner({
     data,
     validSignature,
   } = useSignIn({
-    onSuccess: (res: any) => {
-      if (res?.fid && res?.username) {
-        saveFarcasterSession({
-          fid: res.fid,
-          username: res.username,
-          pfpUrl: res.pfpUrl,
-          bio: res.bio,
-          displayName: res.displayName,
-          custody: res.custody,
-          verifications: res.verifications,
-        });
-      }
-      onSuccess?.(res);
+    onSuccess: () => {
+      // May never fire due to auth-kit race condition — handled in effect below
     },
     onError: (err: any) => {
       onError?.(err);
     },
     onStatusResponse: (res: any) => {
+      // Capture completed response data before it gets cleared
+      if (res?.state === "completed" && res?.nonce) {
+        completedDataRef.current = res;
+      }
       onStatusResponse?.(res);
     },
     ...(nonce ? { nonce } : {}),
   });
 
+  // Manually fire onSuccess when auth completes
+  useEffect(() => {
+    if (isSuccess && validSignature && !didFireSuccessRef.current) {
+      didFireSuccessRef.current = true;
+      const d = data || completedDataRef.current;
+      if (d?.fid) {
+        saveFarcasterSession({
+          fid: d.fid,
+          username: d.username,
+          pfpUrl: d.pfpUrl,
+          bio: d.bio,
+          displayName: d.displayName,
+          custody: d.custody,
+          verifications: d.verifications,
+        });
+      }
+      onSuccess?.(d || {});
+    }
+  }, [isSuccess, validSignature, data, onSuccess]);
+
+  // Refs for stable function references (auth-kit returns new refs every render)
+  const signInRef = useRef(signIn);
+  const signOutRef = useRef(signOut);
+  const connectRef = useRef(connect);
+  const reconnectRef = useRef(reconnect);
+  signInRef.current = signIn;
+  signOutRef.current = signOut;
+  connectRef.current = connect;
+  reconnectRef.current = reconnect;
+
+  // Guards to prevent duplicate signIn/URL-open calls
+  const didSignInRef = useRef<string | null>(null);
+  const didOpenUrlRef = useRef<string | null>(null);
+
   // Auto-connect on mount if requested
   useEffect(() => {
     if (autoConnect && !channelToken) {
-      connect();
+      connectRef.current();
     }
-  }, [autoConnect, channelToken, connect]);
+  }, [autoConnect, channelToken]);
 
-  // Expose methods to parent via window (for cross-component communication)
+  // When channelToken is ready, auto-call signIn() and open Farcaster
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      console.log("[FC Island] Setting window.__farcasterAuth", {
-        hasSignIn: typeof signIn === "function",
-        hasConnect: typeof connect === "function",
-        channelToken: channelToken ? "set" : "null",
-        url: url ? "set" : "null",
-      });
-      (window as any).__farcasterAuth = {
-        signIn,
-        signOut: () => {
-          signOut();
-          onSignOut?.();
-        },
-        connect,
-        reconnect,
-        isSuccess,
-        isError,
-        error,
-        channelToken,
-        url,
-        data,
-        validSignature,
-      };
+    if (channelToken && url) {
+      if (didSignInRef.current !== channelToken) {
+        didSignInRef.current = channelToken;
+        signInRef.current();
+      }
+      if (didOpenUrlRef.current !== url) {
+        didOpenUrlRef.current = url;
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
     }
+  }, [channelToken, url]);
+
+  // Expose methods to parent components via window.__farcasterAuth
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    (window as any).__farcasterAuth = {
+      signIn: () => signInRef.current(),
+      signOut: () => {
+        signOutRef.current();
+        onSignOut?.();
+      },
+      connect: () => connectRef.current(),
+      reconnect: () => reconnectRef.current(),
+      isSuccess,
+      isError,
+      error,
+      channelToken,
+      url,
+      data,
+      validSignature,
+    };
 
     return () => {
       if (typeof window !== "undefined") {
         delete (window as any).__farcasterAuth;
       }
     };
-  }, [
-    signIn, signOut, connect, reconnect, isSuccess, isError,
-    error, channelToken, url, data, validSignature, onSignOut,
-  ]);
+  }, [isSuccess, isError, error, channelToken, url, data, validSignature, onSignOut]);
 
-  if (!renderButton) {
-    return null;
-  }
-
-  const buttonStyle = hidden
-    ? {
-        position: "absolute" as const,
-        top: "-9999px",
-        left: "-9999px",
-        pointerEvents: "none" as const,
-        opacity: 0,
-      }
-    : {};
-
-  return (
-    <Box style={buttonStyle}>
-      <SignInButton onSuccess={onSuccess} onError={onError} />
-    </Box>
-  );
+  return null;
 }
 
 /**

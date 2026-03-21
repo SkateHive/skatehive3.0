@@ -110,8 +110,7 @@ export default function FooterNavButtons() {
   );
 
   const handleFarcasterError = useCallback(
-    (error: any) => {
-      console.error('[FarcasterConnect] Auth error callback:', error);
+    (_error: any) => {
       clearAuthTimeout();
       setIsFarcasterAuthInProgress(false);
       setIsConnectionModalOpen(false);
@@ -280,7 +279,6 @@ export default function FooterNavButtons() {
           if (visibilityTimeoutId) clearTimeout(visibilityTimeoutId);
           document.removeEventListener("keydown", handleEscapeKey);
         };
-      } else {
       }
 
       // Focus/visibility detection works for both desktop and mobile
@@ -623,8 +621,7 @@ export default function FooterNavButtons() {
       // Must call connect() first to create relay channel,
       // then signIn() after channelToken is set (handled by useEffect)
       connect();
-    } catch (error) {
-      console.error("Farcaster auth error:", error);
+    } catch {
       clearAuthTimeout(); // Clear safety timeout on error
       setIsFarcasterAuthInProgress(false); // Reset immediately on error
       safeCloseConnectionModal();
@@ -1101,10 +1098,8 @@ export default function FooterNavButtons() {
         actualFarcasterConnection={actualFarcasterConnection}
         actualFarcasterProfile={actualFarcasterProfile}
       />
-      {/* Farcaster Auth Island (hidden, provides auth methods via window) */}
+      {/* Farcaster Auth Island (provides auth methods via window) */}
       <FarcasterAuthIsland
-        hidden
-        renderButton
         onSuccess={handleFarcasterSuccess}
         onError={handleFarcasterError}
       />

@@ -39,39 +39,44 @@ export function useFarcasterSession() {
   const [hasPersistedSession, setHasPersistedSession] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
 
-  // Restore session from localStorage on mount
-  useEffect(() => {
-    const restoreSession = () => {
-      try {
-        const savedSession = localStorage.getItem(SESSION_KEY);
-        if (savedSession) {
-          const session: FarcasterSession = JSON.parse(savedSession);
-          const isExpired = Date.now() - session.timestamp > SESSION_EXPIRY;
-          
-          if (isExpired) {
-            localStorage.removeItem(SESSION_KEY);
-            setHasPersistedSession(false);
-            setSessionData(null);
-          } else {
-            setHasPersistedSession(true);
-            setSessionData(session);
-          }
-        } else {
+  // Read session from localStorage
+  const readSession = useCallback(() => {
+    try {
+      const savedSession = localStorage.getItem(SESSION_KEY);
+      if (savedSession) {
+        const session: FarcasterSession = JSON.parse(savedSession);
+        const isExpired = Date.now() - session.timestamp > SESSION_EXPIRY;
+
+        if (isExpired) {
+          localStorage.removeItem(SESSION_KEY);
           setHasPersistedSession(false);
           setSessionData(null);
+        } else {
+          setHasPersistedSession(true);
+          setSessionData(session);
         }
-      } catch (error) {
-        // console.warn('Failed to restore Farcaster session:', error);
-        localStorage.removeItem(SESSION_KEY);
+      } else {
         setHasPersistedSession(false);
         setSessionData(null);
-      } finally {
-        setIsRestoring(false);
       }
-    };
-
-    restoreSession();
+    } catch (error) {
+      localStorage.removeItem(SESSION_KEY);
+      setHasPersistedSession(false);
+      setSessionData(null);
+    } finally {
+      setIsRestoring(false);
+    }
   }, []);
+
+  // Restore on mount + listen for changes from saveFarcasterSession
+  useEffect(() => {
+    readSession();
+
+    // Listen for custom event dispatched by saveFarcasterSession
+    const handleSessionChange = () => readSession();
+    window.addEventListener("farcaster_session_changed", handleSessionChange);
+    return () => window.removeEventListener("farcaster_session_changed", handleSessionChange);
+  }, [readSession]);
 
   // Clear session on sign out
   const clearSession = useCallback(() => {
@@ -128,7 +133,6 @@ export function useFarcasterSession() {
     return sessionData;
   }, [sessionData]);
 
-
   return {
     isAuthenticated,
     profile,
@@ -161,6 +165,8 @@ export function saveFarcasterSession(data: {
   
   try {
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    // Notify all useFarcasterSession hooks to re-read
+    window.dispatchEvent(new Event("farcaster_session_changed"));
   } catch (error) {
     console.error('[FarcasterSession] Failed to save session:', error);
   }

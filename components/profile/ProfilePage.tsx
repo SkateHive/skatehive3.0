@@ -254,12 +254,15 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const { isFollowing, isFollowLoading, updateFollowing, updateLoading } =
     useFollowStatus(user, followTarget);
   const hivePostsHandle = hiveIdentityHandle || (hiveAccount ? hiveLookupHandle : "");
+  const { viewMode, handleViewModeChange, closeMagazine } = useViewMode();
+
+  // Only fetch Hive posts when on a tab that needs them (not Casts or Tokens)
+  const needsHivePosts = !["casts", "tokens"].includes(viewMode);
   const {
     posts: hivePosts,
     fetchPosts: fetchHivePosts,
     isLoading: postsLoading,
-  } = useProfilePosts(hivePostsHandle);
-  const { viewMode, handleViewModeChange, closeMagazine } = useViewMode();
+  } = useProfilePosts(hivePostsHandle, needsHivePosts);
   const isMobile = useIsMobile();
 
   // Debounce timer ref for view mode changes
