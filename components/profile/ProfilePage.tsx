@@ -25,6 +25,7 @@ import SnapsGrid from "./SnapsGrid";
 import ZoraTokensView from "./ZoraTokensView";
 import SoftSnapsGrid from "./SoftSnapsGrid";
 import EditUserbaseProfile from "./EditUserbaseProfile";
+import { useProfileDebug } from "@/lib/utils/profileDebug";
 import FarcasterCastsView from "./FarcasterCastsView";
 
 // Import custom hooks
@@ -93,16 +94,18 @@ const ContentViews = memo(function ContentViews({
   farcasterFid?: number | null;
   farcasterUsername?: string | null;
 }) {
+  const debug = useProfileDebug("ContentViews");
+
   // Lazy mount: only render a tab's content once it's been visited.
-  // After first visit, keep it mounted (display:none) to avoid re-fetching.
   const [visited, setVisited] = useState<Set<string>>(new Set([viewMode]));
 
   useEffect(() => {
     setVisited((prev) => {
       if (prev.has(viewMode)) return prev;
+      debug.tab("first visit", viewMode);
       return new Set(prev).add(viewMode);
     });
-  }, [viewMode]);
+  }, [viewMode, debug]);
 
   const isPostsTab = ["grid", "list"].includes(viewMode);
   const hasVisitedPosts = visited.has("grid") || visited.has("list");
@@ -197,6 +200,8 @@ export interface ProfileData {
 }
 
 const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
+  const debug = useProfileDebug("ProfilePage");
+
   const { profile: userbaseProfile, isLoading: userbaseLoading, refresh: refreshUserbaseProfile } =
     useUserbaseProfile(username);
   const { user: currentUserbaseUser } = useUserbaseAuth();
@@ -754,6 +759,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               hasEthereumAddress={!!resolvedEthereumAddress}
               hasHiveProfile={canShowHiveViews || hasSoftSnaps}
               hasFarcasterProfile={!!farcasterIdentityFid}
+              hasVideoParts={!!activeProfileData.video_parts?.length}
             />
 
             {/* Content Views - Optimized conditional rendering */}

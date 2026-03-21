@@ -11,6 +11,7 @@ import {
 } from "@chakra-ui/react";
 import { FaImage } from "react-icons/fa";
 import useUserSnaps from "@/hooks/useUserSnaps";
+import { useProfileDebug } from "@/lib/utils/profileDebug";
 import VideoPreview from "./VideoPreview";
 import SnapModal, { type SnapWithMedia } from "./SnapModal";
 import { preloadThumbnails } from "@/hooks/useVideoThumbnail";
@@ -88,6 +89,7 @@ const SnapGridItem = React.memo(
 SnapGridItem.displayName = "SnapGridItem";
 
 export default function SnapsGrid({ username }: SnapsGridProps) {
+  useProfileDebug("SnapsGrid");
   const { snaps, isLoading, hasMore, loadMoreSnaps } = useUserSnaps(username);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedSnapIndex, setSelectedSnapIndex] = useState<number>(0);

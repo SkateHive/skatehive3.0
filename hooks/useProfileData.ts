@@ -4,6 +4,7 @@ import { getProfile, getAccountWithPower } from "@/lib/hive/client-functions";
 import { ProfileData } from "../components/profile/ProfilePage";
 import { VideoPart } from "@/types/VideoPart";
 import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
+import { useProfileDebug } from "@/lib/utils/profileDebug";
 
 interface HiveAccount {
     posting_json_metadata?: string;
@@ -11,6 +12,14 @@ interface HiveAccount {
 }
 
 export default function useProfileData(username: string, hiveAccount: HiveAccount | null) {
+    const debug = useProfileDebug("useProfileData");
+    // Stabilize hiveAccount references to prevent unnecessary re-fetches.
+    // The object reference changes on every parent render, but the actual
+    // metadata strings inside it stay the same.
+    const postingMetadata = hiveAccount?.posting_json_metadata || "";
+    const jsonMetadata = hiveAccount?.json_metadata || "";
+    const hasHiveAccount = !!hiveAccount;
+
     const [profileData, setProfileData] = useState<ProfileData>({
         profileImage: "",
         coverImage: "",
@@ -34,8 +43,11 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
     }, []);
 
     useEffect(() => {
+        if (!username || !hasHiveAccount) return;
+
         const fetchProfileInfo = async () => {
             try {
+                debug.fetch("fetching profile + power", { username });
                 const profileInfo = await getProfile(username);
                 const powerInfo = await getAccountWithPower(username);
 
@@ -48,9 +60,9 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
                 let zineCover = "";
                 let svs_profile = "";
 
-                if (hiveAccount?.posting_json_metadata) {
+                if (postingMetadata) {
                     try {
-                        const parsedMetadata = JSON.parse(hiveAccount.posting_json_metadata);
+                        const parsedMetadata = JSON.parse(postingMetadata);
                         const profile = parsedMetadata?.profile || {};
                         profileImage = profile.profile_image || "";
                         coverImage = profile.cover_image || "";
@@ -60,9 +72,9 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
                     }
                 }
 
-                if (hiveAccount?.json_metadata) {
+                if (jsonMetadata) {
                     try {
-                        const rawMetadata = JSON.parse(hiveAccount.json_metadata);
+                        const rawMetadata = JSON.parse(jsonMetadata);
                         const parsedMetadata = migrateLegacyMetadata(rawMetadata);
                         ethereum_address = parsedMetadata.extensions?.wallets?.primary_wallet || "";
                         video_parts = parsedMetadata.extensions?.video_parts || [];
@@ -84,24 +96,22 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
                     following: profileInfo?.stats?.following || 0,
                     location: profileInfo?.metadata?.profile?.location || "",
                     about: profileInfo?.metadata?.profile?.about || "",
-                    ethereum_address: ethereum_address,
-                    video_parts: video_parts,
-                    vote_weight: vote_weight,
+                    ethereum_address,
+                    video_parts,
+                    vote_weight,
                     vp_percent: powerInfo?.data?.vp_percent || "0%",
                     rc_percent: powerInfo?.data?.rc_percent || "0%",
-                    zineCover: zineCover,
-                    svs_profile: svs_profile,
+                    zineCover,
+                    svs_profile,
                 });
-                
+
             } catch (err) {
                 console.error("Failed to fetch profile info", err);
             }
         };
 
-        if (username && hiveAccount) {
-            fetchProfileInfo();
-        }
-    }, [username, hiveAccount]);
+        fetchProfileInfo();
+    }, [username, hasHiveAccount, postingMetadata, jsonMetadata]);
 
     return { profileData, updateProfileData };
 }

@@ -1,6 +1,7 @@
 "use client";
 import React, { memo, useMemo, useCallback } from "react";
 import { Tabs, TabList, Tab, Box } from "@chakra-ui/react";
+import { useProfileDebug } from "@/lib/utils/profileDebug";
 import {
   FaTh,
   FaBars,
@@ -21,23 +22,27 @@ interface ViewModeSelectorProps {
   hasEthereumAddress?: boolean;
   hasHiveProfile?: boolean;
   hasFarcasterProfile?: boolean;
+  hasVideoParts?: boolean;
 }
 
 const getMainTabs = (
   isMobile: boolean,
   hasEthereumAddress: boolean,
   hasHiveProfile: boolean,
-  hasFarcasterProfile: boolean
+  hasFarcasterProfile: boolean,
+  hasVideoParts: boolean
 ) => {
   const baseTabs: Array<{ key: string; label: string; icon: any }> = hasHiveProfile
     ? [
         { key: "snaps", label: "Snaps", icon: FaCamera },
         { key: "posts", label: "Pages", icon: FaFileAlt },
-        {
-          key: "videoparts",
-          label: isMobile ? "Parts" : "VideoParts",
-          icon: FaVideo,
-        },
+        ...(hasVideoParts
+          ? [{
+              key: "videoparts",
+              label: isMobile ? "Parts" : "VideoParts",
+              icon: FaVideo,
+            }]
+          : []),
       ]
     : [{ key: "posts", label: "Pages", icon: FaFileAlt }];
 
@@ -69,11 +74,12 @@ const ViewModeSelector = memo(function ViewModeSelector({
   hasEthereumAddress = false,
   hasHiveProfile = true,
   hasFarcasterProfile = false,
+  hasVideoParts = false,
 }: ViewModeSelectorProps) {
-  // Get main tabs based on mobile state and ethereum address
+  useProfileDebug("ViewModeSelector");
   const mainTabs = useMemo(
-    () => getMainTabs(isMobile, hasEthereumAddress, hasHiveProfile, hasFarcasterProfile),
-    [isMobile, hasEthereumAddress, hasHiveProfile, hasFarcasterProfile]
+    () => getMainTabs(isMobile, hasEthereumAddress, hasHiveProfile, hasFarcasterProfile, hasVideoParts),
+    [isMobile, hasEthereumAddress, hasHiveProfile, hasFarcasterProfile, hasVideoParts]
   );
 
   // Determine which main tab is currently active

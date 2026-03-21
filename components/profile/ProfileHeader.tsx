@@ -8,6 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { Box, HStack, Image, Tooltip } from "@chakra-ui/react";
+import { useProfileDebug } from "@/lib/utils/profileDebug";
 import MobileProfileHeader from "./MobileProfileHeader";
 import HiveProfileHeader from "./HiveProfileHeader";
 import ZoraProfileHeader from "./ZoraProfileHeader";
@@ -86,6 +87,7 @@ const ProfileHeader = function ProfileHeader({
   userbaseUserId = null,
   viewerHiveUsername = null,
 }: ProfileHeaderProps) {
+  useProfileDebug("ProfileHeader");
   const { connections } = useLinkedIdentities();
   const { user: viewerUserbaseUser } = useUserbaseAuth();
   const hiveConnection = connections.hive;

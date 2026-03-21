@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useProfileDebug } from "@/lib/utils/profileDebug";
 
 export interface UserbaseProfileUser {
   id: string;
@@ -34,6 +35,7 @@ interface UserbaseProfileResponse {
 const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
 export default function useUserbaseProfile(username: string) {
+  const debug = useProfileDebug("useUserbaseProfile");
   const [profile, setProfile] = useState<UserbaseProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +75,7 @@ export default function useUserbaseProfile(username: string) {
       setIsLoading(true);
       setError(null);
       try {
+        debug.fetch("loading profile", { username, queryString });
         const response = await fetch(`/api/userbase/profile?${queryString}`, {
           cache: "no-store",
         });

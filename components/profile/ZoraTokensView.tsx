@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, memo, useCallback, useMemo } from "react";
+import { useProfileDebug } from "@/lib/utils/profileDebug";
 import {
   Box,
   Grid,
@@ -23,6 +24,7 @@ interface ZoraTokensViewProps {
 }
 
 const ZoraTokensView: React.FC<ZoraTokensViewProps> = ({ ethereumAddress }) => {
+  useProfileDebug("ZoraTokensView");
   const [activeTab, setActiveTab] = useState(0);
 
   const { createdCoins, heldTokens, isLoading, error } = useZoraProfileTokens({

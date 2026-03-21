@@ -1,8 +1,10 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { findPosts } from "@/lib/hive/client-functions";
+import { useProfileDebug } from "@/lib/utils/profileDebug";
 
 export default function useProfilePosts(username: string, enabled: boolean = true) {
+    const debug = useProfileDebug("useProfilePosts");
     const [posts, setPosts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const isFetching = useRef(false);
@@ -17,6 +19,7 @@ export default function useProfilePosts(username: string, enabled: boolean = tru
     const fetchPosts = useCallback(async () => {
         if (isFetching.current || !username) return;
         isFetching.current = true;
+        debug.fetch("fetching posts", { username, hasFetchedInitial: hasFetchedInitial.current });
         try {
             const newPosts = await findPosts("author_before_date", params.current);
             if (newPosts && newPosts.length > 0) {

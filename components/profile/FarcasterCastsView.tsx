@@ -33,6 +33,7 @@ import {
 } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
 import { useFarcasterSigner } from "@/hooks/useFarcasterSigner";
+import { useProfileDebug } from "@/lib/utils/profileDebug";
 
 interface FarcasterCast {
   hash: string;
@@ -577,6 +578,7 @@ function SignerModal({
 // ─── Main Component ──────────────────────────────────────
 
 export default function FarcasterCastsView({ fid, username }: FarcasterCastsViewProps) {
+  useProfileDebug("FarcasterCastsView");
   const t = useTranslations("profile");
   const [casts, setCasts] = useState<FarcasterCast[]>([]);
   const [isLoading, setIsLoading] = useState(true);
