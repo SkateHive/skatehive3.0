@@ -36,7 +36,7 @@
     "@ethersproject/providers": "^5.8.0",
     "@farcaster/auth-client": "^0.7.1",
     "@farcaster/auth-kit": "^0.8.2",
-    "@farcaster/frame-sdk": "^0.1.14",
+    "@farcaster/miniapp-sdk": "^0.2.3",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@giphy/js-fetch-api": "^5.6.0",

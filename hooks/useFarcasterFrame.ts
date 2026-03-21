@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import sdk from '@farcaster/frame-sdk';
+import sdk from '@farcaster/miniapp-sdk';
 
 /**
  * Hook to initialize Farcaster Frame SDK and hide splash screen.
