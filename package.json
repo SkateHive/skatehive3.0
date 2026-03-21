@@ -10,7 +10,7 @@
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "type-check": "tsc --noEmit",
-    "test": "tsx lib/utils/__tests__/LRUCache.test.ts && tsx lib/utils/__tests__/hashUtils.test.ts",
+    "test": "tsx lib/utils/__tests__/LRUCache.test.ts && tsx lib/utils/__tests__/hashUtils.test.ts && tsx lib/server/__tests__/adminUtils.test.ts",
     "test:lru": "tsx lib/utils/__tests__/LRUCache.test.ts",
     "test:hash": "tsx lib/utils/__tests__/hashUtils.test.ts",
     "approve-builds": "pnpm config set strict-peer-dependencies false && pnpm install",
