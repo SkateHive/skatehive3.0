@@ -8,16 +8,13 @@ import { Discussion } from "@hiveio/dhive";
 import Conversation from "@/components/homepage/Conversation";
 import SnapReplyModal from "@/components/homepage/SnapReplyModal";
 import { useSnaps } from "@/hooks/useSnaps";
-import useIsMobile from "@/hooks/useIsMobile";
-import { useRouter } from "next/navigation";
 import { HIVE_CONFIG } from "@/config/app.config";
 
 export default function HomePageClient() {
   const thread_author = HIVE_CONFIG.THREADS.AUTHOR;
   const thread_permlink = HIVE_CONFIG.THREADS.PERMLINK;
-  const isMobile = useIsMobile();
-  const router = useRouter();
 
+  // Mobile-only: conversation drawer state
   const [conversation, setConversation] = useState<Discussion | undefined>();
   const [reply, setReply] = useState<Discussion>();
   const [isOpen, setIsOpen] = useState(false);
@@ -30,17 +27,6 @@ export default function HomePageClient() {
     newComment: Partial<Discussion> | CharacterData
   ) => {
     setNewComment(newComment as Discussion);
-  };
-
-  // Handle conversation navigation based on device type
-  const handleSetConversation = (discussion: Discussion | undefined) => {
-    if (discussion && !isMobile) {
-      // Desktop: Navigate to post page
-      router.push(`/post/${discussion.author}/${discussion.permlink}`);
-    } else {
-      // Mobile: Set conversation for drawer
-      setConversation(discussion);
-    }
   };
 
   const snaps = useSnaps();
@@ -70,7 +56,7 @@ export default function HomePageClient() {
         <SnapList
           author={thread_author}
           permlink={thread_permlink}
-          setConversation={handleSetConversation}
+          setConversation={setConversation} // Mobile only - desktop uses inline composer
           onOpen={onOpen}
           setReply={setReply}
           newComment={newComment}
