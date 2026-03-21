@@ -21,6 +21,10 @@ import {
   Drawer,
   DrawerOverlay,
   DrawerContent,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalCloseButton,
   useToast,
   Alert,
   AlertIcon,
@@ -30,6 +34,7 @@ import {
   SkeletonCircle,
   SkeletonText,
   Tooltip,
+  useBreakpointValue,
 } from "@chakra-ui/react";
 import { Discussion } from "@hiveio/dhive";
 import { useComments } from "@/hooks/useComments";
@@ -91,6 +96,9 @@ const Conversation = ({
   const textColor = useColorModeValue("gray.800", "white");
   const mobileTextColor = useColorModeValue("white", "white");
   const borderColor = useColorModeValue("gray.200", "gray.700");
+
+  // Responsive breakpoint (must be called before any early returns)
+  const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
 
   // State hooks
   const [optimisticReplies, setOptimisticReplies] = useState<Discussion[]>([]);
@@ -926,30 +934,61 @@ const Conversation = ({
     </Box>
   );
 
-  // Always use mobile UI - full-screen Drawer that slides up from bottom like Instagram
+  // Responsive UI - Modal for desktop, Drawer for mobile
+  if (isMobile) {
+    // Mobile: full-screen Drawer that slides up from bottom like Instagram
+    return (
+      <Drawer
+        isOpen={isOpen}
+        placement="bottom"
+        onClose={onBackClick}
+        size="full"
+        closeOnOverlayClick={true}
+        closeOnEsc={true}
+      >
+        <DrawerOverlay bg="blackAlpha.600" />
+        <DrawerContent
+          bg={"background"}
+          color={textColor}
+          borderTopRadius="20px"
+          h="90vh"
+          maxH="90vh"
+          mt="10vh"
+          boxShadow="0 -4px 20px rgba(0, 0, 0, 0.3)"
+          overflow="hidden"
+        >
+          <SmallScreenConversation />
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  // Desktop: Modal centered on screen
   return (
-    <Drawer
+    <Modal
       isOpen={isOpen}
-      placement="bottom"
       onClose={onBackClick}
-      size="full"
+      size="2xl"
+      scrollBehavior="inside"
       closeOnOverlayClick={true}
       closeOnEsc={true}
     >
-      <DrawerOverlay bg="blackAlpha.600" />
-      <DrawerContent
+      <ModalOverlay bg="blackAlpha.600" />
+      <ModalContent
         bg={"background"}
         color={textColor}
-        borderTopRadius="20px"
-        h="90vh"
-        maxH="90vh"
-        mt="10vh"
-        boxShadow="0 -4px 20px rgba(0, 0, 0, 0.3)"
+        borderRadius="12px"
+        maxH="80vh"
         overflow="hidden"
       >
+        <ModalCloseButton
+          color={textColor}
+          _hover={{ bg: "gray.700" }}
+          zIndex={11}
+        />
         <SmallScreenConversation />
-      </DrawerContent>
-    </Drawer>
+      </ModalContent>
+    </Modal>
   );
 };
 
