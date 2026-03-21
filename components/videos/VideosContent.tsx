@@ -23,6 +23,7 @@ import {
   Avatar,
   IconButton,
   Tooltip,
+  Heading,
 } from "@chakra-ui/react";
 import { Discussion } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
@@ -769,6 +770,17 @@ export default function VideosContent() {
     return (
       <Box minH="100vh">
         <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
+          <Heading
+            as="h1"
+            className="fretqwik-title"
+            color="primary"
+            fontSize={{ base: "2xl", md: "3xl" }}
+            fontWeight="bold"
+            mt={4}
+            mb={2}
+          >
+            Videos
+          </Heading>
           <Center py={20}>
             <VStack spacing={3}>
               <Spinner size="lg" color="primary" />
@@ -786,6 +798,17 @@ export default function VideosContent() {
     return (
       <Box minH="100vh">
         <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
+          <Heading
+            as="h1"
+            className="fretqwik-title"
+            color="primary"
+            fontSize={{ base: "2xl", md: "3xl" }}
+            fontWeight="bold"
+            mt={4}
+            mb={2}
+          >
+            Videos
+          </Heading>
           <Center py={20}>
             <VStack spacing={2}>
               <Icon as={FaVideo} boxSize={8} color="gray.600" />
@@ -1128,13 +1151,17 @@ export default function VideosContent() {
           </Box>
         </Flex>
 
-        <Box srOnly>
-          <h1>Skateboarding Videos - SkateHive Community</h1>
-          <p>
-            Watch skateboarding videos from the SkateHive community and classic
-            skate video archive.
-          </p>
-        </Box>
+        <Heading
+          as="h1"
+          className="fretqwik-title"
+          color="primary"
+          fontSize={{ base: "2xl", md: "3xl" }}
+          fontWeight="bold"
+          mt={4}
+          mb={2}
+        >
+          Videos
+        </Heading>
       </Container>
     </Box>
   );

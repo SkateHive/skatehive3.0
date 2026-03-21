@@ -22,6 +22,7 @@ import {
   AccordionPanel,
   AccordionIcon,
   Spinner,
+  Heading,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 
@@ -280,6 +281,17 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
   return (
     <Box minH="100vh">
       <Container maxW="container.xl" px={{ base: 2, md: 4 }}>
+        <Heading
+          as="h1"
+          className="fretqwik-title"
+          color="primary"
+          fontSize={{ base: "2xl", md: "3xl" }}
+          fontWeight="bold"
+          mt={4}
+          mb={4}
+        >
+          Cinema
+        </Heading>
         {/* Brand Filter Bar */}
         <Box position="relative" mb={4}>
           <IconButton
