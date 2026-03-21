@@ -104,8 +104,8 @@ async function convertHeicImage(img: HTMLImageElement): Promise<void> {
     img.style.opacity = "1";
     img.alt = "Converting image...";
 
-    // Fetch with 30s timeout (large files need time)
-    const response = await fetchWithTimeout(originalSrc, 30000);
+    // Fetch with 15s timeout (aggressive)
+    const response = await fetchWithTimeout(originalSrc, 15000);
     if (!response.ok) {
       showFallback(img, originalSrc);
       return;
@@ -115,11 +115,11 @@ async function convertHeicImage(img: HTMLImageElement): Promise<void> {
     // Lazy-load heic2any
     const heic2any = (await import("heic2any")).default;
 
-    // Retry strategy: try high quality first, then lower quality, then even lower
+    // Retry strategy: faster timeouts to avoid hanging UX
     const attempts = [
-      { quality: 0.92, timeout: 20000 },
-      { quality: 0.7, timeout: 30000 },
-      { quality: 0.5, timeout: 45000 },
+      { quality: 0.92, timeout: 8000 },
+      { quality: 0.7, timeout: 10000 },
+      { quality: 0.5, timeout: 12000 },
     ];
 
     let lastError: Error | null = null;

@@ -98,11 +98,9 @@ const ImageCompressor = forwardRef<ImageCompressorRef, ImageCompressorProps>(
         // Convert HEIC/HEIF → JPEG before anything else
         let processedFile = file;
         if (isHeic) {
-          setStatus("Converting HEIC to JPEG...");
           processedFile = await convertHeicIfNeeded(file);
         }
 
-        setStatus("Compressing image...");
         const options = {
           maxSizeMB: 2,
           maxWidthOrHeight: 1920,
@@ -111,10 +109,8 @@ const ImageCompressor = forwardRef<ImageCompressorRef, ImageCompressorProps>(
 
         // Skip compression for GIF, WebP, and SVG (they're already optimized)
         if (processedFile.type === "image/gif" || processedFile.type === "image/webp" || processedFile.type === "image/svg+xml") {
-          setStatus("Preparing image...");
           const url = URL.createObjectURL(processedFile);
           setBlobUrl(url);
-          setStatus("Image ready!");
           onUpload(url, processedFile.name, processedFile);
           return;
         }
@@ -125,7 +121,6 @@ const ImageCompressor = forwardRef<ImageCompressorRef, ImageCompressorProps>(
         }
         const url = URL.createObjectURL(compressedFile);
         setBlobUrl(url);
-        setStatus("Image compressed successfully!");
         onUpload(url, compressedFile.name, file);
       } catch (err: any) {
         console.error("Image compression error:", err);
