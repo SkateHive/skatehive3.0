@@ -131,6 +131,11 @@ const Snap = ({
 
   const [showSlider, setShowSlider] = useState(false);
   const [activeVotes, setActiveVotes] = useState(discussion.active_votes || []);
+  
+  // Debug: log if votes are missing
+  if (process.env.NODE_ENV === 'development' && (!discussion.active_votes || discussion.active_votes.length === 0)) {
+    console.log(`⚠️ Snap ${discussion.author}/${discussion.permlink}: active_votes missing or empty`);
+  }
   const [rewardAmount, setRewardAmount] = useState(
     parseFloat(getPayoutValue(discussion))
   );
@@ -430,13 +435,15 @@ const Snap = ({
                     <LuArrowDown size={18} color="var(--chakra-colors-primary)" />
                   </Box>
                 )}
-                <Text 
-                  fontSize="sm" 
-                  fontWeight="medium"
-                  color="primary"
-                >
-                  {activeVotes.length}
-                </Text>
+                {activeVotes.length > 0 && (
+                  <Text 
+                    fontSize="sm" 
+                    fontWeight="medium"
+                    color="primary"
+                  >
+                    {activeVotes.length}
+                  </Text>
+                )}
               </HStack>
             </HStack>
 
