@@ -24,6 +24,10 @@ import {
   Spinner,
   Heading,
   Badge,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  InputRightElement,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 
@@ -36,6 +40,8 @@ import {
   FaFilm,
   FaChevronLeft,
   FaChevronRight,
+  FaSearch,
+  FaTimes,
 } from "react-icons/fa";
 import { SiOdysee, SiYoutube } from "react-icons/si";
 import cinemaData from "@/public/data/cinema.json";
@@ -175,6 +181,7 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
   const router = useRouter();
   const videos = cinemaData.videos as CinemaVideo[];
   const [selectedBrand, setSelectedBrand] = useState<string | null>(initialBrand || null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [shuffle, setShuffle] = useState(false);
@@ -183,9 +190,24 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
   const [videoIds, setVideoIds] = useState<Record<number, string>>({});
 
   const filteredVideos = useMemo(() => {
-    if (!selectedBrand) return videos;
-    return videos.filter((v) => v.brand === selectedBrand);
-  }, [videos, selectedBrand]);
+    let result = videos;
+    if (selectedBrand) {
+      result = result.filter((v) => v.brand === selectedBrand);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (v) =>
+          v.title.toLowerCase().includes(q) ||
+          v.brand.toLowerCase().includes(q) ||
+          v.channel.toLowerCase().includes(q) ||
+          (v.year && String(v.year).includes(q)) ||
+          (v.skaters && v.skaters.some((s) => s.toLowerCase().includes(q))) ||
+          (v.cast && v.cast.some((c) => c.toLowerCase().includes(q)))
+      );
+    }
+    return result;
+  }, [videos, selectedBrand, searchQuery]);
 
   const totalPages = Math.ceil(filteredVideos.length / VIDEOS_PER_PAGE);
   const paginatedVideos = useMemo(() => {
@@ -195,8 +217,8 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
 
   const activeVideo = paginatedVideos[activeIndex] || null;
 
-  // Reset when filter/page changes
-  useEffect(() => { setActiveIndex(0); }, [currentPage, selectedBrand]);
+  // Reset when filter/page/search changes
+  useEffect(() => { setActiveIndex(0); }, [currentPage, selectedBrand, searchQuery]);
 
   const handlePlaySong = useCallback(async (index: number, song: string) => {
     if (playingSong === index) {
@@ -308,95 +330,133 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
             </Badge>
           </HStack>
         </VStack>
-        {/* Brand Filter Bar */}
-        <Box position="relative" mb={4}>
-          <IconButton
-            aria-label="Scroll left"
-            icon={<Icon as={FaChevronLeft} />}
-            size="sm"
-            variant="ghost"
-            color="gray.400"
-            position="absolute"
-            left={0}
-            top="50%"
-            transform="translateY(-50%)"
-            zIndex={2}
-            bg="blackAlpha.800"
-            borderRadius="full"
-            _hover={{ bg: "blackAlpha.900", color: "primary" }}
-            onClick={() => {
-              const container = document.getElementById("brand-scroll-container");
-              if (container) container.scrollBy({ left: -250, behavior: "smooth" });
-            }}
-          />
-          <Box id="brand-scroll-container" overflowX="auto" px={10}
-            css={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>
-            <HStack spacing={2} py={2} minW="max-content">
-              <Button
-                size="xs" fontFamily="mono" fontSize="xs" h="28px"
-                variant={!selectedBrand ? "solid" : "outline"}
-                bg={!selectedBrand ? "primary" : "transparent"}
-                color={!selectedBrand ? "background" : "gray.400"}
-                borderColor="whiteAlpha.200" borderRadius="sm"
-                onClick={() => { setSelectedBrand(null); setCurrentPage(0); router.push("/cinema", { scroll: false }); }}
-                _hover={{ borderColor: "primary", color: !selectedBrand ? "background" : "primary" }}
-                px={3}
-              >
-                All ({videos.length})
-              </Button>
-              {TOP_BRANDS.map((brand) => {
-                const count = videos.filter((v) => v.brand === brand).length;
-                const isActive = selectedBrand === brand;
-                const logo = getBrandLogo(brand);
-                return (
-                  <Button
-                    key={brand} size="xs" fontFamily="mono" fontSize="xs" h="32px"
-                    variant={isActive ? "solid" : "outline"}
-                    bg={isActive ? "primary" : "transparent"}
-                    color={isActive ? "background" : "gray.400"}
-                    borderColor={isActive ? "primary" : "whiteAlpha.200"} borderRadius="sm"
-                    onClick={() => { setSelectedBrand(brand); setCurrentPage(0); router.push(`/cinema/${brandToSlug(brand)}`, { scroll: false }); }}
-                    _hover={{ borderColor: "primary", color: isActive ? "background" : "primary" }}
-                    px={3} gap={1.5}
-                  >
-                    {logo && (
-                      <Image
-                        src={logo}
-                        alt={brand}
-                        h="16px"
-                        w="auto"
-                        maxW="40px"
-                        objectFit="contain"
-                        filter={isActive ? "none" : "grayscale(100%) brightness(0.8)"}
-                        opacity={isActive ? 1 : 0.7}
-                      />
-                    )}
-                    {brand} ({count})
-                  </Button>
-                );
-              })}
-            </HStack>
+        {/* Search + Brand Filter Bar */}
+        <Flex mb={4} gap={3} align="center">
+          {/* Search Input */}
+          <InputGroup size="sm" w={{ base: "140px", md: "220px" }} flexShrink={0}>
+            <InputLeftElement pointerEvents="none">
+              <Icon as={FaSearch} color="gray.500" boxSize={3} />
+            </InputLeftElement>
+            <Input
+              placeholder="Search..."
+              fontFamily="mono"
+              fontSize="xs"
+              value={searchQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearchQuery(e.target.value); setCurrentPage(0); }}
+              bg="transparent"
+              border="1px solid"
+              borderColor="whiteAlpha.200"
+              borderRadius="sm"
+              color="text"
+              _placeholder={{ color: "gray.600" }}
+              _hover={{ borderColor: "whiteAlpha.300" }}
+              _focus={{ borderColor: "primary", boxShadow: "none" }}
+            />
+            {searchQuery && (
+              <InputRightElement>
+                <IconButton
+                  aria-label="Clear search"
+                  icon={<Icon as={FaTimes} boxSize={3} />}
+                  size="xs"
+                  variant="ghost"
+                  color="gray.500"
+                  _hover={{ color: "primary" }}
+                  onClick={() => setSearchQuery("")}
+                />
+              </InputRightElement>
+            )}
+          </InputGroup>
+
+          {/* Brand Badges */}
+          <Box position="relative" flex={1} minW={0}>
+            <IconButton
+              aria-label="Scroll left"
+              icon={<Icon as={FaChevronLeft} />}
+              size="sm"
+              variant="ghost"
+              color="gray.400"
+              position="absolute"
+              left={0}
+              top="50%"
+              transform="translateY(-50%)"
+              zIndex={2}
+              bg="blackAlpha.800"
+              borderRadius="full"
+              _hover={{ bg: "blackAlpha.900", color: "primary" }}
+              onClick={() => {
+                const container = document.getElementById("brand-scroll-container");
+                if (container) container.scrollBy({ left: -250, behavior: "smooth" });
+              }}
+            />
+            <Box id="brand-scroll-container" overflowX="auto" px={10}
+              css={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>
+              <HStack spacing={2} py={2} minW="max-content">
+                <Button
+                  size="xs" fontFamily="mono" fontSize="xs" h="28px"
+                  variant={!selectedBrand ? "solid" : "outline"}
+                  bg={!selectedBrand ? "primary" : "transparent"}
+                  color={!selectedBrand ? "background" : "gray.400"}
+                  borderColor="whiteAlpha.200" borderRadius="sm"
+                  onClick={() => { setSelectedBrand(null); setCurrentPage(0); router.push("/cinema", { scroll: false }); }}
+                  _hover={{ borderColor: "primary", color: !selectedBrand ? "background" : "primary" }}
+                  px={3}
+                >
+                  All ({videos.length})
+                </Button>
+                {TOP_BRANDS.map((brand) => {
+                  const count = videos.filter((v) => v.brand === brand).length;
+                  const isActive = selectedBrand === brand;
+                  const logo = getBrandLogo(brand);
+                  return (
+                    <Button
+                      key={brand} size="xs" fontFamily="mono" fontSize="xs" h="32px"
+                      variant={isActive ? "solid" : "outline"}
+                      bg={isActive ? "primary" : "transparent"}
+                      color={isActive ? "background" : "gray.400"}
+                      borderColor={isActive ? "primary" : "whiteAlpha.200"} borderRadius="sm"
+                      onClick={() => { setSelectedBrand(brand); setCurrentPage(0); router.push(`/cinema/${brandToSlug(brand)}`, { scroll: false }); }}
+                      _hover={{ borderColor: "primary", color: isActive ? "background" : "primary" }}
+                      px={3} gap={1.5}
+                    >
+                      {logo && (
+                        <Image
+                          src={logo}
+                          alt={brand}
+                          h="16px"
+                          w="auto"
+                          maxW="40px"
+                          objectFit="contain"
+                          filter={isActive ? "none" : "grayscale(100%) brightness(0.8)"}
+                          opacity={isActive ? 1 : 0.7}
+                        />
+                      )}
+                      {brand} ({count})
+                    </Button>
+                  );
+                })}
+              </HStack>
+            </Box>
+            <IconButton
+              aria-label="Scroll right"
+              icon={<Icon as={FaChevronRight} />}
+              size="sm"
+              variant="ghost"
+              color="gray.400"
+              position="absolute"
+              right={0}
+              top="50%"
+              transform="translateY(-50%)"
+              zIndex={2}
+              bg="blackAlpha.800"
+              borderRadius="full"
+              _hover={{ bg: "blackAlpha.900", color: "primary" }}
+              onClick={() => {
+                const container = document.getElementById("brand-scroll-container");
+                if (container) container.scrollBy({ left: 250, behavior: "smooth" });
+              }}
+            />
           </Box>
-          <IconButton
-            aria-label="Scroll right"
-            icon={<Icon as={FaChevronRight} />}
-            size="sm"
-            variant="ghost"
-            color="gray.400"
-            position="absolute"
-            right={0}
-            top="50%"
-            transform="translateY(-50%)"
-            zIndex={2}
-            bg="blackAlpha.800"
-            borderRadius="full"
-            _hover={{ bg: "blackAlpha.900", color: "primary" }}
-            onClick={() => {
-              const container = document.getElementById("brand-scroll-container");
-              if (container) container.scrollBy({ left: 250, behavior: "smooth" });
-            }}
-          />
-        </Box>
+        </Flex>
 
         {/* Cinema Layout */}
         <Flex direction={{ base: "column", lg: "row" }} gap={0}
