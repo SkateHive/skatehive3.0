@@ -1,4 +1,23 @@
 {
+  "credits": {
+    "message": "SkateHive ❤️ Skate Video Site & Skate Video Library",
+    "sources": [
+      {
+        "name": "SkateVideoSite (SVS)",
+        "url": "https://www.skatevideosite.com/",
+        "description": "The best skateboarding video data archive",
+        "badge": "🎥 Data by SVS"
+      },
+      {
+        "name": "Skate Video Library",
+        "url": "https://www.youtube.com/@SkateVideoLibrary",
+        "discord": "https://discord.me/skatevideolibrary",
+        "description": "High quality skate video preservation by a skateboard nerd from Finland",
+        "badge": "📚 Videos by SVL"
+      }
+    ],
+    "support": "These resources preserve skateboarding history. Support them!"
+  },
   "categories": {
     "skate_videos": [
       {
@@ -9,7 +28,8 @@
         "song": "When the Levee Breaks",
         "artist": "Led Zeppelin",
         "spotify": "https://open.spotify.com/track/3qiyyUfYe7CRYLucrPmulD",
-        "youtube": "https://www.youtube.com/watch?v=fOEQTJV_3-w"
+        "youtube": "https://www.youtube.com/watch?v=fOEQTJV_3-w",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/baker-3/baker-skateboards/2005"
       },
       {
         "video": "Baker 3",
@@ -19,7 +39,8 @@
         "song": "Runnin'",
         "artist": "The Pharcyde",
         "spotify": "https://open.spotify.com/track/13olBHlsq5hqOKLn5eKqkl",
-        "youtube": "https://www.youtube.com/watch?v=pwHuEDCM7xs"
+        "youtube": "https://www.youtube.com/watch?v=pwHuEDCM7xs",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/baker-3/baker-skateboards/2005"
       },
       {
         "video": "Baker 3",
@@ -29,7 +50,8 @@
         "song": "Flash Light",
         "artist": "Parliament",
         "spotify": "https://open.spotify.com/track/6E1YMivT50VjTURunNxpjA",
-        "youtube": "https://www.youtube.com/watch?v=OWF_W4rkN3w"
+        "youtube": "https://www.youtube.com/watch?v=OWF_W4rkN3w",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/baker-3/baker-skateboards/2005"
       },
       {
         "video": "Yeah Right!",
@@ -39,7 +61,8 @@
         "song": "Do You Realize??",
         "artist": "The Flaming Lips",
         "spotify": "https://open.spotify.com/track/4LI1ykYGFCcXPWkrpcU7hn",
-        "youtube": "https://www.youtube.com/watch?v=lPXWt2ESxVY"
+        "youtube": "https://www.youtube.com/watch?v=lPXWt2ESxVY",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/yeah-right/girl-skateboards/2003"
       },
       {
         "video": "Yeah Right!",
@@ -49,7 +72,8 @@
         "song": "Point to B",
         "artist": "Prefuse 73",
         "spotify": "https://open.spotify.com/track/0ZjfNXqOKLPNUZQx2qWqLt",
-        "youtube": "https://www.youtube.com/watch?v=zFTFsFi-EXc"
+        "youtube": "https://www.youtube.com/watch?v=zFTFsFi-EXc",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/yeah-right/girl-skateboards/2003"
       },
       {
         "video": "Fully Flared",
@@ -59,7 +83,8 @@
         "song": "Lower Your Eyelids to Die with the Sun",
         "artist": "M83",
         "spotify": "https://open.spotify.com/track/6A4BaG5lCLJ6UHPY8KJD0h",
-        "youtube": "https://www.youtube.com/watch?v=u_u5iCHi0Jo"
+        "youtube": "https://www.youtube.com/watch?v=u_u5iCHi0Jo",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/fully-flared/lakai/2007"
       },
       {
         "video": "Fully Flared",
@@ -69,7 +94,8 @@
         "song": "Get Myself Into It",
         "artist": "The Rapture",
         "spotify": "https://open.spotify.com/track/6Gx8c3KFYsLXRqYLTk7NJ9",
-        "youtube": "https://www.youtube.com/watch?v=wRSHzenjiNA"
+        "youtube": "https://www.youtube.com/watch?v=wRSHzenjiNA",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/fully-flared/lakai/2007"
       },
       {
         "video": "Misled Youth",
@@ -79,7 +105,8 @@
         "song": "Hybrid Moments",
         "artist": "Misfits",
         "spotify": "https://open.spotify.com/track/0rIGLEZJUUxS5gUhAkVIUj",
-        "youtube": "https://www.youtube.com/watch?v=wNjU2xE8kzw"
+        "youtube": "https://www.youtube.com/watch?v=wNjU2xE8kzw",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/misled-youth/zero/1999"
       },
       {
         "video": "Welcome to Hell",
@@ -89,7 +116,8 @@
         "song": "Bring the Noise",
         "artist": "Anthrax & Chuck D",
         "spotify": "https://open.spotify.com/track/5d5Z7KzqOUshkeZPpMqYHc",
-        "youtube": "https://www.youtube.com/watch?v=kl1hgXfX5-U"
+        "youtube": "https://www.youtube.com/watch?v=kl1hgXfX5-U",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/welcome-to-hell/toy-machine/1996"
       },
       {
         "video": "That's Life",
@@ -99,7 +127,8 @@
         "song": "Raining Blood",
         "artist": "Slayer",
         "spotify": "https://open.spotify.com/track/31ARXQ0sZHt4OZg6GLsmLL",
-        "youtube": "https://www.youtube.com/watch?v=z8ZqFlw6hYg"
+        "youtube": "https://www.youtube.com/watch?v=z8ZqFlw6hYg",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/thats-life/foundation/2003"
       },
       {
         "video": "Bag of Suck",
@@ -109,7 +138,8 @@
         "song": "Needy Girl",
         "artist": "Chromeo",
         "spotify": "https://open.spotify.com/track/1fFHJp0ARqMnOgEJv7OPEz",
-        "youtube": "https://www.youtube.com/watch?v=6okxuiiHx2w"
+        "youtube": "https://www.youtube.com/watch?v=6okxuiiHx2w",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/bag-of-suck/enjoi/2006"
       },
       {
         "video": "Surveillance",
@@ -119,7 +149,8 @@
         "song": "The Bottle",
         "artist": "Gil Scott-Heron",
         "spotify": "https://open.spotify.com/track/3JSlyqQXXaUU9SWFMhHC2h",
-        "youtube": "https://www.youtube.com/watch?v=kqztLugLMsI"
+        "youtube": "https://www.youtube.com/watch?v=kqztLugLMsI",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/surveillance/real-skateboards/2012"
       },
       {
         "video": "Stay Gold",
@@ -129,7 +160,8 @@
         "song": "Crimson and Clover",
         "artist": "Tommy James & The Shondells",
         "spotify": "https://open.spotify.com/track/7BKLCZ1jbUBVqRi2FVlTVw",
-        "youtube": "https://www.youtube.com/watch?v=GpGEeneO-t0"
+        "youtube": "https://www.youtube.com/watch?v=GpGEeneO-t0",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/stay-gold/emerica/2010"
       },
       {
         "video": "The End",
@@ -139,7 +171,8 @@
         "song": "May 16",
         "artist": "Lagwagon",
         "spotify": "https://open.spotify.com/track/4rz9j6Y8YQVG9fhv7EUlKi",
-        "youtube": "https://www.youtube.com/watch?v=IYQFH_5H-kY"
+        "youtube": "https://www.youtube.com/watch?v=IYQFH_5H-kY",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/the-end/birdhouse/1998"
       },
       {
         "video": "Sorry",
@@ -149,7 +182,8 @@
         "song": "Starlight",
         "artist": "The Supermen Lovers",
         "spotify": "https://open.spotify.com/track/0DiWol3AO6WpXZgp0goxAV",
-        "youtube": "https://www.youtube.com/watch?v=h61QG4s0I3U"
+        "youtube": "https://www.youtube.com/watch?v=h61QG4s0I3U",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/sorry/flip/2002"
       },
       {
         "video": "Sorry",
@@ -159,7 +193,8 @@
         "song": "Alcohemy",
         "artist": "Quasimoto",
         "spotify": "https://open.spotify.com/track/6EjQ1VqvKZqKLEPpR6W2LV",
-        "youtube": "https://www.youtube.com/watch?v=mLNu6kJK6EE"
+        "youtube": "https://www.youtube.com/watch?v=mLNu6kJK6EE",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/sorry/flip/2002"
       },
       {
         "video": "Pretty Sweet",
@@ -169,7 +204,8 @@
         "song": "Cherry Bomb",
         "artist": "Tyler, The Creator",
         "spotify": "https://open.spotify.com/track/2xLOMHjIhNf6fFeUMTJfgN",
-        "youtube": "https://www.youtube.com/watch?v=CUP51fUjc4g"
+        "youtube": "https://www.youtube.com/watch?v=CUP51fUjc4g",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/pretty-sweet/girl-skateboards/2012"
       },
       {
         "video": "Menikmati",
@@ -179,7 +215,8 @@
         "song": "Shook Ones Pt. II",
         "artist": "Mobb Deep",
         "spotify": "https://open.spotify.com/track/0NdWWqiYYkshZXJ0E7MK7q",
-        "youtube": "https://www.youtube.com/watch?v=0NUX4tW5pps"
+        "youtube": "https://www.youtube.com/watch?v=0NUX4tW5pps",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/menikmati/chocolate-skateboards/2000"
       },
       {
         "video": "Extremely Sorry",
@@ -189,7 +226,8 @@
         "song": "Morning Bell",
         "artist": "Radiohead",
         "spotify": "https://open.spotify.com/track/7rw0RKB24qDSmEWKD5tnmL",
-        "youtube": "https://www.youtube.com/watch?v=S7NSnFPF5pM"
+        "youtube": "https://www.youtube.com/watch?v=S7NSnFPF5pM",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/extremely-sorry/flip/2009"
       },
       {
         "video": "Tres",
@@ -199,7 +237,8 @@
         "song": "Guerrilla Radio",
         "artist": "Rage Against the Machine",
         "spotify": "https://open.spotify.com/track/6VQYvRK5eDJOrBtrOCRQRZ",
-        "youtube": "https://www.youtube.com/watch?v=GmHrjFIWl6U"
+        "youtube": "https://www.youtube.com/watch?v=GmHrjFIWl6U",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/habitat-tres/habitat/1996"
       }
     ],
     "movies": [
@@ -211,6 +250,7 @@
         "description": "A teenage skateboarder becomes a suspect when a security guard is killed at the Portland skatepark Burnside",
         "odysee": "https://odysee.com/Paranoid-Park-2007:8",
         "imdb": "https://www.imdb.com/title/tt0842929/",
+        "svs_url": "https://www.skatevideosite.com/skatevideos/paranoid-park/gus-van-sant/2007",
         "soundtrack": [
           {
             "song": "Song 3",
