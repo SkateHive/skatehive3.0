@@ -190,23 +190,19 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
   const [videoIds, setVideoIds] = useState<Record<number, string>>({});
 
   const filteredVideos = useMemo(() => {
-    let result = videos;
-    if (selectedBrand) {
-      result = result.filter((v) => v.brand === selectedBrand);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (v) =>
-          v.title.toLowerCase().includes(q) ||
-          v.brand.toLowerCase().includes(q) ||
-          v.channel.toLowerCase().includes(q) ||
-          (v.year && String(v.year).includes(q)) ||
-          (v.skaters && v.skaters.some((s) => s.toLowerCase().includes(q))) ||
-          (v.cast && v.cast.some((c) => c.toLowerCase().includes(q)))
+    const q = searchQuery.trim().toLowerCase();
+    return videos.filter((v) => {
+      if (selectedBrand && v.brand !== selectedBrand) return false;
+      if (!q) return true;
+      return (
+        v.title.toLowerCase().includes(q) ||
+        v.brand.toLowerCase().includes(q) ||
+        v.channel.toLowerCase().includes(q) ||
+        (v.year != null && String(v.year).includes(q)) ||
+        (v.skaters?.some((s) => s.toLowerCase().includes(q)) ?? false) ||
+        (v.cast?.some((c) => c.toLowerCase().includes(q)) ?? false)
       );
-    }
-    return result;
+    });
   }, [videos, selectedBrand, searchQuery]);
 
   const totalPages = Math.ceil(filteredVideos.length / VIDEOS_PER_PAGE);
