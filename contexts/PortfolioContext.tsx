@@ -56,6 +56,14 @@ interface PortfolioProviderProps {
   farcasterVerifiedAddresses?: string[];
 }
 
+// Returns true only when net worth differs by more than $0.01 — avoids
+// re-renders when cached and fresh data are effectively identical.
+function portfolioChanged(prev: PortfolioData | null, next: PortfolioData | null): boolean {
+  if (!prev && !next) return false;
+  if (!prev || !next) return true;
+  return Math.abs((prev.totalNetWorth ?? 0) - (next.totalNetWorth ?? 0)) > 0.01;
+}
+
 export function PortfolioProvider({
   children,
   address,
@@ -67,6 +75,14 @@ export function PortfolioProvider({
   const [farcasterVerifiedPortfolios, setFarcasterVerifiedPortfolios] = useState<Record<string, PortfolioData>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Refs mirror current state so fetchAllPortfolios can compare without stale closures.
+  const portfolioRef = useRef<PortfolioData | null>(null);
+  const farcasterPortfolioRef = useRef<PortfolioData | null>(null);
+  const verifiedPortfoliosRef = useRef<Record<string, PortfolioData>>({});
+  useEffect(() => { portfolioRef.current = portfolio; }, [portfolio]);
+  useEffect(() => { farcasterPortfolioRef.current = farcasterPortfolio; }, [farcasterPortfolio]);
+  useEffect(() => { verifiedPortfoliosRef.current = farcasterVerifiedPortfolios; }, [farcasterVerifiedPortfolios]);
 
   // AbortController ref — cancel in-flight requests if addresses change
   const abortRef = useRef<AbortController | null>(null);
@@ -150,15 +166,21 @@ export function PortfolioProvider({
         // Ignore result if request was aborted (component unmounted / addresses changed)
         if (signal.aborted) return;
 
-        setPortfolio(ethPortfolio);
-        setFarcasterPortfolio(fcPortfolio);
+        // Only update state when data actually changed — avoids a redundant
+        // re-render when fresh API data matches what was already loaded from cache.
+        if (portfolioChanged(portfolioRef.current, ethPortfolio)) setPortfolio(ethPortfolio);
+        if (portfolioChanged(farcasterPortfolioRef.current, fcPortfolio)) setFarcasterPortfolio(fcPortfolio);
 
         const verifiedRecord: Record<string, PortfolioData> = {};
         ethVerifiedAddresses.forEach((addr, i) => {
           const p = verifiedPortfolios[i];
           if (p && p.totalNetWorth > 0) verifiedRecord[addr] = p;
         });
-        setFarcasterVerifiedPortfolios(verifiedRecord);
+        const prevVerified = verifiedPortfoliosRef.current;
+        const verifiedChanged = Object.keys(verifiedRecord).some(
+          addr => portfolioChanged(prevVerified[addr] ?? null, verifiedRecord[addr])
+        ) || Object.keys(prevVerified).length !== Object.keys(verifiedRecord).length;
+        if (verifiedChanged) setFarcasterVerifiedPortfolios(verifiedRecord);
       } catch (err) {
         if (!signal.aborted) {
           setError(err instanceof Error ? err.message : "Unknown error");

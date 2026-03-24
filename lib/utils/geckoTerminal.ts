@@ -323,31 +323,32 @@ export const forceRefreshTokenData = async (tokens: TokenDetail[]): Promise<void
   notifyLogoUpdates();
 };
 
-// Function to preload token logos for better UX - more conservative approach
+// Preload token logos in parallel batches — notifies subscribers after each batch
+// so logos paint incrementally instead of all-at-once after a 2s+ wait.
 export const preloadTokenLogos = async (tokens: TokenDetail[]): Promise<void> => {
-  // Always include HIGHER token for special handling
   const higherToken = tokens.find(t => t.token.symbol.toLowerCase() === "higher");
 
-  // Get top 5 tokens by balance
-  const topTokens = tokens
+  const topTokens = [...tokens]
     .sort((a, b) => (b.token.balanceUSD || 0) - (a.token.balanceUSD || 0))
     .slice(0, 5);
 
-  // Combine HIGHER token with top tokens, removing duplicates
   const tokensToFetch = higherToken
     ? [higherToken, ...topTokens.filter(t => t.token.address !== higherToken.token.address)].slice(0, 6)
     : topTokens;
 
-  for (let i = 0; i < tokensToFetch.length; i++) {
-    const tokenDetail = tokensToFetch[i];
-    try {
-      await new Promise(resolve => setTimeout(resolve, i * 400)); // 400ms delay between requests
-      const result = await fetchTokenData(tokenDetail.token.address, null, tokenDetail.network);
-      if (result) {
-        notifyLogoUpdates();
-      }
-    } catch (error) {
-      // ignore
+  // Process in parallel batches of MAX_CONCURRENT_REQUESTS.
+  // Each batch fires simultaneously; we wait 1s between batches to respect the API rate limit.
+  // Worst-case: 6 tokens → 3 batches → ~2s total (vs 2.4s sequential).
+  // Best-case: logos from first batch appear after the very first parallel fetch (~500ms).
+  for (let i = 0; i < tokensToFetch.length; i += MAX_CONCURRENT_REQUESTS) {
+    const batch = tokensToFetch.slice(i, i + MAX_CONCURRENT_REQUESTS);
+    const results = await Promise.allSettled(
+      batch.map(t => fetchTokenData(t.token.address, null, t.network))
+    );
+    const anyLoaded = results.some(r => r.status === "fulfilled" && r.value !== null);
+    if (anyLoaded) notifyLogoUpdates(); // paint this batch immediately
+    if (i + MAX_CONCURRENT_REQUESTS < tokensToFetch.length) {
+      await delay(REQUEST_DELAY); // pace between batches
     }
   }
 };
