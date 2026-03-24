@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { Box, HStack, Text, Skeleton } from "@chakra-ui/react";
+import { Box, Text, Skeleton } from "@chakra-ui/react";
 import { usePortfolioContext } from "@/contexts/PortfolioContext";
-import { formatValue } from "@/lib/utils/portfolioUtils";
+import { useLocale } from "@/contexts/LocaleContext";
 
 type ChainFilter = "all" | "hive" | "evm" | "farcaster";
 
@@ -12,10 +12,10 @@ interface TotalPortfolioValueProps {
 }
 
 const LABELS: Record<ChainFilter, string> = {
-  all: "Total Portfolio",
-  hive: "Hive Portfolio",
-  evm: "EVM Portfolio",
-  farcaster: "Farcaster Portfolio",
+  all: "Total Money",
+  hive: "Hive Balance",
+  evm: "EVM Balance",
+  farcaster: "Farcaster Balance",
 };
 
 export default function TotalPortfolioValue({
@@ -23,6 +23,7 @@ export default function TotalPortfolioValue({
   chainFilter,
   isLoading,
 }: TotalPortfolioValueProps) {
+  const { locale } = useLocale();
   const {
     aggregatedPortfolio,
     portfolio,
@@ -83,7 +84,7 @@ export default function TotalPortfolioValue({
         />
       ) : (
         <Text
-          fontSize={{ base: "6xl", md: "6xl" }}
+          fontSize={{ base: "6xl", md: "8xl" }}
           color="primary"
           fontWeight="black"
           letterSpacing="tight"
@@ -94,7 +95,12 @@ export default function TotalPortfolioValue({
             filter: "brightness(1.15)",
           }}
         >
-          {formatValue(displayValue)}
+          {new Intl.NumberFormat(locale, {
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(displayValue)}
         </Text>
       )}
     </Box>
