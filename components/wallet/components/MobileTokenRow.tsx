@@ -6,6 +6,7 @@ import {
   formatValue,
   formatPriceChange,
   getEnhancedTokenData,
+  getCorrectedTotalUSD,
 } from "../../../lib/utils/portfolioUtils";
 import { blockchainDictionary } from "../../../types/portfolio";
 import TokenLogo from "./TokenLogo";
@@ -107,7 +108,7 @@ export default function MobileTokenRow({
               fontWeight="600"
               letterSpacing="-0.01em"
             >
-              {formatValue(consolidatedToken.totalBalanceUSD)}
+              {formatValue(getCorrectedTotalUSD(consolidatedToken))}
             </Text>
             {priceChange !== null && priceChange !== undefined && (
               <Text

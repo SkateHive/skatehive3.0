@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Text, HStack, VStack, Image, Badge } from "@chakra-ui/react";
-import { ConsolidatedToken } from "../../../lib/utils/portfolioUtils";
+import { ConsolidatedToken, getEnhancedTokenData, getCorrectedTotalUSD } from "../../../lib/utils/portfolioUtils";
 import { blockchainDictionary, TokenDetail } from "../../../types/portfolio";
 import { formatBalance, formatValue } from "../../../lib/utils/portfolioUtils";
 import { useWalletSource } from "../utils/walletSource";
@@ -18,7 +18,9 @@ interface ChainTokenItemProps {
 function ChainTokenItem({ chainToken, totalBalanceUSD }: ChainTokenItemProps) {
   const networkInfo = blockchainDictionary[chainToken.network];
   const walletSource = useWalletSource(chainToken);
-  const percentage = (chainToken.token.balanceUSD / totalBalanceUSD) * 100;
+  const { correctedBalanceUSD } = getEnhancedTokenData(chainToken);
+  const displayBalanceUSD = correctedBalanceUSD ?? chainToken.token.balanceUSD;
+  const percentage = totalBalanceUSD > 0 ? (displayBalanceUSD / totalBalanceUSD) * 100 : 0;
 
   return (
     <Box>
@@ -62,7 +64,7 @@ function ChainTokenItem({ chainToken, totalBalanceUSD }: ChainTokenItemProps) {
             {formatBalance(chainToken.token.balance)} {chainToken.token.symbol}
           </Text>
           <Text fontSize="xs" color="dim">
-            {formatValue(chainToken.token.balanceUSD)}
+            {formatValue(displayBalanceUSD)}
           </Text>
         </VStack>
       </HStack>
@@ -108,7 +110,7 @@ export default function TokenChainBreakdown({
           <ChainTokenItem
             key={`${chainToken.network}-${index}`}
             chainToken={chainToken}
-            totalBalanceUSD={consolidatedToken.totalBalanceUSD}
+            totalBalanceUSD={getCorrectedTotalUSD(consolidatedToken)}
           />
         ))}
       </VStack>

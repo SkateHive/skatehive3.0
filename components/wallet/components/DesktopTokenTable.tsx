@@ -19,6 +19,7 @@ import {
   formatValue,
   formatPriceChange,
   getEnhancedTokenData,
+  getCorrectedTotalUSD,
 } from "../../../lib/utils/portfolioUtils";
 import TokenLogo from "./TokenLogo";
 import TokenChainBreakdown from "./TokenChainBreakdown";
@@ -144,7 +145,7 @@ export default function DesktopTokenTable({
                   <Td py={3} isNumeric>
                     <VStack spacing={0} align="end">
                       <Text fontSize="sm" color="text" fontWeight="medium">
-                        {formatValue(consolidatedToken.totalBalanceUSD)}
+                        {formatValue(getCorrectedTotalUSD(consolidatedToken))}
                       </Text>
                     </VStack>
                   </Td>

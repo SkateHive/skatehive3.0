@@ -33,7 +33,7 @@ import SkateBankSection from "./SkateBankSection";
 import NFTSection from "./NFTSection";
 
 import { PortfolioProvider } from "@/contexts/PortfolioContext";
-import { FarcasterEnhancedUserData } from "@/types/farcaster";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import TotalPortfolioValue from "./components/TotalPortfolioValue";
 import PIXTabContent from "./components/PIXTabContent";
 import HiveTransactionHistory from "./components/HiveTransactionHistory";
@@ -58,8 +58,7 @@ export default function MainWallet({ username }: MainWalletProps) {
   const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } =
     useFarcasterSession();
 
-  const [farcasterUserData, setFarcasterUserData] =
-    useState<FarcasterEnhancedUserData | null>(null);
+  const { identities: linkedIdentities } = useLinkedIdentities();
   const [isMounted, setIsMounted] = useState(false);
   const [chainFilter, setChainFilter] = useState<ChainFilter>("all");
   const [hivePower, setHivePower] = useState<string | undefined>(undefined);
@@ -249,23 +248,38 @@ export default function MainWallet({ username }: MainWalletProps) {
       <PortfolioProvider
         address={isConnected ? address : undefined}
         farcasterAddress={
-          farcasterUserData && !farcasterUserData.failed
-            ? farcasterUserData.custody
-            : isFarcasterConnected &&
-                farcasterProfile &&
-                "custody" in farcasterProfile
-              ? farcasterProfile?.custody
-              : undefined
+          // Active Farcaster session takes priority; fall back to DB-linked custody address
+          (isFarcasterConnected && farcasterProfile?.custody) ||
+          linkedIdentities.find((i) => i.type === "farcaster")?.address ||
+          undefined
         }
-        farcasterVerifiedAddresses={
-          farcasterUserData && !farcasterUserData.failed
-            ? farcasterUserData.verifications
-            : isFarcasterConnected &&
-                farcasterProfile &&
-                "verifications" in farcasterProfile
-              ? farcasterProfile?.verifications
-              : undefined
-        }
+        farcasterVerifiedAddresses={(() => {
+          // Gather all EVM-type addresses from DB identities
+          const dbEvmAddresses = linkedIdentities
+            .filter((i) => i.type === "evm" && i.address)
+            .map((i) => i.address as string);
+          // Also gather verifications stored in farcaster identity metadata
+          const fcMeta = linkedIdentities.find((i) => i.type === "farcaster")?.metadata;
+          const fcVerifications: string[] = Array.isArray(fcMeta?.verifications)
+            ? (fcMeta.verifications as unknown[]).filter(
+                (v): v is string => typeof v === "string" && v.startsWith("0x")
+              )
+            : [];
+          // Merge: active session verifications + DB EVM + FC metadata verifications
+          const sessionVerifications: string[] =
+            (isFarcasterConnected && farcasterProfile?.verifications) || [];
+          const allLinked = [...sessionVerifications, ...dbEvmAddresses, ...fcVerifications];
+          // Deduplicate, exclude active wagmi address (already covered by `address` prop)
+          const seen = new Set<string>();
+          const activeAddr = address?.toLowerCase();
+          return allLinked.filter((a) => {
+            const norm = a.toLowerCase();
+            if (norm === activeAddr) return false;
+            if (seen.has(norm)) return false;
+            seen.add(norm);
+            return true;
+          });
+        })()}
       >
         <Box
           w="100%"

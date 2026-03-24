@@ -1,4 +1,5 @@
 import { TokenDetail } from "../../types/portfolio";
+import type { ConsolidatedToken } from "./tokenConsolidation";
 
 // GeckoTerminal API types
 export interface GeckoTokenAttribute {
@@ -353,10 +354,54 @@ export const preloadTokenLogos = async (tokens: TokenDetail[]): Promise<void> =>
   }
 };
 
-// Enhanced function to get market cap from cached data
+// USD stablecoin name fragments — vault tokens built on these should price at ~$1/share
+const USD_STABLECOIN_FRAGMENTS = ['USDC', 'USDT', 'DAI', 'BUSD', 'FRAX', 'LUSD', 'USDBC', 'USD+', 'PYUSD'];
+
+function looksLikeStablecoinVault(symbol: string): boolean {
+  const upper = symbol.toUpperCase();
+  return USD_STABLECOIN_FRAGMENTS.some((s) => upper.includes(s));
+}
+
+function isInStablecoinPegRange(price: number): boolean {
+  return price >= 0.90 && price <= 1.15;
+}
+
+// Returns the best effective price for a token, with stablecoin vault fallback.
+// ERC4626 stablecoin vaults (e.g. steakUSDCfarcaster) often have bad price feeds
+// on both KeepKey and GeckoTerminal. If the symbol looks like a stablecoin but
+// no price source is in the $0.90–$1.15 peg range, default to $1/share.
+function resolveEffectivePrice(
+  symbol: string,
+  geckoPrice: number | null,
+  apiPrice: number
+): number | null {
+  // Prefer GeckoTerminal price when it's available
+  if (geckoPrice !== null && geckoPrice > 0) {
+    // For stablecoin vault symbols with an out-of-peg GeckoTerminal price,
+    // check if the API price is better, otherwise use $1 peg.
+    if (looksLikeStablecoinVault(symbol) && !isInStablecoinPegRange(geckoPrice)) {
+      if (apiPrice > 0 && isInStablecoinPegRange(apiPrice)) return apiPrice;
+      return 1.0; // peg assumption
+    }
+    return geckoPrice;
+  }
+
+  // No GeckoTerminal price: for stablecoin vaults, peg to $1 if API price is also off
+  if (looksLikeStablecoinVault(symbol)) {
+    if (apiPrice > 0 && isInStablecoinPegRange(apiPrice)) return apiPrice;
+    if (apiPrice <= 0) return null; // no balance data at all
+    return 1.0; // peg assumption
+  }
+
+  return null; // non-stablecoin without GeckoTerminal data — trust the API value
+}
+
+// Enhanced function to get market cap, price change, and GeckoTerminal-corrected balance
 export const getEnhancedTokenData = (tokenDetail: TokenDetail): {
   marketCap: number | null;
   priceChange: number | null;
+  geckoPrice: number | null;
+  correctedBalanceUSD: number | null;
 } => {
   const cacheKey = `${tokenDetail.network}-${tokenDetail.token.address}`;
   const cachedData = tokenDataCache.get(cacheKey);
@@ -367,5 +412,26 @@ export const getEnhancedTokenData = (tokenDetail: TokenDetail): {
   const priceChange = (tokenDetail.token as any).priceChange ||
     (cachedData?.priceChange ? parseFloat(cachedData.priceChange) : null);
 
-  return { marketCap, priceChange };
+  const rawGeckoPrice = cachedData?.price_usd ? parseFloat(cachedData.price_usd) : null;
+  const effectivePrice = resolveEffectivePrice(
+    tokenDetail.token.symbol,
+    rawGeckoPrice,
+    tokenDetail.token.price
+  );
+
+  const correctedBalanceUSD =
+    effectivePrice !== null && tokenDetail.token.balance > 0
+      ? tokenDetail.token.balance * effectivePrice
+      : null;
+
+  return { marketCap, priceChange, geckoPrice: rawGeckoPrice, correctedBalanceUSD };
+};
+
+// Compute the best available total USD for a consolidated token.
+// Uses GeckoTerminal price per chain when available; falls back to API value.
+export const getCorrectedTotalUSD = (consolidatedToken: ConsolidatedToken): number => {
+  return consolidatedToken.chains.reduce((sum, chain) => {
+    const { correctedBalanceUSD } = getEnhancedTokenData(chain);
+    return sum + (correctedBalanceUSD ?? chain.token.balanceUSD ?? 0);
+  }, 0);
 };
