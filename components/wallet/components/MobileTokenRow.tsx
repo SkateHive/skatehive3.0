@@ -92,8 +92,10 @@ export default function MobileTokenRow({
                     (sum, chain) => sum + chain.token.balance,
                     0
                   )
-                )}{" "}
-                {consolidatedToken.symbol}
+                )}
+                {consolidatedToken.name !== consolidatedToken.symbol && (
+                  <Text as="span" ml={1} fontSize="xs" opacity={0.6}>{consolidatedToken.name}</Text>
+                )}
               </Text>
             </VStack>
           </HStack>

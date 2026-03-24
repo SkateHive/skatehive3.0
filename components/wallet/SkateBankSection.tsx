@@ -4,26 +4,23 @@ import {
   HStack,
   VStack,
   Tooltip,
-  Icon,
   Image,
   Button,
-  IconButton,
-  Badge,
   useDisclosure,
 } from "@chakra-ui/react";
 import {
-  FaPaperPlane,
   FaArrowDown,
   FaArrowUp,
-  FaQuestionCircle,
-  FaPiggyBank,
 } from "react-icons/fa";
-import { useState, useCallback, useMemo, memo } from "react";
-import { CustomHiveIcon } from "./CustomHiveIcon";
-import { useTheme } from "@/app/themeProvider";
-import useIsMobile from "@/hooks/useIsMobile";
+import { useMemo, memo } from "react";
 import { DepositSavingsModal, WithdrawSavingsModal } from "./modals";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { keyframes } from "@emotion/react";
+
+const shimmer = keyframes`
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+`;
 
 interface HBDSectionProps {
   hbdBalance: string;
@@ -55,23 +52,12 @@ const SkateBankSection = memo(function HBDSection({
   daysUntilClaim,
   lastInterestPayment,
   savings_withdraw_requests,
-  onClaimInterest
+  onClaimInterest,
 }: HBDSectionProps) {
-  const { theme } = useTheme();
-  const [showInfo, setShowInfo] = useState(false);
-  const isMobile = useIsMobile();
   const t = useTranslations();
 
   const { isOpen: isDepositOpen, onOpen: onDepositOpen, onClose: onDepositClose } = useDisclosure();
   const { isOpen: isWithdrawOpen, onOpen: onWithdrawOpen, onClose: onWithdrawClose } = useDisclosure();
-
-  // Memoized calculations
-  const liquidUsdValue = useMemo(() => {
-    if (hbdBalance === "N/A" || !hbdPrice || parseFloat(hbdBalance) <= 0) {
-      return null;
-    }
-    return (parseFloat(hbdBalance) * hbdPrice).toFixed(2);
-  }, [hbdBalance, hbdPrice]);
 
   const savingsUsdValue = useMemo(() => {
     if (
@@ -88,173 +74,134 @@ const SkateBankSection = memo(function HBDSection({
     return lastInterestPayment ? daysAgo(lastInterestPayment) : 0;
   }, [lastInterestPayment]);
 
-  // Memoized event handlers
-  const handleInfoToggle = useCallback(() => {
-    setShowInfo((prev) => !prev);
-  }, []);
-
-  // Bank view: Show savings and investment options
   return (
     <>
-      <Box mb={3}>
-        {/* Current Savings Balance */}
-        <HStack align="center" mb={4} spacing={2} width="100%">
-          <Image
-            src="/images/hbd_savings.png"
-            alt="HBD Savings Logo"
-            width="6"
-            height="6"
-          />
-          <Text fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
-            HBD Savings
-          </Text>
-
-          <Box flex={1} />
-
+      <Box
+        position="relative"
+        border="2px solid"
+        borderColor="primary"
+        overflow="hidden"
+        sx={{
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(90deg, transparent 0%, var(--chakra-colors-primary) 50%, transparent 100%)",
+            backgroundSize: "200% auto",
+            opacity: 0.06,
+            animation: `${shimmer} 2.5s linear infinite`,
+            pointerEvents: "none",
+          },
+        }}
+      >
+        {/* Header */}
+        <HStack px={3} py={2} bg="primary" justify="space-between">
+          <HStack spacing={2}>
+            <Image src="/images/hbd_savings.png" alt="HBD Savings" w="18px" h="18px" />
+            <Text fontWeight="black" fontSize="sm" color="background" textTransform="uppercase" letterSpacing="widest" fontFamily="mono">
+              HBD Savings
+            </Text>
+          </HStack>
           <VStack spacing={0} align="end">
-            <Text
-              fontSize={{ base: "xl", md: "2xl" }}
-              fontWeight="extrabold"
-              color="lime"
-            >
+            <Text fontSize="xl" fontWeight="black" color="background" fontFamily="mono">
               {hbdSavingsBalance} HBD
             </Text>
             {savingsUsdValue && (
-              <Text fontSize="sm" color="gray.400">
-                (${savingsUsdValue})
-              </Text>
+              <Text fontSize="xs" color="background" opacity={0.75} fontFamily="mono">${savingsUsdValue}</Text>
             )}
           </VStack>
         </HStack>
 
-        <Box>
-          <Text fontSize="sm" color="text" mb={3}>
-            • Dollar Savings
-            • Earn guaranteed 15% annual interest on your Dollar Savings.
-            • Claim Monthly interest
-            • 3-day withdrawal period for security
-          </Text>
-        </Box>
-
-        {/* Available HBD to invest */}
-        <Box p={3} borderRadius="md" bg={theme.colors.muted}>
-
-          {savings_withdraw_requests &&
-            savings_withdraw_requests > 0 && (
-              <Text color="orange.400" fontSize="sm" mt={1} mb={1}>
-                🚨 You have {savings_withdraw_requests} savings withdrawal
-                {savings_withdraw_requests > 1 ? "s" : ""} in progress.
-              </Text>
-            )}
-
-          <Text fontSize="sm" color="text" mb={1}>
-            Available HBD to invest:{" "}
-            <Text as="span" fontWeight="bold" color="primary">
-              {hbdBalance} HBD
+        {/* Body */}
+        <Box px={3} py={3}>
+          {/* Info box */}
+          <Box p={3} bg="muted" mb={3}>
+            <Text color="dim" fontSize="xs" fontFamily="mono" lineHeight="tall">
+              15% APR on your dollar savings. Monthly interest. 3-day withdrawal period.
             </Text>
-          </Text>
+          </Box>
 
-          <Text fontSize="xs" color="gray.400">
-            Convert your liquid HBD to savings to start earning passive
-            income!
-          </Text>
-        </Box>
+          {/* Withdrawal warning */}
+          {savings_withdraw_requests && savings_withdraw_requests > 0 && (
+            <Box p={2} bg="muted" mb={2} border="1px solid" borderColor="orange.400">
+              <Text color="orange.400" fontSize="xs" fontFamily="mono">
+                {savings_withdraw_requests} withdrawal{savings_withdraw_requests > 1 ? "s" : ""} in progress
+              </Text>
+            </Box>
+          )}
 
+          {/* Available to invest */}
+          <Box p={3} bg="muted" mb={3}>
+            <Text fontSize="xs" color="dim" fontFamily="mono">
+              Available to invest:{" "}
+              <Text as="span" color="primary" fontWeight="bold">{hbdBalance} HBD</Text>
+            </Text>
+          </Box>
 
-        {/* Investment Actions */}
-        <VStack spacing={3} align="stretch">
-          <HStack spacing={2}>
-            <Tooltip label={t('tooltips.addToSavings')} hasArrow>
+          {/* Actions */}
+          <HStack spacing={2} mb={3}>
+            <Tooltip label={t("tooltips.addToSavings")} hasArrow>
               <Box
-                as="button"
-                px={4}
-                py={2}
-                fontSize="sm"
-                bg="primary"
-                color="background"
-                borderRadius="none"
-                fontWeight="bold"
-                _hover={{ bg: "accent" }}
-                onClick={onDepositOpen}
-                flex={1}
+                as="button" px={4} py={2} fontSize="sm"
+                bg="primary" color="background"
+                borderRadius="none" fontWeight="bold"
+                fontFamily="mono" textTransform="uppercase" letterSpacing="wide"
+                _hover={{ opacity: 0.85 }}
+                onClick={onDepositOpen} flex={1}
+                display="flex" alignItems="center" justifyContent="center" gap="8px"
               >
-                💰 Add to Savings
+                <FaArrowDown style={{ display: "inline" }} /> Deposit
               </Box>
             </Tooltip>
-            <Tooltip label={t('tooltips.withdrawSavings')} hasArrow>
+            <Tooltip label={t("tooltips.withdrawSavings")} hasArrow>
               <Box
-                as="button"
-                px={4}
-                py={2}
-                fontSize="sm"
-                bg="muted"
-                color="text"
-                borderRadius="none"
-                fontWeight="bold"
+                as="button" px={4} py={2} fontSize="sm"
+                bg="muted" color="text"
+                borderRadius="none" fontWeight="bold"
+                fontFamily="mono" textTransform="uppercase" letterSpacing="wide"
                 _hover={{ bg: "accent", color: "background" }}
-                onClick={onWithdrawOpen}
-                flex={1}
+                onClick={onWithdrawOpen} flex={1}
+                display="flex" alignItems="center" justifyContent="center" gap="8px"
               >
-                📤 Withdraw
+                <FaArrowUp style={{ display: "inline" }} /> Withdraw
               </Box>
             </Tooltip>
           </HStack>
 
-
-          {/* Claimable Interest */}
+          {/* Claimable interest */}
           {estimatedClaimableInterest > 0 && (
-            <Box p={3} borderRadius="md" bg={theme.colors.muted}>
-              <Box
-                display="flex"
-                alignItems="center"
-                justifyContent="space-between"
-              >
+            <Box p={3} bg="muted" border="1px solid" borderColor={daysUntilClaim === 0 ? "primary" : "border"}>
+              <HStack justify="space-between" align="center">
                 <Box>
-                  <Text fontWeight="bold" color="lime">
-                    Claimable Interest
+                  <Text fontWeight="bold" color="primary" fontFamily="mono" fontSize="sm">
+                    CLAIMABLE INTEREST
                   </Text>
-                  {daysUntilClaim === 0 && estimatedClaimableInterest > 0 ? (
-                    <Text color="gray.400" fontSize="sm">
-                      Your earned rewards are ready!
-                    </Text>
-                  ) : daysUntilClaim > 0 ? (
-                    <Text color="gray.400" fontSize="sm">
-                      Rewards will be ready in {daysUntilClaim} day
-                      {daysUntilClaim > 1 ? "s" : ""}
-                    </Text>
-                  ) : (
-                    <Text color="gray.400" fontSize="sm">
-                      No claimable interest yet
-                    </Text>
-                  )}
+                  <Text color="dim" fontSize="xs" fontFamily="mono">
+                    {daysUntilClaim === 0 ? "Ready to claim!" : `${daysUntilClaim}d until next claim`}
+                  </Text>
                   {lastInterestPayment && (
-                    <Text color="gray.400" fontSize="xs">
-                      Last payment: {daysAgo(lastInterestPayment)} days ago
+                    <Text color="dim" fontSize="xs" fontFamily="mono">
+                      Last: {lastPaymentDays}d ago
                     </Text>
                   )}
                 </Box>
-                <Box display="flex" alignItems="center" gap={2}>
-                  <Text fontWeight="bold" fontSize="lg" color="lime">
+                <Box textAlign="right">
+                  <Text fontWeight="bold" fontSize="lg" color="primary" fontFamily="mono">
                     {estimatedClaimableInterest.toFixed(3)} HBD
                   </Text>
                   <Button
-                    bg="lime"
-                    color="black"
-                    _hover={{ bg: "green.400" }}
-                    size="sm"
-                    isDisabled={
-                      daysUntilClaim > 0 || estimatedClaimableInterest <= 0
-                    }
+                    size="sm" borderRadius="none" fontFamily="mono" fontWeight="black"
+                    letterSpacing="wide" colorScheme="green"
+                    isDisabled={daysUntilClaim > 0 || estimatedClaimableInterest <= 0}
                     onClick={onClaimInterest}
                   >
-                    {daysUntilClaim > 0 ? `${daysUntilClaim}d` : "CLAIM"}
+                    {daysUntilClaim > 0 ? `${daysUntilClaim}D` : "CLAIM"}
                   </Button>
                 </Box>
-              </Box>
+              </HStack>
             </Box>
           )}
-
-        </VStack>
+        </Box>
       </Box>
 
       <DepositSavingsModal
@@ -262,7 +209,6 @@ const SkateBankSection = memo(function HBDSection({
         onClose={onDepositClose}
         hbdBalance={hbdBalance}
       />
-
       <WithdrawSavingsModal
         isOpen={isWithdrawOpen}
         onClose={onWithdrawClose}
@@ -270,7 +216,6 @@ const SkateBankSection = memo(function HBDSection({
       />
     </>
   );
-
 });
 
 export default SkateBankSection;

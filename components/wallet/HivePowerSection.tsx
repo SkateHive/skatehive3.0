@@ -4,15 +4,18 @@ import {
   Image,
   HStack,
   Tooltip,
-  IconButton,
-  VStack,
   useDisclosure,
 } from "@chakra-ui/react";
-import { FaArrowDown, FaArrowUp, FaQuestionCircle } from "react-icons/fa";
-import { useState, useCallback, useMemo, memo } from "react";
-import useIsMobile from "@/hooks/useIsMobile";
+import { FaArrowDown, FaArrowUp } from "react-icons/fa";
+import { useMemo, memo } from "react";
 import { PowerUpModal, PowerDownModal } from "./modals";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { keyframes } from "@emotion/react";
+
+const shimmer = keyframes`
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+`;
 
 interface HivePowerSectionProps {
   hivePower: string | undefined;
@@ -25,8 +28,6 @@ const HivePowerSection = memo(function HivePowerSection({
   hivePrice,
   hiveBalance,
 }: HivePowerSectionProps) {
-  const [showInfo, setShowInfo] = useState(false);
-  const isMobile = useIsMobile();
   const t = useTranslations();
 
   const { isOpen: isPowerUpOpen, onOpen: onPowerUpOpen, onClose: onPowerUpClose } = useDisclosure();
@@ -40,116 +41,90 @@ const HivePowerSection = memo(function HivePowerSection({
     return (parseFloat(hivePower) * hivePrice).toFixed(2);
   }, [hivePower, hivePrice]);
 
-  // Memoize event handlers
-  const handleInfoToggle = useCallback(() => {
-    setShowInfo((prev) => !prev);
-  }, []);
-
   return (
     <>
       <Box
-        p={4}
-        bg="transparent"
-        borderRadius="md"
-        border="1px solid"
-        borderColor="gray.200"
+        position="relative"
+        border="2px solid"
+        borderColor="primary"
+        overflow="hidden"
+        sx={{
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(90deg, transparent 0%, var(--chakra-colors-primary) 50%, transparent 100%)",
+            backgroundSize: "200% auto",
+            opacity: 0.06,
+            animation: `${shimmer} 2.5s linear infinite`,
+            pointerEvents: "none",
+          },
+        }}
       >
-        <HStack justify="space-between" align="center">
-          <HStack spacing={3}>
-            <Image
-              src="/images/hp_logo.png"
-              alt="Hive Power Logo"
-              width="26px"
-              height="26px"
-              borderRadius="full"
-            />
-            <Box>
-              <HStack spacing={2} align="center">
-                <Text fontSize="lg" fontWeight="bold" color="primary">
-                  HIVE POWER
-                </Text>
-              </HStack>
-            </Box>
+        {/* Header bar */}
+        <HStack px={3} py={2} bg="primary" justify="space-between">
+          <HStack spacing={2}>
+            <Image src="/images/hp_logo.png" alt="HP" w="18px" h="18px" borderRadius="full" />
+            <Text fontWeight="black" fontSize="sm" color="background" textTransform="uppercase" letterSpacing="widest" fontFamily="mono">
+              Hive Power
+            </Text>
           </HStack>
-
-          <HStack spacing={3} align="center">
-            <Box textAlign="right">
-              <Text fontSize="2xl" fontWeight="bold" color="primary">
-                {hivePower !== undefined ? hivePower : "Loading..."}
-              </Text>
-              {usdValue && (
-                <Text fontSize="sm" color="gray.400">
-                  (${usdValue})
-                </Text>
-              )}
-            </Box>
-          </HStack>
-
-
+          <Text fontSize="xl" fontWeight="black" color="background" fontFamily="mono">
+            {hivePower !== undefined ? hivePower : "—"}
+          </Text>
         </HStack>
 
-        <Box mt={3} p={3} bg="muted" borderRadius="md">
-          <Text color="gray.400" fontSize="sm">
-            • More Hive Power you can create more posts and comment more
-            • Increate the value of your vote on posts and comments.
-            • Earns you 3% interest.
-            • Actively voting on posts can earn up to 10% APR.
-          </Text>
-        </Box>
+        {/* Body */}
+        <Box px={3} py={3}>
+          {usdValue && (
+            <Text fontSize="sm" color="dim" fontFamily="mono" mb={2}>${usdValue} USD</Text>
+          )}
 
-        {/* Investment Actions */}
-        <VStack spacing={3} align="stretch">
+          <Box p={3} bg="muted" mb={3}>
+            <Text color="dim" fontSize="xs" fontFamily="mono" lineHeight="tall">
+              More HP = more posting power, stronger votes, 3% interest + up to 10% APR from curation.
+            </Text>
+          </Box>
+
           <HStack spacing={2}>
-            <Tooltip label={t('tooltips.powerUp')} hasArrow>
+            <Tooltip label={t("tooltips.powerUp")} hasArrow>
               <Box
                 as="button"
-                px={4}
-                py={2}
-                fontSize="sm"
-                bg="primary"
-                color="background"
-                borderRadius="none"
-                fontWeight="bold"
-                _hover={{ bg: "accent" }}
+                px={4} py={2} fontSize="sm"
+                bg="primary" color="background"
+                borderRadius="none" fontWeight="bold"
+                fontFamily="mono" textTransform="uppercase"
+                letterSpacing="wide"
+                _hover={{ opacity: 0.85 }}
                 onClick={onPowerUpOpen}
                 flex={1}
+                display="flex" alignItems="center" justifyContent="center" gap="8px"
               >
-                💰 Power UP
+                <FaArrowUp style={{ display: "inline" }} /> Power Up
               </Box>
             </Tooltip>
-            <Tooltip label={t('tooltips.powerDown')} hasArrow>
+            <Tooltip label={t("tooltips.powerDown")} hasArrow>
               <Box
                 as="button"
-                px={4}
-                py={2}
-                fontSize="sm"
-                bg="muted"
-                color="text"
-                borderRadius="none"
-                fontWeight="bold"
+                px={4} py={2} fontSize="sm"
+                bg="muted" color="text"
+                borderRadius="none" fontWeight="bold"
+                fontFamily="mono" textTransform="uppercase"
+                letterSpacing="wide"
                 _hover={{ bg: "accent", color: "background" }}
                 onClick={onPowerDownOpen}
                 flex={1}
+                display="flex" alignItems="center" justifyContent="center" gap="8px"
               >
-                📤 Power Down
+                <FaArrowDown style={{ display: "inline" }} /> Power Down
               </Box>
             </Tooltip>
           </HStack>
-        </VStack>
-
+        </Box>
       </Box>
 
-      <PowerUpModal
-        isOpen={isPowerUpOpen}
-        onClose={onPowerUpClose}
-        balance={hiveBalance}
-      />
-
-      <PowerDownModal
-        isOpen={isPowerDownOpen}
-        onClose={onPowerDownClose}
-        hivePower={hivePower || "0"}
-      />
+      <PowerUpModal isOpen={isPowerUpOpen} onClose={onPowerUpClose} balance={hiveBalance} />
+      <PowerDownModal isOpen={isPowerDownOpen} onClose={onPowerDownClose} hivePower={hivePower || "0"} />
     </>
   );
 });

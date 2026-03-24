@@ -10,6 +10,16 @@ import {
   SkeletonCircle,
   useDisclosure,
   useBreakpointValue,
+  Button,
+  Text,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  IconButton,
+  useToast,
 } from "@chakra-ui/react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAccount } from "wagmi";
@@ -23,7 +33,9 @@ import {
   consolidateTokensBySymbol,
   sortConsolidatedTokensByBalance,
   ConsolidatedToken,
+  formatValue,
 } from "@/lib/utils/portfolioUtils";
+import { FaPaperPlane, FaQrcode, FaCopy } from "react-icons/fa";
 import SendTokenModal from "./SendTokenModal";
 import TokenControlsBar from "./components/TokenControlsBar";
 import MobileTokenTable from "./components/MobileTokenTable";
@@ -114,6 +126,104 @@ function TokenRowSkeletons({ count }: { count: number }) {
   );
 }
 
+// ─── Send Picker Modal ────────────────────────────────────────────────────────
+function SendPickerModal({ isOpen, onClose, consolidatedTokens, onSelect }: {
+  isOpen: boolean;
+  onClose: () => void;
+  consolidatedTokens: ConsolidatedToken[];
+  onSelect: (token: ConsolidatedToken) => void;
+}) {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      <ModalOverlay />
+      <ModalContent bg="background" borderRadius="none" border="2px solid" borderColor="primary">
+        <ModalHeader
+          fontFamily="mono" fontWeight="black" textTransform="uppercase"
+          letterSpacing="widest" fontSize="sm" color="primary"
+          borderBottom="1px solid" borderColor="border"
+        >
+          Select Token to Send
+        </ModalHeader>
+        <ModalCloseButton />
+        <ModalBody p={0} maxH="400px" overflowY="auto">
+          {consolidatedTokens.map((ct) => (
+            <Box
+              key={ct.symbol}
+              px={4} py={3}
+              cursor="pointer"
+              borderBottom="1px solid" borderColor="border"
+              _hover={{ bg: "muted" }}
+              onClick={() => { onSelect(ct); onClose(); }}
+            >
+              <HStack justify="space-between">
+                <Text fontFamily="mono" fontWeight="bold" color="text">{ct.symbol}</Text>
+                <Text fontFamily="mono" fontSize="sm" color="dim">{formatValue(ct.totalBalanceUSD)}</Text>
+              </HStack>
+            </Box>
+          ))}
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+  );
+}
+
+// ─── Receive Modal ────────────────────────────────────────────────────────────
+function ReceiveModal({ isOpen, onClose, hiveUser, evmAddress }: {
+  isOpen: boolean;
+  onClose: () => void;
+  hiveUser?: string;
+  evmAddress?: string;
+}) {
+  const toast = useToast();
+  const copy = (val: string) => {
+    navigator.clipboard.writeText(val);
+    toast({ title: "Copied!", status: "success", duration: 1500, isClosable: true });
+  };
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      <ModalOverlay />
+      <ModalContent bg="background" borderRadius="none" border="2px solid" borderColor="primary">
+        <ModalHeader
+          fontFamily="mono" fontWeight="black" textTransform="uppercase"
+          letterSpacing="widest" fontSize="sm" color="primary"
+          borderBottom="1px solid" borderColor="border"
+        >
+          Receive
+        </ModalHeader>
+        <ModalCloseButton />
+        <ModalBody py={4}>
+          <VStack spacing={4} align="stretch">
+            {hiveUser && (
+              <Box>
+                <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" mb={1}>Hive Account</Text>
+                <HStack border="1px solid" borderColor="border" p={3}>
+                  <Text fontFamily="mono" fontSize="sm" color="primary" flex={1}>@{hiveUser}</Text>
+                  <IconButton aria-label="Copy" icon={<FaCopy />} size="xs" variant="ghost" color="dim" onClick={() => copy(hiveUser)} />
+                </HStack>
+              </Box>
+            )}
+            {evmAddress && (
+              <Box>
+                <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" mb={1}>EVM Address</Text>
+                <HStack border="1px solid" borderColor="border" p={3}>
+                  <Text fontFamily="mono" fontSize="xs" color="primary" flex={1} wordBreak="break-all">{evmAddress}</Text>
+                  <IconButton aria-label="Copy" icon={<FaCopy />} size="xs" variant="ghost" color="dim" onClick={() => copy(evmAddress)} />
+                </HStack>
+              </Box>
+            )}
+            {!hiveUser && !evmAddress && (
+              <Text fontFamily="mono" fontSize="sm" color="dim" textAlign="center">
+                No linked addresses found.
+              </Text>
+            )}
+          </VStack>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function UnifiedWalletTable({
   chainFilter,
   hiveBalance,
@@ -124,7 +234,7 @@ export default function UnifiedWalletTable({
   hbdPrice,
   hiveUser,
 }: UnifiedWalletTableProps) {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { isAuthenticated: isFarcasterConnected } = useFarcasterSession();
   const { aggregatedPortfolio, isLoading, error, refetch } = usePortfolioContext();
 
@@ -139,6 +249,11 @@ export default function UnifiedWalletTable({
   const { isOpen: isSendEVMOpen, onOpen: onSendEVMOpen, onClose: onSendEVMClose } = useDisclosure();
   const { isOpen: isSendHiveOpen, onOpen: onSendHiveOpen, onClose: onSendHiveClose } = useDisclosure();
   const { isOpen: isSendHBDOpen, onOpen: onSendHBDOpen, onClose: onSendHBDClose } = useDisclosure();
+
+  // Send picker + receive modals
+  const { isOpen: isSendPickerOpen, onOpen: onSendPickerOpen, onClose: onSendPickerClose } = useDisclosure();
+  const { isOpen: isReceiveOpen, onOpen: onReceiveOpen, onClose: onReceiveClose } = useDisclosure();
+  const [sendTarget, setSendTarget] = useState<ConsolidatedToken | null>(null);
 
   const isMobile = useBreakpointValue({ base: true, md: false });
 
@@ -206,6 +321,14 @@ export default function UnifiedWalletTable({
     [handleSendToken]
   );
 
+  const handleSendPickerSelect = useCallback(
+    (consolidatedToken: ConsolidatedToken) => {
+      setSendTarget(consolidatedToken);
+      handleSendToken(consolidatedToken.primaryChain);
+    },
+    [handleSendToken]
+  );
+
   // Build all Hive synthetic tokens
   const hiveTokens = useMemo<TokenDetail[]>(() => {
     if (!hiveUser) return [];
@@ -258,6 +381,10 @@ export default function UnifiedWalletTable({
   // EVM is still loading but we already have Hive tokens to show
   const showEVMSkeleton = isLoading && (chainFilter === "all" || chainFilter === "evm" || chainFilter === "farcaster");
 
+  // suppress unused variable warning
+  void logoUpdateTrigger;
+  void sendTarget;
+
   return (
     <Box w="100%">
       {error && (
@@ -275,6 +402,27 @@ export default function UnifiedWalletTable({
             onRefresh={handleForceRefresh}
             onToggleSmallBalances={setHideSmallBalances}
           />
+          {/* Send / Receive buttons */}
+          <HStack spacing={2} px={4} py={2}>
+            <Button
+              flex={1} size="sm" variant="outline" borderRadius="none"
+              borderColor="primary" color="primary" fontFamily="mono"
+              fontWeight="black" letterSpacing="wide" textTransform="uppercase"
+              leftIcon={<FaPaperPlane />}
+              onClick={onSendPickerOpen}
+            >
+              Send
+            </Button>
+            <Button
+              flex={1} size="sm" variant="outline" borderRadius="none"
+              borderColor="border" color="text" fontFamily="mono"
+              fontWeight="black" letterSpacing="wide" textTransform="uppercase"
+              leftIcon={<FaQrcode />}
+              onClick={onReceiveOpen}
+            >
+              Receive
+            </Button>
+          </HStack>
           <MobileTokenTable
             consolidatedTokens={consolidatedTokens}
             expandedTokens={expandedTokens}
@@ -291,11 +439,31 @@ export default function UnifiedWalletTable({
             onRefresh={handleForceRefresh}
             onToggleSmallBalances={setHideSmallBalances}
           />
+          {/* Send / Receive buttons */}
+          <HStack spacing={2} px={4} py={2}>
+            <Button
+              flex={1} size="sm" variant="outline" borderRadius="none"
+              borderColor="primary" color="primary" fontFamily="mono"
+              fontWeight="black" letterSpacing="wide" textTransform="uppercase"
+              leftIcon={<FaPaperPlane />}
+              onClick={onSendPickerOpen}
+            >
+              Send
+            </Button>
+            <Button
+              flex={1} size="sm" variant="outline" borderRadius="none"
+              borderColor="border" color="text" fontFamily="mono"
+              fontWeight="black" letterSpacing="wide" textTransform="uppercase"
+              leftIcon={<FaQrcode />}
+              onClick={onReceiveOpen}
+            >
+              Receive
+            </Button>
+          </HStack>
           <DesktopTokenTable
             consolidatedTokens={consolidatedTokens}
             expandedTokens={expandedTokens}
             onToggleExpansion={toggleTokenExpansion}
-            onSendToken={handleSendToken}
           />
           {showEVMSkeleton && <TokenRowSkeletons count={5} />}
         </Box>
@@ -319,6 +487,20 @@ export default function UnifiedWalletTable({
         isOpen={isSendHBDOpen}
         onClose={onSendHBDClose}
         balance={hbdBalance}
+      />
+
+      <SendPickerModal
+        isOpen={isSendPickerOpen}
+        onClose={onSendPickerClose}
+        consolidatedTokens={consolidatedTokens}
+        onSelect={handleSendPickerSelect}
+      />
+
+      <ReceiveModal
+        isOpen={isReceiveOpen}
+        onClose={onReceiveClose}
+        hiveUser={hiveUser}
+        evmAddress={address}
       />
     </Box>
   );

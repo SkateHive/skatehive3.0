@@ -20,6 +20,7 @@ import { useWalletActions } from "@/hooks/useWalletActions";
 import { extractNumber } from "@/lib/utils/extractNumber";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useTheme } from "@/app/themeProvider";
+import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 
 const shimmer = keyframes`
   0%   { background-position: -200% center; }
@@ -576,22 +577,26 @@ function ERC20SwapPanel() {
 export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
   const { isConnected } = useAccount();
   const { user: hiveUser } = useAioha();
+  const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } = useFarcasterSession();
 
   const hasHive = !!hiveUser;
-  const hasEVM = isConnected;
+  // EVM is "available" if wagmi connected OR if Farcaster has verified EVM addresses
+  const farcasterVerifications = (farcasterProfile as any)?.verifications ?? [];
+  const hasEVMLinked = isConnected || (isFarcasterConnected && farcasterVerifications.length > 0);
 
-  // Default to whichever is connected; EVM takes priority if only EVM is connected
-  const defaultMode = hasHive ? "hive" : "erc20";
-  const [mode, setMode] = useState<"hive" | "erc20">(defaultMode);
+  // Default mode based on what's linked
+  const [mode, setMode] = useState<"hive" | "erc20">(() =>
+    hasHive ? "hive" : "erc20"
+  );
 
-  // Auto-switch when connection state changes
+  // Auto-switch when connections change
   useEffect(() => {
     if (!hasHive && mode === "hive") setMode("erc20");
-    if (!hasEVM && mode === "erc20") setMode("hive");
-  }, [hasHive, hasEVM]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!hasEVMLinked && !isConnected && mode === "erc20" && hasHive) setMode("hive");
+  }, [hasHive, hasEVMLinked, isConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Show only the relevant panel when just one chain is connected
-  const showToggle = hasHive && hasEVM;
+  // Show toggle only when both are available
+  const showToggle = hasHive && (hasEVMLinked || isConnected);
 
   return (
     <Box

@@ -1,9 +1,7 @@
 import {
   Table,
-  Thead,
   Tbody,
   Tr,
-  Th,
   Td,
   TableContainer,
   Text,
@@ -11,24 +9,17 @@ import {
   VStack,
   Badge,
   IconButton,
-  Button,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
   Box,
 } from "@chakra-ui/react";
 import { Fragment } from "react";
-import { FaChevronDown, FaChevronUp, FaPaperPlane } from "react-icons/fa";
+import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 import {
   ConsolidatedToken,
   formatBalance,
   formatValue,
-  formatPrice,
   formatPriceChange,
   getEnhancedTokenData,
 } from "../../../lib/utils/portfolioUtils";
-import { blockchainDictionary, TokenDetail } from "../../../types/portfolio";
 import TokenLogo from "./TokenLogo";
 import TokenChainBreakdown from "./TokenChainBreakdown";
 
@@ -36,14 +27,12 @@ interface DesktopTokenTableProps {
   consolidatedTokens: ConsolidatedToken[];
   expandedTokens: Set<string>;
   onToggleExpansion: (symbol: string) => void;
-  onSendToken: (token: TokenDetail, logoUrl?: string) => void;
 }
 
 export default function DesktopTokenTable({
   consolidatedTokens,
   expandedTokens,
   onToggleExpansion,
-  onSendToken,
 }: DesktopTokenTableProps) {
   if (consolidatedTokens.length === 0) {
     return (
@@ -119,94 +108,21 @@ export default function DesktopTokenTable({
                             />
                           )}
                         </HStack>
-                        <HStack>
-                          {consolidatedToken.chains.length > 1 ? (
-                            <Menu>
-                              <MenuButton
-                                as={Button}
-                                size="xs"
-                                colorScheme="blue"
-                                variant="ghost"
-                                fontSize="xs"
-                              >
-                                <FaPaperPlane />
-                              </MenuButton>
-                              <MenuList
-                                bg="background"
-                                border="1px solid"
-                                borderColor="border"
-                              >
-                                {consolidatedToken.chains.map(
-                                  (chainToken, index) => {
-                                    const chainInfo =
-                                      blockchainDictionary[chainToken.network];
-                                    return (
-                                      <MenuItem
-                                        key={`${chainToken.network}-${index}`}
-                                        onClick={() => onSendToken(chainToken)}
-                                        bg="background"
-                                        _hover={{ bg: "muted" }}
-                                      >
-                                        <HStack spacing={2} w="100%">
-                                          <TokenLogo
-                                            token={chainToken}
-                                            size="16px"
-                                            showNetworkBadge={false}
-                                          />
-                                          <VStack
-                                            spacing={0}
-                                            align="start"
-                                            flex={1}
-                                          >
-                                            <Text
-                                              fontSize="sm"
-                                              fontWeight="medium"
-                                              color="text"
-                                            >
-                                              {chainInfo?.alias ||
-                                                chainToken.network}
-                                            </Text>
-                                            <Text
-                                              fontSize="xs"
-                                              color="dim"
-                                            >
-                                              {formatBalance(
-                                                chainToken.token.balance
-                                              )}{" "}
-                                              •{" "}
-                                              {formatValue(
-                                                chainToken.token.balanceUSD
-                                              )}
-                                            </Text>
-                                          </VStack>
-                                        </HStack>
-                                      </MenuItem>
-                                    );
-                                  }
-                                )}
-                              </MenuList>
-                            </Menu>
-                          ) : (
-                            <Button
-                              size="xs"
-                              colorScheme="blue"
-                              variant="ghost"
-                              fontSize="xs"
-                              onClick={() => onSendToken(primaryToken)}
-                            >
-                              <FaPaperPlane />
-                            </Button>
-                          )}
+                        <VStack spacing={0} align="start">
                           <Text fontSize="xs" color="dim">
                             {formatBalance(
                               consolidatedToken.chains.reduce(
                                 (sum, chain) => sum + chain.token.balance,
                                 0
                               )
-                            )}{" "}
-                            {consolidatedToken.symbol}
+                            )}
                           </Text>
-                        </HStack>
+                          {consolidatedToken.name !== consolidatedToken.symbol && (
+                            <Text fontSize="xs" color="dim" opacity={0.6}>
+                              {consolidatedToken.name}
+                            </Text>
+                          )}
+                        </VStack>
                       </VStack>
                     </HStack>
                   </Td>
