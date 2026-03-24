@@ -87,6 +87,7 @@ export default function Sidebar() {
   else if (themeName === "nounish") hoverTextColor = "secondary";
   else if (themeName === "hiveBR") hoverTextColor = "accent";
   else if (themeName === "mac") hoverTextColor = "accent";
+  else if (themeName === "whiteblack") hoverTextColor = "white";
 
   const isAnyProtocolConnected =
     !!hiveHandle || isEthereumConnected || isFarcasterConnected;
