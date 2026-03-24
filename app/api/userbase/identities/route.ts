@@ -275,8 +275,25 @@ export async function POST(request: NextRequest) {
       .eq("address", normalizedWallet)
       .limit(1);
 
-    // Skip if already linked (to this user or another)
+    // If linked to this user, skip
     if (existingWallet && existingWallet.length > 0) {
+      if (existingWallet[0].user_id === session.userId) {
+        continue;
+      }
+      // Wallet belongs to a different user — auto-merge that account into this one
+      const { error: mergeError } = await supabase!.rpc("userbase_merge_users", {
+        source_user_id: existingWallet[0].user_id,
+        target_user_id: session.userId,
+        actor_user_id: session.userId,
+        reason: "farcaster_wallet_conflict",
+        metadata: {
+          wallet: normalizedWallet,
+          farcaster_fid: externalId,
+        },
+      });
+      if (mergeError) {
+        console.warn(`Failed to merge wallet account for ${normalizedWallet}:`, mergeError);
+      }
       continue;
     }
 

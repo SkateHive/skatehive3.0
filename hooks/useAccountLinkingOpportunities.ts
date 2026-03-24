@@ -95,14 +95,6 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
     return accounts;
   }, [hiveAccount]);
 
-  // Extract Ethereum addresses from Farcaster verifications
-  const farcasterVerifiedAddresses = useMemo(() => {
-    if (!farcasterProfile?.verifications) return [];
-    return farcasterProfile.verifications
-      .filter((v: string) => v.startsWith("0x"))
-      .map((v: string) => v.toLowerCase());
-  }, [farcasterProfile]);
-
   // Calculate all linking opportunities
   const opportunities = useMemo(() => {
     if (!enabled) return [];
@@ -184,21 +176,10 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
       }
     }
 
-    // Check Farcaster verifications for Ethereum addresses
-    for (const verifiedAddr of farcasterVerifiedAddresses) {
-      const alreadyInList = ops.some((o) => o.type === "evm" && o.address === verifiedAddr);
-      if (!alreadyInList) {
-        const hasEvm = identities.some(
-          (i) => i.type === "evm" && i.address?.toLowerCase() === verifiedAddr
-        );
-        ops.push({
-          type: "evm",
-          address: verifiedAddr,
-          source: "farcaster_verifications",
-          alreadyLinked: hasEvm,
-        });
-      }
-    }
+    // Note: Farcaster-verified wallets (farcaster_verifications) are NOT shown here.
+    // They are auto-linked/merged server-side when the user connects their Farcaster account.
+    // Requiring a wallet signature for Farcaster-verified addresses is redundant — Farcaster
+    // is already proof of ownership.
 
     return ops;
   }, [
@@ -209,7 +190,6 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
     farcasterProfile,
     identities,
     hiveMetadataAccounts,
-    farcasterVerifiedAddresses,
   ]);
 
   const hasUnlinkedOpportunities = useMemo(() => {

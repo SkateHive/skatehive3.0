@@ -86,6 +86,16 @@ begin
     set user_id = target_user_id
   where user_id = source_user_id;
 
+  -- Demote source primaries where target already has a primary of the same type
+  update public.userbase_identities s
+    set is_primary = false
+  from public.userbase_identities t
+  where s.user_id = source_user_id
+    and t.user_id = target_user_id
+    and s.type = t.type
+    and s.is_primary = true
+    and t.is_primary = true;
+
   -- Soft votes: dedupe by (author, permlink), then move remainder
   delete from public.userbase_soft_votes s
   using public.userbase_soft_votes t
