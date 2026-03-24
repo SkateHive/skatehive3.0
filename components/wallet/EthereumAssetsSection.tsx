@@ -235,7 +235,6 @@ export default function EthereumAssetsSection() {
                     consolidatedTokens={memoizedConsolidatedTokens}
                     expandedTokens={expandedTokens}
                     onToggleExpansion={toggleTokenExpansion}
-                    onSendToken={handleSendToken}
                   />
                   {/* Token Controls */}
                 </Box>

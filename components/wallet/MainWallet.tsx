@@ -12,7 +12,6 @@ import {
   Text,
   Spinner,
   useDisclosure,
-  Heading,
   VStack,
   HStack,
   Button,
@@ -405,48 +404,27 @@ export default function MainWallet({ username }: MainWalletProps) {
                   {user && (
                     <TabPanel p={0}>
                       <VStack spacing={4} align="stretch">
-                        <Heading
-                          size="md"
-                          mb={3}
-                          color="primary"
-                          fontFamily="Joystix"
-                        >
-                          Investment Portfolio
-                        </Heading>
-                        <Text fontSize="sm" color="text" mb={4}>
-                          Grow your tokens with SkateHive&apos;s investment
-                          options and earn passive income!
-                        </Text>
-                        <Box mb={5}>
-                          <HivePowerSection
-                            hivePower={hivePower}
-                            hivePrice={hivePrice}
-                            hiveBalance={hiveBalances.balance}
-                          />
-                        </Box>
-                        <Box
-                          p={4}
-                          bg="background"
-                          border="1px solid"
-                          borderColor="muted"
-                        >
-                          <SkateBankSection
-                            hbdBalance={hiveBalances.hbdBalance}
-                            hbdSavingsBalance={hiveBalances.hbdSavingsBalance}
-                            hbdPrice={hbdPrice}
-                            estimatedClaimableInterest={
-                              hbdInterestData.estimatedClaimableInterest
-                            }
-                            daysUntilClaim={hbdInterestData.daysUntilClaim}
-                            lastInterestPayment={
-                              hbdInterestData.lastInterestPayment
-                            }
-                            savings_withdraw_requests={
-                              hiveAccount?.savings_withdraw_requests || 0
-                            }
-                            onClaimInterest={handleClaimHbdInterest}
-                          />
-                        </Box>
+                        <HivePowerSection
+                          hivePower={hivePower}
+                          hivePrice={hivePrice}
+                          hiveBalance={hiveBalances.balance}
+                        />
+                        <SkateBankSection
+                          hbdBalance={hiveBalances.hbdBalance}
+                          hbdSavingsBalance={hiveBalances.hbdSavingsBalance}
+                          hbdPrice={hbdPrice}
+                          estimatedClaimableInterest={
+                            hbdInterestData.estimatedClaimableInterest
+                          }
+                          daysUntilClaim={hbdInterestData.daysUntilClaim}
+                          lastInterestPayment={
+                            hbdInterestData.lastInterestPayment
+                          }
+                          savings_withdraw_requests={
+                            hiveAccount?.savings_withdraw_requests || 0
+                          }
+                          onClaimInterest={handleClaimHbdInterest}
+                        />
                       </VStack>
                     </TabPanel>
                   )}
