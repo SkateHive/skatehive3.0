@@ -20,6 +20,8 @@ interface ThumbnailPickerProps {
   markdown: string;
   selectedThumbnail: string | null;
   setSelectedThumbnail: (thumbnail: string | null) => void;
+  uploadedThumbnail?: string | null;
+  setUploadedThumbnail?: (thumbnail: string | null) => void;
   uploadedVideoUrl?: string | null;
 }
 
@@ -105,14 +107,18 @@ export default function ThumbnailPicker({
   markdown,
   selectedThumbnail,
   setSelectedThumbnail,
+  uploadedThumbnail: externalUploadedThumbnail,
+  setUploadedThumbnail: externalSetUploadedThumbnail,
   uploadedVideoUrl,
 }: ThumbnailPickerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploadedThumbnail, setUploadedThumbnail] = useState<string | null>(
-    null
-  );
+  
+  // Use external state if provided (persistent), otherwise fallback to local state (legacy)
+  const [localUploadedThumbnail, setLocalUploadedThumbnail] = useState<string | null>(null);
+  const uploadedThumbnail = externalUploadedThumbnail ?? localUploadedThumbnail;
+  const setUploadedThumbnail = externalSetUploadedThumbnail ?? setLocalUploadedThumbnail;
 
   // Memoize extracted URLs so thumbnails don't re-render on every keystroke
   // Must be called before early return to follow hooks rules

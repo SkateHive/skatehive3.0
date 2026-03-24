@@ -18,6 +18,7 @@ export const useComposeForm = () => {
     const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [selectedThumbnail, setSelectedThumbnail] = useState<string | null>(null);
+    const [uploadedThumbnail, setUploadedThumbnail] = useState<string | null>(null);
     const [previewMode, setPreviewMode] = useState<"edit" | "preview" | "live">("live");
     const [showThumbnailPicker, setShowThumbnailPicker] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -214,6 +215,7 @@ export const useComposeForm = () => {
                 setHashtagInput("");
                 setBeneficiaries([]);
                 setSelectedThumbnail(null);
+                setUploadedThumbnail(null);
 
                 // Wait a moment for the user to see the success message, then redirect
                 setTimeout(() => {
@@ -274,6 +276,8 @@ export const useComposeForm = () => {
         placeholderIndex,
         selectedThumbnail,
         setSelectedThumbnail,
+        uploadedThumbnail,
+        setUploadedThumbnail,
         previewMode,
         setPreviewMode,
         showThumbnailPicker,

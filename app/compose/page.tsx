@@ -51,6 +51,8 @@ export default function Composer() {
     placeholderIndex,
     selectedThumbnail,
     setSelectedThumbnail,
+    uploadedThumbnail,
+    setUploadedThumbnail,
     previewMode,
     placeholders,
     user,
@@ -429,6 +431,8 @@ export default function Composer() {
               markdown={markdown}
               selectedThumbnail={selectedThumbnail}
               setSelectedThumbnail={setSelectedThumbnail}
+              uploadedThumbnail={uploadedThumbnail}
+              setUploadedThumbnail={setUploadedThumbnail}
             />
           </Box>
         )}
