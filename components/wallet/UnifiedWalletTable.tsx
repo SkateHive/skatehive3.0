@@ -40,7 +40,11 @@ import SendTokenModal from "./SendTokenModal";
 import TokenControlsBar from "./components/TokenControlsBar";
 import MobileTokenTable from "./components/MobileTokenTable";
 import DesktopTokenTable from "./components/DesktopTokenTable";
+import TokenLogo from "./components/TokenLogo";
 import { SendHiveModal, SendHBDModal } from "./modals";
+
+// Tokens that cannot be sent directly (locked / staked)
+const NON_SENDABLE = new Set(["HP", "HBDS"]);
 
 type ChainFilter = "all" | "hive" | "evm" | "farcaster";
 
@@ -133,6 +137,9 @@ function SendPickerModal({ isOpen, onClose, consolidatedTokens, onSelect }: {
   consolidatedTokens: ConsolidatedToken[];
   onSelect: (token: ConsolidatedToken) => void;
 }) {
+  // Only show tokens that can actually be sent
+  const sendable = consolidatedTokens.filter((ct) => !NON_SENDABLE.has(ct.symbol));
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm">
       <ModalOverlay />
@@ -146,7 +153,7 @@ function SendPickerModal({ isOpen, onClose, consolidatedTokens, onSelect }: {
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody p={0} maxH="400px" overflowY="auto">
-          {consolidatedTokens.map((ct) => (
+          {sendable.map((ct) => (
             <Box
               key={ct.symbol}
               px={4} py={3}
@@ -156,11 +163,29 @@ function SendPickerModal({ isOpen, onClose, consolidatedTokens, onSelect }: {
               onClick={() => { onSelect(ct); onClose(); }}
             >
               <HStack justify="space-between">
-                <Text fontFamily="mono" fontWeight="bold" color="text">{ct.symbol}</Text>
-                <Text fontFamily="mono" fontSize="sm" color="dim">{formatValue(ct.totalBalanceUSD)}</Text>
+                <HStack spacing={3}>
+                  <TokenLogo token={ct.primaryChain} size="28px" showNetworkBadge={false} />
+                  <VStack spacing={0} align="start">
+                    <Text fontFamily="mono" fontWeight="bold" color="text" fontSize="sm">{ct.symbol}</Text>
+                    {ct.name !== ct.symbol && (
+                      <Text fontFamily="mono" fontSize="xs" color="dim">{ct.name}</Text>
+                    )}
+                  </VStack>
+                </HStack>
+                <VStack spacing={0} align="end">
+                  <Text fontFamily="mono" fontSize="sm" color="primary" fontWeight="bold">{formatValue(ct.totalBalanceUSD)}</Text>
+                  <Text fontFamily="mono" fontSize="xs" color="dim">
+                    {ct.chains.reduce((s, c) => s + c.token.balance, 0).toFixed(4).replace(/\.?0+$/, "")} {ct.symbol}
+                  </Text>
+                </VStack>
               </HStack>
             </Box>
           ))}
+          {sendable.length === 0 && (
+            <Box px={4} py={6} textAlign="center">
+              <Text fontFamily="mono" fontSize="sm" color="dim">No sendable tokens found.</Text>
+            </Box>
+          )}
         </ModalBody>
       </ModalContent>
     </Modal>
