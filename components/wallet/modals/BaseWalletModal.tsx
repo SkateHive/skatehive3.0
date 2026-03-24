@@ -103,7 +103,7 @@ export function BaseWalletModal({
                         isLoading={isLoading}
                         isDisabled={isConfirmDisabled || isLoading}
                     >
-                        {confirmText}
+                        {confirmText || t('buttons.send')}
                     </Button>
                 </HStack>
             }
