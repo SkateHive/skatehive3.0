@@ -929,7 +929,7 @@ export default function PostDetails({
       {/* Author Bio Section */}
       <Container maxW="container.xl" px={4}>
         <AuthorBio
-          author={author}
+          author={softPost?.user.handle || author}
           displayName={displayAuthor}
           avatarUrl={displayAvatar}
           postCount={undefined}
