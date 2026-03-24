@@ -62,6 +62,13 @@ export async function GET(
     );
   }
 
+  // Validate: must be a 0x EVM address (42 chars) or a valid Hive username (3-16 chars, a-z0-9.-_)
+  const isEvmAddress = /^0x[0-9a-fA-F]{40}$/.test(address);
+  const isHiveUsername = /^[a-z][a-z0-9\-\.]{2,15}$/.test(address);
+  if (!isEvmAddress && !isHiveUsername) {
+    return NextResponse.json({ error: "Invalid address format" }, { status: 400 });
+  }
+
   try {
     const alchemyApiKey = process.env.NEXT_PUBLIC_ALCHEMY_KEY;
 

@@ -63,7 +63,7 @@ export default function DesktopTokenTable({
             const isExpanded = expandedTokens.has(consolidatedToken.symbol);
 
             return (
-              <Fragment key={consolidatedToken.symbol}>
+              <Fragment key={`${consolidatedToken.symbol}-${consolidatedToken.primaryChain.network}`}>
                 <Tr
                   _hover={{ bg: "subtle" }}
                   borderBottom="1px solid"
@@ -151,7 +151,7 @@ export default function DesktopTokenTable({
                 </Tr>
 
                 {isExpanded && (
-                  <Tr key={`${consolidatedToken.symbol}-expanded`}>
+                  <Tr key={`${consolidatedToken.symbol}-${consolidatedToken.primaryChain.network}-expanded`}>
                     <Td colSpan={3} py={0} borderBottom="none">
                       <Box py={2}>
                         <TokenChainBreakdown

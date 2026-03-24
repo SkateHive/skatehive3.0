@@ -406,10 +406,6 @@ export default function UnifiedWalletTable({
   // EVM is still loading but we already have Hive tokens to show
   const showEVMSkeleton = isLoading && (chainFilter === "all" || chainFilter === "evm" || chainFilter === "farcaster");
 
-  // suppress unused variable warning
-  void logoUpdateTrigger;
-  void sendTarget;
-
   return (
     <Box w="100%">
       {error && (

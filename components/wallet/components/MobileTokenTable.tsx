@@ -45,7 +45,7 @@ export default function MobileTokenTable({
 
         return (
           <MobileTokenRow
-            key={consolidatedToken.symbol}
+            key={`${consolidatedToken.symbol}-${consolidatedToken.primaryChain.network}`}
             consolidatedToken={consolidatedToken}
             isExpanded={isExpanded}
             onToggleExpansion={() =>

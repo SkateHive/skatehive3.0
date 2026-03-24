@@ -2,22 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Box, Text, Button, HStack, VStack, Image } from "@chakra-ui/react";
-import { keyframes } from "@emotion/react";
 import { useAioha } from "@aioha/react-ui";
 import { Asset } from "@hiveio/dhive";
 import { extractNumber } from "@/lib/utils/extractNumber";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { FaGift } from "react-icons/fa";
-
-const pulse = keyframes`
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.6; }
-`;
-
-const shimmer = keyframes`
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
-`;
+import { shimmerStyles, pulseKeyframe } from "@/lib/utils/animations";
 
 interface ClaimRewardsProps {
   reward_hive_balance?: string | Asset;
@@ -116,7 +106,7 @@ export default function ClaimRewards({
         fontFamily="mono"
       >
         {isLoadingRewards ? (
-          <Text animation={`${pulse} 1.5s ease-in-out infinite`}>
+          <Text animation={`${pulseKeyframe} 1.5s ease-in-out infinite`}>
             Calculating snaps rewards...
           </Text>
         ) : (
@@ -157,19 +147,7 @@ export default function ClaimRewards({
       border="2px solid"
       borderColor="primary"
       overflow="hidden"
-      sx={{
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(90deg, transparent 0%, var(--chakra-colors-primary) 50%, transparent 100%)",
-          backgroundSize: "200% auto",
-          opacity: 0.06,
-          animation: `${shimmer} 2.5s linear infinite`,
-          pointerEvents: "none",
-        },
-      }}
+      sx={shimmerStyles}
     >
       {/* Header bar */}
       <HStack px={3} py={2} bg="primary" justify="space-between">
@@ -190,7 +168,7 @@ export default function ClaimRewards({
           fontSize="xs"
           color="background"
           fontFamily="mono"
-          animation={`${pulse} 1.5s ease-in-out infinite`}
+          animation={`${pulseKeyframe} 1.5s ease-in-out infinite`}
         >
           ● CLAIMABLE
         </Text>

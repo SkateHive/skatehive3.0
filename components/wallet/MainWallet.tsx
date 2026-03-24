@@ -40,6 +40,9 @@ import HiveTransactionHistory from "./components/HiveTransactionHistory";
 import ClaimRewards from "./components/ClaimRewards";
 import UnifiedWalletTable from "./UnifiedWalletTable";
 import UnifiedSwapSection from "./UnifiedSwapSection";
+import WalletErrorBoundary from "./WalletErrorBoundary";
+
+const HBD_SAVINGS_APR = 0.15; // 15% annual interest rate on HBD Savings
 
 type ChainFilter = "all" | "hive" | "evm" | "farcaster";
 
@@ -148,7 +151,6 @@ export default function MainWallet({ username }: MainWalletProps) {
       String(hiveAccount.savings_hbd_balance || "0.000"),
     );
     const lastInterestPayment = hiveAccount.savings_hbd_last_interest_payment;
-    const APR = 0.15;
     let daysSinceLastPayment = 0;
     if (lastInterestPayment) {
       const last = new Date(lastInterestPayment);
@@ -158,7 +160,7 @@ export default function MainWallet({ username }: MainWalletProps) {
       );
     }
     const estimatedClaimableInterest =
-      savingsHbdBalance * APR * (daysSinceLastPayment / 365);
+      savingsHbdBalance * HBD_SAVINGS_APR * (daysSinceLastPayment / 365);
     let daysUntilClaim = 0;
     if (lastInterestPayment) {
       const nextClaimDate = new Date(
@@ -243,6 +245,7 @@ export default function MainWallet({ username }: MainWalletProps) {
 
   return (
     <>
+      <WalletErrorBoundary>
       <PortfolioProvider
         address={isConnected ? address : undefined}
         farcasterAddress={
@@ -471,6 +474,7 @@ export default function MainWallet({ username }: MainWalletProps) {
           <HiveLoginModal isOpen={isHiveModalOpen} onClose={closeHiveModal} />
         </Box>
       </PortfolioProvider>
+      </WalletErrorBoundary>
     </>
   );
 }

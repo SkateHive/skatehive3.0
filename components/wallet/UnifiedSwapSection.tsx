@@ -8,8 +8,8 @@ import {
   Divider,
 } from "@chakra-ui/react";
 import { FaSearch, FaChevronDown, FaCheck, FaExchangeAlt, FaHive, FaInfoCircle } from "react-icons/fa";
-import { keyframes } from "@emotion/react";
 import { useAioha } from "@aioha/react-ui";
+import { shimmerStyles } from "@/lib/utils/animations";
 import { KeyTypes } from "@aioha/aioha";
 import { useBreakpointValue } from "@chakra-ui/react";
 import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
@@ -21,11 +21,6 @@ import { extractNumber } from "@/lib/utils/extractNumber";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useTheme } from "@/app/themeProvider";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
-
-const shimmer = keyframes`
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
-`;
 
 // ─── ERC-20 token list ────────────────────────────────────────────────────────
 const NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
@@ -605,19 +600,7 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
       borderColor="primary"
       overflow="hidden"
       width="100%"
-      sx={{
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(90deg, transparent 0%, var(--chakra-colors-primary) 50%, transparent 100%)",
-          backgroundSize: "200% auto",
-          opacity: 0.06,
-          animation: `${shimmer} 2.5s linear infinite`,
-          pointerEvents: "none",
-        },
-      }}
+      sx={shimmerStyles}
     >
       {showToggle ? (
         /* Header with toggle — only when both chains are connected */
