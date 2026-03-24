@@ -52,7 +52,7 @@ export default function DesktopTokenTable({
           <Tbody>
             <Tr>
               <Td colSpan={4} textAlign="center" py={8}>
-                <Text color="gray.400" fontSize="sm">
+                <Text color="dim" fontSize="sm">
                   No tokens to display. Try turning off &quot;Hide Dust&quot; to
                   see smaller balances.
                 </Text>
@@ -76,14 +76,13 @@ export default function DesktopTokenTable({
             return (
               <Fragment key={consolidatedToken.symbol}>
                 <Tr
-                  _hover={{ bg: "gray.800" }}
+                  _hover={{ bg: "subtle" }}
                   borderBottom="1px solid"
-                  borderColor="gray.700"
+                  borderColor="border"
                 >
                   {/* Asset Column */}
                   <Td py={3}>
                     <HStack spacing={3}>
-                      {/* Token Logo with Chain Badge */}
                       <TokenLogo
                         token={primaryToken}
                         size="32px"
@@ -91,13 +90,11 @@ export default function DesktopTokenTable({
                         networkBadgeSize="12px"
                       />
 
-                      {/* Token Info */}
                       <VStack spacing={0} align="start">
                         <HStack spacing={2} align="center">
-                          <Text fontWeight="medium" color="white" fontSize="sm">
+                          <Text fontWeight="medium" color="text" fontSize="sm">
                             {consolidatedToken.symbol}
                           </Text>
-                          {/* Multi-chain indicator */}
                           {consolidatedToken.chains.length > 1 && (
                             <Badge
                               colorScheme="blue"
@@ -107,7 +104,6 @@ export default function DesktopTokenTable({
                               {consolidatedToken.chains.length}
                             </Badge>
                           )}
-                          {/* Expand button for multi-chain tokens */}
                           {consolidatedToken.chains.length > 1 && (
                             <IconButton
                               aria-label="Expand token details"
@@ -124,7 +120,6 @@ export default function DesktopTokenTable({
                           )}
                         </HStack>
                         <HStack>
-                          {/* Send Button */}
                           {consolidatedToken.chains.length > 1 ? (
                             <Menu>
                               <MenuButton
@@ -139,7 +134,7 @@ export default function DesktopTokenTable({
                               <MenuList
                                 bg="background"
                                 border="1px solid"
-                                borderColor="gray.200"
+                                borderColor="border"
                               >
                                 {consolidatedToken.chains.map(
                                   (chainToken, index) => {
@@ -150,7 +145,7 @@ export default function DesktopTokenTable({
                                         key={`${chainToken.network}-${index}`}
                                         onClick={() => onSendToken(chainToken)}
                                         bg="background"
-                                        _hover={{ bg: "gray.700" }}
+                                        _hover={{ bg: "muted" }}
                                       >
                                         <HStack spacing={2} w="100%">
                                           <TokenLogo
@@ -166,13 +161,14 @@ export default function DesktopTokenTable({
                                             <Text
                                               fontSize="sm"
                                               fontWeight="medium"
+                                              color="text"
                                             >
                                               {chainInfo?.alias ||
                                                 chainToken.network}
                                             </Text>
                                             <Text
                                               fontSize="xs"
-                                              color="gray.400"
+                                              color="dim"
                                             >
                                               {formatBalance(
                                                 chainToken.token.balance
@@ -201,7 +197,7 @@ export default function DesktopTokenTable({
                               <FaPaperPlane />
                             </Button>
                           )}
-                          <Text fontSize="xs" color="gray.400">
+                          <Text fontSize="xs" color="dim">
                             {formatBalance(
                               consolidatedToken.chains.reduce(
                                 (sum, chain) => sum + chain.token.balance,
@@ -215,13 +211,12 @@ export default function DesktopTokenTable({
                     </HStack>
                   </Td>
 
-                  {/* Price Column */}
+                  {/* Price Change Column */}
                   <Td py={3}>
-                    {/* Price Change Badge */}
                     {priceChange !== null && (
                       <Text
                         fontSize="xs"
-                        color={priceChange >= 0 ? "green.400" : "red.400"}
+                        color={priceChange >= 0 ? "success" : "error"}
                       >
                         {priceChange >= 0 ? "+" : ""}
                         {formatPriceChange(priceChange)}%
@@ -232,14 +227,13 @@ export default function DesktopTokenTable({
                   {/* Value Column */}
                   <Td py={3} isNumeric>
                     <VStack spacing={0} align="end">
-                      <Text fontSize="sm" color="white" fontWeight="medium">
+                      <Text fontSize="sm" color="text" fontWeight="medium">
                         {formatValue(consolidatedToken.totalBalanceUSD)}
                       </Text>
                     </VStack>
                   </Td>
                 </Tr>
 
-                {/* Expandable Row for Chain Details */}
                 {isExpanded && (
                   <Tr key={`${consolidatedToken.symbol}-expanded`}>
                     <Td colSpan={3} py={0} borderBottom="none">

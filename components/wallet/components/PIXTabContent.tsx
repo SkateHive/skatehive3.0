@@ -186,17 +186,12 @@ function PIXForm({ pixDashboardData, language }: PIXFormProps) {
 
     setLoading(true);
     try {
-      const endpoint = currency === "HBD"
-        ? "https://aphid-glowing-fish.ngrok-free.app/simulatehbd2pix"
-        : "https://aphid-glowing-fish.ngrok-free.app/simulatehive2pix";
+      const path = currency === "HBD" ? "simulatehbd2pix" : "simulatehive2pix";
 
-      const response = await fetch(endpoint, {
+      const response = await fetch(`/api/pix?path=${path}`, {
         method: "POST",
         body: JSON.stringify({ Memo: pixKey, Amount: amount }),
-        headers: {
-          "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "true",
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
       const data = await response.json();
@@ -510,11 +505,8 @@ export default function PIXTabContent() {
     async function fetchData() {
       try {
         const res = await fetch(
-          (process.env.NEXT_PUBLIC_PIXBEE_ENDPOINT
-            || "https://aphid-glowing-fish.ngrok-free.app")
-          + "/skatebank",
+          "/api/pix?path=skatebank",
           {
-            ...glowinOptions,
             signal: abortController.signal,
           }
         );

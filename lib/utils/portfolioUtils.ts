@@ -336,9 +336,8 @@ export async function fetchTokenData(
       }
       lastRequestTime = Date.now();
 
-      const baseUrl = "https://api.geckoterminal.com/api/v2";
       const network = getGeckoNetwork(networkName as EtherScanChainName);
-      const apiUrl = `${baseUrl}/networks/${network}/tokens/${tokenAddress}?include=top_pools`;
+      const apiUrl = `/api/geckoterminal?network=${network}&address=${tokenAddress}`;
 
       const response = await fetch(apiUrl, {
         headers: {

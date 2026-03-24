@@ -18,12 +18,21 @@ async function fetchAlchemyNFTs(address: string, apiKey: string) {
     }
 
     // Transform Alchemy NFT format to KeepKey format
-    return data.ownedNfts.map((nft: any) => ({
+    return data.ownedNfts.map((nft: any) => {
+      // Prefer cachedUrl → originalUrl → raw metadata image → pngUrl
+      const imageUrl =
+        nft.image?.cachedUrl ||
+        nft.image?.originalUrl ||
+        nft.raw?.metadata?.image ||
+        nft.image?.pngUrl ||
+        '';
+
+      return {
       tokenId: nft.tokenId || '0',
       rarityRank: null,
       token: {
         name: nft.name || nft.title || '',
-        medias: nft.image?.cachedUrl ? [{ url: nft.image.cachedUrl }] : [],
+        medias: imageUrl ? [{ url: imageUrl }] : [],
         estimatedValueEth: '0',
         collection: {
           name: nft.contract?.name || nft.contract?.openSeaMetadata?.collectionName || 'Unknown Collection',
@@ -32,7 +41,8 @@ async function fetchAlchemyNFTs(address: string, apiKey: string) {
           floorPriceEth: nft.contract?.openSeaMetadata?.floorPrice?.toString() || '0',
         },
       },
-    }));
+    };
+    });
   } catch (error) {
     console.error('Error fetching Base NFTs from Alchemy:', error);
     return [];
@@ -165,22 +175,48 @@ export async function GET(
     const allNfts = [...rawNfts, ...baseNFTs];
     
     const transformedNfts = allNfts.map((nft: any) => {
+      // Alchemy NFTs are already shaped as { token: { medias, ... } }
+      // KeepKey NFTs may have medias at root or inside token
+      const medias: { url: string }[] =
+        nft.token?.medias ||
+        nft.medias ||
+        (nft.image?.cachedUrl ? [{ url: nft.image.cachedUrl }] : []) ||
+        [];
+
       const estimatedUsd = Number(nft.estimatedValue?.valueUsd ?? 0);
-      const estimatedEth = ethPriceUsd > 0 ? estimatedUsd / ethPriceUsd : 0;
+      const estimatedEthFromToken = Number(nft.token?.estimatedValueEth ?? 0);
+      const estimatedEth = estimatedUsd > 0 && ethPriceUsd > 0 
+        ? estimatedUsd / ethPriceUsd 
+        : estimatedEthFromToken;
       const estimatedEthString = estimatedEth.toString();
+
+      const collectionSrc = nft.collection || nft.token?.collection || {};
+      const floorEth = nft.token?.collection?.floorPriceEth || collectionSrc.floorPriceEth || estimatedEthString;
+
+      // Normalize raw network strings → simple lowercase names Zapper/OpenSea understand
+      const rawNetwork = collectionSrc.network || nft.token?.collection?.network || "";
+      const normalizeNetwork = (raw: string) => {
+        const n = raw.toLowerCase();
+        if (n.includes("base")) return "base";
+        if (n.includes("arbitrum")) return "arbitrum";
+        if (n.includes("optimism")) return "optimism";
+        if (n.includes("polygon")) return "polygon";
+        if (n.includes("ethereum") || n.includes("eth")) return "ethereum";
+        return raw.toLowerCase();
+      };
 
       return {
         tokenId: nft.tokenId,
         rarityRank: nft.rarityRank,
         token: {
-          name: nft.name || "",
-          medias: [],
+          name: nft.token?.name || nft.name || "",
+          medias,
           estimatedValueEth: estimatedEthString,
           collection: {
-            name: nft.collection?.name || "Unknown Collection",
-            address: nft.collection?.address || "",
-            network: nft.collection?.network || "",
-            floorPriceEth: estimatedEthString,
+            name: collectionSrc.name || nft.token?.collection?.name || "Unknown Collection",
+            address: collectionSrc.address || nft.token?.collection?.address || "",
+            network: normalizeNetwork(rawNetwork),
+            floorPriceEth: floorEth,
           },
         },
       };

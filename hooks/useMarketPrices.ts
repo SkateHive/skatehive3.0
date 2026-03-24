@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface MarketPrices {
   hivePrice: number | null;
@@ -10,26 +10,13 @@ interface MarketPrices {
 }
 
 interface UseMarketPricesOptions {
-  refreshInterval?: number; // in milliseconds, default 5 minutes
-  enableAutoRefresh?: boolean; // default true
+  refreshInterval?: number;
+  enableAutoRefresh?: boolean;
 }
 
-/**
- * Custom hook to fetch and manage Hive and HBD market prices from CoinGecko
- * 
- * Features:
- * - Automatic price fetching with configurable intervals
- * - Error handling with fallback prices
- * - Loading states
- * - Manual refresh capability
- * - Centralized price management to reduce API calls
- * 
- * @param options Configuration options
- * @returns Market prices, loading state, error, and refresh function
- */
 export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPrices & { refreshPrices: () => Promise<void> } {
   const {
-    refreshInterval = 300000, // 5 minutes default
+    refreshInterval = 300000, // 5 minutes
     enableAutoRefresh = true
   } = options;
 
@@ -40,6 +27,10 @@ export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPri
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  // Track whether we've ever loaded prices — avoids putting prices in callback deps
+  const hasPrices = useRef(false);
+
+  // Stable callback — no state in deps, no re-fetch loop
   const fetchPrices = useCallback(async () => {
     try {
       setIsPriceLoading(true);
@@ -53,40 +44,34 @@ export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPri
 
       const data = await response.json();
 
-      // Set prices with fallbacks
-      const newHivePrice = data["hive"]?.usd || 0.21;
-      const newHbdPrice = data["hive_dollar"]?.usd || 1.0;
-      const newEthPrice = data["ethereum"]?.usd || 2500;
-
-      setHivePrice(newHivePrice);
-      setHbdPrice(newHbdPrice);
-      setEthPrice(newEthPrice);
+      setHivePrice(data["hive"]?.usd || 0.21);
+      setHbdPrice(data["hive_dollar"]?.usd || 1.0);
+      setEthPrice(data["ethereum"]?.usd || 2500);
       setLastUpdated(new Date());
+      hasPrices.current = true;
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
 
-      // Set fallback prices if we don't have any prices yet
-      if (hivePrice === null || hbdPrice === null || ethPrice === null) {
+      // Only apply fallbacks on first load failure — keep stale prices on refresh failure
+      if (!hasPrices.current) {
         setHivePrice(0.21);
         setHbdPrice(1.0);
         setEthPrice(2500);
+        hasPrices.current = true;
       }
     } finally {
       setIsPriceLoading(false);
     }
-  }, [hivePrice, hbdPrice, ethPrice]);
+  }, []); // Stable — no deps
 
-  // Initial price fetch
   useEffect(() => {
     fetchPrices();
   }, [fetchPrices]);
 
-  // Set up auto-refresh interval
   useEffect(() => {
     if (!enableAutoRefresh) return;
-
     const interval = setInterval(fetchPrices, refreshInterval);
     return () => clearInterval(interval);
   }, [fetchPrices, refreshInterval, enableAutoRefresh]);

@@ -2,19 +2,12 @@ import {
     Box,
     Text,
     HStack,
-    VStack,
     Tooltip,
-    Icon,
-    Image,
-    Button,
     IconButton,
-    Badge,
     useDisclosure,
 } from "@chakra-ui/react";
 import {
     FaPaperPlane,
-    FaArrowDown,
-    FaArrowUp,
     FaQuestionCircle,
     FaPiggyBank,
 } from "react-icons/fa";
@@ -63,35 +56,15 @@ const HBDSection = memo(function HBDSection({
     const { isOpen: isSendOpen, onOpen: onSendOpen, onClose: onSendClose } = useDisclosure();
     const { isOpen: isDepositOpen, onOpen: onDepositOpen, onClose: onDepositClose } = useDisclosure();
 
-    // Memoized calculations
     const liquidUsdValue = useMemo(() => {
-        if (hbdBalance === "N/A" || !hbdPrice || parseFloat(hbdBalance) <= 0) {
-            return null;
-        }
+        if (hbdBalance === "N/A" || !hbdPrice || parseFloat(hbdBalance) <= 0) return null;
         return (parseFloat(hbdBalance) * hbdPrice).toFixed(2);
     }, [hbdBalance, hbdPrice]);
 
-    const savingsUsdValue = useMemo(() => {
-        if (
-            hbdSavingsBalance === "N/A" ||
-            !hbdPrice ||
-            parseFloat(hbdSavingsBalance) <= 0
-        ) {
-            return null;
-        }
-        return (parseFloat(hbdSavingsBalance) * hbdPrice).toFixed(2);
-    }, [hbdSavingsBalance, hbdPrice]);
-
-    const lastPaymentDays = useMemo(() => {
-        return lastInterestPayment ? daysAgo(lastInterestPayment) : 0;
-    }, [lastInterestPayment]);
-
-    // Memoized event handlers
     const handleInfoToggle = useCallback(() => {
         setShowInfo((prev) => !prev);
     }, []);
 
-    // Wallet view: Only show liquid HBD
     return (
         <>
             <Box
@@ -99,9 +72,8 @@ const HBDSection = memo(function HBDSection({
                 mt={2}
                 mb={2}
                 bg="transparent"
-                borderRadius="none"
                 border="1px solid"
-                borderColor="gray.200"
+                borderColor="border"
             >
                 <HStack justify="space-between" align="center">
                     <HStack spacing={3}>
@@ -116,7 +88,7 @@ const HBDSection = memo(function HBDSection({
                                     icon={<FaQuestionCircle />}
                                     size="xs"
                                     variant="ghost"
-                                    color="gray.400"
+                                    color="dim"
                                     onClick={handleInfoToggle}
                                 />
                             </HStack>
@@ -151,7 +123,7 @@ const HBDSection = memo(function HBDSection({
                                 {hbdBalance}
                             </Text>
                             {liquidUsdValue && (
-                                <Text fontSize="sm" color="gray.400">
+                                <Text fontSize="sm" color="dim">
                                     (${liquidUsdValue})
                                 </Text>
                             )}
@@ -160,8 +132,8 @@ const HBDSection = memo(function HBDSection({
                 </HStack>
 
                 {showInfo && (
-                    <Box mt={3} p={3} bg="muted" borderRadius="md">
-                        <Text color="gray.400" fontSize="sm">
+                    <Box mt={3} p={3} bg="muted">
+                        <Text color="dim" fontSize="sm">
                             Liquid HBD ready for transactions. Convert to Savings in SkateBank
                             to earn 15% APR!
                         </Text>
@@ -182,7 +154,6 @@ const HBDSection = memo(function HBDSection({
             />
         </>
     );
-
 });
 
 export default HBDSection;

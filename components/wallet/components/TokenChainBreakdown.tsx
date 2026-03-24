@@ -36,10 +36,10 @@ function ChainTokenItem({ chainToken, totalBalanceUSD }: ChainTokenItemProps) {
             />
           )}
           <VStack spacing={0} align="start">
-            <Text fontSize="sm" fontWeight="medium" color="white">
+            <Text fontSize="sm" fontWeight="medium" color="text">
               {walletSource.networkLabel}
             </Text>
-            <Text fontSize="xs" color="gray.400">
+            <Text fontSize="xs" color="dim">
               {walletSource.walletLabel}
             </Text>
           </VStack>
@@ -58,17 +58,17 @@ function ChainTokenItem({ chainToken, totalBalanceUSD }: ChainTokenItemProps) {
         </HStack>
 
         <VStack spacing={0} align="end">
-          <Text fontSize="sm" color="white">
+          <Text fontSize="sm" color="text">
             {formatBalance(chainToken.token.balance)} {chainToken.token.symbol}
           </Text>
-          <Text fontSize="xs" color="gray.400">
+          <Text fontSize="xs" color="dim">
             {formatValue(chainToken.token.balanceUSD)}
           </Text>
         </VStack>
       </HStack>
 
-      {/* Progress bar showing percentage */}
-      <Box w="100%" bg="gray.700" h="4px" borderRadius="full">
+      {/* Progress bar */}
+      <Box w="100%" bg="muted" h="4px" borderRadius="full">
         <Box
           w={`${percentage}%`}
           bg={
@@ -76,15 +76,14 @@ function ChainTokenItem({ chainToken, totalBalanceUSD }: ChainTokenItemProps) {
               ? "blue.400"
               : walletSource.type === "farcaster"
               ? "purple.400"
-              : "gray.400"
+              : "dim"
           }
           h="100%"
           borderRadius="full"
         />
       </Box>
 
-      {/* Contract address for transparency */}
-      <Text fontSize="xs" color="gray.500" mt={1}>
+      <Text fontSize="xs" color="dim" mt={1}>
         {chainToken.token.address.slice(0, 6)}...
         {chainToken.token.address.slice(-4)}
       </Text>
@@ -98,10 +97,10 @@ export default function TokenChainBreakdown({
   return (
     <Box
       p={4}
-      bg="gray.900"
+      bg="background"
       borderRadius="md"
       border="1px solid"
-      borderColor="gray.600"
+      borderColor="border"
       mt={2}
     >
       <VStack spacing={3} align="stretch">

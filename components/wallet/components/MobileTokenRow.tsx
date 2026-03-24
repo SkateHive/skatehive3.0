@@ -36,15 +36,12 @@ export default function MobileTokenRow({
         py={3}
         px={4}
         borderBottom="1px solid"
-        borderColor="rgba(255, 255, 255, 0.05)"
-        _hover={{
-          bg: "rgba(255, 255, 255, 0.02)",
-        }}
+        borderColor="border"
+        _hover={{ bg: "subtle" }}
         transition="all 0.2s ease"
       >
         <HStack justify="space-between" align="center" spacing={3}>
           <HStack spacing={3} flex={1}>
-            {/* Token Logo with Chain Badge */}
             <TokenLogo
               token={primaryToken}
               size="40px"
@@ -52,12 +49,11 @@ export default function MobileTokenRow({
               networkBadgeSize="14px"
             />
 
-            {/* Token Info */}
             <VStack spacing={0} align="start" flex={1}>
               <HStack spacing={2} align="center">
                 <Text
                   fontWeight="600"
-                  color="white"
+                  color="text"
                   fontSize="md"
                   letterSpacing="-0.01em"
                 >
@@ -65,8 +61,7 @@ export default function MobileTokenRow({
                 </Text>
                 {consolidatedToken.chains.length > 1 && (
                   <Badge
-                    bg="rgba(59, 130, 246, 0.1)"
-                    color="rgb(96, 165, 250)"
+                    colorScheme="blue"
                     fontSize="xs"
                     fontWeight="500"
                     px={1.5}
@@ -76,18 +71,14 @@ export default function MobileTokenRow({
                     {consolidatedToken.chains.length}
                   </Badge>
                 )}
-                {/* Expand button for multi-chain tokens */}
                 {consolidatedToken.chains.length > 1 && (
                   <IconButton
                     aria-label="Expand token details"
                     icon={isExpanded ? <FaChevronUp /> : <FaChevronDown />}
                     size="xs"
                     variant="ghost"
-                    color="rgba(255, 255, 255, 0.4)"
-                    _hover={{
-                      bg: "rgba(255, 255, 255, 0.1)",
-                      color: "rgba(255, 255, 255, 0.8)",
-                    }}
+                    color="dim"
+                    _hover={{ bg: "subtle", color: "text" }}
                     onClick={(e) => {
                       e.stopPropagation();
                       onToggleExpansion();
@@ -95,7 +86,7 @@ export default function MobileTokenRow({
                   />
                 )}
               </HStack>
-              <Text fontSize="sm" color="rgba(255, 255, 255, 0.6)">
+              <Text fontSize="sm" color="dim">
                 {formatBalance(
                   consolidatedToken.chains.reduce(
                     (sum, chain) => sum + chain.token.balance,
@@ -110,7 +101,7 @@ export default function MobileTokenRow({
           <VStack spacing={0} align="end">
             <Text
               fontSize="md"
-              color="white"
+              color="text"
               fontWeight="600"
               letterSpacing="-0.01em"
             >
@@ -119,7 +110,7 @@ export default function MobileTokenRow({
             {priceChange !== null && priceChange !== undefined && (
               <Text
                 fontSize="sm"
-                color={priceChange >= 0 ? "#10B981" : "#EF4444"}
+                color={priceChange >= 0 ? "success" : "error"}
                 fontWeight="500"
               >
                 {priceChange >= 0 ? "+" : ""}
@@ -130,12 +121,11 @@ export default function MobileTokenRow({
         </HStack>
       </Box>
 
-      {/* Expandable chain breakdown */}
       {isExpanded && (
         <Box
-          bg="rgba(255, 255, 255, 0.02)"
+          bg="subtle"
           borderBottom="1px solid"
-          borderColor="rgba(255, 255, 255, 0.05)"
+          borderColor="border"
           px={4}
           py={3}
         >

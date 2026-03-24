@@ -674,6 +674,7 @@ export interface Transaction {
     amount: string;
     memo?: string;
     timestamp: string;
+    type?: "transfer" | "account_create" | "create_claimed_account";
 }
 
 
@@ -682,7 +683,8 @@ export async function getTransactionHistory(
   searchAccount: string
 ): Promise<TransactionSummary> {
   try {
-    const operationsBitmask: [number, number] = [4, 0];
+    // transfer (bit 2 = 4) | account_create (bit 9 = 512) | create_claimed_account (bit 23 = 8388608)
+    const operationsBitmask: [number, number] = [4 | 512 | 8388608, 0];
     const accountHistory = await HiveClient.database.getAccountHistory(
       username,
       -1,
@@ -690,24 +692,41 @@ export async function getTransactionHistory(
       operationsBitmask
     );
 
-    // Filter and map transfer transactions involving the searchAccount
+    // Filter and map transfer + account creation transactions
     const filteredTransactions = accountHistory
       .filter(([_, operationDetails]) => {
         const operationType = operationDetails.op[0];
         const opDetails = operationDetails.op[1];
-        return (
-          operationType === "transfer" &&
-          (opDetails.from === searchAccount || opDetails.to === searchAccount)
-        );
+        if (operationType === "transfer") {
+          return opDetails.from === searchAccount || opDetails.to === searchAccount;
+        }
+        if (operationType === "account_create" || operationType === "create_claimed_account") {
+          return opDetails.creator === searchAccount;
+        }
+        return false;
       })
       .map(([_, operationDetails]) => {
+        const operationType = operationDetails.op[0];
         const opDetails = operationDetails.op[1];
+        if (operationType === "transfer") {
+          return {
+            from: opDetails.from,
+            to: opDetails.to,
+            amount: opDetails.amount,
+            memo: opDetails.memo || "",
+            timestamp: operationDetails.timestamp,
+            type: "transfer" as const,
+          };
+        }
+        // account_create or create_claimed_account
+        const isACC = operationType === "create_claimed_account";
         return {
-          from: opDetails.from,
-          to: opDetails.to,
-          amount: opDetails.amount,
-          memo: opDetails.memo || "",
+          from: opDetails.creator,
+          to: opDetails.new_account_name,
+          amount: isACC ? "ACC" : (opDetails.fee || "3.000 HIVE"),
+          memo: "",
           timestamp: operationDetails.timestamp,
+          type: operationType as "account_create" | "create_claimed_account",
         };
       });
 

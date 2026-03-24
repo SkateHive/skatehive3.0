@@ -1,21 +1,33 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Box, Text, Button, HStack, VStack } from "@chakra-ui/react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Box, Text, Button, HStack, VStack, Image } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
 import { useAioha } from "@aioha/react-ui";
 import { Asset } from "@hiveio/dhive";
 import { extractNumber } from "@/lib/utils/extractNumber";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { FaGift } from "react-icons/fa";
+
+const pulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+`;
+
+const shimmer = keyframes`
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+`;
 
 interface ClaimRewardsProps {
-  reward_hive_balance?: string | Asset | undefined; // HIVE rewards balance
-  reward_hbd_balance?: string | Asset | undefined; // HBD rewards balance
-  reward_vesting_balance?: string | Asset | undefined; // VESTS rewards balance
-  reward_vesting_hive?: string | Asset | undefined; // HP (Hive Power) rewards balance
+  reward_hive_balance?: string | Asset;
+  reward_hbd_balance?: string | Asset;
+  reward_vesting_balance?: string | Asset;
+  reward_vesting_hive?: string | Asset;
 }
 
 interface SkatehivePost {
-  remaining_till_cashout: object;
+  remaining_till_cashout: Record<string, unknown>;
   pending_payout_value: string;
 }
 
@@ -31,136 +43,210 @@ export default function ClaimRewards({
   const [hasClaimed, setHasClaimed] = useState(false);
   const [potentialRewards, setPotentialRewards] = useState("0.000");
   const [isLoadingRewards, setIsLoadingRewards] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Process reward balances
-  const pendingRewards = {
-    hive: reward_hive_balance ? extractNumber(reward_hive_balance.toString()) : "0.000",
-    hbd: reward_hbd_balance ? extractNumber(reward_hbd_balance.toString()) : "0.000",
-    vests: reward_vesting_balance ? extractNumber(reward_vesting_balance.toString()) : "0.000",
-    vests_hive: reward_vesting_hive ? extractNumber(reward_vesting_hive.toString()) : "0.000",
-  };
+  const pendingRewards = useMemo(() => ({
+    hive: reward_hive_balance
+      ? extractNumber(reward_hive_balance.toString())
+      : "0.000",
+    hbd: reward_hbd_balance
+      ? extractNumber(reward_hbd_balance.toString())
+      : "0.000",
+    vests_hive: reward_vesting_hive
+      ? extractNumber(reward_vesting_hive.toString())
+      : "0.000",
+  }), [reward_hive_balance, reward_hbd_balance, reward_vesting_hive]);
 
-  // Check if there are any claimable rewards > 0.5
   const hasRewards =
     parseFloat(String(pendingRewards.hive)) > 0.5 ||
     parseFloat(String(pendingRewards.hbd)) > 0.5 ||
     parseFloat(String(pendingRewards.vests_hive)) > 0.5;
 
-  // Reset hasClaimed when rewards change
   useEffect(() => {
-    if (hasRewards) {
-      setHasClaimed(false); // Show claim box if rewards > 0.5
-    }
-  }, [hasRewards, pendingRewards.hive, pendingRewards.hbd, pendingRewards.vests_hive]);
+    if (hasRewards) setHasClaimed(false);
+  }, [hasRewards]);
 
-  // Fetch potential rewards from Skatehive API
   useEffect(() => {
     if (!user) return;
-
-    const fetchPotentialRewards = async () => {
-      setIsLoadingRewards(true);
-      setFetchError(null);
-      try {
-        const response = await fetch(`https://api.skatehive.app/api/v2/feed/${user}`);
-        const data = await response.json();
+    setIsLoadingRewards(true);
+    fetch(`https://api.skatehive.app/api/v2/feed/${user}`)
+      .then((r) => r.json())
+      .then((data) => {
         if (data.success && Array.isArray(data.data)) {
-          const pendingPosts = data.data.filter(
-            (post: SkatehivePost) => Object.keys(post.remaining_till_cashout).length > 0
-          );
-          const totalPendingHBD = pendingPosts.reduce(
-            (sum: number, post: SkatehivePost) =>
-              sum + parseFloat(post.pending_payout_value || "0"),
-            0
-          );
-          setPotentialRewards(totalPendingHBD.toFixed(3));
-        } else {
-          setFetchError(t('wallet.failedToFetchRewards'));
+          const total = data.data
+            .filter(
+              (p: SkatehivePost) =>
+                Object.keys(p.remaining_till_cashout).length > 0,
+            )
+            .reduce(
+              (s: number, p: SkatehivePost) =>
+                s + parseFloat(p.pending_payout_value || "0"),
+              0,
+            );
+          setPotentialRewards(total.toFixed(3));
         }
-      } catch (error) {
-        console.error("Error fetching potential rewards:", error);
-        setFetchError(t('wallet.errorFetchingRewards'));
-      } finally {
-        setIsLoadingRewards(false);
-      }
-    };
+      })
+      .catch(console.error)
+      .finally(() => setIsLoadingRewards(false));
+  }, [user]);
 
-    fetchPotentialRewards();
-  }, [user, t]);
-
-  // Claim rewards
   const handleClaimRewards = useCallback(async () => {
-    if (!aioha || !user) {
-      setHasClaimed(true); // Hide claim box if not logged in
-      return;
-    }
-
+    if (!aioha || !user) return;
     setIsClaiming(true);
     try {
-      const result = await aioha.claimRewards();
-      setHasClaimed(true); // Hide claim box on success or failure
-    } catch (error) {
-      console.error("Error claiming rewards:", error);
-      setHasClaimed(true); // Hide claim box even on error
+      await aioha.claimRewards();
+      setHasClaimed(true);
+    } catch (e) {
+      console.error(e);
     } finally {
       setIsClaiming(false);
     }
   }, [aioha, user]);
 
-  return (
-    <>
-      {(hasRewards && !hasClaimed) ? (
-        <Box
-          p={4}
-          mt={2}
-          mb={4}
-          bg="background"
-          border="1px solid"
-          borderColor="gray.200"
-        >
-          <Text fontWeight="bold" color="primary" mb={2}>
-            {t('wallet.pendingRewards')}
+  if (!hasRewards || hasClaimed) {
+    // Compact "potential rewards" state shown when nothing to claim
+    const hasPotential = parseFloat(potentialRewards) > 0;
+    if (!hasPotential && !isLoadingRewards) return null;
+    return (
+      <Box
+        border="1px solid"
+        borderColor="border"
+        p={3}
+        fontSize="sm"
+        color="dim"
+        fontFamily="mono"
+      >
+        {isLoadingRewards ? (
+          <Text animation={`${pulse} 1.5s ease-in-out infinite`}>
+            Calculating snaps rewards...
           </Text>
-          <HStack justifyContent="space-between" alignItems="center">
-            <VStack align="start">
-              <Text>{t('wallet.youHavePendingRewards')}</Text>
-              {parseFloat(String(pendingRewards.hive)) > 0 && (
-                <Text>{pendingRewards.hive} HIVE</Text>
-              )}
-              {parseFloat(String(pendingRewards.hbd)) > 0 && (
-                <Text>{pendingRewards.hbd} HBD</Text>
-              )}
-              {parseFloat(String(pendingRewards.vests_hive)) > 0 && (
-                <Text>{pendingRewards.vests_hive} HP</Text>
-              )}
-            </VStack>
-            <Button
-              leftIcon={<span>🏅</span>}
-              colorScheme="blue"
-              onClick={handleClaimRewards}
-              isLoading={isClaiming}
-              isDisabled={!hasRewards || !user} // Disable if no rewards or not logged in
-            >
-              {t('wallet.claim')}
-            </Button>
-          </HStack>
-        </Box>
-      ) : (
-        <Box>
-          {isLoadingRewards ? (
-            <Text>{t('wallet.loadingPotentialRewards')}</Text>
-          ) : fetchError ? (
-            <Text color="red.500">{t('common.error')}: {fetchError}</Text>
-          ) : (
-            <>
-              <Text></Text>
-              <Text fontSize="sm" color="gray.500">
-                {t('wallet.snapsPotentialRewards').replace('{amount}', potentialRewards)}
+        ) : (
+          <Text>
+            Snaps potential:{" "}
+            <Text as="span" color="primary" fontWeight="bold">
+              {potentialRewards} HBD
+            </Text>{" "}
+            in next 7 days
+          </Text>
+        )}
+      </Box>
+    );
+  }
+
+  // ── EXCITING claim state ──
+  const rewardLines: { amount: string; symbol: string; logo: string }[] = [
+    parseFloat(String(pendingRewards.hive)) > 0 && {
+      amount: pendingRewards.hive,
+      symbol: "HIVE",
+      logo: "/logos/hiveLogo.png",
+    },
+    parseFloat(String(pendingRewards.hbd)) > 0 && {
+      amount: pendingRewards.hbd,
+      symbol: "HBD",
+      logo: "/logos/hbd_logo.png",
+    },
+    parseFloat(String(pendingRewards.vests_hive)) > 0 && {
+      amount: pendingRewards.vests_hive,
+      symbol: "HP",
+      logo: "/logos/hiveLogo.png",
+    },
+  ].filter(Boolean) as { amount: string; symbol: string; logo: string }[];
+
+  return (
+    <Box
+      position="relative"
+      border="2px solid"
+      borderColor="primary"
+      overflow="hidden"
+      sx={{
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(90deg, transparent 0%, var(--chakra-colors-primary) 50%, transparent 100%)",
+          backgroundSize: "200% auto",
+          opacity: 0.06,
+          animation: `${shimmer} 2.5s linear infinite`,
+          pointerEvents: "none",
+        },
+      }}
+    >
+      {/* Header bar */}
+      <HStack px={3} py={2} bg="primary" justify="space-between">
+        <HStack spacing={2}>
+          <FaGift color="var(--chakra-colors-background)" />
+          <Text
+            fontWeight="black"
+            fontSize="sm"
+            color="background"
+            textTransform="uppercase"
+            letterSpacing="widest"
+            fontFamily="mono"
+          >
+            Rewards Ready
+          </Text>
+        </HStack>
+        <Text
+          fontSize="xs"
+          color="background"
+          fontFamily="mono"
+          animation={`${pulse} 1.5s ease-in-out infinite`}
+        >
+          ● CLAIMABLE
+        </Text>
+      </HStack>
+
+      {/* Body */}
+      <Box px={3} py={3}>
+        <VStack spacing={2} align="start" mb={3}>
+          {rewardLines.map(({ amount, symbol, logo }) => (
+            <HStack key={symbol} spacing={3} align="center">
+              <Image
+                src={logo}
+                w="28px"
+                h="28px"
+                objectFit="contain"
+                alt={`${symbol} logo`}
+              />
+              <Text
+                color="primary"
+                fontWeight="black"
+                fontSize="xl"
+                fontFamily="mono"
+              >
+                {amount}
               </Text>
-            </>
-          )}
-        </Box>
-      )}
-    </>
+              <Text
+                color="dim"
+                fontSize="sm"
+                fontFamily="mono"
+                fontWeight="bold"
+              >
+                {symbol}
+              </Text>
+            </HStack>
+          ))}
+        </VStack>
+
+        <Button
+          w="100%"
+          colorScheme="green"
+          borderRadius="none"
+          fontWeight="black"
+          letterSpacing="widest"
+          fontFamily="mono"
+          leftIcon={<FaGift />}
+          isLoading={isClaiming}
+          loadingText="CLAIMING..."
+          onClick={handleClaimRewards}
+          size="md"
+          sx={{
+            textTransform: "uppercase",
+          }}
+        >
+          Claim Now
+        </Button>
+      </Box>
+    </Box>
   );
 }

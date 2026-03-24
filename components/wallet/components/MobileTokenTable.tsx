@@ -18,14 +18,13 @@ export default function MobileTokenTable({
   if (consolidatedTokens.length === 0) {
     return (
       <Box
-        bg="rgba(255, 255, 255, 0.02)"
-        borderRadius="xl"
+        bg="subtle"
         border="1px solid"
-        borderColor="rgba(255, 255, 255, 0.08)"
+        borderColor="border"
         p={6}
       >
         <Center>
-          <Text color="gray.400" fontSize="sm">
+          <Text color="dim" fontSize="sm">
             No tokens to display. Try turning off &quot;Hide Dust&quot; to see
             smaller balances.
           </Text>
@@ -36,13 +35,12 @@ export default function MobileTokenTable({
 
   return (
     <Box
-      bg="rgba(255, 255, 255, 0.02)"
-      borderRadius="xl"
+      bg="subtle"
       border="1px solid"
-      borderColor="rgba(255, 255, 255, 0.08)"
+      borderColor="border"
       overflow="hidden"
     >
-      {consolidatedTokens.map((consolidatedToken, index) => {
+      {consolidatedTokens.map((consolidatedToken) => {
         const isExpanded = expandedTokens.has(consolidatedToken.symbol);
 
         return (

@@ -7,9 +7,12 @@ import {
   IconButton,
   useBreakpointValue,
   HStack,
+  VStack,
   useToast,
   Spinner,
+  Image,
 } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
 import { FaExchangeAlt, FaHive } from "react-icons/fa";
 import { useTheme } from "@/app/themeProvider";
 import { useAioha } from "@aioha/react-ui";
@@ -19,6 +22,11 @@ import useHiveAccount from "@/hooks/useHiveAccount";
 import { useWalletActions } from "@/hooks/useWalletActions";
 import { extractNumber } from "@/lib/utils/extractNumber";
 import { useTranslations } from "@/contexts/LocaleContext";
+
+const shimmer = keyframes`
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+`;
 
 interface SwapSectionProps {
   hivePrice?: number | null;
@@ -201,120 +209,162 @@ export default function SwapSection({
     return outputAmountWithFee.toFixed(3);
   }, [convertAmount, convertDirection, hivePrice, hbdPrice]);
 
+  const fromLogo = fromToken === "HIVE" ? "/logos/hiveLogo.png" : "/logos/hbd_logo.png";
+  const toLogo   = toToken   === "HIVE" ? "/logos/hiveLogo.png" : "/logos/hbd_logo.png";
+
+  const canConvert =
+    !!user &&
+    !!convertAmount &&
+    !isNaN(Number(convertAmount)) &&
+    Number(convertAmount) > 0 &&
+    Number(convertAmount) <= fromBalance &&
+    !isConverting &&
+    !isPriceLoading &&
+    !!hivePrice &&
+    !!hbdPrice;
+
   return (
     <Box
-      bg={theme.colors.muted}
-      p={6}
+      position="relative"
+      border="2px solid"
+      borderColor="primary"
+      overflow="hidden"
       width="100%"
-      maxW="420px"
-      mx="auto"
+      sx={{
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(90deg, transparent 0%, var(--chakra-colors-primary) 50%, transparent 100%)",
+          backgroundSize: "200% auto",
+          opacity: 0.06,
+          animation: `${shimmer} 2.5s linear infinite`,
+          pointerEvents: "none",
+        },
+      }}
     >
-      <HStack>
-        <FaHive />
-        <Text fontWeight="bold" fontSize="xl" color={theme.colors.primary}>
-          Hive Swap
-        </Text>
-      </HStack>
-      {/* You Pay */}
-      <Box bg={theme.colors.dark} p={4} borderRadius="lg" mb={4}>
-        <Text fontSize="sm" color="gray.400" mb={1}>
-          You Pay
-        </Text>
-        <HStack justifyContent="space-between">
-          <Input
-            type="number"
-            placeholder="0"
-            value={convertAmount}
-            onChange={(e) => setConvertAmount(e.target.value)}
-            fontSize="2xl"
-            variant="unstyled"
-            color="white"
-          />
-          <Button size="sm" variant="ghost" color="white" fontWeight="bold">
-            {fromToken}
-          </Button>
-        </HStack>
-        <Text fontSize="xs" color="gray.500" mt={1}>
-          {fromBalance.toFixed(3)} {fromToken}
-        </Text>
-      </Box>
-
-      {/* Swap Icon */}
-      <Box textAlign="center" my={2}>
-        <IconButton
-          aria-label={t('tooltips.swapDirection')}
-          icon={<FaExchangeAlt />}
-          onClick={handleSwapDirection}
-          bg="transparent"
-          _hover={{ bg: "transparent", transform: "rotate(180deg)" }}
-          transition="transform 0.3s"
-        />
-      </Box>
-
-      {/* You Receive */}
-      <Box bg={theme.colors.dark} p={4} borderRadius="lg" mb={4}>
-        <Text fontSize="sm" color="gray.400" mb={1}>
-          You Receive
-        </Text>
-        <HStack justifyContent="space-between">
-          <Text fontSize="2xl" color="white">
-            {isPriceLoading ? "..." : estimatedOutput}
+      {/* Header bar */}
+      <HStack px={3} py={2} bg="primary" justify="space-between">
+        <HStack spacing={2}>
+          <FaHive color="var(--chakra-colors-background)" />
+          <Text
+            fontWeight="black"
+            fontSize="sm"
+            color="background"
+            textTransform="uppercase"
+            letterSpacing="widest"
+            fontFamily="mono"
+          >
+            Hive Swap
           </Text>
-          <Button size="sm" variant="ghost" color="white" fontWeight="bold">
-            {toToken}
-          </Button>
         </HStack>
-        <Text fontSize="xs" color="gray.500" mt={1}>
-          {toBalance.toFixed(3)} {toToken}
+      </HStack>
+
+      {/* Body */}
+      <Box px={3} py={3}>
+        <VStack spacing={0} align="stretch">
+          {/* You Pay */}
+          <Box border="1px solid" borderColor="border" p={3} mb={1}>
+            <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={1}>
+              You Pay
+            </Text>
+            <HStack justify="space-between" align="center">
+              <HStack spacing={2} flex={1}>
+                <Image src={fromLogo} w="24px" h="24px" objectFit="contain" />
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={convertAmount}
+                  onChange={(e) => setConvertAmount(e.target.value)}
+                  fontSize="2xl"
+                  fontFamily="mono"
+                  fontWeight="black"
+                  color="primary"
+                  variant="unstyled"
+                  flex={1}
+                  minW={0}
+                  _placeholder={{ color: "dim" }}
+                />
+              </HStack>
+              <Text fontFamily="mono" fontWeight="bold" color="text" fontSize="sm" flexShrink={0}>
+                {fromToken}
+              </Text>
+            </HStack>
+            <Text fontSize="xs" color="dim" fontFamily="mono" mt={1}>
+              {fromBalance.toFixed(3)} {fromToken} available
+            </Text>
+          </Box>
+
+          {/* Swap direction button */}
+          <Box textAlign="center" py={1}>
+            <IconButton
+              aria-label={t('tooltips.swapDirection')}
+              icon={<FaExchangeAlt />}
+              onClick={handleSwapDirection}
+              size="xs"
+              variant="ghost"
+              color="primary"
+              _hover={{ color: "background", bg: "primary" }}
+              transition="all 0.2s"
+            />
+          </Box>
+
+          {/* You Receive */}
+          <Box border="1px solid" borderColor="border" p={3} mb={3}>
+            <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={1}>
+              You Receive
+            </Text>
+            <HStack justify="space-between" align="center">
+              <HStack spacing={2} flex={1}>
+                <Image src={toLogo} w="24px" h="24px" objectFit="contain" />
+                <Text fontSize="2xl" fontFamily="mono" fontWeight="black" color="primary">
+                  {isPriceLoading ? "..." : estimatedOutput}
+                </Text>
+              </HStack>
+              <Text fontFamily="mono" fontWeight="bold" color="text" fontSize="sm" flexShrink={0}>
+                {toToken}
+              </Text>
+            </HStack>
+            <Text fontSize="xs" color="dim" fontFamily="mono" mt={1}>
+              {toBalance.toFixed(3)} {toToken} balance
+            </Text>
+          </Box>
+
+          <Button
+            w="100%"
+            colorScheme="green"
+            borderRadius="none"
+            fontWeight="black"
+            letterSpacing="widest"
+            fontFamily="mono"
+            leftIcon={isConverting ? <Spinner size="sm" /> : <FaExchangeAlt />}
+            isDisabled={!canConvert}
+            onClick={handleConvert}
+            size="md"
+            sx={{ textTransform: "uppercase" }}
+          >
+            {isConverting ? "Converting..." : isPriceLoading ? "Loading..." : "Convert"}
+          </Button>
+
+          {!user && (
+            <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" mt={2}>
+              Connect Hive wallet to swap
+            </Text>
+          )}
+        </VStack>
+
+        <Text fontSize="xs" mt={3} textAlign="center" fontFamily="mono">
+          <a
+            href={isMobile ? "https://hivedex.io/" : "https://hivehub.dev/market/swap"}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: theme.colors.primary, textDecoration: "underline" }}
+          >
+            ...More Swap Options
+          </a>
         </Text>
       </Box>
-
-      <Button
-        colorScheme="teal"
-        width="100%"
-        isDisabled={
-          !user ||
-          !convertAmount ||
-          isNaN(Number(convertAmount)) ||
-          Number(convertAmount) <= 0 ||
-          Number(convertAmount) > fromBalance ||
-          isConverting ||
-          isPriceLoading ||
-          !hivePrice ||
-          !hbdPrice
-        }
-        onClick={handleConvert}
-        leftIcon={isConverting ? <Spinner size="sm" /> : undefined}
-      >
-        {isConverting
-          ? "Converting..."
-          : isPriceLoading
-          ? "Loading Prices..."
-          : "Convert"}
-      </Button>
-
-      {/* Show connection prompt if user is not connected */}
-      {!user && (
-        <Text fontSize="sm" color="gray.400" textAlign="center" mt={2}>
-          Please connect your Hive wallet to start converting
-        </Text>
-      )}
-
-      <Text fontSize="sm" mt={4} textAlign="center">
-        <a
-          href={
-            isMobile ? "https://hivedex.io/" : "https://hivehub.dev/market/swap"
-          }
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            color: theme.colors.primary,
-            textDecoration: "underline",
-          }}
-        >
-          ...More Swap Options
-        </a>
-      </Text>
     </Box>
   );
 }

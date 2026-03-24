@@ -199,12 +199,14 @@ export default function RootLayout({
         {/* JSON-LD structured data */}
         <script
           type="application/ld+json"
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: safeJsonLdStringify(jsonLdOrganization),
           }}
         />
         <script
           type="application/ld+json"
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: safeJsonLdStringify(jsonLdWebSite),
           }}

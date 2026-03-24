@@ -1,0 +1,35 @@
+import { NextRequest, NextResponse } from "next/server";
+
+const ZEROX_HEADERS = {
+  "0x-api-key": process.env.ZEROX_API_KEY || "",
+  "0x-version": "v2",
+  "Content-Type": "application/json",
+};
+
+// Must match the fee params in /api/0x/price so the quote is consistent.
+const FEE_RECIPIENT = process.env.SKATEHIVE_FEE_RECIPIENT || "";
+const FEE_BPS = process.env.SKATEHIVE_FEE_BPS || "50";
+
+/** GET /api/0x/quote?chainId=8453&sellToken=...&buyToken=...&sellAmount=...&taker=... */
+export async function GET(request: NextRequest) {
+  const params = new URLSearchParams(new URL(request.url).searchParams);
+
+  if (FEE_RECIPIENT) {
+    const buyToken = params.get("buyToken") || "";
+    if (buyToken) {
+      params.set("swapFeeRecipient", FEE_RECIPIENT);
+      params.set("swapFeeBps", FEE_BPS);
+      params.set("swapFeeToken", buyToken);
+    }
+  }
+
+  const upstream = `https://api.0x.org/swap/allowance-holder/quote?${params.toString()}`;
+
+  try {
+    const res = await fetch(upstream, { headers: ZEROX_HEADERS });
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

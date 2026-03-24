@@ -1,4 +1,4 @@
-import { Box, Text, HStack, Tooltip, Icon, IconButton, useDisclosure } from "@chakra-ui/react";
+import { Box, Text, HStack, Tooltip, IconButton, useDisclosure } from "@chakra-ui/react";
 import { FaPaperPlane, FaQuestionCircle } from "react-icons/fa";
 import { useState, useCallback, useMemo, memo } from "react";
 import { CustomHiveIcon } from "./CustomHiveIcon";
@@ -20,15 +20,11 @@ const HiveSection = memo(function HiveSection({
   const { isOpen: isSendOpen, onOpen: onSendOpen, onClose: onSendClose } = useDisclosure();
   const t = useTranslations();
 
-  // Memoize USD value calculation
   const usdValue = useMemo(() => {
-    if (balance === "N/A" || !hivePrice || parseFloat(balance) <= 0) {
-      return null;
-    }
+    if (balance === "N/A" || !hivePrice || parseFloat(balance) <= 0) return null;
     return (parseFloat(balance) * hivePrice).toFixed(2);
   }, [balance, hivePrice]);
 
-  // Memoize event handlers
   const handleInfoToggle = useCallback(() => {
     setShowInfo((prev) => !prev);
   }, []);
@@ -39,7 +35,7 @@ const HiveSection = memo(function HiveSection({
         p={4}
         bg="transparent"
         border="1px solid"
-        borderColor="gray.200"
+        borderColor="border"
       >
         <HStack justify="space-between" align="center">
           <HStack spacing={3}>
@@ -54,37 +50,30 @@ const HiveSection = memo(function HiveSection({
                   icon={<FaQuestionCircle />}
                   size="xs"
                   variant="ghost"
-                  color="gray.400"
+                  color="dim"
                   onClick={handleInfoToggle}
                 />
               </HStack>
-              {/* {!isMobile && (
-              <Text fontSize="sm" color="gray.400">
-                The primary token of the Hive Blockchain
-              </Text>
-            )} */}
             </Box>
           </HStack>
 
           <HStack spacing={3} align="center">
-            <HStack spacing={1}>
-              <Tooltip label={t('tooltips.sendHive')} hasArrow>
-                <IconButton
-                  aria-label={t('tooltips.sendHive')}
-                  icon={<FaPaperPlane />}
-                  size="sm"
-                  colorScheme="blue"
-                  variant="outline"
-                  onClick={onSendOpen}
-                />
-              </Tooltip>
-            </HStack>
+            <Tooltip label={t('tooltips.sendHive')} hasArrow>
+              <IconButton
+                aria-label={t('tooltips.sendHive')}
+                icon={<FaPaperPlane />}
+                size="sm"
+                colorScheme="blue"
+                variant="outline"
+                onClick={onSendOpen}
+              />
+            </Tooltip>
             <Box textAlign="right">
               <Text fontSize="2xl" fontWeight="bold" color="primary">
                 {balance}
               </Text>
               {usdValue && (
-                <Text fontSize="sm" color="gray.400">
+                <Text fontSize="sm" color="dim">
                   (${usdValue})
                 </Text>
               )}
@@ -94,7 +83,7 @@ const HiveSection = memo(function HiveSection({
 
         {showInfo && (
           <Box mt={3} p={3} bg="muted">
-            <Text color="gray.400" fontSize="sm">
+            <Text color="dim" fontSize="sm">
               The primary token of the Hive Blockchain. Liquid and transferable.
               Can be powered up to Hive Power for governance and curation rewards.
             </Text>

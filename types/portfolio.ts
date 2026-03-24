@@ -123,7 +123,12 @@ export const blockchainDictionary: Record<string, BlockchainInfo> = {
   },
   zero: {
     color: "#000000",
-    logo: "/skatehive_logo.png",
+    logo: "/logos/skatehive-logo-rounded.png",
+  },
+  hive: {
+    color: "#E31337",
+    logo: "/logos/hiveLogo.png",
+    alias: "Hive",
   },
 };
 
