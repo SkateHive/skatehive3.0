@@ -3,16 +3,13 @@
 import React, { useState, useCallback, useMemo } from "react";
 import {
   Box,
-  Text,
   Icon,
-  VStack,
   Image,
   Spinner,
   useDisclosure,
 } from "@chakra-ui/react";
 import { Discussion } from "@hiveio/dhive";
 import { FaImage } from "react-icons/fa";
-import { useTranslations } from "@/lib/i18n/hooks";
 import VideoPreview from "./VideoPreview";
 import SnapModal from "./SnapModal";
 import { useHeicFallback } from "@/hooks/useHeicFallback";
@@ -162,7 +159,6 @@ const SoftSnapGridItem = React.memo(
 SoftSnapGridItem.displayName = "SoftSnapGridItem";
 
 export default function SoftSnapsGrid({ snaps }: SoftSnapsGridProps) {
-  const t = useTranslations("common");
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedSnapIndex, setSelectedSnapIndex] = useState<number>(0);
 
@@ -193,25 +189,11 @@ export default function SoftSnapsGrid({ snaps }: SoftSnapsGridProps) {
   }, [onClose]);
 
   if (!snaps || snaps.length === 0) {
-    return (
-      <VStack spacing={4} py={8}>
-        <Icon as={FaImage} boxSize={12} color="muted" />
-        <Text color="muted" textAlign="center">
-          {t("noSnaps")}
-        </Text>
-      </VStack>
-    );
+    return null;
   }
 
   if (snapsWithMedia.length === 0) {
-    return (
-      <VStack spacing={4} py={8}>
-        <Icon as={FaImage} boxSize={12} color="muted" />
-        <Text color="muted" textAlign="center">
-          No snaps with media found
-        </Text>
-      </VStack>
-    );
+    return null;
   }
 
   return (

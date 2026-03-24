@@ -45,10 +45,12 @@ import MoreFromAuthor from "@/components/user/MoreFromAuthor";
 // Memoized SnapsGrid to prevent unnecessary re-renders
 const MemoizedSnapsGrid = memo(function MemoizedSnapsGrid({
   username,
+  hasSoftSnaps,
 }: {
   username: string;
+  hasSoftSnaps?: boolean;
 }) {
-  return <SnapsGrid username={username} />;
+  return <SnapsGrid username={username} hasSoftSnaps={hasSoftSnaps} />;
 });
 
 // Memoized PostInfiniteScroll to prevent re-renders
@@ -122,7 +124,7 @@ const ContentViews = memo(function ContentViews({
 
           {visited.has("snaps") && (
             <Box display={viewMode === "snaps" ? "block" : "none"}>
-              {snapsUsername && <MemoizedSnapsGrid username={snapsUsername} />}
+              {snapsUsername && <MemoizedSnapsGrid username={snapsUsername} hasSoftSnaps={(softSnaps || []).length > 0} />}
               <SoftSnapsGrid snaps={softSnaps || []} />
             </Box>
           )}

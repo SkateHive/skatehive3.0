@@ -19,6 +19,7 @@ import { useHeicFallback } from "@/hooks/useHeicFallback";
 
 interface SnapsGridProps {
   username: string;
+  hasSoftSnaps?: boolean;
 }
 
 const SnapGridItem = React.memo(
@@ -88,7 +89,7 @@ const SnapGridItem = React.memo(
 
 SnapGridItem.displayName = "SnapGridItem";
 
-export default function SnapsGrid({ username }: SnapsGridProps) {
+export default function SnapsGrid({ username, hasSoftSnaps }: SnapsGridProps) {
   useProfileDebug("SnapsGrid");
   const { snaps, isLoading, hasMore, loadMoreSnaps } = useUserSnaps(username);
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -259,6 +260,7 @@ export default function SnapsGrid({ username }: SnapsGridProps) {
   }, [hasMore, isLoading, loadMoreSnaps]);
 
   if (snaps.length === 0 && !isLoading) {
+    if (hasSoftSnaps) return null;
     return (
       <VStack spacing={4} py={8}>
         <Icon as={FaImage} boxSize={12} color="muted" />
