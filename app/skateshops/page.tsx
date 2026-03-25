@@ -48,6 +48,19 @@ export const metadata: Metadata = {
       "Discover skateboard shops worldwide. From Bless Skate Shop to your local spot — support the community.",
     images: [ogImageUrl],
   },
+  other: {
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: ogImageUrl,
+      button: {
+        title: "Find Shops",
+        action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/skateshops` },
+      },
+      postUrl: `${BASE_URL}/skateshops`,
+    }),
+    "fc:frame:image": ogImageUrl,
+    "fc:frame:post_url": `${BASE_URL}/skateshops`,
+  },
   alternates: {
     canonical: `${BASE_URL}/skateshops`,
   },

@@ -47,6 +47,19 @@ export const metadata: Metadata = {
       "Watch skateboarding videos from the Skatehive community. Street skating, park sessions, and more.",
     images: [ogImageUrl],
   },
+  other: {
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: ogImageUrl,
+      button: {
+        title: "Watch Videos",
+        action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/videos` },
+      },
+      postUrl: `${BASE_URL}/videos`,
+    }),
+    "fc:frame:image": ogImageUrl,
+    "fc:frame:post_url": `${BASE_URL}/videos`,
+  },
   alternates: {
     canonical: `${BASE_URL}/videos`,
   },

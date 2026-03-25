@@ -42,6 +42,19 @@ export const metadata: Metadata = {
     description: "The OG skateboarding browser game. Land tricks, collect STOKEN.",
     images: [`${BASE_URL}/images/qfs-ogimage.png`],
   },
+  other: {
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: `${BASE_URL}/images/qfs-ogimage.png`,
+      button: {
+        title: "Play Quest",
+        action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/games/quest-for-stoken` },
+      },
+      postUrl: `${BASE_URL}/games/quest-for-stoken`,
+    }),
+    "fc:frame:image": `${BASE_URL}/images/qfs-ogimage.png`,
+    "fc:frame:post_url": `${BASE_URL}/games/quest-for-stoken`,
+  },
   robots: { index: true, follow: true },
 };
 

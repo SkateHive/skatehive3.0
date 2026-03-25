@@ -42,6 +42,19 @@ export const metadata: Metadata = {
     description: "The newest skateboarding browser game from SkateHive. Built with Excalibur.js.",
     images: [`${BASE_URL}/images/lougnar-thumb.jpg`],
   },
+  other: {
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: `${BASE_URL}/images/lougnar-thumb.jpg`,
+      button: {
+        title: "Play Lougnar",
+        action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/games/lougnar` },
+      },
+      postUrl: `${BASE_URL}/games/lougnar`,
+    }),
+    "fc:frame:image": `${BASE_URL}/images/lougnar-thumb.jpg`,
+    "fc:frame:post_url": `${BASE_URL}/games/lougnar`,
+  },
   robots: { index: true, follow: true },
 };
 

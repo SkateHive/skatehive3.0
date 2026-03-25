@@ -116,6 +116,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
                 images: imageUrl ? [imageUrl] : [`${APP_CONFIG.ORIGIN}/ogimage.png`],
                 creator: `@${post.author}`,
             },
+            other: {
+                "fc:frame": JSON.stringify({
+                    version: "next",
+                    imageUrl: imageUrl || `${APP_CONFIG.ORIGIN}/ogimage.png`,
+                    button: {
+                        title: "View Snap",
+                        action: { type: "launch_frame", name: "Skatehive", url },
+                    },
+                    postUrl: url,
+                }),
+                "fc:frame:image": imageUrl || `${APP_CONFIG.ORIGIN}/ogimage.png`,
+                "fc:frame:post_url": url,
+            },
             alternates: {
                 canonical: url,
             },

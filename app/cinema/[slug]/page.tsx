@@ -64,7 +64,20 @@ export async function generateMetadata({
         siteName: "Skatehive",
         type: "website",
       },
-      alternates: { canonical: `${BASE_URL}/cinema/${slug}` },
+      other: {
+      "fc:frame": JSON.stringify({
+        version: "next",
+        imageUrl: `${BASE_URL}/ogimage.png`,
+        button: {
+          title: `${brandName} Videos`,
+          action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/cinema/${slug}` },
+        },
+        postUrl: `${BASE_URL}/cinema/${slug}`,
+      }),
+      "fc:frame:image": `${BASE_URL}/ogimage.png`,
+      "fc:frame:post_url": `${BASE_URL}/cinema/${slug}`,
+    },
+    alternates: { canonical: `${BASE_URL}/cinema/${slug}` },
     };
   }
 
@@ -99,6 +112,19 @@ export async function generateMetadata({
       title: video.title,
       description,
       images: [video.thumbnail],
+    },
+    other: {
+      "fc:frame": JSON.stringify({
+        version: "next",
+        imageUrl: video.thumbnail,
+        button: {
+          title: "Watch Film",
+          action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/cinema/${slug}` },
+        },
+        postUrl: `${BASE_URL}/cinema/${slug}`,
+      }),
+      "fc:frame:image": video.thumbnail,
+      "fc:frame:post_url": `${BASE_URL}/cinema/${slug}`,
     },
     alternates: { canonical: `${BASE_URL}/cinema/${slug}` },
   };

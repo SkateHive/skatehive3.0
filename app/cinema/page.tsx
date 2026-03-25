@@ -38,6 +38,19 @@ export const metadata: Metadata = {
     description: "Watch classic skateboarding videos from the best brands in skateboarding history.",
     images: [ogImageUrl],
   },
+  other: {
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: ogImageUrl,
+      button: {
+        title: "Watch Films",
+        action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/cinema` },
+      },
+      postUrl: `${BASE_URL}/cinema`,
+    }),
+    "fc:frame:image": ogImageUrl,
+    "fc:frame:post_url": `${BASE_URL}/cinema`,
+  },
   alternates: { canonical: `${BASE_URL}/cinema` },
 };
 

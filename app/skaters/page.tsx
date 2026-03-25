@@ -46,6 +46,19 @@ export const metadata: Metadata = {
       "Discover skateboarders from around the world. Browse by country and city.",
     images: [ogImageUrl],
   },
+  other: {
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: ogImageUrl,
+      button: {
+        title: "Find Skaters",
+        action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/skaters` },
+      },
+      postUrl: `${BASE_URL}/skaters`,
+    }),
+    "fc:frame:image": ogImageUrl,
+    "fc:frame:post_url": `${BASE_URL}/skaters`,
+  },
   alternates: {
     canonical: `${BASE_URL}/skaters`,
   },

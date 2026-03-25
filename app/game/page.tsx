@@ -44,6 +44,19 @@ export const metadata: Metadata = {
       "Experience the ultimate skateboarding adventure! Control your skater and perform epic tricks.",
     images: ["/images/qfs-ogimage.png"], // Same image as OpenGraph
   },
+  other: {
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: "/images/qfs-ogimage.png",
+      button: {
+        title: "Play Now",
+        action: { type: "launch_frame", name: "Skatehive", url: "https://skatehive.app/game" },
+      },
+      postUrl: "https://skatehive.app/game",
+    }),
+    "fc:frame:image": "/images/qfs-ogimage.png",
+    "fc:frame:post_url": "https://skatehive.app/game",
+  },
   robots: {
     index: true,
     follow: true,

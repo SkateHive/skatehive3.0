@@ -43,6 +43,19 @@ export const metadata: Metadata = {
         description: "Community-filmed skate trick clips. Kickflips, grinds, slides, and more.",
         images: [ogImageUrl],
     },
+    other: {
+        "fc:frame": JSON.stringify({
+            version: "next",
+            imageUrl: ogImageUrl,
+            button: {
+                title: "Browse Tricks",
+                action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/tricks` },
+            },
+            postUrl: `${BASE_URL}/tricks`,
+        }),
+        "fc:frame:image": ogImageUrl,
+        "fc:frame:post_url": `${BASE_URL}/tricks`,
+    },
     alternates: {
         canonical: `${BASE_URL}/tricks`,
     },

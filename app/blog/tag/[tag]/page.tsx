@@ -74,6 +74,19 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       description: `Skateboarding posts tagged "${decodedTag}" on Skatehive.`,
       images: ["/ogimage.png"],
     },
+    other: {
+      "fc:frame": JSON.stringify({
+        version: "next",
+        imageUrl: `${BASE_URL}/ogimage.png`,
+        button: {
+          title: `#${decodedTag}`,
+          action: { type: "launch_frame", name: "Skatehive", url: tagUrl },
+        },
+        postUrl: tagUrl,
+      }),
+      "fc:frame:image": `${BASE_URL}/ogimage.png`,
+      "fc:frame:post_url": tagUrl,
+    },
   };
 }
 

@@ -49,6 +49,19 @@ export const metadata: Metadata = {
       "Free browser-based skateboarding games built by skaters, for skaters. No download required.",
     images: [`${BASE_URL}/images/qfs-ogimage.png`],
   },
+  other: {
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: `${BASE_URL}/images/qfs-ogimage.png`,
+      button: {
+        title: "Play Games",
+        action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/games` },
+      },
+      postUrl: `${BASE_URL}/games`,
+    }),
+    "fc:frame:image": `${BASE_URL}/images/qfs-ogimage.png`,
+    "fc:frame:post_url": `${BASE_URL}/games`,
+  },
   robots: {
     index: true,
     follow: true,

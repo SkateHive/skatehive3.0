@@ -49,6 +49,19 @@ export const metadata: Metadata = {
             "Community-built skate spot map. Find parks, street spots, and DIY spots near you.",
         images: [`${BASE_URL}/ogimage.png`],
     },
+    other: {
+        "fc:frame": JSON.stringify({
+            version: "next",
+            imageUrl: `${BASE_URL}/ogimage.png`,
+            button: {
+                title: "Spots Near Me",
+                action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/map/near-me` },
+            },
+            postUrl: `${BASE_URL}/map/near-me`,
+        }),
+        "fc:frame:image": `${BASE_URL}/ogimage.png`,
+        "fc:frame:post_url": `${BASE_URL}/map/near-me`,
+    },
     alternates: {
         canonical: `${BASE_URL}/map/near-me`,
     },

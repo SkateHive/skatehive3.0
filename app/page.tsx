@@ -46,6 +46,19 @@ export const metadata: Metadata = {
       "The global skateboarding community. Post videos, find spots, earn crypto. Built by skaters, for skaters.",
     images: [`${APP_CONFIG.BASE_URL}/ogimage.png`],
   },
+  other: {
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: `${APP_CONFIG.BASE_URL}/ogimage.png`,
+      button: {
+        title: "Open Skatehive",
+        action: { type: "launch_frame", name: "Skatehive", url: APP_CONFIG.BASE_URL },
+      },
+      postUrl: APP_CONFIG.BASE_URL,
+    }),
+    "fc:frame:image": `${APP_CONFIG.BASE_URL}/ogimage.png`,
+    "fc:frame:post_url": APP_CONFIG.BASE_URL,
+  },
 };
 
 const BASE_URL = APP_CONFIG.BASE_URL;

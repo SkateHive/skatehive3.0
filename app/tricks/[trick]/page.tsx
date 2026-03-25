@@ -243,6 +243,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             title: `${trickData.name} — Skate Trick Clips | Skatehive`,
             description: `Watch ${trickData.name} clips from real skaters.`,
         },
+        other: {
+            "fc:frame": JSON.stringify({
+                version: "next",
+                imageUrl: `${BASE_URL}/ogimage.png`,
+                button: {
+                    title: `${trickData?.name || trickSlug} Clips`,
+                    action: { type: "launch_frame", name: "Skatehive", url: `${BASE_URL}/tricks/${trickSlug}` },
+                },
+                postUrl: `${BASE_URL}/tricks/${trickSlug}`,
+            }),
+            "fc:frame:image": `${BASE_URL}/ogimage.png`,
+            "fc:frame:post_url": `${BASE_URL}/tricks/${trickSlug}`,
+        },
         alternates: {
             canonical: `${BASE_URL}/tricks/${trickSlug}`,
         },

@@ -51,6 +51,19 @@ export const metadata: Metadata = {
       "Community-built skate spot map. Find skateparks, street spots, and DIY spots worldwide. Add your local spots.",
     images: [ogImageUrl],
   },
+  other: {
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: ogImageUrl,
+      button: {
+        title: "Find Spots",
+        action: { type: "launch_frame", name: "Skatehive", url: `${APP_CONFIG.BASE_URL}/map` },
+      },
+      postUrl: `${APP_CONFIG.BASE_URL}/map`,
+    }),
+    "fc:frame:image": ogImageUrl,
+    "fc:frame:post_url": `${APP_CONFIG.BASE_URL}/map`,
+  },
   alternates: {
     canonical: `${APP_CONFIG.BASE_URL}/map`,
   },
