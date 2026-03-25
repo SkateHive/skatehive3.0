@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box, Text, Button, Input, HStack, VStack, Image,
-  Select, Spinner, Tooltip, useToast,
+  Select, Spinner, Tooltip, useToast, Checkbox,
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { FaExchangeAlt, FaInfoCircle } from "react-icons/fa";
@@ -102,7 +102,12 @@ function TokenSelect({ value, onChange, tokens, label }: {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function ERC20SwapSection() {
+interface ERC20SwapSectionProps {
+  /** Show the "support Skatehive" fee checkbox. Default false. */
+  showFeeOption?: boolean;
+}
+
+export default function ERC20SwapSection({ showFeeOption = false }: ERC20SwapSectionProps) {
   const toast = useToast();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
@@ -117,6 +122,7 @@ export default function ERC20SwapSection() {
   const [needsApproval, setNeedsApproval] = useState(false);
   const [approvalTarget, setApprovalTarget] = useState<`0x${string}` | null>(null);
   const [txHash, setTxHash]         = useState<`0x${string}` | undefined>();
+  const [supportFee, setSupportFee] = useState(true);
 
   // Reset tokens when chain changes
   useEffect(() => {
@@ -145,6 +151,7 @@ export default function ERC20SwapSection() {
           sellAmount: rawAmount,
           taker: address,
         });
+        if (supportFee) params.set("fee", "1");
         const res = await fetch(`/api/0x/price?${params}`);
         const data = await res.json();
         setPrice(data);
@@ -164,7 +171,7 @@ export default function ERC20SwapSection() {
     }, 600);
 
     return () => clearTimeout(timeout);
-  }, [sellAmount, sellToken, buyToken, address, chainId]);
+  }, [sellAmount, sellToken, buyToken, address, chainId, supportFee]);
 
   // Approval
   const { writeContractAsync, isPending: isApproving } = useWriteContract();
@@ -199,6 +206,7 @@ export default function ERC20SwapSection() {
         sellAmount: rawAmount,
         taker: address,
       });
+      if (supportFee) params.set("fee", "1");
       const res = await fetch(`/api/0x/quote?${params}`);
       const quote = await res.json();
 
@@ -221,7 +229,7 @@ export default function ERC20SwapSection() {
     } catch (e: any) {
       toast({ title: "Swap failed", description: e?.shortMessage ?? e?.message, status: "error", duration: 4000, isClosable: true });
     }
-  }, [address, price, sellAmount, sellToken, buyToken, chainId, sendTransactionAsync, toast]);
+  }, [address, price, sellAmount, sellToken, buyToken, chainId, supportFee, sendTransactionAsync, toast]);
 
   // Derived display values
   const estimatedOut = useMemo(() => {
@@ -388,6 +396,25 @@ export default function ERC20SwapSection() {
             >
               {!sellAmount ? "Enter Amount" : !price ? "..." : "Swap"}
             </Button>
+          )}
+
+          {/* Optional treasury fee */}
+          {showFeeOption && (
+            <HStack mt={2} spacing={2} justify="center">
+              <Checkbox
+                size="sm"
+                colorScheme="green"
+                isChecked={supportFee}
+                onChange={(e) => setSupportFee(e.target.checked)}
+              >
+                <Text fontSize="xs" color="dim" fontFamily="mono">
+                  Support Skatehive (0.5% fee)
+                </Text>
+              </Checkbox>
+              <Tooltip label="A tiny 0.5% fee goes to the Skatehive shared treasury — funding skateparks, obstacles, rider sponsorships and public goods.">
+                <Box as="span" cursor="help" color="dim"><FaInfoCircle style={{ display: "inline" }} /></Box>
+              </Tooltip>
+            </HStack>
           )}
 
           <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" mt={2}>

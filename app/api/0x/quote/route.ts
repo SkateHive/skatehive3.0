@@ -14,7 +14,11 @@ const FEE_BPS = process.env.SKATEHIVE_FEE_BPS || "50";
 export async function GET(request: NextRequest) {
   const params = new URLSearchParams(new URL(request.url).searchParams);
 
-  if (FEE_RECIPIENT) {
+  // Only inject affiliate fee when the client explicitly opts in (?fee=1)
+  const wantsFee = params.get("fee") === "1";
+  params.delete("fee");
+
+  if (FEE_RECIPIENT && wantsFee) {
     const buyToken = params.get("buyToken") || "";
     if (buyToken) {
       params.set("swapFeeRecipient", FEE_RECIPIENT);
