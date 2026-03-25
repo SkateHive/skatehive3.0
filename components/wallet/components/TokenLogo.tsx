@@ -2,6 +2,7 @@ import { Box, Image, Text } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { TokenDetail, blockchainDictionary } from "../../../types/portfolio";
 import { getTokenLogoSync } from "../../../lib/utils/portfolioUtils";
+import { getZoraToken } from "../../../lib/utils/zoraEnrichment";
 
 // Simple in-memory cache so we don't re-fetch the same Zora coin on every render
 const zoraImageCache = new Map<string, string | null>();
@@ -73,7 +74,13 @@ function buildLogoSources(token: TokenDetail): string[] {
 
   const sources: string[] = [];
 
-  // 1. GeckoTerminal cache (sync, already fetched via portfolioUtils)
+  // 1. Zora enrichment cache — highest quality official images
+  const zoraEnriched = getZoraToken(address);
+  if (zoraEnriched?.logo) {
+    sources.push(zoraEnriched.logo);
+  }
+
+  // 2. GeckoTerminal cache (sync, already fetched via portfolioUtils)
   const networkInfo =
     blockchainDictionary[network] || blockchainDictionary[token.network];
   const cached = getTokenLogoSync(token.token, networkInfo, token.network);

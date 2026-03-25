@@ -41,6 +41,8 @@ import ClaimRewards from "./components/ClaimRewards";
 import UnifiedWalletTable from "./UnifiedWalletTable";
 import UnifiedSwapSection from "./UnifiedSwapSection";
 import WalletErrorBoundary from "./WalletErrorBoundary";
+import ZoraCoinsSection from "./ZoraCoinsSection";
+import { useZoraWalletData } from "@/hooks/useZoraWalletData";
 
 const HBD_SAVINGS_APR = 0.15; // 15% annual interest rate on HBD Savings
 
@@ -59,6 +61,20 @@ export default function MainWallet({ username }: MainWalletProps) {
     useFarcasterSession();
 
   const { identities: linkedIdentities } = useLinkedIdentities();
+
+  // Collect all EVM addresses for Zora enrichment (active wagmi + linked DB)
+  const allEvmAddresses = useMemo(() => {
+    const addrs: string[] = [];
+    if (address) addrs.push(address);
+    linkedIdentities
+      .filter((i) => i.type === "evm" && i.address)
+      .forEach((i) => addrs.push(i.address!));
+    return [...new Set(addrs)];
+  }, [address, linkedIdentities]);
+
+  const { heldCoins: zoraHeld, createdCoins: zoraCreated, isLoading: isZoraLoading } =
+    useZoraWalletData(allEvmAddresses);
+
   const [isMounted, setIsMounted] = useState(false);
   const [chainFilter, setChainFilter] = useState<ChainFilter>("all");
   const [hivePower, setHivePower] = useState<string | undefined>(undefined);
@@ -318,6 +334,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                       { label: "Art", show: isConnected },
                       { label: "SkateBank", show: !!user },
                       { label: "PIX", show: !!user },
+                      { label: "Zora", show: allEvmAddresses.length > 0 },
                     ] as { label: string; show: boolean }[]
                   )
                     .filter((t) => t.show)
@@ -452,6 +469,17 @@ export default function MainWallet({ username }: MainWalletProps) {
                       <VStack spacing={4} align="stretch">
                         <PIXTabContent />
                       </VStack>
+                    </TabPanel>
+                  )}
+
+                  {/* ── ZORA ── */}
+                  {allEvmAddresses.length > 0 && (
+                    <TabPanel p={0}>
+                      <ZoraCoinsSection
+                        heldCoins={zoraHeld}
+                        createdCoins={zoraCreated}
+                        isLoading={isZoraLoading}
+                      />
                     </TabPanel>
                   )}
                 </TabPanels>
