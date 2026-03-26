@@ -46,16 +46,15 @@ export interface EnhancedProcessingOptions {
 }
 
 /**
- * Quick health check for a server (3 second timeout)
+ * Quick health check for a server (8 second timeout)
+ * Tailscale Funnel URLs can take 2-3s from some regions
  */
 async function checkServerHealth(serverBaseUrl: string): Promise<boolean> {
   try {
-    const healthUrl = serverBaseUrl.includes('sslip.io')
-      ? `${serverBaseUrl}/healthz`  // Oracle uses /healthz
-      : `${serverBaseUrl}/healthz`; // Other servers also use /healthz
+    const healthUrl = `${serverBaseUrl}/healthz`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     const response = await fetch(healthUrl, {
       method: 'GET',
