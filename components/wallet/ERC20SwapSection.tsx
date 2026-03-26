@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
   Box, Text, Button, Input, HStack, VStack, Image,
   Spinner, Tooltip, useToast, Checkbox,
@@ -14,7 +14,7 @@ import { base } from "wagmi/chains";
 import { getCoin } from "@zoralabs/coins-sdk";
 import { useZoraTrade } from "@/hooks/useZoraTrade";
 import { useZoraWalletData } from "@/hooks/useZoraWalletData";
-import { useReadContracts } from "wagmi";
+import { PortfolioContext } from "@/contexts/PortfolioContext";
 
 const shimmer = keyframes`
   0%   { background-position: -200% center; }
@@ -437,38 +437,35 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
     [heldCoins],
   );
 
-  // Batch-read ERC-20 balances for standard tokens
-  const erc20Contracts = useMemo(() => {
-    if (!address) return [];
-    return standardTokens
-      .filter((t) => t.address !== NATIVE)
-      .map((t) => ({
-        address: t.address as `0x${string}`,
-        abi: [{ name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }], outputs: [{ name: "", type: "uint256" }] }] as const,
-        functionName: "balanceOf" as const,
-        args: [address] as const,
-      }));
-  }, [standardTokens, address]);
+  // Use portfolio balances (already fetched by PortfolioProvider) — safe when outside provider
+  const portfolioCtx = useContext(PortfolioContext);
+  const portfolioTokens = portfolioCtx?.aggregatedPortfolio?.tokens;
 
-  const { data: erc20Balances } = useReadContracts({ contracts: erc20Contracts });
-
-  // Build token list with balances
   const allTokens = useMemo(() => {
     const ethBal = ethBalance ? formatEther(ethBalance.value) : undefined;
-    let erc20Idx = 0;
+
+    // Build a quick lookup: lowercase address → balance number
+    const balanceMap = new Map<string, number>();
+    if (portfolioTokens) {
+      for (const pt of portfolioTokens) {
+        const addr = (pt.token?.address ?? pt.address ?? "").toLowerCase();
+        const bal = pt.token?.balance ?? 0;
+        if (addr && bal > 0) balanceMap.set(addr, bal);
+      }
+    }
+
     const enriched = standardTokens.map((t) => {
+      // ETH: use wagmi balance (more accurate/realtime)
       if (t.address === NATIVE) {
         return ethBal ? { ...t, balance: ethBal } : t;
       }
-      const result = erc20Balances?.[erc20Idx++];
-      if (result?.status === "success" && result.result) {
-        const bal = formatUnits(result.result as bigint, t.decimals);
-        return parseFloat(bal) > 0 ? { ...t, balance: bal } : t;
-      }
-      return t;
+      // ERC-20: use portfolio API balance
+      const bal = balanceMap.get(t.address.toLowerCase());
+      return bal ? { ...t, balance: String(bal) } : t;
     });
+
     return [...enriched, ...zoraTokens];
-  }, [standardTokens, zoraTokens, ethBalance, erc20Balances]);
+  }, [standardTokens, zoraTokens, ethBalance, portfolioTokens]);
 
   // ── Core state ──────────────────────────────────────────────────────────
   const [sellToken, setSellToken] = useState<TokenInfo>(standardTokens[0]);

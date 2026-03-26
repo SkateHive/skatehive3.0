@@ -47,7 +47,7 @@ interface PortfolioContextType {
   refetch: () => void;
 }
 
-const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
+export const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
 
 interface PortfolioProviderProps {
   children: ReactNode;
