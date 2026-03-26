@@ -9,8 +9,8 @@ export interface ProcessingResult {
   url?: string;
   hash?: string;
   error?: string;
-  /** Which server(s) failed: 'oracle' | 'macmini' | 'pi' | 'all' */
-  failedServer?: 'oracle' | 'macmini' | 'pi' | 'all';
+  /** Which server(s) failed: 'macmini' | 'oracle' | 'pi' | 'all' */
+  failedServer?: 'macmini' | 'oracle' | 'pi' | 'all';
   /** HTTP status code if applicable */
   statusCode?: number;
   /** Error type: 'connection' | 'timeout' | 'server_error' | 'upload_rejected' | 'file_too_large' | 'unknown' */
@@ -20,7 +20,8 @@ export interface ProcessingResult {
 /** Server type identifiers */
 export type ServerKey = 'macmini' | 'oracle' | 'pi';
 
-/** Server configuration - SINGLE SOURCE OF TRUTH for server order */
+/** Server configuration - SINGLE SOURCE OF TRUTH for server order
+ *  All servers run the same SkateHive video-transcoder codebase */
 export const SERVER_CONFIG: Array<{ key: ServerKey; name: string; emoji: string; priority: string }> = [
   { key: 'macmini', name: 'Mac Mini M4', emoji: '🍎', priority: 'PRIMARY' },
   { key: 'oracle', name: 'Oracle', emoji: '🔮', priority: 'SECONDARY' },
@@ -181,11 +182,11 @@ export async function processVideoOnServer(
 
   enhancedOptions?.onServerFailed?.(tertiaryServer.key, tertiaryResult.error);
 
-  // All servers failed - return the most informative error with 'all' indicator
+  // All servers failed
   const bestError = tertiaryResult.error ? tertiaryResult : (secondaryResult.error ? secondaryResult : primaryResult);
   return {
     ...bestError,
-    failedServer: 'all' // Override to indicate complete failure
+    failedServer: 'all'
   };
 }
 

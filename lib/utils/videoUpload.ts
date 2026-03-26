@@ -26,15 +26,12 @@ export function isMP4(file: File): boolean {
 
 /**
  * Check if file can be uploaded directly without transcoding.
- * Only true MP4 and WebM files are browser-compatible.
- * Everything else (MOV, AVI, MKV, etc.) needs server-side transcoding.
+ * ALL videos go through server for validation/optimization.
+ * Server-side ffprobe checks if already web-optimized (H.264/AAC/≤1080p)
+ * and skips transcoding if so — best of both worlds.
  */
-export function canDirectUpload(file: File): boolean {
-  const name = file.name.toLowerCase();
-  // .mov always needs transcoding even if Safari says it's video/mp4
-  if (name.endsWith('.mov')) return false;
-  return file.type === 'video/mp4' || file.type === 'video/webm'
-    || name.endsWith('.mp4') || name.endsWith('.webm');
+export function canDirectUpload(_file: File): boolean {
+  return false;
 }
 
 /**
