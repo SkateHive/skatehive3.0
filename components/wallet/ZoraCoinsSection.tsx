@@ -37,21 +37,6 @@ function formatBalance(balance: string): string {
   return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
-function Change24h({ value }: { value: number | null }) {
-  if (value === null) return null;
-  const positive = value >= 0;
-  return (
-    <Text
-      fontSize="xs"
-      fontFamily="mono"
-      color={positive ? "success" : "error"}
-      fontWeight="500"
-    >
-      {positive ? "+" : ""}
-      {value.toFixed(2)}%
-    </Text>
-  );
-}
 
 function CoinLogo({ logo, symbol, size = "40px" }: { logo: string | null; symbol: string; size?: string }) {
   if (logo) {
@@ -124,7 +109,6 @@ function HeldCoinRow({ coin }: { coin: ZoraHeldCoin }) {
         <Text fontSize="sm" fontWeight="600" color="text" fontFamily="mono">
           {formatUSD(coin.valueUsd)}
         </Text>
-        <Change24h value={coin.change24h} />
         {coin.marketCap && (
           <Text fontSize="xs" color="dim" fontFamily="mono">
             MC {formatUSD(coin.marketCap)}
@@ -154,7 +138,6 @@ function CreatedCoinCard({ coin }: { coin: ZoraCreatedCoin }) {
             {coin.name}
           </Text>
         </VStack>
-        <Change24h value={coin.change24h} />
       </HStack>
 
       <SimpleGrid columns={2} spacing={2}>

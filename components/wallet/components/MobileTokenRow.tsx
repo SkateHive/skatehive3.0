@@ -103,9 +103,9 @@ export default function MobileTokenRow({
 
           <VStack spacing={0} align="end">
             <Text
-              fontSize="md"
+              fontSize="xl"
               color="text"
-              fontWeight="600"
+              fontWeight="bold"
               letterSpacing="-0.01em"
             >
               {formatValue(getCorrectedTotalUSD(consolidatedToken))}

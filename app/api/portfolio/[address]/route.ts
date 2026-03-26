@@ -19,12 +19,20 @@ async function fetchAlchemyNFTs(address: string, apiKey: string) {
 
     // Transform Alchemy NFT format to KeepKey format
     return data.ownedNfts.map((nft: any) => {
-      // Prefer cachedUrl → originalUrl → raw metadata image → pngUrl
+      // pngUrl/thumbnailUrl = Alchemy CDN render (always a proper image)
+      // cachedUrl = Alchemy cache (may expire or return api.zora.co renderer)
+      // raw metadata image = direct IPFS/HTTP URL from token metadata
+      // originalUrl = last resort (may be api.zora.co renderer or IPFS)
+      const rawImage = nft.raw?.metadata?.image || '';
+      const isZoraRenderer = (url: string) => url.includes('api.zora.co');
       const imageUrl =
-        nft.image?.cachedUrl ||
-        nft.image?.originalUrl ||
-        nft.raw?.metadata?.image ||
         nft.image?.pngUrl ||
+        nft.image?.thumbnailUrl ||
+        (nft.image?.cachedUrl && !isZoraRenderer(nft.image.cachedUrl) ? nft.image.cachedUrl : '') ||
+        (!isZoraRenderer(rawImage) ? rawImage : '') ||
+        nft.image?.cachedUrl ||
+        rawImage ||
+        nft.image?.originalUrl ||
         '';
 
       return {

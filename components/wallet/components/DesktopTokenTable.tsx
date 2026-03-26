@@ -144,7 +144,7 @@ export default function DesktopTokenTable({
                   {/* Value Column */}
                   <Td py={3} isNumeric>
                     <VStack spacing={0} align="end">
-                      <Text fontSize="sm" color="text" fontWeight="medium">
+                      <Text fontSize="lg" color="text" fontWeight="bold">
                         {formatValue(getCorrectedTotalUSD(consolidatedToken))}
                       </Text>
                     </VStack>

@@ -14,7 +14,6 @@ export interface ZoraHeldCoin {
   balance: string;       // human-readable decimal
   valueUsd: string | null;
   marketCap: string | null;
-  change24h: number | null;
   volume24h: string | null;
 }
 
@@ -25,7 +24,6 @@ export interface ZoraCreatedCoin {
   symbol: string;
   logo: string | null;
   marketCap: string | null;
-  change24h: number | null;
   uniqueHolders: number;
   volume24h: string | null;
 }
@@ -39,12 +37,26 @@ function extractLogo(mediaContent: any): string | null {
   );
 }
 
+// All Zora coins use 18 decimals. balance is raw wei as a string.
+function fromWei(raw: string): string {
+  try {
+    const divisor = BigInt("1000000000000000000"); // 1e18
+    const big = BigInt(raw);
+    const whole = big / divisor;
+    const remainder = big % divisor;
+    const frac = Number(remainder) / 1e18;
+    return (Number(whole) + frac).toString();
+  } catch {
+    return "0";
+  }
+}
+
 /**
  * Fetches Zora profile balances and created coins for a list of EVM addresses.
  *
  * Side effects:
  *  - Populates zoraEnrichment cache so TokenLogo and getEnhancedTokenData
- *    automatically pick up better logos and 24h price changes.
+ *    automatically pick up better logos.
  *  - Calls notifyLogoUpdates() so the wallet table re-renders.
  */
 export function useZoraWalletData(addresses: string[]): {
@@ -78,7 +90,9 @@ export function useZoraWalletData(addresses: string[]): {
     ])
       .then(([balanceResults, coinResults]) => {
         // ── Held coins ─────────────────────────────────────────────────────
+        // Track raw wei per address so multi-address merge stays precise
         const heldMap = new Map<string, ZoraHeldCoin>();
+        const rawWeiMap = new Map<string, bigint>();
 
         balanceResults.forEach((res) => {
           const edges: any[] = (res as any)?.data?.profile?.coinBalances?.edges ?? [];
@@ -88,42 +102,43 @@ export function useZoraWalletData(addresses: string[]): {
             if (!coin?.address || !rawBalance) return;
 
             const logo = extractLogo(coin.mediaContent);
-            const change24h = coin.marketCapDelta24h
-              ? parseFloat(coin.marketCapDelta24h)
+            const priceInUsdc = coin.tokenPrice?.priceInUsdc
+              ? parseFloat(coin.tokenPrice.priceInUsdc)
               : null;
-            const formattedBalance =
-              edge.node?.formattedBalance ?? rawBalance;
+            const marketCapUsd = coin.marketCap ?? null;
 
-            // Populate enrichment cache (logo + 24h for main token table)
             setZoraToken(coin.address, {
               logo,
-              change24h,
+              change24h: null,
               name: coin.name ?? "",
               symbol: coin.symbol ?? "",
-              marketCap: coin.marketCap ?? null,
+              marketCap: marketCapUsd,
             });
 
-            const key = coin.address.toLowerCase();
-            const existing = heldMap.get(key);
-            if (existing) {
-              // Merge balance from another address
-              existing.balance = (
-                parseFloat(existing.balance) + parseFloat(formattedBalance)
-              ).toString();
-            } else {
-              heldMap.set(key, {
-                address: coin.address,
-                chainId: coin.chainId ?? 8453,
-                name: coin.name ?? "",
-                symbol: coin.symbol ?? "",
-                logo,
-                balance: formattedBalance,
-                valueUsd: edge.node?.valueUsd ?? null,
-                marketCap: coin.marketCap ?? null,
-                change24h,
-                volume24h: coin.volume24h ?? null,
-              });
-            }
+            const mapKey = coin.address.toLowerCase();
+            const existingRaw = rawWeiMap.get(mapKey) ?? 0n;
+            let rawBig: bigint;
+            try { rawBig = BigInt(rawBalance); } catch { rawBig = 0n; }
+            const totalRaw = existingRaw + rawBig;
+            rawWeiMap.set(mapKey, totalRaw);
+
+            const humanBalance = fromWei(totalRaw.toString());
+            const valueUsd =
+              priceInUsdc !== null
+                ? (parseFloat(humanBalance) * priceInUsdc).toString()
+                : null;
+
+            heldMap.set(mapKey, {
+              address: coin.address,
+              chainId: coin.chainId ?? 8453,
+              name: coin.name ?? "",
+              symbol: coin.symbol ?? "",
+              logo,
+              balance: humanBalance,
+              valueUsd,
+              marketCap: marketCapUsd,
+              volume24h: coin.volume24h ?? null,
+            });
           });
         });
 
@@ -137,16 +152,14 @@ export function useZoraWalletData(addresses: string[]): {
             if (!coin?.address) return;
 
             const logo = extractLogo(coin.mediaContent);
-            const change24h = coin.marketCapDelta24h
-              ? parseFloat(coin.marketCapDelta24h)
-              : null;
+            const createdMarketCapUsd = coin.marketCap ?? null;
 
             setZoraToken(coin.address, {
               logo,
-              change24h,
+              change24h: null,
               name: coin.name ?? "",
               symbol: coin.symbol ?? "",
-              marketCap: coin.marketCap ?? null,
+              marketCap: createdMarketCapUsd,
             });
 
             const key = coin.address.toLowerCase();
@@ -157,8 +170,7 @@ export function useZoraWalletData(addresses: string[]): {
                 name: coin.name ?? "",
                 symbol: coin.symbol ?? "",
                 logo,
-                marketCap: coin.marketCap ?? null,
-                change24h,
+                marketCap: createdMarketCapUsd,
                 uniqueHolders: coin.uniqueHolders ?? 0,
                 volume24h: coin.volume24h ?? null,
               });

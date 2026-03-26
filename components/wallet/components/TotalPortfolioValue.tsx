@@ -3,11 +3,12 @@ import { Box, Text, Skeleton } from "@chakra-ui/react";
 import { usePortfolioContext } from "@/contexts/PortfolioContext";
 import { useLocale } from "@/contexts/LocaleContext";
 
-type ChainFilter = "all" | "hive" | "evm" | "farcaster";
+type ChainFilter = "all" | "hive" | "evm" | "farcaster" | "zora";
 
 interface TotalPortfolioValueProps {
   totalHiveAssetsValue: number;
   chainFilter: ChainFilter;
+  zoraTotalValue?: number;
   isLoading?: boolean;
 }
 
@@ -16,11 +17,13 @@ const LABELS: Record<ChainFilter, string> = {
   hive: "Hive Balance",
   evm: "EVM Balance",
   farcaster: "Farcaster Balance",
+  zora: "Zora Balance",
 };
 
 export default function TotalPortfolioValue({
   totalHiveAssetsValue,
   chainFilter,
+  zoraTotalValue = 0,
   isLoading,
 }: TotalPortfolioValueProps) {
   const { locale } = useLocale();
@@ -35,14 +38,15 @@ export default function TotalPortfolioValue({
 
   const displayValue = useMemo(() => {
     if (chainFilter === "hive") return totalHiveAssetsValue;
-    if (chainFilter === "evm") return portfolio?.totalNetWorth || 0;
-    if (chainFilter === "farcaster") {
-      const fcBase = farcasterPortfolio?.totalNetWorth || 0;
-      const fcVerified = Object.values(
-        farcasterVerifiedPortfolios || {},
-      ).reduce((sum, p) => sum + (p?.totalNetWorth || 0), 0);
-      return fcBase + fcVerified;
+    if (chainFilter === "evm") {
+      // EVM = active wallet + all DB-linked verified addresses
+      const evmBase = portfolio?.totalNetWorth || 0;
+      const evmVerified = Object.values(farcasterVerifiedPortfolios || {})
+        .reduce((sum, p) => sum + (p?.totalNetWorth || 0), 0);
+      return evmBase + evmVerified;
     }
+    if (chainFilter === "zora") return zoraTotalValue;
+    if (chainFilter === "farcaster") return farcasterPortfolio?.totalNetWorth || 0;
     // "all"
     return totalHiveAssetsValue + (aggregatedPortfolio?.totalNetWorth || 0);
   }, [
