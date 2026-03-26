@@ -114,7 +114,7 @@ export async function processVideoOnServer(
 
   // SECONDARY: Oracle Cloud
   const secondaryServer = SERVER_CONFIG[1];
-  const secondaryUrl = 'https://146-235-239-243.sslip.io';
+  const secondaryUrl = 'https://transcode.skatehive.app';
 
   console.log(`🔍 Checking ${secondaryServer.name} health...`);
   const isSecondaryHealthy = await checkServerHealth(secondaryUrl);
