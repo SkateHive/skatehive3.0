@@ -46,7 +46,7 @@ import { useZoraWalletData } from "@/hooks/useZoraWalletData";
 
 const HBD_SAVINGS_APR = 0.15; // 15% annual interest rate on HBD Savings
 
-type ChainFilter = "all" | "hive" | "evm" | "farcaster";
+type ChainFilter = "all" | "hive" | "evm" | "farcaster" | "zora";
 
 interface MainWalletProps {
   username?: string;
@@ -217,8 +217,15 @@ export default function MainWallet({ username }: MainWalletProps) {
     return (hive + hp) * hivePrice + (hbd + hbdSav) * hbdPrice;
   }, [user, hivePrice, hbdPrice, hiveBalances, hivePower]);
 
-  const hasEVM = isMounted && (isConnected || isFarcasterConnected);
-  const hasFarcaster = isMounted && isFarcasterConnected;
+  const zoraTotalValue = useMemo(
+    () => zoraHeld.reduce((sum, c) => sum + parseFloat(c.valueUsd ?? "0"), 0),
+    [zoraHeld],
+  );
+
+  const hasLinkedFarcaster = linkedIdentities.some((i) => i.type === "farcaster");
+  const hasEVM = isMounted && (isConnected || isFarcasterConnected || hasLinkedFarcaster);
+  const hasFarcaster = isMounted && (isFarcasterConnected || hasLinkedFarcaster);
+  const hasZora = isMounted && allEvmAddresses.length > 0;
 
   if ((isLoading && user) || !isMounted) {
     return (
@@ -252,6 +259,12 @@ export default function MainWallet({ username }: MainWalletProps) {
       label: "Farcaster",
       logo: "/logos/farcaster.svg",
       show: hasFarcaster,
+    },
+    {
+      key: "zora",
+      label: "Zora",
+      logo: "/logos/Zorb.png",
+      show: hasZora,
     },
   ];
 
@@ -334,7 +347,6 @@ export default function MainWallet({ username }: MainWalletProps) {
                       { label: "Art", show: isConnected },
                       { label: "SkateBank", show: !!user },
                       { label: "PIX", show: !!user },
-                      { label: "Zora", show: allEvmAddresses.length > 0 },
                     ] as { label: string; show: boolean }[]
                   )
                     .filter((t) => t.show)
@@ -368,6 +380,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                     <TotalPortfolioValue
                       totalHiveAssetsValue={totalHiveAssetsValue}
                       chainFilter={chainFilter}
+                      zoraTotalValue={zoraTotalValue}
                     />
 
                     {/* Chain filter pills */}
@@ -407,23 +420,34 @@ export default function MainWallet({ username }: MainWalletProps) {
                         ))}
                     </HStack>
 
-                    {/* Unified token table */}
-                    <UnifiedWalletTable
-                      chainFilter={chainFilter}
-                      hiveBalance={hiveBalances.balance}
-                      hbdBalance={hiveBalances.hbdBalance}
-                      hivePower={hivePower || "0"}
-                      hbdSavingsBalance={hiveBalances.hbdSavingsBalance}
-                      hivePrice={hivePrice}
-                      hbdPrice={hbdPrice}
-                      hiveUser={user}
-                    />
+                    {/* Zora section (when zora filter active) */}
+                    {chainFilter === "zora" ? (
+                      <ZoraCoinsSection
+                        heldCoins={zoraHeld}
+                        createdCoins={zoraCreated}
+                        isLoading={isZoraLoading}
+                      />
+                    ) : (
+                      <>
+                        {/* Unified token table */}
+                        <UnifiedWalletTable
+                          chainFilter={chainFilter}
+                          hiveBalance={hiveBalances.balance}
+                          hbdBalance={hiveBalances.hbdBalance}
+                          hivePower={hivePower || "0"}
+                          hbdSavingsBalance={hiveBalances.hbdSavingsBalance}
+                          hivePrice={hivePrice}
+                          hbdPrice={hbdPrice}
+                          hiveUser={user}
+                        />
 
-                    {/* Hive activity history */}
-                    {showHiveExtras && (
-                      <Box mt={4}>
-                        <HiveTransactionHistory searchAccount={user} />
-                      </Box>
+                        {/* Hive activity history */}
+                        {showHiveExtras && (
+                          <Box mt={4}>
+                            <HiveTransactionHistory searchAccount={user} />
+                          </Box>
+                        )}
+                      </>
                     )}
                   </TabPanel>
 
@@ -472,16 +496,6 @@ export default function MainWallet({ username }: MainWalletProps) {
                     </TabPanel>
                   )}
 
-                  {/* ── ZORA ── */}
-                  {allEvmAddresses.length > 0 && (
-                    <TabPanel p={0}>
-                      <ZoraCoinsSection
-                        heldCoins={zoraHeld}
-                        createdCoins={zoraCreated}
-                        isLoading={isZoraLoading}
-                      />
-                    </TabPanel>
-                  )}
                 </TabPanels>
               </Tabs>
             </Box>

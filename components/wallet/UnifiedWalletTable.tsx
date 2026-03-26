@@ -20,6 +20,7 @@ import {
   ModalCloseButton,
   IconButton,
   useToast,
+  Image,
 } from "@chakra-ui/react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAccount } from "wagmi";
@@ -131,14 +132,29 @@ function TokenRowSkeletons({ count }: { count: number }) {
 }
 
 // ─── Send Picker Modal ────────────────────────────────────────────────────────
-function SendPickerModal({ isOpen, onClose, consolidatedTokens, onSelect }: {
+function SendPickerModal({ isOpen, onClose, consolidatedTokens, onSelect, requireChainSelect, defaultChain }: {
   isOpen: boolean;
   onClose: () => void;
   consolidatedTokens: ConsolidatedToken[];
   onSelect: (token: ConsolidatedToken) => void;
+  requireChainSelect?: boolean;
+  defaultChain?: "hive" | "evm";
 }) {
-  // Only show tokens that can actually be sent
+  const [selectedChain, setSelectedChain] = useState<"hive" | "evm" | null>(
+    requireChainSelect ? null : (defaultChain ?? "evm")
+  );
+
+  // Reset chain selection when modal opens/closes
+  useEffect(() => {
+    if (isOpen) setSelectedChain(requireChainSelect ? null : (defaultChain ?? "evm"));
+  }, [isOpen, requireChainSelect, defaultChain]);
+
   const sendable = consolidatedTokens.filter((ct) => !NON_SENDABLE.has(ct.symbol));
+  const filtered = selectedChain === "hive"
+    ? sendable.filter((ct) => ct.chains.some((c) => c.network === "hive"))
+    : selectedChain === "evm"
+    ? sendable.filter((ct) => ct.chains.every((c) => c.network !== "hive"))
+    : [];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm">
@@ -149,41 +165,85 @@ function SendPickerModal({ isOpen, onClose, consolidatedTokens, onSelect }: {
           letterSpacing="widest" fontSize="sm" color="primary"
           borderBottom="1px solid" borderColor="border"
         >
-          Select Token to Send
+          {selectedChain ? (
+            <HStack>
+              <Box
+                as="button"
+                onClick={() => requireChainSelect && setSelectedChain(null)}
+                cursor={requireChainSelect ? "pointer" : "default"}
+                opacity={requireChainSelect ? 1 : 0.5}
+                mr={2}
+                fontSize="md"
+              >
+                ←
+              </Box>
+              Send {selectedChain === "hive" ? "Hive" : "EVM"} Token
+            </HStack>
+          ) : "Select Chain"}
         </ModalHeader>
         <ModalCloseButton />
-        <ModalBody p={0} maxH="400px" overflowY="auto">
-          {sendable.map((ct) => (
-            <Box
-              key={ct.symbol}
-              px={4} py={3}
-              cursor="pointer"
-              borderBottom="1px solid" borderColor="border"
-              _hover={{ bg: "muted" }}
-              onClick={() => { onSelect(ct); onClose(); }}
-            >
-              <HStack justify="space-between">
+        <ModalBody p={0}>
+          {/* Step 1: chain selector */}
+          {!selectedChain && (
+            <VStack spacing={0} align="stretch">
+              <Box
+                px={4} py={4} cursor="pointer" borderBottom="1px solid" borderColor="border"
+                _hover={{ bg: "muted" }}
+                onClick={() => setSelectedChain("hive")}
+              >
                 <HStack spacing={3}>
-                  <TokenLogo token={ct.primaryChain} size="28px" showNetworkBadge={false} />
-                  <VStack spacing={0} align="start">
-                    <Text fontFamily="mono" fontWeight="bold" color="text" fontSize="sm">{ct.symbol}</Text>
-                    {ct.name !== ct.symbol && (
-                      <Text fontFamily="mono" fontSize="xs" color="dim">{ct.name}</Text>
-                    )}
-                  </VStack>
+                  <Image src="/logos/hiveLogo.png" w="28px" h="28px" alt="Hive" borderRadius="none" />
+                  <Text fontFamily="mono" fontWeight="bold" color="text">Hive</Text>
                 </HStack>
-                <VStack spacing={0} align="end">
-                  <Text fontFamily="mono" fontSize="sm" color="primary" fontWeight="bold">{formatValue(ct.totalBalanceUSD)}</Text>
-                  <Text fontFamily="mono" fontSize="xs" color="dim">
-                    {ct.chains.reduce((s, c) => s + c.token.balance, 0).toFixed(4).replace(/\.?0+$/, "")} {ct.symbol}
-                  </Text>
-                </VStack>
-              </HStack>
-            </Box>
-          ))}
-          {sendable.length === 0 && (
-            <Box px={4} py={6} textAlign="center">
-              <Text fontFamily="mono" fontSize="sm" color="dim">No sendable tokens found.</Text>
+              </Box>
+              <Box
+                px={4} py={4} cursor="pointer"
+                _hover={{ bg: "muted" }}
+                onClick={() => setSelectedChain("evm")}
+              >
+                <HStack spacing={3}>
+                  <Image src="/logos/ethereum_logo.png" w="28px" h="28px" alt="EVM" borderRadius="none" />
+                  <Text fontFamily="mono" fontWeight="bold" color="text">EVM</Text>
+                </HStack>
+              </Box>
+            </VStack>
+          )}
+          {/* Step 2: token list */}
+          {selectedChain && (
+            <Box maxH="400px" overflowY="auto">
+              {filtered.map((ct) => (
+                <Box
+                  key={ct.symbol}
+                  px={4} py={3}
+                  cursor="pointer"
+                  borderBottom="1px solid" borderColor="border"
+                  _hover={{ bg: "muted" }}
+                  onClick={() => { onSelect(ct); onClose(); }}
+                >
+                  <HStack justify="space-between">
+                    <HStack spacing={3}>
+                      <TokenLogo token={ct.primaryChain} size="28px" showNetworkBadge={false} />
+                      <VStack spacing={0} align="start">
+                        <Text fontFamily="mono" fontWeight="bold" color="text" fontSize="sm">{ct.symbol}</Text>
+                        {ct.name !== ct.symbol && (
+                          <Text fontFamily="mono" fontSize="xs" color="dim">{ct.name}</Text>
+                        )}
+                      </VStack>
+                    </HStack>
+                    <VStack spacing={0} align="end">
+                      <Text fontFamily="mono" fontSize="sm" color="primary" fontWeight="bold">{formatValue(ct.totalBalanceUSD)}</Text>
+                      <Text fontFamily="mono" fontSize="xs" color="dim">
+                        {ct.chains.reduce((s, c) => s + c.token.balance, 0).toFixed(4).replace(/\.?0+$/, "")} {ct.symbol}
+                      </Text>
+                    </VStack>
+                  </HStack>
+                </Box>
+              ))}
+              {filtered.length === 0 && (
+                <Box px={4} py={6} textAlign="center">
+                  <Text fontFamily="mono" fontSize="sm" color="dim">No sendable tokens found.</Text>
+                </Box>
+              )}
             </Box>
           )}
         </ModalBody>
@@ -282,6 +342,15 @@ export default function UnifiedWalletTable({
 
   const isMobile = useBreakpointValue({ base: true, md: false });
 
+  // Always-active subscription — Zora enrichment can fire before portfolio tokens load
+  useEffect(() => {
+    const unsub = subscribeToLogoUpdates(() => {
+      setLogoUpdateTrigger((prev) => prev + 1);
+    });
+    return () => { unsub(); };
+  }, []);
+
+  // Preload GeckoTerminal logos whenever the token list changes
   useEffect(() => {
     if (!aggregatedPortfolio?.tokens || aggregatedPortfolio.tokens.length === 0) return;
     const portfolioHash = aggregatedPortfolio.tokens
@@ -292,10 +361,6 @@ export default function UnifiedWalletTable({
       preloadTokenLogos(aggregatedPortfolio.tokens);
       sessionStorage.setItem("lastPortfolioHash", portfolioHash);
     }
-    const unsub = subscribeToLogoUpdates(() => {
-      setLogoUpdateTrigger((prev) => prev + 1);
-    });
-    return () => { unsub(); };
   }, [aggregatedPortfolio?.tokens]);
 
   const toggleTokenExpansion = useCallback((symbol: string) => {
@@ -382,8 +447,9 @@ export default function UnifiedWalletTable({
   const filteredEVMTokens = useMemo<TokenDetail[]>(() => {
     const all = aggregatedPortfolio?.tokens || [];
     if (chainFilter === "hive") return [];
-    if (chainFilter === "evm") return all.filter((t) => t.source === "ethereum");
-    if (chainFilter === "farcaster") return all.filter((t) => t.source === "farcaster" || t.source === "verified");
+    // "verified" = DB-linked EVM addresses → belong in EVM view, not Farcaster-only
+    if (chainFilter === "evm") return all.filter((t) => t.source === "ethereum" || t.source === "verified");
+    if (chainFilter === "farcaster") return all.filter((t) => t.source === "farcaster");
     return all; // "all"
   }, [aggregatedPortfolio?.tokens, chainFilter]);
 
@@ -401,7 +467,9 @@ export default function UnifiedWalletTable({
     });
 
     return sortConsolidatedTokensByBalance(filtered);
-  }, [hiveTokens, filteredEVMTokens, hideSmallBalances, chainFilter]);
+  // logoUpdateTrigger forces re-evaluation so fresh Zora logo cache is picked up
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiveTokens, filteredEVMTokens, hideSmallBalances, chainFilter, logoUpdateTrigger]);
 
   // EVM is still loading but we already have Hive tokens to show
   const showEVMSkeleton = isLoading && (chainFilter === "all" || chainFilter === "evm" || chainFilter === "farcaster");
@@ -423,27 +491,29 @@ export default function UnifiedWalletTable({
             onRefresh={handleForceRefresh}
             onToggleSmallBalances={setHideSmallBalances}
           />
-          {/* Send / Receive buttons */}
-          <HStack spacing={2} px={4} py={2}>
-            <Button
-              flex={1} size="sm" variant="outline" borderRadius="none"
-              borderColor="primary" color="primary" fontFamily="mono"
-              fontWeight="black" letterSpacing="wide" textTransform="uppercase"
-              leftIcon={<FaPaperPlane />}
-              onClick={onSendPickerOpen}
-            >
-              Send
-            </Button>
-            <Button
-              flex={1} size="sm" variant="outline" borderRadius="none"
-              borderColor="border" color="text" fontFamily="mono"
-              fontWeight="black" letterSpacing="wide" textTransform="uppercase"
-              leftIcon={<FaQrcode />}
-              onClick={onReceiveOpen}
-            >
-              Receive
-            </Button>
-          </HStack>
+          {/* Send / Receive buttons — hidden on Farcaster (read-only) */}
+          {chainFilter !== "farcaster" && (
+            <HStack spacing={2} px={4} py={2}>
+              <Button
+                flex={1} size="sm" variant="outline" borderRadius="none"
+                borderColor="primary" color="primary" fontFamily="mono"
+                fontWeight="black" letterSpacing="wide" textTransform="uppercase"
+                leftIcon={<FaPaperPlane />}
+                onClick={onSendPickerOpen}
+              >
+                Send
+              </Button>
+              <Button
+                flex={1} size="sm" variant="outline" borderRadius="none"
+                borderColor="border" color="text" fontFamily="mono"
+                fontWeight="black" letterSpacing="wide" textTransform="uppercase"
+                leftIcon={<FaQrcode />}
+                onClick={onReceiveOpen}
+              >
+                Receive
+              </Button>
+            </HStack>
+          )}
           <MobileTokenTable
             consolidatedTokens={consolidatedTokens}
             expandedTokens={expandedTokens}
@@ -460,27 +530,29 @@ export default function UnifiedWalletTable({
             onRefresh={handleForceRefresh}
             onToggleSmallBalances={setHideSmallBalances}
           />
-          {/* Send / Receive buttons */}
-          <HStack spacing={2} px={4} py={2}>
-            <Button
-              flex={1} size="sm" variant="outline" borderRadius="none"
-              borderColor="primary" color="primary" fontFamily="mono"
-              fontWeight="black" letterSpacing="wide" textTransform="uppercase"
-              leftIcon={<FaPaperPlane />}
-              onClick={onSendPickerOpen}
-            >
-              Send
-            </Button>
-            <Button
-              flex={1} size="sm" variant="outline" borderRadius="none"
-              borderColor="border" color="text" fontFamily="mono"
-              fontWeight="black" letterSpacing="wide" textTransform="uppercase"
-              leftIcon={<FaQrcode />}
-              onClick={onReceiveOpen}
-            >
-              Receive
-            </Button>
-          </HStack>
+          {/* Send / Receive buttons — hidden on Farcaster (read-only) */}
+          {chainFilter !== "farcaster" && (
+            <HStack spacing={2} px={4} py={2}>
+              <Button
+                flex={1} size="sm" variant="outline" borderRadius="none"
+                borderColor="primary" color="primary" fontFamily="mono"
+                fontWeight="black" letterSpacing="wide" textTransform="uppercase"
+                leftIcon={<FaPaperPlane />}
+                onClick={onSendPickerOpen}
+              >
+                Send
+              </Button>
+              <Button
+                flex={1} size="sm" variant="outline" borderRadius="none"
+                borderColor="border" color="text" fontFamily="mono"
+                fontWeight="black" letterSpacing="wide" textTransform="uppercase"
+                leftIcon={<FaQrcode />}
+                onClick={onReceiveOpen}
+              >
+                Receive
+              </Button>
+            </HStack>
+          )}
           <DesktopTokenTable
             consolidatedTokens={consolidatedTokens}
             expandedTokens={expandedTokens}
@@ -515,6 +587,8 @@ export default function UnifiedWalletTable({
         onClose={onSendPickerClose}
         consolidatedTokens={consolidatedTokens}
         onSelect={handleSendPickerSelect}
+        requireChainSelect={chainFilter === "all"}
+        defaultChain={chainFilter === "hive" ? "hive" : chainFilter === "evm" ? "evm" : undefined}
       />
 
       <ReceiveModal
