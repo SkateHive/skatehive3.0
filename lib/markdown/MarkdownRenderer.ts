@@ -1,5 +1,5 @@
 import { DefaultRenderer } from "@hiveio/content-renderer";
-import DOMPurify from "dompurify";
+import DOMPurify from "isomorphic-dompurify";
 import { LRUCache } from "@/lib/utils/LRUCache";
 import { getCacheKey } from "@/lib/utils/hashUtils";
 import { APP_CONFIG } from "@/config/app.config";
@@ -18,15 +18,9 @@ const mentionValidationCache = new LRUCache<string, boolean>(1000, 60 * 60 * 100
 // Import Hive account validation
 const { checkHiveAccountExists } = require('@/lib/utils/hiveAccountUtils');
 
-// Simple function to get DOMPurify instance, only sanitize on client side
+// Simple function to get DOMPurify instance, sanitize on both server and client
 function getSanitizedHTML(html: string): string {
-    // Only sanitize in browser environment
-    if (typeof window === 'undefined') {
-        // Server-side: skip sanitization, it will be sanitized on client
-        return html;
-    }
-    
-    // Client-side: use DOMPurify
+    // isomorphic-dompurify works on both server and client
     const purify = DOMPurify;
     
     // Define the hook function to validate iframe sources
@@ -73,11 +67,12 @@ function getSanitizedHTML(html: string): string {
             'muted', 'poster', 'type', 'frameborder', 'allow', 'allowfullscreen', 'loading', 'target',
             'rel', 'referrerpolicy', 'sandbox'
         ],
+        // Block ALL data-* attributes except data-ipfs-hash (prevents data-bg XSS)
+        FORBID_ATTR: ['data-*', '!data-ipfs-hash'],
         // More permissive URI regex that allows our trusted video platforms
         ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
         ADD_ATTR: ['data-ipfs-hash', 'webkit-playsinline', 'playsinline'],
         FORBID_TAGS: ['script', 'object', 'embed', 'applet', 'base', 'link'],
-        FORBID_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover', 'onfocus', 'onblur', 'onsubmit', 'onreset', 'onselect', 'onchange'],
         WHOLE_DOCUMENT: false,
         RETURN_DOM: false,
         RETURN_DOM_FRAGMENT: false,
