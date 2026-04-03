@@ -271,7 +271,7 @@ export default function HiveTransactionHistory({ searchAccount }: { searchAccoun
                     {/* Fee + time */}
                     <VStack spacing={0} align="end" flexShrink={0}>
                       <HStack spacing={1}>
-                        {!isACC && <Image src="/logos/hiveLogo.png" w="12px" h="12px" objectFit="contain" />}
+                        {!isACC && <Image src="/logos/hiveLogo.png" w="12px" h="12px" objectFit="contain" alt="" />}
                         <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="purple.300">
                           {isACC ? "ACC" : `-${parseFloat(amt).toFixed(3)} ${currency}`}
                         </Text>
@@ -335,7 +335,7 @@ export default function HiveTransactionHistory({ searchAccount }: { searchAccoun
                   {/* Amount + time */}
                   <VStack spacing={0} align="end" flexShrink={0}>
                     <HStack spacing={1}>
-                      <Image src={tokenLogo(currency)} w="12px" h="12px" objectFit="contain" />
+                      <Image src={tokenLogo(currency)} w="12px" h="12px" objectFit="contain" alt="" />
                       <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color={isIncoming ? "success" : "error"}>
                         {isIncoming ? "+" : "-"}{parseFloat(amt).toFixed(3)} {currency}
                       </Text>

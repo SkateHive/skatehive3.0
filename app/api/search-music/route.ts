@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
-
-if (!YOUTUBE_API_KEY) {
-  throw new Error("Missing YOUTUBE_API_KEY environment variable");
-}
-
 export async function GET(request: NextRequest) {
+  const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+
+  if (!YOUTUBE_API_KEY) {
+    return NextResponse.json({ error: "Missing YOUTUBE_API_KEY environment variable" }, { status: 500 });
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get("q");
 

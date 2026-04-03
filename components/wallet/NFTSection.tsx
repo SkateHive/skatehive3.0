@@ -111,6 +111,7 @@ function NFTCard({ nft, index, formatEthValue }: { nft: any; index: number; form
               aria-label="View on Zapper"
               icon={
                 <Image
+                  alt=""
                   src="https://zapper.xyz/favicon.ico"
                   w="12px"
                   h="12px"

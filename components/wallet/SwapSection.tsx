@@ -271,7 +271,7 @@ export default function SwapSection({
             </Text>
             <HStack justify="space-between" align="center">
               <HStack spacing={2} flex={1}>
-                <Image src={fromLogo} w="24px" h="24px" objectFit="contain" />
+                <Image src={fromLogo} w="24px" h="24px" objectFit="contain" alt="" />
                 <Input
                   type="number"
                   placeholder="0"
@@ -317,7 +317,7 @@ export default function SwapSection({
             </Text>
             <HStack justify="space-between" align="center">
               <HStack spacing={2} flex={1}>
-                <Image src={toLogo} w="24px" h="24px" objectFit="contain" />
+                <Image src={toLogo} w="24px" h="24px" objectFit="contain" alt="" />
                 <Text fontSize="2xl" fontFamily="mono" fontWeight="black" color="primary">
                   {isPriceLoading ? "..." : estimatedOutput}
                 </Text>
