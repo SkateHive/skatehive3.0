@@ -202,8 +202,7 @@ export default function VirtualPostGrid({
                     <PostCard
                       key={post.permlink}
                       post={post}
-                      viewMode={viewMode}
-                      context={context}
+                      listView={viewMode === 'list'}
                       hideAuthorInfo={hideAuthorInfo}
                     />
                   ))}

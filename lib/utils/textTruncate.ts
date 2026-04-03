@@ -4,7 +4,7 @@
  * Provides pixel-perfect text truncation without DOM measurement.
  */
 
-import { prepare, layout, prepareWithSegments, walkLineRanges, type PreparedTextWithSegments } from '@chenglou/pretext';
+import { prepare, layout } from '@chenglou/pretext';
 
 export interface TruncateOptions {
   maxWidth: number;
@@ -38,47 +38,35 @@ export function truncateText(
   const font = `${fontSize}px ${fontFamily}`;
   
   try {
-    // Prepare with segments to walk line-by-line
-    const prepared: PreparedTextWithSegments = prepareWithSegments(text, font);
     
-    let currentLine = 0;
-    let truncatedText = '';
-    let shouldTruncate = false;
-
-    walkLineRanges(prepared, maxWidth, (line) => {
-      if (currentLine < maxLines) {
-        truncatedText += line.text;
-        currentLine++;
-      } else {
-        shouldTruncate = true;
-      }
-    });
-
-    if (shouldTruncate) {
-      // Remove trailing whitespace and add ellipsis
-      truncatedText = truncatedText.trim();
-      
-      // Make sure ellipsis fits
-      const withEllipsis = truncatedText + ellipsis;
-      const ellipsisTest = layout(prepare(withEllipsis, font), maxWidth, fontSize * lineHeight);
-      
-      // If ellipsis causes overflow, remove chars until it fits
-      if (ellipsisTest.lineCount > maxLines) {
-        while (truncatedText.length > 0) {
-          truncatedText = truncatedText.slice(0, -1);
-          const test = layout(
-            prepare(truncatedText.trim() + ellipsis, font),
-            maxWidth,
-            fontSize * lineHeight
-          );
-          if (test.lineCount <= maxLines) break;
-        }
-      }
-      
-      return truncatedText.trim() + ellipsis;
+    // Simple approach: layout and check line count
+    const result = layout(prepare(text, font), maxWidth, fontSize * lineHeight);
+    
+    if (result.lineCount <= maxLines) {
+      return text; // Fits without truncation
     }
+    
+    // Binary search for truncation point
+    let lo = 0;
+    let hi = text.length;
+    let bestFit = '';
+    
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi + 1) / 2);
+      const candidate = text.substring(0, mid).trim() + ellipsis;
+      const test = layout(prepare(candidate, font), maxWidth, fontSize * lineHeight);
+      
+      if (test.lineCount <= maxLines) {
+        bestFit = text.substring(0, mid).trim();
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    
+    return bestFit + ellipsis;
 
-    return text;
+
   } catch (error) {
     // Fallback: character-based truncation
     const avgCharWidth = fontSize * 0.6;
