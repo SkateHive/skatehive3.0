@@ -24,22 +24,11 @@ This PR implements **Pretext.js**, a pure JavaScript text measurement engine tha
 
 ## 🧪 How to Test
 
-### Option 1: Feature Flag (Recommended)
+**Pretext.js is now ALWAYS ENABLED by default.** No feature flags needed!
 
-1. **Enable via localStorage** (dev/testing):
-   ```javascript
-   // In browser console:
-   localStorage.setItem('feature_PRETEXT_VIRTUAL_SCROLL', 'true');
-   // Reload page
-   ```
+### Performance Testing
 
-2. **Enable via env var** (production):
-   ```bash
-   # Add to .env.local:
-   NEXT_PUBLIC_PRETEXT_ENABLED=true
-   ```
-
-3. **Test performance**:
+1. **Test performance**:
    - Open homepage (/)
    - Open DevTools → Performance tab
    - Start recording
@@ -49,21 +38,23 @@ This PR implements **Pretext.js**, a pure JavaScript text measurement engine tha
      - ✅ Stable 60-120fps
      - ✅ Lower CPU usage
 
-### Option 2: Compare Side-by-Side
+2. **Cinema page**:
+   - Navigate to /cinema
+   - Scroll through 900+ videos smoothly
+   - Notice: no pagination, smooth virtual scroll
 
-1. **Disable feature flag**:
-   ```javascript
-   localStorage.setItem('feature_PRETEXT_VIRTUAL_SCROLL', 'false');
-   ```
+3. **LoadingComponent**:
+   - Reload page multiple times
+   - Check loading text on mobile (Chrome DevTools)
+   - Verify: text never overflows (auto-scales)
 
-2. **Scroll and measure FPS** (standard mode)
+### Benchmark Comparison
 
-3. **Enable feature flag**:
-   ```javascript
-   localStorage.setItem('feature_PRETEXT_VIRTUAL_SCROLL', 'true');
-   ```
-
-4. **Scroll again** — compare smoothness
+**Before/After comparison:**
+- Deploy to Vercel preview
+- Compare with current skatehive.app
+- Use Lighthouse/DevTools Performance tab
+- Measure: FPS, CPU usage, forced reflow count
 
 ---
 

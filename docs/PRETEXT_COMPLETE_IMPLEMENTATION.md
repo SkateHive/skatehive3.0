@@ -140,17 +140,16 @@ Table-based, already performant with memoization.
 
 ## 🧪 How to Test
 
-### Enable Feature Flag:
+**No configuration needed!** Pretext.js is now enabled by default.
 
-```javascript
-// In browser console:
-localStorage.setItem('feature_PRETEXT_VIRTUAL_SCROLL', 'true');
-location.reload();
-```
-
-Or via `.env.local`:
+Just deploy and compare:
 ```bash
-NEXT_PUBLIC_PRETEXT_ENABLED=true
+# Deploy to Vercel preview
+vercel deploy
+
+# Compare with production (skatehive.app)
+# Use DevTools Performance tab
+# Measure: FPS, reflow count, CPU usage
 ```
 
 ### Test Areas:
@@ -193,19 +192,14 @@ NEXT_PUBLIC_PRETEXT_ENABLED=true
 
 ## 🏗️ Architecture
 
-### Feature Flag System
-**File:** `lib/features.ts`
+### Architecture
+**No feature flags.** Pretext.js is production default.
 
-```typescript
-export const FEATURES = {
-  PRETEXT_VIRTUAL_SCROLL: process.env.NEXT_PUBLIC_PRETEXT_ENABLED === 'true',
-};
-```
-
-**Local Override:**
-```javascript
-localStorage.setItem('feature_PRETEXT_VIRTUAL_SCROLL', 'true');
-```
+All components use virtual scrolling:
+- `VirtualSnapList` (homepage)
+- `VirtualCinemaPlaylist` (cinema)
+- `OptimizedLoadingText` (loading screen)
+- Text utilities (everywhere)
 
 ### Core Hook
 **File:** `hooks/usePretext.ts`
@@ -223,12 +217,10 @@ const { height, lineCount } = measureTextHeight(text, {
 ### Integration Pattern
 
 ```typescript
-// Conditional rendering with fallback
-{getFeature('PRETEXT_VIRTUAL_SCROLL') ? (
-  <VirtualComponent /> // New, optimized
-) : (
-  <LegacyComponent />  // Old, tested
-)}
+// Direct usage - no conditionals needed
+import VirtualSnapList from './VirtualSnapList';
+
+<VirtualSnapList posts={posts} />  // Production default
 ```
 
 ---
@@ -264,29 +256,27 @@ const { height, lineCount } = measureTextHeight(text, {
 
 ## 🚀 Deployment Strategy
 
-### Phase 1: Opt-In Testing (Current)
-- Feature flag OFF by default
-- Manual activation for testing
-- Gather performance metrics
-- **Duration:** 1-2 weeks
+### Current Status: Production Default ✅
 
-### Phase 2: A/B Testing
-- Enable for 10% of users
-- Monitor FPS, CPU usage, error rates
-- Compare with control group
-- **Duration:** 1 week
+**Pretext.js is now the default implementation.**
 
-### Phase 3: Gradual Rollout
-- 25% → 50% → 75% → 100%
-- Monitor each step
-- Rollback capability preserved
-- **Duration:** 2 weeks
+No gradual rollout needed — direct production deployment:
+1. ✅ Feature flags removed
+2. ✅ Legacy code removed
+3. ✅ Build passing
+4. ✅ Ready for merge
 
-### Phase 4: Cleanup
-- Remove legacy code
-- Remove feature flags
-- Performance becomes default
-- **Duration:** 1 week
+### Next Steps:
+1. Merge PR #75
+2. Deploy to production
+3. Monitor performance metrics:
+   - FPS (expect 60-120fps)
+   - CPU usage (expect 50% reduction)
+   - Error rates (expect zero increase)
+4. Compare Vercel preview with skatehive.app
+5. If issues: revert commit
+
+**Rollback plan:** Single git revert restores legacy code.
 
 ---
 
@@ -328,14 +318,15 @@ const { height, lineCount } = measureTextHeight(text, {
 - [x] Blog virtual scroll implemented
 - [x] Loading text optimization
 - [x] Text utilities library
-- [x] Feature flag system
-- [x] Backward compatibility maintained
+- [x] Feature flags REMOVED (production default)
+- [x] Legacy code paths removed
 - [x] Build passes
 - [x] TypeScript types correct
-- [x] Documentation complete
-- [ ] Mobile testing (iOS/Android)
-- [ ] Performance metrics collected
-- [ ] A/B test plan ready
+- [x] Documentation updated
+- [x] Loading indicator fixed (sticky bottom)
+- [ ] Mobile testing (iOS/Android) - post-deploy
+- [ ] Performance metrics collected - post-deploy
+- [ ] Vercel preview vs production comparison
 
 ---
 
