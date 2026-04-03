@@ -80,7 +80,7 @@
     "heic2any": "^0.0.4",
     "html-to-image": "^1.11.13",
     "html-to-text": "^9.0.5",
-    "isomorphic-dompurify": "^3.7.1",
+    "isomorphic-dompurify": "2.16.0",
     "jose": "^6.1.0",
     "jsdom": "^26.1.0",
     "keychain-sdk": "^0.9.4",
