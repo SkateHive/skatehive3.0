@@ -51,8 +51,16 @@ function getSanitizedHTML(html: string): string {
         }
     };
     
-    // Add hook before sanitization
+    // Add hooks before sanitization
     purify.addHook('beforeSanitizeElements', iframeHook);
+    
+    // Hook to allow ONLY data-ipfs-hash, block all other data-* (XSS prevention)
+    purify.addHook('uponSanitizeAttribute', (node: Element, data: any) => {
+        if (data.attrName === 'data-ipfs-hash') {
+            // Force keep this specific attribute (used by video embeds)
+            data.forceKeepAttr = true;
+        }
+    });
     
     // Configure DOMPurify to allow SkateHive specific features
     const clean = purify.sanitize(html, {
@@ -67,10 +75,10 @@ function getSanitizedHTML(html: string): string {
             'muted', 'poster', 'type', 'frameborder', 'allow', 'allowfullscreen', 'loading', 'target',
             'rel', 'referrerpolicy', 'sandbox'
         ],
-        // Block ALL data-* attributes except data-ipfs-hash (prevents data-bg XSS)
-        FORBID_ATTR: ['data-*', '!data-ipfs-hash'],
         // More permissive URI regex that allows our trusted video platforms
         ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+        // Block all data-* attributes by default (data-ipfs-hash preserved via hook above)
+        ALLOW_DATA_ATTR: false,
         ADD_ATTR: ['data-ipfs-hash', 'webkit-playsinline', 'playsinline'],
         FORBID_TAGS: ['script', 'object', 'embed', 'applet', 'base', 'link'],
         WHOLE_DOCUMENT: false,
@@ -80,7 +88,8 @@ function getSanitizedHTML(html: string): string {
         ALLOW_UNKNOWN_PROTOCOLS: false
     });
     
-    // Remove the hook after sanitization to prevent memory leaks
+    // Remove hooks after sanitization to prevent memory leaks
+    purify.removeHook('uponSanitizeAttribute');
     purify.removeHook('beforeSanitizeElements');
     
     return clean;
