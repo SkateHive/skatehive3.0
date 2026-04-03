@@ -50,6 +50,19 @@ export function usePretext() {
       const lineHeight = options.lineHeight || 1.5;
       const fontFamily = options.fontFamily || 'Inter, system-ui, -apple-system, sans-serif';
       
+      // SSR check: Pretext.js requires browser Canvas API
+      if (typeof window === 'undefined') {
+        // Server-side fallback: rough estimate
+        const charWidth = fontSize * 0.6;
+        const charsPerLine = Math.floor(options.width / charWidth);
+        const estimatedLines = Math.max(1, Math.ceil(text.length / charsPerLine));
+        return {
+          height: estimatedLines * fontSize * lineHeight,
+          lineCount: estimatedLines,
+          width: options.width,
+        };
+      }
+      
       // Pretext.js font string format: "16px Inter, system-ui"
       const font = `${fontSize}px ${fontFamily}`;
 

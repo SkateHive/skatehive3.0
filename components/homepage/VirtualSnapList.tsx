@@ -12,6 +12,8 @@
 
 'use client';
 
+'use client';
+
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Box, VStack, Spinner, Text } from '@chakra-ui/react';
 import { Discussion } from '@hiveio/dhive';
