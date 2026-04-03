@@ -54,15 +54,15 @@ export async function downloadInstagramMedia(instagramUrl: string): Promise<Inst
  * Normalize Instagram URL to use /p/ format instead of /reel/
  */
 export function normalizeInstagramUrl(url: string): string {
-  // Replace /reel/ with /p/ in the URL
-  return url.replace('/reel/', '/p/');
+  // Replace /reel/ or /reels/ with /p/ in the URL
+  return url.replace(/\/reels?\//, '/p/');
 }
 
 /**
  * Validate Instagram URL format
  */
 export function isValidInstagramUrl(url: string): boolean {
-  const instagramRegex = /^https?:\/\/(www\.)?instagram\.com\/(p\/[A-Za-z0-9_-]+|[A-Za-z0-9_.]+\/(reel|tv)\/[A-Za-z0-9_-]+)\/?/;
+  const instagramRegex = /^https?:\/\/(www\.)?instagram\.com\/(p\/[A-Za-z0-9_-]+|reels?\/[A-Za-z0-9_-]+|[A-Za-z0-9_.]+\/(reel|tv)\/[A-Za-z0-9_-]+)\/?/;
   return instagramRegex.test(url);
 }
 
