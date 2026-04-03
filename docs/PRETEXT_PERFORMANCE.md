@@ -137,10 +137,16 @@ localStorage.setItem('feature_PRETEXT_VIRTUAL_SCROLL', 'true');
 - Smooth scrolling through hundreds of posts
 - Instant height calculation for new posts
 
+### Cinema Page
+- ✅ **Implemented** — virtual scrolling playlist
+- 900+ skate videos with zero DOM measurements
+- Auto-scroll to active video
+- Smooth navigation through entire catalog
+
 ### Future Optimizations
-- Cinema page (video grid with dynamic heights)
 - Leaderboard (long lists with rich text)
 - Chat UI (multiline messages)
+- Search results (1000+ items)
 
 ---
 
