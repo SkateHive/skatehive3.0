@@ -3,6 +3,8 @@ import { Box, Text, VStack, useToken } from "@chakra-ui/react";
 import { useEffect, useState, useRef } from "react";
 import { useTranslations } from "../../contexts/LocaleContext";
 import { useSoundSettings } from "../../contexts/SoundSettingsContext";
+import OptimizedLoadingText from "./OptimizedLoadingText";
+import { getFeature } from "@/lib/features";
 import "../../lib/utils/fonts.css";
 
 // Define character sets for each font
@@ -180,43 +182,51 @@ const LogoMatrix = () => {
             ))}
           </Box>
         ))}
-        <Text
-          position="relative"
-          zIndex={1}
-          color={primary}
-          fontSize={["20px", "28px", "40px", "40px"]}
-          textAlign="center"
-          fontFamily="'Joystix', monospace"
-          p={[2, 3, 4]}
-          borderRadius="none"
-          opacity={messageVisible ? 1 : 0}
-          transition="opacity 0.4s"
-          maxW={["90vw", "80vw", "50vw", "40vw"]}
-          mx="auto"
-          _before={{
-            content: `"${randomSentence}"`,
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: "100%",
-            height: "100%",
-            background: `linear-gradient(to right, ${primary}, #fff)`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            animation:
-              "ghost-glitch 1.5s infinite, ghost-flicker 1.1s infinite, ghost-stretch 2.5s infinite",
-            clipPath: "inset(2px 0)",
-            opacity: 0.2,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1,
-            transformOrigin: "center center",
-          }}
-        >
-          {randomSentence}
-        </Text>
+        {getFeature('PRETEXT_VIRTUAL_SCROLL') ? (
+          <OptimizedLoadingText
+            text={randomSentence}
+            color={primary}
+            isVisible={messageVisible}
+          />
+        ) : (
+          <Text
+            position="relative"
+            zIndex={1}
+            color={primary}
+            fontSize={["20px", "28px", "40px", "40px"]}
+            textAlign="center"
+            fontFamily="'Joystix', monospace"
+            p={[2, 3, 4]}
+            borderRadius="none"
+            opacity={messageVisible ? 1 : 0}
+            transition="opacity 0.4s"
+            maxW={["90vw", "80vw", "50vw", "40vw"]}
+            mx="auto"
+            _before={{
+              content: `"${randomSentence}"`,
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "100%",
+              height: "100%",
+              background: `linear-gradient(to right, ${primary}, #fff)`,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              animation:
+                "ghost-glitch 1.5s infinite, ghost-flicker 1.1s infinite, ghost-stretch 2.5s infinite",
+              clipPath: "inset(2px 0)",
+              opacity: 0.2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1,
+              transformOrigin: "center center",
+            }}
+          >
+            {randomSentence}
+          </Text>
+        )}
         <style jsx global>{`
           @font-face {
             font-family: "Logoskate";
