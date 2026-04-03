@@ -45,10 +45,7 @@ import {
 } from "react-icons/fa";
 import { SiOdysee, SiYoutube } from "react-icons/si";
 import cinemaData from "@/public/data/cinema.json";
-import { getFeature } from "@/lib/features";
-import dynamic from "next/dynamic";
-
-const VirtualCinemaPlaylist = dynamic(() => import("./VirtualCinemaPlaylist"), { ssr: false });
+import VirtualCinemaPlaylist from "./VirtualCinemaPlaylist";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -640,53 +637,18 @@ export default function CinemaContent({ initialBrand }: { initialBrand?: string 
               </HStack>
             </Box>
 
-            {/* Playlist */}
-            {getFeature('PRETEXT_VIRTUAL_SCROLL') ? (
-              <VirtualCinemaPlaylist
-                videos={filteredVideos}
-                currentIndex={currentGlobalIndex}
-                onVideoClick={(index) => {
-                  const page = Math.floor(index / VIDEOS_PER_PAGE);
-                  const indexInPage = index % VIDEOS_PER_PAGE;
-                  setCurrentPage(page);
-                  setActiveIndex(indexInPage);
-                }}
-                containerHeight={600}
-              />
-            ) : (
-              <Box flex={1} overflowY="auto" py={1}
-                sx={{
-                  "&::-webkit-scrollbar": { width: "8px" },
-                  "&::-webkit-scrollbar-track": { bg: "transparent" },
-                  "&::-webkit-scrollbar-thumb": { bg: "transparent", borderRadius: "md" },
-                  "&:hover::-webkit-scrollbar-thumb": { bg: "whiteAlpha.300" },
-                  "&:hover::-webkit-scrollbar-thumb:hover": { bg: "whiteAlpha.400" },
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "transparent transparent",
-                  "&:hover": { scrollbarColor: "rgba(255,255,255,0.3) transparent" }
-                }}>
-                {paginatedVideos.map((video, i) => (
-                  <Box key={video.slug} id={`cinema-item-${i}`}>
-                    <PlaylistItem video={video} isActive={i === activeIndex} index={currentPage * VIDEOS_PER_PAGE + i} onClick={() => goTo(i)} />
-                  </Box>
-                ))}
-              </Box>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <HStack px={4} py={2} justify="center" spacing={2} borderTop="1px solid" borderColor="whiteAlpha.100">
-                <IconButton aria-label="Previous page" icon={<FaChevronLeft />} size="xs" variant="ghost"
-                  color="gray.400" onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
-                  isDisabled={currentPage === 0} _hover={{ color: "primary" }} />
-                <Text fontFamily="mono" fontSize="xs" color="gray.500">
-                  {currentPage + 1} / {totalPages}
-                </Text>
-                <IconButton aria-label="Next page" icon={<FaChevronRight />} size="xs" variant="ghost"
-                  color="gray.400" onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
-                  isDisabled={currentPage === totalPages - 1} _hover={{ color: "primary" }} />
-              </HStack>
-            )}
+            {/* Playlist - Virtual Scroll (no pagination) */}
+            <VirtualCinemaPlaylist
+              videos={filteredVideos}
+              currentIndex={currentGlobalIndex}
+              onVideoClick={(index) => {
+                const page = Math.floor(index / VIDEOS_PER_PAGE);
+                const indexInPage = index % VIDEOS_PER_PAGE;
+                setCurrentPage(page);
+                setActiveIndex(indexInPage);
+              }}
+              containerHeight={600}
+            />
           </Box>
         </Flex>
       </Container>

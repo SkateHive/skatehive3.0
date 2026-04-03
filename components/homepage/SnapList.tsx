@@ -28,13 +28,12 @@ import { useAccount } from "wagmi";
 import SidebarLogo from "../graphics/SidebarLogo";
 import { SoftVoteProvider } from "@/contexts/SoftVoteContext";
 import { SoftPostProvider } from "@/contexts/SoftPostContext";
-import { getFeature } from "@/lib/features";
+import VirtualSnapList from "./VirtualSnapList";
 
 // Deferred — only loaded when user interacts
 const SnapComposer = dynamic(() => import("./SnapComposer"), { ssr: false });
 const CoinCreatorComposer = dynamic(() => import("./CoinCreatorComposer"), { ssr: false });
 const AirdropModal = dynamic(() => import("../airdrop/AirdropModal").then(m => m.AirdropModal), { ssr: false });
-const VirtualSnapList = dynamic(() => import("./VirtualSnapList"), { ssr: false });
 
 interface SnapListProps {
   author: string;
@@ -181,8 +180,8 @@ export default function SnapList({
     });
   }, [displayedComments]);
 
-  // Feature flag for Pretext.js virtual scrolling
-  const usePretextVirtualScroll = hasMounted && getFeature('PRETEXT_VIRTUAL_SCROLL');
+  // Pretext.js virtual scrolling enabled by default
+  const usePretextVirtualScroll = hasMounted; // Always use VirtualSnapList
 
   // Conditionally render after all hooks have run
   if (!hasMounted) return null;

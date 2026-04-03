@@ -219,17 +219,28 @@ export default function VirtualSnapList({
             })}
           </VStack>
         </Box>
-
-        {/* Loading indicator */}
-        {isLoading && (
-          <Box textAlign="center" py={4}>
-            <Spinner size="sm" />
-            <Text fontSize="sm" color="gray.500" mt={2}>
-              Loading more posts...
-            </Text>
-          </Box>
-        )}
       </Box>
+
+      {/* Loading indicator - positioned at viewport bottom */}
+      {isLoading && (
+        <Box
+          position="sticky"
+          bottom={0}
+          left={0}
+          right={0}
+          textAlign="center"
+          py={4}
+          bg="background"
+          borderTop="1px solid"
+          borderColor="whiteAlpha.100"
+          zIndex={10}
+        >
+          <Spinner size="sm" />
+          <Text fontSize="sm" color="gray.500" mt={2}>
+            Loading more posts...
+          </Text>
+        </Box>
+      )}
     </Box>
   );
 }
