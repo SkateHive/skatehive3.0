@@ -28,11 +28,13 @@ import { useAccount } from "wagmi";
 import SidebarLogo from "../graphics/SidebarLogo";
 import { SoftVoteProvider } from "@/contexts/SoftVoteContext";
 import { SoftPostProvider } from "@/contexts/SoftPostContext";
+import { getFeature } from "@/lib/features";
 
 // Deferred — only loaded when user interacts
 const SnapComposer = dynamic(() => import("./SnapComposer"), { ssr: false });
 const CoinCreatorComposer = dynamic(() => import("./CoinCreatorComposer"), { ssr: false });
 const AirdropModal = dynamic(() => import("../airdrop/AirdropModal").then(m => m.AirdropModal), { ssr: false });
+const VirtualSnapList = dynamic(() => import("./VirtualSnapList"), { ssr: false });
 
 interface SnapListProps {
   author: string;
@@ -178,6 +180,9 @@ export default function SnapList({
       return bDate - aDate;
     });
   }, [displayedComments]);
+
+  // Feature flag for Pretext.js virtual scrolling
+  const usePretextVirtualScroll = hasMounted && getFeature('PRETEXT_VIRTUAL_SCROLL');
 
   // Conditionally render after all hooks have run
   if (!hasMounted) return null;
@@ -453,35 +458,56 @@ export default function SnapList({
             initialSortOption="points"
           />
 
-          <InfiniteScroll
-            dataLength={filteredAndSortedComments.length}
-            next={loadNextPage}
-            hasMore={hasMore}
-            loader={
-              <Box textAlign="center" mt={4}>
-                {/* Changed the spinner to LoadingComponent */}
-                <Spinner />
-              </Box>
-            }
-            scrollableTarget="scrollableDiv"
-          >
+          {usePretextVirtualScroll ? (
+            // Pretext.js virtual scrolling (500x faster, zero reflow)
             <SoftPostProvider posts={filteredAndSortedComments}>
               <SoftVoteProvider posts={filteredAndSortedComments}>
-                <VStack spacing={1} align="stretch">
-                  {filteredAndSortedComments.map((discussion: Discussion) => (
-                    <Snap
-                      key={discussion.permlink}
-                      discussion={discussion}
-                      onOpen={onOpenConversation}
-                      setReply={setReply}
-                      {...(!post ? { setConversation } : {})}
-                      onDelete={handleDeleteComment}
-                    />
-                  ))}
-                </VStack>
+                <VirtualSnapList
+                  comments={filteredAndSortedComments}
+                  author={author}
+                  permlink={permlink}
+                  setConversation={setConversation}
+                  onOpen={onOpenConversation}
+                  setReply={setReply}
+                  onDeleteComment={handleDeleteComment}
+                  loadNextPage={loadNextPage}
+                  hasMore={hasMore}
+                  isLoading={isLoading}
+                />
               </SoftVoteProvider>
             </SoftPostProvider>
-          </InfiniteScroll>
+          ) : (
+            // Standard infinite scroll (legacy)
+            <InfiniteScroll
+              dataLength={filteredAndSortedComments.length}
+              next={loadNextPage}
+              hasMore={hasMore}
+              loader={
+                <Box textAlign="center" mt={4}>
+                  {/* Changed the spinner to LoadingComponent */}
+                  <Spinner />
+                </Box>
+              }
+              scrollableTarget="scrollableDiv"
+            >
+              <SoftPostProvider posts={filteredAndSortedComments}>
+                <SoftVoteProvider posts={filteredAndSortedComments}>
+                  <VStack spacing={1} align="stretch">
+                    {filteredAndSortedComments.map((discussion: Discussion) => (
+                      <Snap
+                        key={discussion.permlink}
+                        discussion={discussion}
+                        onOpen={onOpenConversation}
+                        setReply={setReply}
+                        {...(!post ? { setConversation } : {})}
+                        onDelete={handleDeleteComment}
+                      />
+                    ))}
+                  </VStack>
+                </SoftVoteProvider>
+              </SoftPostProvider>
+            </InfiniteScroll>
+          )}
         </>
       )}
     </VStack>
