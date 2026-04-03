@@ -240,6 +240,45 @@ export async function updatePostWithCoinInfo({
   coinAddress: string;
   coinUrl: string;
 }): Promise<{ success: boolean; error?: string }> {
+  // Backwards-compatible wrapper that uses the generic editor under the hood
+  try {
+    return await editPostAsSkatedev({
+      author,
+      permlink,
+      bodyAppend: `\n\n---\n\n🎯 **Zora Coin Created!**\n\n[Trade this coin on Zora ↗](${coinUrl})\n\n*This coin was created automatically when this post was shared. The creator can be tipped via Ethereum at the coin address above.*`,
+      metadataUpdates: {
+        zora_coin_address: coinAddress,
+        zora_coin_url: coinUrl,
+        coin_created: true,
+      }
+    });
+  } catch (error) {
+    console.error('❌ Failed to update post with coin info (wrapper):', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Edit a post as the app account (skatedev)
+ * Supports editing title, body (replace or append), tags and arbitrary metadata
+ */
+export async function editPostAsSkatedev({
+  author,
+  permlink,
+  title,
+  body,
+  bodyAppend,
+  tags,
+  metadataUpdates,
+}: {
+  author: string;
+  permlink: string;
+  title?: string;
+  body?: string; // replace body
+  bodyAppend?: string; // append to existing body
+  tags?: string[]; // full tags array to set
+  metadataUpdates?: Record<string, any>;
+}): Promise<{ success: boolean; error?: string }> {
   try {
     const postingKey = process.env.HIVE_POSTING_KEY;
     if (!postingKey) {
@@ -255,17 +294,42 @@ export async function updatePostWithCoinInfo({
       throw new Error("Post not found");
     }
     // Parse existing metadata
-    let jsonMetadata;
+    let jsonMetadata: Record<string, any> = {};
     try {
       jsonMetadata = JSON.parse(content.json_metadata || '{}');
     } catch {
       jsonMetadata = {};
     }
-    // Add coin information
-    jsonMetadata.zora_coin_address = coinAddress;
-    jsonMetadata.coin_created = true;
-    // Update body with coin information
-    const updatedBody = `${content.body}\n\n---\n\n🎯 **Zora Coin Created!**\n\n[Trade this coin on Zora ↗](${coinUrl})\n\n*This coin was created automatically when this post was shared. The creator can be tipped via Ethereum at the coin address above.*`;
+    // Build updated fields
+    const updatedTitle = typeof title === 'string' ? title : content.title;
+    let updatedBody = typeof body === 'string' ? body : content.body;
+    if (bodyAppend && bodyAppend.trim()) {
+      updatedBody = `${updatedBody}\n\n${bodyAppend}`;
+    }
+    // Update tags if provided
+    if (Array.isArray(tags)) {
+      jsonMetadata.tags = tags;
+    }
+    // Merge metadata updates
+    if (metadataUpdates && typeof metadataUpdates === 'object') {
+      jsonMetadata = {
+        ...jsonMetadata,
+        ...metadataUpdates,
+      };
+    }
+    // Maintain a simple edit history in metadata
+    const editHistory = Array.isArray(jsonMetadata.edit_history) ? jsonMetadata.edit_history : [];
+    editHistory.push({
+      edited_at: new Date().toISOString(),
+      editor: APP_AUTHOR,
+      changes: {
+        titleChanged: typeof title === 'string' && title !== content.title,
+        bodyChanged: typeof body === 'string' || (bodyAppend && bodyAppend.trim()),
+        tagsChanged: Array.isArray(tags),
+        metadataKeys: metadataUpdates ? Object.keys(metadataUpdates) : [],
+      }
+    });
+    jsonMetadata.edit_history = editHistory;
     // Create the edit operation
     const operation: Operation = [
       'comment',
@@ -274,7 +338,7 @@ export async function updatePostWithCoinInfo({
         parent_permlink: content.parent_permlink,
         author,
         permlink,
-        title: content.title,
+        title: updatedTitle,
         body: updatedBody,
         json_metadata: JSON.stringify(jsonMetadata),
       }
@@ -284,10 +348,54 @@ export async function updatePostWithCoinInfo({
     await HiveClient.broadcast.sendOperations([operation], privateKey);
     return { success: true };
   } catch (error) {
-    console.error('❌ Failed to update post with coin info:', error);
+    console.error('❌ Failed to edit post as app account:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
+  }
+}
+
+// New: delete post as app account
+export async function deletePostAsSkatedev({
+  author,
+  permlink,
+}: {
+  author: string;
+  permlink: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const postingKey = process.env.HIVE_POSTING_KEY;
+    if (!postingKey) {
+      throw new Error('HIVE_POSTING_KEY is not set in the environment');
+    }
+    if (author !== APP_AUTHOR) {
+      throw new Error(`Can only delete posts created by the ${HIVE_CONFIG.APP_ACCOUNT} account`);
+    }
+    // Verify the post exists and is authored by the app account
+    const content = await HiveClient.database.call('get_content', [author, permlink]);
+    if (!content || !content.author) {
+      throw new Error('Post not found');
+    }
+
+    // Build delete operation
+    const operation: Operation = [
+      'delete_comment',
+      {
+        author,
+        permlink,
+      }
+    ];
+
+    const privateKey = PrivateKey.fromString(postingKey);
+    await HiveClient.broadcast.sendOperations([operation], privateKey);
+
+    // Audit log - simple console log (server-side logs should be captured by host)
+    console.info(`🗑️ Deleted post as ${APP_AUTHOR}: ${author}/${permlink} at ${new Date().toISOString()}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Failed to delete post as skatedev:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
