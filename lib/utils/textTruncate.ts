@@ -70,11 +70,12 @@ export function truncateText(
   } catch (error) {
     // Fallback: character-based truncation
     const avgCharWidth = fontSize * 0.6;
-    const charsPerLine = Math.floor(maxWidth / avgCharWidth);
+    const charsPerLine = Math.max(1, Math.floor(maxWidth / avgCharWidth));
     const maxChars = charsPerLine * maxLines;
     
     if (text.length > maxChars) {
-      return text.substring(0, maxChars - ellipsis.length).trim() + ellipsis;
+      const truncateAt = Math.max(0, maxChars - ellipsis.length);
+      return text.substring(0, truncateAt).trim() + ellipsis;
     }
     return text;
   }
@@ -179,7 +180,7 @@ export function willTextOverflow(
     return result.lineCount > maxLines;
   } catch (error) {
     const avgCharWidth = fontSize * 0.6;
-    const charsPerLine = Math.floor(maxWidth / avgCharWidth);
+    const charsPerLine = Math.max(1, Math.floor(maxWidth / avgCharWidth));
     return text.length > charsPerLine * maxLines;
   }
 }

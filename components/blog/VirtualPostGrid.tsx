@@ -17,7 +17,6 @@ interface VirtualPostGridProps {
   posts: Discussion[];
   columns: number;
   viewMode: 'grid' | 'list' | 'magazine';
-  context?: 'blog' | 'profile' | 'rightsidebar';
   hideAuthorInfo?: boolean;
   containerHeight?: number;
 }
@@ -35,7 +34,6 @@ export default function VirtualPostGrid({
   posts,
   columns,
   viewMode,
-  context = 'blog',
   hideAuthorInfo = false,
   containerHeight = 800,
 }: VirtualPostGridProps) {
@@ -87,7 +85,13 @@ export default function VirtualPostGrid({
         // - Footer (stats): 40px
         // - Padding: 32px
 
-        const hasImage = post.json_metadata && JSON.parse(post.json_metadata)?.image;
+        let hasImage = false;
+        try {
+          const metadata = post.json_metadata ? JSON.parse(post.json_metadata) : null;
+          hasImage = metadata?.image ? true : false;
+        } catch {
+          hasImage = false;
+        }
         const imageHeight = hasImage ? 200 : 0;
         const titleHeight = titleMeasure.height;
         const excerptHeight = Math.min(excerptMeasure.height, 14 * 1.5 * 3); // Max 3 lines

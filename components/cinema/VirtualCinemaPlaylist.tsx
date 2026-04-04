@@ -147,7 +147,7 @@ export default function VirtualCinemaPlaylist({
     // Only scroll if item is not visible
     if (offset < currentScrollTop || offset + height > viewportBottom) {
       scrollContainer.scrollTo({
-        top: offset - 100, // Offset from top for better UX
+        top: Math.max(0, offset - 100), // Clamped offset from top
         behavior: 'smooth',
       });
     }
@@ -194,11 +194,20 @@ export default function VirtualCinemaPlaylist({
                   p={2}
                   py={3}
                   cursor="pointer"
+                  tabIndex={0}
+                  role="button"
                   onClick={() => onVideoClick(globalIndex)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onVideoClick(globalIndex);
+                    }
+                  }}
                   bg={isActive ? 'whiteAlpha.100' : 'transparent'}
                   borderLeft="3px solid"
                   borderColor={isActive ? 'primary' : 'transparent'}
                   _hover={{ bg: 'whiteAlpha.50' }}
+                  _focus={{ outline: '2px solid', outlineColor: 'primary', outlineOffset: '2px' }}
                   transition="all 0.15s"
                   borderRadius="sm"
                   minH={`${measurement?.height || BASE_ITEM_HEIGHT}px`}

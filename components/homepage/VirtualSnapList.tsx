@@ -12,12 +12,11 @@
 
 'use client';
 
-'use client';
-
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Box, VStack, Spinner, Text } from '@chakra-ui/react';
 import { Discussion } from '@hiveio/dhive';
 import { usePretext, extractPlainText } from '@/hooks/usePretext';
+import { useTranslations } from '@/lib/i18n/hooks';
 import Snap from './Snap';
 
 interface VirtualSnapListProps {
@@ -61,10 +60,12 @@ export default function VirtualSnapList({
   isLoading = false,
   containerWidth = CONTAINER_WIDTH,
 }: VirtualSnapListProps) {
+  const t = useTranslations('common');
   const { measureTextHeight } = usePretext();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
+  const scrollRAFRef = useRef<number | null>(null);
 
   // Measure all items using Pretext.js (instant, no DOM reads)
   const itemMeasurements = useMemo<ItemMeasurement[]>(() => {
@@ -149,21 +150,27 @@ export default function VirtualSnapList({
     return comments.slice(visibleRange.start, visibleRange.end);
   }, [comments, visibleRange]);
 
-  // Handle scroll events (throttled)
+  // Handle scroll events (RAF throttled for 60fps)
   const handleScroll = useCallback(() => {
-    if (!scrollContainerRef.current) return;
-    setScrollTop(scrollContainerRef.current.scrollTop);
+    if (scrollRAFRef.current !== null) return;
+    
+    scrollRAFRef.current = requestAnimationFrame(() => {
+      scrollRAFRef.current = null;
+      if (!scrollContainerRef.current) return;
+      
+      setScrollTop(scrollContainerRef.current.scrollTop);
 
-    // Trigger load more when near bottom
-    if (loadNextPage && hasMore && !isLoading) {
-      const scrollBottom = scrollContainerRef.current.scrollTop + containerHeight;
-      if (scrollBottom >= totalHeight - 500) {
-        loadNextPage();
+      // Trigger load more when near bottom
+      if (loadNextPage && hasMore && !isLoading) {
+        const scrollBottom = scrollContainerRef.current.scrollTop + containerHeight;
+        if (scrollBottom >= totalHeight - 500) {
+          loadNextPage();
+        }
       }
-    }
+    });
   }, [containerHeight, totalHeight, loadNextPage, hasMore, isLoading]);
 
-  // Measure container height
+  // Measure container height + cleanup RAF
   useEffect(() => {
     if (!scrollContainerRef.current) return;
     
@@ -174,7 +181,12 @@ export default function VirtualSnapList({
     });
 
     resizeObserver.observe(scrollContainerRef.current);
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      if (scrollRAFRef.current !== null) {
+        cancelAnimationFrame(scrollRAFRef.current);
+      }
+    };
   }, []);
 
   return (
@@ -184,6 +196,7 @@ export default function VirtualSnapList({
       maxH="100vh"
       overflowY="auto"
       width="100%"
+      data-testid="virtual-snap-list"
       sx={{
         '&::-webkit-scrollbar': { display: 'none' },
         scrollbarWidth: 'none',
@@ -213,7 +226,7 @@ export default function VirtualSnapList({
                     setConversation={setConversation}
                     onOpen={onOpen}
                     setReply={setReply}
-                    onCommentAdded={onNewComment as any}
+                    onCommentAdded={onNewComment ? () => onNewComment(comment) : undefined}
                     onDelete={onDelete || onDeleteComment}
                   />
                 </Box>
@@ -239,7 +252,7 @@ export default function VirtualSnapList({
         >
           <Spinner size="sm" />
           <Text fontSize="sm" color="gray.500" mt={2}>
-            Loading more posts...
+            {t('loadingMorePosts')}
           </Text>
         </Box>
       )}

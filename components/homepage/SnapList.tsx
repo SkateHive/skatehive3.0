@@ -1,6 +1,5 @@
 import React, { useCallback, useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
-import InfiniteScroll from "react-infinite-scroll-component";
 import {
   Box,
   Spinner,
@@ -180,10 +179,7 @@ export default function SnapList({
     });
   }, [displayedComments]);
 
-  // Pretext.js virtual scrolling enabled by default
-  const usePretextVirtualScroll = hasMounted; // Always use VirtualSnapList
-
-  // Conditionally render after all hooks have run
+  // Wait for mount before rendering virtual scroll
   if (!hasMounted) return null;
 
   return (
@@ -457,56 +453,23 @@ export default function SnapList({
             initialSortOption="points"
           />
 
-          {usePretextVirtualScroll ? (
-            // Pretext.js virtual scrolling (500x faster, zero reflow)
-            <SoftPostProvider posts={filteredAndSortedComments}>
-              <SoftVoteProvider posts={filteredAndSortedComments}>
-                <VirtualSnapList
-                  comments={filteredAndSortedComments}
-                  author={author}
-                  permlink={permlink}
-                  setConversation={setConversation}
-                  onOpen={onOpenConversation}
-                  setReply={setReply}
-                  onDeleteComment={handleDeleteComment}
-                  loadNextPage={loadNextPage}
-                  hasMore={hasMore}
-                  isLoading={isLoading}
-                />
-              </SoftVoteProvider>
-            </SoftPostProvider>
-          ) : (
-            // Standard infinite scroll (legacy)
-            <InfiniteScroll
-              dataLength={filteredAndSortedComments.length}
-              next={loadNextPage}
-              hasMore={hasMore}
-              loader={
-                <Box textAlign="center" mt={4}>
-                  {/* Changed the spinner to LoadingComponent */}
-                  <Spinner />
-                </Box>
-              }
-              scrollableTarget="scrollableDiv"
-            >
-              <SoftPostProvider posts={filteredAndSortedComments}>
-                <SoftVoteProvider posts={filteredAndSortedComments}>
-                  <VStack spacing={1} align="stretch">
-                    {filteredAndSortedComments.map((discussion: Discussion) => (
-                      <Snap
-                        key={discussion.permlink}
-                        discussion={discussion}
-                        onOpen={onOpenConversation}
-                        setReply={setReply}
-                        {...(!post ? { setConversation } : {})}
-                        onDelete={handleDeleteComment}
-                      />
-                    ))}
-                  </VStack>
-                </SoftVoteProvider>
-              </SoftPostProvider>
-            </InfiniteScroll>
-          )}
+          {/* Pretext.js virtual scrolling (production default) */}
+          <SoftPostProvider posts={filteredAndSortedComments}>
+            <SoftVoteProvider posts={filteredAndSortedComments}>
+              <VirtualSnapList
+                comments={filteredAndSortedComments}
+                author={author}
+                permlink={permlink}
+                setConversation={setConversation}
+                onOpen={onOpenConversation}
+                setReply={setReply}
+                onDeleteComment={handleDeleteComment}
+                loadNextPage={loadNextPage}
+                hasMore={hasMore}
+                isLoading={isLoading}
+              />
+            </SoftVoteProvider>
+          </SoftPostProvider>
         </>
       )}
     </VStack>

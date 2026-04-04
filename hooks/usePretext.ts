@@ -54,7 +54,7 @@ export function usePretext() {
       if (typeof window === 'undefined') {
         // Server-side fallback: rough estimate
         const charWidth = fontSize * 0.6;
-        const charsPerLine = Math.floor(options.width / charWidth);
+        const charsPerLine = Math.max(1, Math.floor(options.width / charWidth));
         const estimatedLines = Math.max(1, Math.ceil(text.length / charsPerLine));
         return {
           height: estimatedLines * fontSize * lineHeight,
@@ -82,7 +82,7 @@ export function usePretext() {
         // Fallback to rough estimate on error
         console.warn('Pretext measurement failed, using fallback:', error);
         const charWidth = fontSize * 0.6; // Rough estimate
-        const charsPerLine = Math.floor(options.width / charWidth);
+        const charsPerLine = Math.max(1, Math.floor(options.width / charWidth));
         const estimatedLines = Math.max(1, Math.ceil(text.length / charsPerLine));
         return {
           height: estimatedLines * fontSize * lineHeight,
@@ -95,7 +95,7 @@ export function usePretext() {
   );
 
   /**
-   * Measure multiple texts in batch (more efficient than individual calls)
+   * Measure multiple texts (convenience wrapper for mapping measureTextHeight)
    */
   const measureBatch = useCallback(
     (
