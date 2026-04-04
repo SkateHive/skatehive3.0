@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "@/lib/i18n/hooks";
+import VirtualCastsView from "./VirtualCastsView";
 import {
   Box,
   VStack,
@@ -656,28 +657,20 @@ export default function FarcasterCastsView({ fid, username }: FarcasterCastsView
 
   return (
     <>
-      <Box border="1px solid" borderColor="whiteAlpha.100" borderRadius="md" overflow="hidden">
-        <VStack spacing={0} align="stretch">
-          {casts.map((cast) => (
-            <CastItem
-              key={cast.hash}
-              cast={cast}
-              onNeedSigner={handleNeedSigner}
-              signerApproved={signer.isApproved}
-            />
-          ))}
-        </VStack>
-
-        {casts.length >= limit && (
-          <Center py={4} borderTop="1px solid" borderColor="whiteAlpha.100">
-            <Button size="xs" fontFamily="mono" fontSize="2xs" variant="ghost"
-              color="gray.500" onClick={() => setLimit((l) => l + 15)}
-              _hover={{ color: "primary" }}>
-              load more
-            </Button>
-          </Center>
+      <VirtualCastsView
+        casts={casts}
+        renderCast={(cast) => (
+          <CastItem
+            key={cast.hash}
+            cast={cast}
+            onNeedSigner={handleNeedSigner}
+            signerApproved={signer.isApproved}
+          />
         )}
-      </Box>
+        onLoadMore={() => setLimit((l) => l + 15)}
+        hasMore={casts.length >= limit}
+        isLoadingMore={false}
+      />
 
       <SignerModal
         isOpen={isOpen}
