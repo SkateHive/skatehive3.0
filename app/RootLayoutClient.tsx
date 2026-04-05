@@ -22,6 +22,7 @@ import { SkaterData } from "@/types/leaderboard";
 // Deferred — not needed for first paint
 const SearchOverlay = dynamic(() => import("@/components/shared/SearchOverlay"), { ssr: false });
 const AirdropModal = dynamic(() => import("@/components/airdrop/AirdropModal"), { ssr: false });
+const ReportModal = dynamic(() => import("@/components/report/ReportModal"), { ssr: false });
 const AccountLinkingDetector = dynamic(() => import("@/components/layout/AccountLinkingDetector"), { ssr: false });
 const CommunityToasts = dynamic(() => import("@/components/homepage/CommunityToasts"), { ssr: false });
 const IOSAppBanner = dynamic(() => import("@/components/shared/IOSAppBanner"), { ssr: false });
@@ -40,6 +41,11 @@ export default function RootLayoutClient({
     isOpen: isAirdropOpen,
     onOpen: onAirdropOpen,
     onClose: onAirdropClose,
+  } = useDisclosure();
+  const {
+    isOpen: isReportOpen,
+    onOpen: onReportOpen,
+    onClose: onReportClose,
   } = useDisclosure();
   const [leaderboardData, setLeaderboardData] = useState<SkaterData[]>([]);
 
@@ -110,6 +116,11 @@ export default function RootLayoutClient({
                 onAirdropClose,
                 leaderboardData,
               }}
+              reportProps={{
+                isReportOpen,
+                onReportOpen,
+                onReportClose,
+              }}
             >
               {children}
             </InnerLayout>
@@ -135,6 +146,11 @@ export default function RootLayoutClient({
               onAirdropClose,
               leaderboardData,
             }}
+            reportProps={{
+              isReportOpen,
+              onReportOpen,
+              onReportClose,
+            }}
           >
             {children}
           </InnerLayout>
@@ -148,6 +164,7 @@ function InnerLayout({
   children,
   searchProps,
   airdropProps,
+  reportProps,
 }: {
   children: React.ReactNode;
   searchProps?: {
@@ -159,6 +176,11 @@ function InnerLayout({
     onAirdropOpen: () => void;
     onAirdropClose: () => void;
     leaderboardData: SkaterData[];
+  };
+  reportProps?: {       // ← adicionar
+    isReportOpen: boolean;
+    onReportOpen: () => void;
+    onReportClose: () => void;
   };
 }) {
   const isMobile = useBreakpointValue({ base: true, md: false });
@@ -185,6 +207,18 @@ function InnerLayout({
     }
   };
 
+  const handleOpenReport = () => {
+    // Close search modal first
+    if (searchProps) {
+      searchProps.setIsSearchOpen(false);
+    }
+    // Open report modal
+    if (reportProps) {
+      reportProps.onReportOpen();
+    }
+  };
+
+
   return (
     <Container
       maxW={{ base: "100%", md: "container.xl" }}
@@ -200,6 +234,7 @@ function InnerLayout({
           isOpen={searchProps.isSearchOpen}
           onClose={() => searchProps.setIsSearchOpen(false)}
           onOpenAirdrop={handleOpenAirdrop}
+          onOpenReport={handleOpenReport}
         />
       )}
 
@@ -211,6 +246,12 @@ function InnerLayout({
           leaderboardData={airdropProps.leaderboardData}
         />
       )}
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={reportProps?.isReportOpen ?? false}
+        onClose={reportProps?.onReportClose ?? (() => {})}
+      />
 
       {/* iOS App Store Banner - iPhone only */}
       <IOSAppBanner />

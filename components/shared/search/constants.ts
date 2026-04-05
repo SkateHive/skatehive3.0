@@ -16,6 +16,7 @@ import {
   FaGift,
   FaGamepad,
   FaStore,
+  FaBug,
 } from "react-icons/fa";
 import { PageResult } from "./types";
 import { ETH_ADDRESSES } from "@/config/app.config";
@@ -142,6 +143,12 @@ export const COMMAND_PAGES: PageResult[] = [
     description: "Open airdrop modal to distribute tokens",
     icon: FaGift,
   },
+  {
+    title: "Report",
+    path: "command:report",
+    description: "Report a bug",
+    icon: FaBug,
+  }
 ];
 
 export const getPopularPages = () => {
