@@ -4,20 +4,15 @@
 
 import { useState } from "react";
 import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalCloseButton,
-  ModalBody,
-  ModalFooter,
   Button,
   Input,
   Textarea,
   VStack,
   HStack,
   Text,
+  Box,
 } from "@chakra-ui/react";
+import SkateModal from "@/components/shared/SkateModal";
 import { ReportFormData, ReportType } from "@/types/report";
 
 interface ReportModalProps {
@@ -61,7 +56,7 @@ export function ReportModal({ isOpen, onClose }: ReportModalProps) {
         body: JSON.stringify(form),
       });
 
-      if (!response.ok) throw new Error("Falha ao enviar");
+      if (!response.ok) throw new Error("Failed to submit");
 
       setStatus("success");
       setTimeout(handleClose, 2000);
@@ -72,86 +67,81 @@ export function ReportModal({ isOpen, onClose }: ReportModalProps) {
     }
   }
 
+  const footer = (
+    <HStack justify="flex-end" w="full" gap={2}>
+      <Button variant="ghost" onClick={handleClose} isDisabled={isLoading} size="sm">
+        Cancel
+      </Button>
+      <Button
+        onClick={handleSubmit}
+        isLoading={isLoading}
+        isDisabled={!form.title.trim() || !form.description.trim()}
+        loadingText="Sending..."
+        size="sm"
+      >
+        Submit
+      </Button>
+    </HStack>
+  );
+
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} isCentered>
-      <ModalOverlay />
-      <ModalContent bg="panel" borderColor="border" borderWidth={1}>
+    <SkateModal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="report_bug.exe"
+      windowId="report-modal"
+      footer={footer}
+    >
+      <Box p={4}>
+        <VStack gap={4} align="stretch">
+          {/* Type selector */}
+          <HStack gap={2} flexWrap="wrap">
+            {REPORT_TYPES.map((t) => (
+              <Button
+                key={t.value}
+                size="sm"
+                variant={form.type === t.value ? "solid" : "outline"}
+                onClick={() => setForm((f) => ({ ...f, type: t.value }))}
+                isDisabled={isLoading}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </HStack>
 
-        <ModalHeader color="text">Reportar problema</ModalHeader>
-        <ModalCloseButton color="text" />
+          {/* Title */}
+          <Input
+            placeholder="Title"
+            value={form.title}
+            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            isDisabled={isLoading}
+            color="text"
+          />
 
-        <ModalBody>
-          <VStack gap={4} align="stretch">
+          {/* Description */}
+          <Textarea
+            placeholder="Describe the problem or suggestion..."
+            value={form.description}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            rows={4}
+            isDisabled={isLoading}
+            color="text"
+          />
 
-            {/* Tipo */}
-            <HStack gap={2}>
-              {REPORT_TYPES.map((t) => (
-                <Button
-                  key={t.value}
-                  size="sm"
-                  variant={form.type === t.value ? "solid" : "outline"}
-                  onClick={() => setForm((f) => ({ ...f, type: t.value }))}
-                  isDisabled={isLoading}
-                >
-                  {t.label}
-                </Button>
-              ))}
-            </HStack>
-
-            {/* Título */}
-            <Input
-              placeholder="Título"
-              value={form.title}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, title: e.target.value }))
-              }
-              isDisabled={isLoading}
-              color="text"
-            />
-
-            {/* Descrição */}
-            <Textarea
-              placeholder="Descreva o problema ou sugestão..."
-              value={form.description}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, description: e.target.value }))
-              }
-              rows={4}
-              isDisabled={isLoading}
-              color="text"
-            />
-
-            {/* Feedback de status */}
-            {status === "success" && (
-              <Text fontSize="sm" color="green.400">
-                Report enviado com sucesso!
-              </Text>
-            )}
-            {status === "error" && (
-              <Text fontSize="sm" color="red.400">
-                Erro ao enviar. Tente novamente.
-              </Text>
-            )}
-
-          </VStack>
-        </ModalBody>
-
-        <ModalFooter gap={2}>
-          <Button variant="ghost" onClick={handleClose} isDisabled={isLoading}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            isLoading={isLoading}
-            isDisabled={!form.title.trim() || !form.description.trim()}
-            loadingText="Enviando..."
-          >
-            Enviar
-          </Button>
-        </ModalFooter>
-
-      </ModalContent>
-    </Modal>
+          {/* Status feedback */}
+          {status === "success" && (
+            <Text fontSize="sm" color="green.400">
+              Report sent successfully!
+            </Text>
+          )}
+          {status === "error" && (
+            <Text fontSize="sm" color="red.400">
+              Error sending. Please try again.
+            </Text>
+          )}
+        </VStack>
+      </Box>
+    </SkateModal>
   );
 }
 

@@ -20,7 +20,7 @@ export async function createTrelloCard(data: ReportFormData): Promise<void> {
 
     const url = new URL(`${TRELLO_API_BASE}/cards`);
     url.searchParams.set("key", process.env.TRELLO_API_KEY!);
-    url.searchParams.set("token", process.env.TRELLO_API_TOKEN!);
+    url.searchParams.set("token", process.env.TRELLO_TOKEN!);
 
     const response = await fetch(url.toString(), {
         method: 'POST',

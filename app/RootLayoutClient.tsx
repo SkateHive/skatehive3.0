@@ -146,6 +146,11 @@ export default function RootLayoutClient({
               onAirdropClose,
               leaderboardData,
             }}
+            reportProps={{
+              isReportOpen,
+              onReportOpen,
+              onReportClose,
+            }}
           >
             {children}
           </InnerLayout>
