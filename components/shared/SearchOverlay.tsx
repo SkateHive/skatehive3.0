@@ -41,6 +41,7 @@ export default function SearchOverlay({
   isOpen,
   onClose,
   onOpenAirdrop,
+  onOpenReport,
 }: SearchOverlayProps) {
   const [query, setQuery] = useState("");
   const [skaters, setSkaters] = useState<SkaterData[]>([]);
@@ -160,6 +161,10 @@ export default function SearchOverlay({
         if (result.path === "command:airdrop") {
           onOpenAirdrop?.();
         }
+        if (result.path === "command:report") {
+          onOpenReport?.();
+        }
+
       } else {
         // Regular page
         router.push(result.path);
@@ -170,7 +175,7 @@ export default function SearchOverlay({
       router.push(`/@${result.hive_author}`);
       onClose();
     }
-  }, [onClose, onOpenAirdrop, router]);
+  }, [onClose, onOpenAirdrop, onOpenReport, router]);
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
