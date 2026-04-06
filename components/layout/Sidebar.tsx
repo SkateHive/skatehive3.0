@@ -326,8 +326,35 @@ export default function Sidebar() {
           </VStack>
         </Box>
 
-        {/* Bottom: User profile block */}
+        {/* Bottom: Report Bug + User profile block */}
         <Box p={0} pb={4}>
+          <Box
+            display="flex"
+            alignItems="center"
+            px={1}
+            py={0.5}
+            cursor="pointer"
+            width="100%"
+            pl={4}
+            mb={1}
+            onMouseEnter={playHoverSound}
+            onClick={() => openReport({ type: "bug" })}
+            _hover={{
+              "& > div": { bg: "primary", color: hoverTextColor },
+            }}
+          >
+            <Box
+              display="flex"
+              alignItems="center"
+              px={0.25}
+              py={0}
+              my={0.5}
+              transition="background 0.2s, color 0.2s"
+            >
+              <Icon as={FiFlag} boxSize={4} mr={2} />
+              Report Bug
+            </Box>
+          </Box>
           <AuthButton />
         </Box>
       </Flex>
