@@ -27,6 +27,7 @@ import {
   FiFilm,
   FiUsers,
   FiMail,
+  FiFlag,
 } from "react-icons/fi";
 import { useTheme } from "@/app/themeProvider";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -34,6 +35,7 @@ import SidebarLogo from "../graphics/SidebarLogo";
 import AuthButton from "./AuthButton";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useSoundSettings } from "@/contexts/SoundSettingsContext";
+import { useReport } from "@/contexts/ReportContext";
 
 interface NavItemDef {
   href: string;
@@ -50,6 +52,7 @@ interface NavGroupDef {
 }
 
 export default function Sidebar() {
+  const { openReport } = useReport();
   const { handle: hiveHandle, canUseAppFeatures } = useEffectiveHiveUser();
   const { isConnected: isEthereumConnected } = useAccount();
   const { isAuthenticated: isFarcasterConnected } = useFarcasterSession();
@@ -320,8 +323,35 @@ export default function Sidebar() {
           </VStack>
         </Box>
 
-        {/* Bottom: User profile block */}
+        {/* Bottom: Report Bug + User profile block */}
         <Box p={0} pb={4}>
+          <Box
+            display="flex"
+            alignItems="center"
+            px={1}
+            py={0.5}
+            cursor="pointer"
+            width="100%"
+            pl={4}
+            mb={1}
+            onMouseEnter={playHoverSound}
+            onClick={() => openReport({ type: "bug" })}
+            _hover={{
+              "& > div": { bg: "primary", color: hoverTextColor },
+            }}
+          >
+            <Box
+              display="flex"
+              alignItems="center"
+              px={0.25}
+              py={0}
+              my={0.5}
+              transition="background 0.2s, color 0.2s"
+            >
+              <Icon as={FiFlag} boxSize={4} mr={2} />
+              Report Bug
+            </Box>
+          </Box>
           <AuthButton />
         </Box>
       </Flex>
