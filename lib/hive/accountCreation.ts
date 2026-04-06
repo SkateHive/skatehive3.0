@@ -20,6 +20,77 @@ export interface AccountCreationResult {
 }
 
 /**
+ * Returns how many pending claimed account tokens (ACC) a sponsor has.
+ * These are free account creation tokens accumulated via Hive RC.
+ * A value > 0 means the sponsor can create an account for free.
+ */
+export async function getSponsorClaimedAccounts(username: string): Promise<number> {
+  try {
+    const accounts = await client.database.getAccounts([username]);
+    if (accounts.length === 0) return 0;
+    return parseInt(String((accounts[0] as any).pending_claimed_accounts ?? 0), 10);
+  } catch (error) {
+    console.error('Error fetching claimed accounts:', error);
+    return 0;
+  }
+}
+
+/**
+ * Builds a create_claimed_account operation for Keychain to sign.
+ * Uses one of the sponsor's pending claimed account tokens (ACC) — free, no HIVE fee.
+ * The sponsor must have pending_claimed_accounts > 0.
+ */
+export function buildCreateClaimedAccountOperation(
+  sponsorUsername: string,
+  newUsername: string,
+  keys: HiveAccountKeys,
+  recoveryAccount?: string
+): Operation {
+  const recovery = recoveryAccount || SPONSORSHIP_CONFIG.DEFAULT_RECOVERY_ACCOUNT;
+
+  const operation: Operation = [
+    'create_claimed_account',
+    {
+      creator: sponsorUsername,
+      new_account_name: newUsername,
+      owner: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [[keys.ownerPublic, 1]],
+      },
+      active: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [[keys.activePublic, 1]],
+      },
+      posting: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [[keys.postingPublic, 1]],
+      },
+      memo_key: keys.memoPublic,
+      json_metadata: JSON.stringify({
+        profile: {
+          name: newUsername,
+          about: 'Account created via Skatehive sponsorship',
+          profile_image: '',
+          cover_image: '',
+          website: 'https://skatehive.app',
+        },
+        skatehive: {
+          sponsored: true,
+          version: '1.0',
+          created_via: 'skatehive_sponsorship_acc',
+        },
+      }),
+      extensions: [],
+    },
+  ];
+
+  return operation;
+}
+
+/**
  * Builds an account_create operation for Keychain to sign
  * This operation will be sent to Hive Keychain for the sponsor to sign
  *
@@ -29,11 +100,6 @@ export interface AccountCreationResult {
  * @param fee - Cost in HIVE (default: 3.000 HIVE)
  * @param recoveryAccount - Recovery account (default: from config)
  * @returns account_create operation ready for Keychain
- *
- * @example
- * const keys = generateHiveKeys('newuser');
- * const operation = buildAccountCreateOperation('sponsor', 'newuser', keys);
- * // Pass operation to Keychain for signing
  */
 export function buildAccountCreateOperation(
   sponsorUsername: string,
@@ -281,9 +347,12 @@ export async function validateAccountCreationTransaction(
       return false;
     }
 
-    // Check if any operation is account_create for the expected username
+    // Check for either account_create (HIVE fee) or create_claimed_account (ACC token)
     for (const op of tx.operations) {
-      if (op[0] === 'account_create' && op[1].new_account_name === expectedUsername) {
+      if (
+        (op[0] === 'account_create' || op[0] === 'create_claimed_account') &&
+        op[1].new_account_name === expectedUsername
+      ) {
         return true;
       }
     }

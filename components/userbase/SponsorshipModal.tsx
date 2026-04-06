@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Button,
   VStack,
@@ -13,12 +13,17 @@ import {
   AlertDescription,
   Progress,
   Code,
+  Badge,
+  Spinner,
   useToast,
-  useTheme,
 } from "@chakra-ui/react";
 import SkateModal from "@/components/shared/SkateModal";
 import { generateHiveKeys } from "@/lib/hive/keyGeneration";
-import { buildAccountCreateOperation } from "@/lib/hive/accountCreation";
+import {
+  buildAccountCreateOperation,
+  buildCreateClaimedAccountOperation,
+  getSponsorClaimedAccounts,
+} from "@/lib/hive/accountCreation";
 import { SPONSORSHIP_CONFIG } from "@/config/app.config";
 
 interface SponsorshipModalProps {
@@ -39,20 +44,14 @@ type SponsorshipStatus =
   | "success"
   | "error";
 
+type SponsorMethod = "acc" | "hive";
+
 declare global {
   interface Window {
     hive_keychain?: any;
   }
 }
 
-/**
- * Sponsorship Modal Component
- * Handles the complete sponsorship workflow:
- * 1. Generate Hive keys
- * 2. Build account_create operation
- * 3. Request Keychain signature
- * 4. Process sponsorship (verify, encrypt, email)
- */
 export default function SponsorshipModal({
   isOpen,
   onClose,
@@ -64,8 +63,22 @@ export default function SponsorshipModal({
   const [status, setStatus] = useState<SponsorshipStatus>("idle");
   const [error, setError] = useState<string>("");
   const [sponsorshipId, setSponsorshipId] = useState<string | null>(null);
+  const [method, setMethod] = useState<SponsorMethod>("acc");
+  const [claimedAccounts, setClaimedAccounts] = useState<number | null>(null);
+  const [loadingAcc, setLoadingAcc] = useState(false);
   const toast = useToast();
-  const theme = useTheme();
+
+  // Check how many ACC tokens the sponsor has when the modal opens
+  useEffect(() => {
+    if (!isOpen || !sponsorHiveUsername) return;
+    setLoadingAcc(true);
+    getSponsorClaimedAccounts(sponsorHiveUsername).then((count) => {
+      setClaimedAccounts(count);
+      // Default to HIVE if they have no ACC tokens
+      setMethod(count > 0 ? "acc" : "hive");
+      setLoadingAcc(false);
+    });
+  }, [isOpen, sponsorHiveUsername]);
 
   const handleSponsor = async () => {
     try {
@@ -80,8 +93,8 @@ export default function SponsorshipModal({
         body: JSON.stringify({
           lite_user_id: liteUserId,
           hive_username: liteUserHandle,
-          cost_type: "hive_transfer",
-          cost_amount: SPONSORSHIP_CONFIG.COST_HIVE,
+          cost_type: method === "acc" ? "account_token" : "hive_transfer",
+          cost_amount: method === "acc" ? 0 : SPONSORSHIP_CONFIG.COST_HIVE,
         }),
       });
 
@@ -93,13 +106,16 @@ export default function SponsorshipModal({
       const createData = await createResponse.json();
       setSponsorshipId(createData.sponsorship_id);
 
-      // Step 3: Build account_create operation
-      const operation = buildAccountCreateOperation(
-        sponsorHiveUsername,
-        liteUserHandle,
-        keys,
-        `${SPONSORSHIP_CONFIG.COST_HIVE.toFixed(3)} HIVE`
-      );
+      // Step 3: Build the operation for the chosen method
+      const operation =
+        method === "acc"
+          ? buildCreateClaimedAccountOperation(sponsorHiveUsername, liteUserHandle, keys)
+          : buildAccountCreateOperation(
+              sponsorHiveUsername,
+              liteUserHandle,
+              keys,
+              `${SPONSORSHIP_CONFIG.COST_HIVE.toFixed(3)} HIVE`
+            );
 
       // Step 4: Request Keychain signature
       setStatus("awaiting_signature");
@@ -119,7 +135,6 @@ export default function SponsorshipModal({
             setStatus("verifying");
 
             try {
-              // Step 5: Process sponsorship
               setStatus("processing");
 
               const processResponse = await fetch(
@@ -140,8 +155,6 @@ export default function SponsorshipModal({
                 throw new Error(errorData.error || "Failed to process sponsorship");
               }
 
-              const processData = await processResponse.json();
-
               setStatus("success");
 
               toast({
@@ -152,14 +165,10 @@ export default function SponsorshipModal({
                 isClosable: true,
               });
 
-              // Close modal after success
-              setTimeout(() => {
-                onClose();
-              }, 2000);
+              setTimeout(() => onClose(), 2000);
             } catch (error: any) {
               setStatus("error");
               setError(error.message || "Failed to process sponsorship");
-
               toast({
                 title: "Processing Failed",
                 description: error.message,
@@ -171,7 +180,6 @@ export default function SponsorshipModal({
           } else {
             setStatus("error");
             setError(response.message || "Keychain signature failed");
-
             toast({
               title: "Signature Failed",
               description: response.message || "Failed to sign transaction",
@@ -186,7 +194,6 @@ export default function SponsorshipModal({
       console.error("Sponsorship error:", error);
       setStatus("error");
       setError(error.message || "Unknown error occurred");
-
       toast({
         title: "Sponsorship Failed",
         description: error.message,
@@ -231,7 +238,6 @@ export default function SponsorshipModal({
     status === "verifying" ||
     status === "processing";
 
-  // Footer buttons
   const footer = (
     <HStack spacing={3} width="100%" justify="flex-end">
       <Button
@@ -242,14 +248,11 @@ export default function SponsorshipModal({
       >
         {status === "success" ? "Close" : "Cancel"}
       </Button>
-      {status === "idle" && (
+      {(status === "idle" || status === "error") && (
         <Button colorScheme="green" onClick={handleSponsor} size="sm">
-          Sponsor for {SPONSORSHIP_CONFIG.COST_HIVE} HIVE
-        </Button>
-      )}
-      {status === "error" && (
-        <Button colorScheme="green" onClick={handleSponsor} size="sm">
-          Try Again
+          {method === "acc"
+            ? "Sponsor for Free (ACC)"
+            : `Sponsor for ${SPONSORSHIP_CONFIG.COST_HIVE} HIVE`}
         </Button>
       )}
     </HStack>
@@ -278,24 +281,93 @@ export default function SponsorshipModal({
               {liteUserDisplayName}
             </Text>
             <Text fontSize="sm" color="dim">
-              Will become: <Code bg="background" color="primary">@{liteUserHandle}</Code>
+              Will become:{" "}
+              <Code bg="background" color="primary">
+                @{liteUserHandle}
+              </Code>
             </Text>
           </Box>
 
-          {/* Cost info */}
-          <Box>
-            <HStack justify="space-between" mb={2}>
-              <Text fontWeight="semibold" color="primary">Sponsorship Cost:</Text>
-              <Text fontWeight="bold" color="green.500">
-                {SPONSORSHIP_CONFIG.COST_HIVE} HIVE
+          {/* Method selection */}
+          {status === "idle" && (
+            <Box>
+              <Text fontWeight="semibold" fontSize="sm" mb={2} color="primary">
+                Creation Method:
               </Text>
-            </HStack>
-            <Text fontSize="sm" color="dim">
-              This will create a new Hive account and email the keys to the user.
-            </Text>
-          </Box>
+              {loadingAcc ? (
+                <HStack spacing={2}>
+                  <Spinner size="xs" color="green.400" />
+                  <Text fontSize="sm" color="dim">Checking your ACC tokens...</Text>
+                </HStack>
+              ) : (
+                <VStack spacing={2} align="stretch">
+                  {/* ACC option */}
+                  <Box
+                    p={3}
+                    borderRadius="base"
+                    borderWidth={2}
+                    borderColor={method === "acc" ? "green.400" : "border"}
+                    bg={method === "acc" ? "panel" : "background"}
+                    cursor={claimedAccounts && claimedAccounts > 0 ? "pointer" : "not-allowed"}
+                    opacity={claimedAccounts && claimedAccounts > 0 ? 1 : 0.45}
+                    onClick={() => {
+                      if (claimedAccounts && claimedAccounts > 0) setMethod("acc");
+                    }}
+                  >
+                    <HStack justify="space-between">
+                      <VStack align="start" spacing={0}>
+                        <HStack spacing={2}>
+                          <Text fontWeight="bold" fontSize="sm" color="primary">
+                            Use ACC Token
+                          </Text>
+                          <Badge colorScheme="green" fontSize="xs">FREE</Badge>
+                        </HStack>
+                        <Text fontSize="xs" color="dim">
+                          Spends one of your claimed account tokens
+                        </Text>
+                      </VStack>
+                      <Text
+                        fontSize="sm"
+                        fontWeight="bold"
+                        color={claimedAccounts && claimedAccounts > 0 ? "green.400" : "red.400"}
+                      >
+                        {claimedAccounts !== null
+                          ? `${claimedAccounts} available`
+                          : "—"}
+                      </Text>
+                    </HStack>
+                  </Box>
 
-          {/* Status */}
+                  {/* HIVE payment option */}
+                  <Box
+                    p={3}
+                    borderRadius="base"
+                    borderWidth={2}
+                    borderColor={method === "hive" ? "green.400" : "border"}
+                    bg={method === "hive" ? "panel" : "background"}
+                    cursor="pointer"
+                    onClick={() => setMethod("hive")}
+                  >
+                    <HStack justify="space-between">
+                      <VStack align="start" spacing={0}>
+                        <Text fontWeight="bold" fontSize="sm" color="primary">
+                          Pay with HIVE
+                        </Text>
+                        <Text fontSize="xs" color="dim">
+                          Deducted from your wallet via Keychain
+                        </Text>
+                      </VStack>
+                      <Text fontSize="sm" fontWeight="bold" color="yellow.400">
+                        {SPONSORSHIP_CONFIG.COST_HIVE} HIVE
+                      </Text>
+                    </HStack>
+                  </Box>
+                </VStack>
+              )}
+            </Box>
+          )}
+
+          {/* Processing indicator */}
           {isProcessing && (
             <Box>
               <Text fontSize="sm" fontWeight="semibold" mb={2} color="primary">
@@ -310,21 +382,21 @@ export default function SponsorshipModal({
             </Box>
           )}
 
-          {/* Success message */}
+          {/* Success */}
           {status === "success" && (
             <Alert status="success" borderRadius="base">
               <AlertIcon />
               <Box>
                 <AlertTitle>Sponsorship Successful! 🎉</AlertTitle>
                 <AlertDescription fontSize="sm">
-                  @{liteUserHandle} now has a Hive account! An email with all keys
-                  has been sent and they can start earning rewards.
+                  @{liteUserHandle} now has a Hive account! An email with all
+                  keys has been sent and they can start earning rewards.
                 </AlertDescription>
               </Box>
             </Alert>
           )}
 
-          {/* Error message */}
+          {/* Error */}
           {status === "error" && error && (
             <Alert status="error" borderRadius="base">
               <AlertIcon />
