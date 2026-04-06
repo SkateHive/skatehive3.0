@@ -9,6 +9,7 @@ import {
 } from "@chakra-ui/react";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useReport } from "@/contexts/ReportContext";
 import Sidebar from "@/components/layout/Sidebar";
 import FooterNavButtons from "@/components/layout/FooterNavButtons";
 import FooterLinks from "@/components/layout/FooterLinks";
@@ -41,11 +42,6 @@ export default function RootLayoutClient({
     isOpen: isAirdropOpen,
     onOpen: onAirdropOpen,
     onClose: onAirdropClose,
-  } = useDisclosure();
-  const {
-    isOpen: isReportOpen,
-    onOpen: onReportOpen,
-    onClose: onReportClose,
   } = useDisclosure();
   const [leaderboardData, setLeaderboardData] = useState<SkaterData[]>([]);
 
@@ -116,11 +112,6 @@ export default function RootLayoutClient({
                 onAirdropClose,
                 leaderboardData,
               }}
-              reportProps={{
-                isReportOpen,
-                onReportOpen,
-                onReportClose,
-              }}
             >
               {children}
             </InnerLayout>
@@ -146,11 +137,6 @@ export default function RootLayoutClient({
               onAirdropClose,
               leaderboardData,
             }}
-            reportProps={{
-              isReportOpen,
-              onReportOpen,
-              onReportClose,
-            }}
           >
             {children}
           </InnerLayout>
@@ -164,7 +150,6 @@ function InnerLayout({
   children,
   searchProps,
   airdropProps,
-  reportProps,
 }: {
   children: React.ReactNode;
   searchProps?: {
@@ -177,47 +162,31 @@ function InnerLayout({
     onAirdropClose: () => void;
     leaderboardData: SkaterData[];
   };
-  reportProps?: {       // ← adicionar
-    isReportOpen: boolean;
-    onReportOpen: () => void;
-    onReportClose: () => void;
-  };
 }) {
   const isMobile = useBreakpointValue({ base: true, md: false });
   const pathname = usePathname();
-  
+  // ReportContext lives inside <Providers>, so useReport() is safe here
+  const { isOpen: isReportOpen, openReport, closeReport, reportOptions } = useReport();
+
   // Pages with infinite scroll should not show footer
-  const hasInfiniteScroll = 
-    pathname === "/" || 
-    pathname?.startsWith("/user/") || 
-    pathname === "/magazine" || 
+  const hasInfiniteScroll =
+    pathname === "/" ||
+    pathname?.startsWith("/user/") ||
+    pathname === "/magazine" ||
     pathname === "/blog" ||
     pathname?.startsWith("/blog/tag/") ||
     pathname === "/videos" ||
     pathname === "/skaters";
 
   const handleOpenAirdrop = () => {
-    // Close search modal first
-    if (searchProps) {
-      searchProps.setIsSearchOpen(false);
-    }
-    // Open airdrop modal
-    if (airdropProps) {
-      airdropProps.onAirdropOpen();
-    }
+    if (searchProps) searchProps.setIsSearchOpen(false);
+    if (airdropProps) airdropProps.onAirdropOpen();
   };
 
   const handleOpenReport = () => {
-    // Close search modal first
-    if (searchProps) {
-      searchProps.setIsSearchOpen(false);
-    }
-    // Open report modal
-    if (reportProps) {
-      reportProps.onReportOpen();
-    }
+    if (searchProps) searchProps.setIsSearchOpen(false);
+    openReport();
   };
-
 
   return (
     <Container
@@ -247,10 +216,11 @@ function InnerLayout({
         />
       )}
 
-      {/* Report Modal */}
+      {/* Report Modal — driven by ReportContext; works via /report command and ErrorBoundary */}
       <ReportModal
-        isOpen={reportProps?.isReportOpen ?? false}
-        onClose={reportProps?.onReportClose ?? (() => {})}
+        isOpen={isReportOpen}
+        onClose={closeReport}
+        initialData={reportOptions}
       />
 
       {/* iOS App Store Banner - iPhone only */}

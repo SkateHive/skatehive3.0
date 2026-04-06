@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Button,
   Input,
@@ -13,11 +13,12 @@ import {
   Box,
 } from "@chakra-ui/react";
 import SkateModal from "@/components/shared/SkateModal";
-import { ReportFormData, ReportType } from "@/types/report";
+import { ReportFormData, ReportOptions, ReportType } from "@/types/report";
 
 interface ReportModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialData?: ReportOptions;
 }
 
 const REPORT_TYPES: { value: ReportType; label: string }[] = [
@@ -26,19 +27,44 @@ const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: "feedback", label: "Feedback" },
 ];
 
-const INITIAL_FORM: ReportFormData = {
-  title: "",
-  description: "",
-  type: "bug",
-};
+function buildInitialForm(initialData?: ReportOptions): ReportFormData {
+  return {
+    title: initialData?.prefillTitle ?? "",
+    description: initialData?.prefillDescription ?? "",
+    type: initialData?.type ?? "bug",
+    errorStack: initialData?.errorStack,
+    pageUrl: typeof window !== "undefined" ? window.location.href : undefined,
+    userAgent: typeof window !== "undefined" ? navigator.userAgent : undefined,
+  };
+}
 
-export function ReportModal({ isOpen, onClose }: ReportModalProps) {
-  const [form, setForm] = useState<ReportFormData>(INITIAL_FORM);
+export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) {
+  const [form, setForm] = useState<ReportFormData>(() => buildInitialForm(initialData));
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Re-seed form whenever modal opens with new initialData
+  useEffect(() => {
+    if (isOpen) {
+      setForm(buildInitialForm(initialData));
+      setStatus("idle");
+    }
+  }, [isOpen, initialData]);
+
+  // Cleanup pending auto-close timer on unmount
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
 
   function handleClose() {
-    setForm(INITIAL_FORM);
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setForm(buildInitialForm());
     setStatus("idle");
     onClose();
   }
@@ -59,7 +85,7 @@ export function ReportModal({ isOpen, onClose }: ReportModalProps) {
       if (!response.ok) throw new Error("Failed to submit");
 
       setStatus("success");
-      setTimeout(handleClose, 2000);
+      closeTimerRef.current = setTimeout(handleClose, 2000);
     } catch {
       setStatus("error");
     } finally {
@@ -127,6 +153,25 @@ export function ReportModal({ isOpen, onClose }: ReportModalProps) {
             isDisabled={isLoading}
             color="text"
           />
+
+          {/* Stack trace preview (read-only, only when auto-filled) */}
+          {form.errorStack && (
+            <Box
+              as="pre"
+              fontSize="xs"
+              p={2}
+              borderRadius="md"
+              bg="blackAlpha.400"
+              overflowX="auto"
+              maxH="80px"
+              color="gray.400"
+              whiteSpace="pre-wrap"
+              wordBreak="break-all"
+            >
+              {form.errorStack.slice(0, 500)}
+              {form.errorStack.length > 500 ? "…" : ""}
+            </Box>
+          )}
 
           {/* Status feedback */}
           {status === "success" && (
