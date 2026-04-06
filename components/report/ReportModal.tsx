@@ -75,11 +75,15 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
     setIsLoading(true);
     setStatus("idle");
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+
     try {
       const response = await fetch("/api/trello/create-card", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
+        signal: controller.signal,
       });
 
       if (!response.ok) throw new Error("Failed to submit");
@@ -89,6 +93,7 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
     } catch {
       setStatus("error");
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
   }

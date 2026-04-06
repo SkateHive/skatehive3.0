@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Box, Alert, AlertIcon, AlertTitle, AlertDescription, Button, VStack, HStack, Text } from '@chakra-ui/react';
+import { Box, Alert, AlertIcon, AlertTitle, AlertDescription, Button, HStack } from '@chakra-ui/react';
+import { useReport } from '@/contexts/ReportContext';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -59,28 +60,14 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 An unexpected error occurred while loading this page.
               </AlertDescription>
               <HStack mt={4} spacing={2} flexWrap="wrap">
-                <Button
-                  size="sm"
-                  colorScheme="red"
-                  variant="outline"
-                  onClick={this.resetError}
-                >
+                <Button size="sm" colorScheme="red" variant="outline" onClick={this.resetError}>
                   Try Again
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => window.location.reload()}
-                >
+                <Button size="sm" variant="ghost" onClick={() => window.location.reload()}>
                   Reload Page
                 </Button>
                 {this.props.onReport && (
-                  <Button
-                    size="sm"
-                    colorScheme="orange"
-                    variant="ghost"
-                    onClick={this.handleReport}
-                  >
+                  <Button size="sm" colorScheme="orange" variant="ghost" onClick={this.handleReport}>
                     Report Bug
                   </Button>
                 )}
@@ -117,8 +104,6 @@ export default ErrorBoundary;
 //   import ErrorBoundaryWithReport from "@/components/shared/ErrorBoundary";
 //   <ErrorBoundaryWithReport><FeedCard /></ErrorBoundaryWithReport>
 // ---------------------------------------------------------------------------
-
-import { useReport } from '@/contexts/ReportContext';
 
 export function ErrorBoundaryWithReport({
   children,
