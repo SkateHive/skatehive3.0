@@ -37,6 +37,7 @@ import { parseJsonMetadata } from "@/lib/hive/metadata-utils";
 import { extractSafeUser } from "@/lib/userbase/safeUserMetadata";
 import MatrixOverlay from "@/components/graphics/MatrixOverlay";
 import { UpvoteButton } from "@/components/shared";
+import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
 import { BiDotsHorizontal } from "react-icons/bi";
 import ShareMenuButtons from "@/components/homepage/ShareMenuButtons";
 import { LuArrowUp, LuArrowDown, LuDollarSign } from "react-icons/lu";
@@ -922,24 +923,26 @@ export default function PostCard({
           </Box>
           <Box mt="auto">
             {showSlider ? (
-              <UpvoteButton
-                discussion={post}
-                voted={voted}
-                setVoted={setVoted}
-                activeVotes={activeVotes}
-                setActiveVotes={setActiveVotes}
-                showSlider={showSlider}
-                setShowSlider={setShowSlider}
-                onVoteSuccess={(estimatedValue?: number) => {
-                  if (estimatedValue) {
-                    setPayoutValue((prev) => prev + estimatedValue);
-                  }
-                }}
-                estimateVoteValue={estimateVoteValue}
-                isHivePowerLoading={isHivePowerLoading}
-                variant="withSlider"
-                size="sm"
-              />
+              <ErrorBoundaryWithReport>
+                <UpvoteButton
+                  discussion={post}
+                  voted={voted}
+                  setVoted={setVoted}
+                  activeVotes={activeVotes}
+                  setActiveVotes={setActiveVotes}
+                  showSlider={showSlider}
+                  setShowSlider={setShowSlider}
+                  onVoteSuccess={(estimatedValue?: number) => {
+                    if (estimatedValue) {
+                      setPayoutValue((prev) => prev + estimatedValue);
+                    }
+                  }}
+                  estimateVoteValue={estimateVoteValue}
+                  isHivePowerLoading={isHivePowerLoading}
+                  variant="withSlider"
+                  size="sm"
+                />
+              </ErrorBoundaryWithReport>
             ) : (
               <HStack 
                 justify="space-between" 

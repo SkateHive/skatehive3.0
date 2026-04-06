@@ -8,6 +8,7 @@ import React, {
   useEffect,
 } from "react";
 import { Box, Alert, AlertIcon, Container, Center, Text } from "@chakra-ui/react";
+import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import LoadingComponent from "../homepage/loadingComponent";
 import PostInfiniteScroll from "../blog/PostInfiniteScroll";
@@ -803,7 +804,8 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   }
 
   return (
-    <>
+    <ErrorBoundaryWithReport>
+      <>
       <Center>
         <Container maxW="container.md" p={0} m={0}>
           {/* Main Profile Content */}
@@ -906,6 +908,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
         />
       )}
     </>
+    </ErrorBoundaryWithReport>
   );
 });
 

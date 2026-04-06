@@ -2,6 +2,7 @@
 
 import { Flex, Box } from "@chakra-ui/react";
 import SnapList from "@/components/homepage/SnapList";
+import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
 import RightSidebar from "@/components/layout/RightSideBar";
 import { useState } from "react";
 import { Discussion } from "@hiveio/dhive";
@@ -53,16 +54,18 @@ export default function HomePageClient() {
         id="scrollableDiv"
       >
         {/* Always show SnapList */}
-        <SnapList
-          author={thread_author}
-          permlink={thread_permlink}
-          setConversation={setConversation} // Mobile only - desktop uses inline composer
-          onOpen={onOpen}
-          setReply={setReply}
-          newComment={newComment}
-          setNewComment={setNewComment}
-          data={snaps}
-        />
+        <ErrorBoundaryWithReport>
+          <SnapList
+            author={thread_author}
+            permlink={thread_permlink}
+            setConversation={setConversation} // Mobile only - desktop uses inline composer
+            onOpen={onOpen}
+            setReply={setReply}
+            newComment={newComment}
+            setNewComment={setNewComment}
+            data={snaps}
+          />
+        </ErrorBoundaryWithReport>
 
         {/* Mobile conversation drawer - only show on mobile when conversation exists */}
         {conversation && (

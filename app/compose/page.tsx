@@ -33,6 +33,7 @@ import { APP_CONFIG } from "@/config/app.config";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
 import { useSkateDialog } from "@/hooks/useSkateDialog";
+import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
 
 export default function Composer() {
   const t = useTranslations();
@@ -201,6 +202,7 @@ export default function Composer() {
   const isUploading = isImageUploading || isDropUploading;
 
   return (
+    <ErrorBoundaryWithReport>
     <Flex
       width="100%"
       minHeight="100vh"
@@ -526,5 +528,6 @@ export default function Composer() {
       </Flex>
       <SkateDialogComponent />
     </Flex>
+    </ErrorBoundaryWithReport>
   );
 }

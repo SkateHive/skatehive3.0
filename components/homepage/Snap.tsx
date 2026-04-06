@@ -27,6 +27,7 @@ import { EnhancedMarkdownRenderer } from "@/components/markdown/EnhancedMarkdown
 import { getPostDate } from "@/lib/utils/GetPostDate";
 import SnapComposer from "./SnapComposer";
 import { UpvoteButton } from "@/components/shared";
+import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
 import ShareMenuButtons from "./ShareMenuButtons";
 import useHivePower from "@/hooks/useHivePower";
 import { useVoteWeightContext } from "@/contexts/VoteWeightContext";
@@ -592,27 +593,29 @@ const Snap = React.memo(function Snap({
         )}
 
         {showSlider && (
-          <UpvoteButton
-            discussion={discussion}
-            voted={voted}
-            setVoted={setVotedOverride}
-            activeVotes={activeVotes}
-            setActiveVotes={setActiveVotes}
-            showSlider={showSlider}
-            setShowSlider={setShowSlider}
-            onVoteSuccess={(estimatedValue?: number) => {
-              setVotedOverride(true);
-              if (estimatedValue) {
-                setRewardAmount((prev) =>
-                  parseFloat((prev + estimatedValue).toFixed(3))
-                );
-              }
-            }}
-            estimateVoteValue={estimateVoteValue}
-            isHivePowerLoading={isHivePowerLoading}
-            variant="withSlider"
-            size="sm"
-          />
+          <ErrorBoundaryWithReport>
+            <UpvoteButton
+              discussion={discussion}
+              voted={voted}
+              setVoted={setVotedOverride}
+              activeVotes={activeVotes}
+              setActiveVotes={setActiveVotes}
+              showSlider={showSlider}
+              setShowSlider={setShowSlider}
+              onVoteSuccess={(estimatedValue?: number) => {
+                setVotedOverride(true);
+                if (estimatedValue) {
+                  setRewardAmount((prev) =>
+                    parseFloat((prev + estimatedValue).toFixed(3))
+                  );
+                }
+              }}
+              estimateVoteValue={estimateVoteValue}
+              isHivePowerLoading={isHivePowerLoading}
+              variant="withSlider"
+              size="sm"
+            />
+          </ErrorBoundaryWithReport>
         )}
         {inlineComposerStates[discussion.permlink] && (
           <Box mt={2}>

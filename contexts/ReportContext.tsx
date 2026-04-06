@@ -33,8 +33,15 @@ export function ReportProvider({ children }: { children: ReactNode }) {
   );
 }
 
+const NOOP_CONTEXT: ReportContextValue = {
+  isOpen: false,
+  reportOptions: undefined,
+  openReport: () => {},
+  closeReport: () => {},
+};
+
 export function useReport(): ReportContextValue {
   const ctx = useContext(ReportContext);
-  if (!ctx) throw new Error("useReport must be used inside <ReportProvider>");
-  return ctx;
+  // Outside provider (e.g. during SSR or early hydration) — return no-op
+  return ctx ?? NOOP_CONTEXT;
 }
