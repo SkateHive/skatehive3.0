@@ -38,12 +38,13 @@ import { useSoundSettings } from "@/contexts/SoundSettingsContext";
 import { useReport } from "@/contexts/ReportContext";
 
 interface NavItemDef {
-  href: string;
+  href?: string;
   icon: any;
   label: string;
   prefetch?: boolean;
   show?: boolean;
   badge?: number;
+  onClick?: () => void;
 }
 
 interface NavGroupDef {
@@ -173,75 +174,76 @@ export default function Sidebar() {
     label,
     prefetch = true,
     badge,
+    onClick,
   }: {
-    href: string;
+    href?: string;
     icon: any;
     label: string;
     prefetch?: boolean;
     badge?: number;
+    onClick?: () => void;
   }) => {
-    const active = isActive(href);
+    const active = href ? isActive(href) : false;
 
-    return (
-      <Link
-        href={href}
-        passHref
-        prefetch={prefetch}
-        style={{ textDecoration: "none", color: "inherit" }}
+    const inner = (
+      <Box
+        display="flex"
+        alignItems="center"
+        px={1}
+        py={0.5}
+        cursor="pointer"
+        role="group"
+        width="100%"
+        pl={4}
+        textDecoration="none"
+        color="inherit"
+        onMouseEnter={playHoverSound}
+        onClick={onClick}
+        _hover={{
+          textDecoration: "none",
+          "& > div": { bg: "primary", color: hoverTextColor },
+        }}
+        sx={{
+          "&:hover": { textDecoration: "none !important" },
+          "&:focus": { textDecoration: "none !important", outline: "none !important" },
+          "&:active": { textDecoration: "none !important" },
+          "&:visited": { textDecoration: "none !important", color: "inherit !important" },
+        }}
       >
         <Box
           display="flex"
           alignItems="center"
-          px={1}
-          py={0.5}
-          cursor="pointer"
-          role="group"
-          width="100%"
-          pl={4}
-          textDecoration="none"
-          color="inherit"
-          onMouseEnter={playHoverSound}
-          _hover={{
-            textDecoration: "none",
-            "& > div": {
-              bg: "primary",
-              color: hoverTextColor,
-            },
-          }}
-          sx={{
-            "&:hover": { textDecoration: "none !important" },
-            "&:focus": { textDecoration: "none !important", outline: "none !important" },
-            "&:active": { textDecoration: "none !important" },
-            "&:visited": { textDecoration: "none !important", color: "inherit !important" },
-          }}
+          px={0.25}
+          py={0}
+          my={0.5}
+          transition="background 0.2s, color 0.2s"
+          bg={active ? "primary" : "transparent"}
+          color={active ? hoverTextColor : "inherit"}
         >
-          <Box
-            display="flex"
-            alignItems="center"
-            px={0.25}
-            py={0}
-            my={0.5}
-            transition="background 0.2s, color 0.2s"
-            bg={active ? "primary" : "transparent"}
-            color={active ? hoverTextColor : "inherit"}
-          >
-            <Box position="relative" display="flex" alignItems="center">
-              <Icon as={icon} boxSize={4} mr={2} />
-              {badge && badge > 0 ? (
-                <Box
-                  position="absolute"
-                  top="-4px"
-                  right="2px"
-                  bg="red.500"
-                  borderRadius="full"
-                  w="8px"
-                  h="8px"
-                />
-              ) : null}
-            </Box>
-            {label}
+          <Box position="relative" display="flex" alignItems="center">
+            <Icon as={icon} boxSize={4} mr={2} />
+            {badge && badge > 0 ? (
+              <Box
+                position="absolute"
+                top="-4px"
+                right="2px"
+                bg="red.500"
+                borderRadius="full"
+                w="8px"
+                h="8px"
+              />
+            ) : null}
           </Box>
+          {label}
         </Box>
+      </Box>
+    );
+
+    if (onClick || !href) return inner;
+
+    return (
+      <Link href={href} passHref prefetch={prefetch} style={{ textDecoration: "none", color: "inherit" }}>
+        {inner}
       </Link>
     );
   };
@@ -282,9 +284,9 @@ export default function Sidebar() {
         scrollbarWidth: "none",
       }}
     >
-      <Flex direction="column" justify="space-between" height="100%">
-        {/* Top: Logo */}
-        <Box>
+      <Flex direction="column" height="100%">
+        {/* Top: Logo + nav (scrollable) */}
+        <Box flex="1" minH={0} overflowY="auto" sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>
           <Box
             ml={4}
             mt={2}
@@ -308,12 +310,13 @@ export default function Sidebar() {
                   <VStack spacing={0} align="stretch">
                     {visibleItems.map((item) => (
                       <NavItem
-                        key={item.href}
+                        key={item.href ?? item.label}
                         href={item.href}
                         icon={item.icon}
                         label={item.label}
                         prefetch={item.prefetch}
                         badge={item.badge}
+                        onClick={item.onClick}
                       />
                     ))}
                   </VStack>
@@ -323,35 +326,8 @@ export default function Sidebar() {
           </VStack>
         </Box>
 
-        {/* Bottom: Report Bug + User profile block */}
+        {/* Bottom: User profile block */}
         <Box p={0} pb={4}>
-          <Box
-            display="flex"
-            alignItems="center"
-            px={1}
-            py={0.5}
-            cursor="pointer"
-            width="100%"
-            pl={4}
-            mb={1}
-            onMouseEnter={playHoverSound}
-            onClick={() => openReport({ type: "bug" })}
-            _hover={{
-              "& > div": { bg: "primary", color: hoverTextColor },
-            }}
-          >
-            <Box
-              display="flex"
-              alignItems="center"
-              px={0.25}
-              py={0}
-              my={0.5}
-              transition="background 0.2s, color 0.2s"
-            >
-              <Icon as={FiFlag} boxSize={4} mr={2} />
-              Report Bug
-            </Box>
-          </Box>
           <AuthButton />
         </Box>
       </Flex>
