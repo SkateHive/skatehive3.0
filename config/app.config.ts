@@ -213,6 +213,11 @@ export const SPONSORSHIP_CONFIG = {
   /** Cooldown period between sponsorships (in hours) */
   SPONSOR_COOLDOWN_HOURS: 24,
 
+  /** Platform account used for server-side ACC token creation (has HIVE_ACTIVE_KEY in env) */
+  get PLATFORM_ACC_ACCOUNT() {
+    return process.env.HIVE_ACCOUNT_CREATOR || '';
+  },
+
   /** Default recovery account for newly created Hive accounts */
   get DEFAULT_RECOVERY_ACCOUNT() {
     return process.env.HIVE_DEFAULT_RECOVERY_ACCOUNT || 'skatehive';
