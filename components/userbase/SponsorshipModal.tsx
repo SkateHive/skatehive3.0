@@ -19,7 +19,10 @@ import {
 } from "@chakra-ui/react";
 import SkateModal from "@/components/shared/SkateModal";
 import { generateHiveKeys } from "@/lib/hive/keyGeneration";
-import { buildAccountCreateOperation } from "@/lib/hive/accountCreation";
+import {
+  buildAccountCreateOperation,
+  buildCreateClaimedAccountOperation,
+} from "@/lib/hive/accountCreation";
 import { SPONSORSHIP_CONFIG } from "@/config/app.config";
 
 interface SponsorshipModalProps {
@@ -29,8 +32,6 @@ interface SponsorshipModalProps {
   liteUserHandle: string;
   liteUserDisplayName: string;
   sponsorHiveUsername: string;
-  // Optional: pass viewer's userbase UUID so the ACC route can record it
-  sponsorUserId?: string;
 }
 
 type SponsorshipStatus =
@@ -57,7 +58,6 @@ export default function SponsorshipModal({
   liteUserHandle,
   liteUserDisplayName,
   sponsorHiveUsername,
-  sponsorUserId,
 }: SponsorshipModalProps) {
   const [status, setStatus] = useState<SponsorshipStatus>("idle");
   const [error, setError] = useState<string>("");
@@ -66,11 +66,11 @@ export default function SponsorshipModal({
   const [loadingAcc, setLoadingAcc] = useState(false);
   const toast = useToast();
 
-  // Fetch the platform account's ACC token count when the modal opens
+  // Fetch the connected sponsor's ACC token count when the modal opens
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !sponsorHiveUsername) return;
     setLoadingAcc(true);
-    fetch("/api/userbase/sponsorships/acc-status")
+    fetch(`/api/userbase/sponsorships/acc-status?username=${encodeURIComponent(sponsorHiveUsername)}`)
       .then((r) => r.json())
       .then((d) => {
         const count: number = d.available ?? 0;
@@ -82,34 +82,106 @@ export default function SponsorshipModal({
         setMethod("hive");
       })
       .finally(() => setLoadingAcc(false));
-  }, [isOpen]);
+  }, [isOpen, sponsorHiveUsername]);
 
-  // ── ACC path: fully server-side, no Keychain ──────────────────────────────
+  // ── ACC path: sponsor signs create_claimed_account via Keychain (free) ───
   const handleSponsorWithAcc = async () => {
-    setStatus("processing");
     try {
-      const res = await fetch("/api/userbase/sponsorships/create-with-acc", {
+      setStatus("generating_keys");
+      const keys = generateHiveKeys(liteUserHandle);
+
+      const createResponse = await fetch("/api/userbase/sponsorships/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lite_user_id: liteUserId,
           hive_username: liteUserHandle,
-          sponsor_user_id: sponsorUserId,
+          cost_type: "account_token",
+          cost_amount: 0,
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "ACC sponsorship failed");
+      if (!createResponse.ok) {
+        const d = await createResponse.json();
+        throw new Error(d.error || "Failed to create sponsorship");
+      }
+      const createData = await createResponse.json();
 
-      setStatus("success");
-      toast({
-        title: "Sponsorship Successful! 🎉",
-        description: `@${liteUserHandle} now has a Hive account and will receive all keys via email.`,
-        status: "success",
-        duration: 8000,
-        isClosable: true,
-      });
-      setTimeout(() => onClose(), 2000);
+      // create_claimed_account: uses one of the sponsor's ACC tokens, no HIVE fee
+      const operation = buildCreateClaimedAccountOperation(
+        sponsorHiveUsername,
+        liteUserHandle,
+        keys
+      );
+
+      setStatus("awaiting_signature");
+
+      if (!window.hive_keychain) {
+        throw new Error(
+          "Hive Keychain not found. Please install the Hive Keychain browser extension."
+        );
+      }
+
+      window.hive_keychain.requestBroadcast(
+        sponsorHiveUsername,
+        [operation],
+        "active",
+        async (response: any) => {
+          if (!response.success) {
+            setStatus("error");
+            setError(response.message || "Keychain signature failed");
+            toast({
+              title: "Signature Failed",
+              description: response.message || "Failed to sign transaction",
+              status: "error",
+              duration: 8000,
+              isClosable: true,
+            });
+            return;
+          }
+
+          setStatus("processing");
+          try {
+            const processResponse = await fetch(
+              "/api/userbase/sponsorships/process",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  sponsorship_id: createData.sponsorship_id,
+                  transaction_id: response.result.id,
+                  keys,
+                }),
+              }
+            );
+
+            if (!processResponse.ok) {
+              const d = await processResponse.json();
+              throw new Error(d.error || "Failed to process sponsorship");
+            }
+
+            setStatus("success");
+            toast({
+              title: "Sponsorship Successful! 🎉",
+              description: `@${liteUserHandle} now has a Hive account and will receive all keys via email.`,
+              status: "success",
+              duration: 8000,
+              isClosable: true,
+            });
+            setTimeout(() => onClose(), 2000);
+          } catch (err: any) {
+            setStatus("error");
+            setError(err.message || "Failed to process sponsorship");
+            toast({
+              title: "Processing Failed",
+              description: err.message,
+              status: "error",
+              duration: 8000,
+              isClosable: true,
+            });
+          }
+        }
+      );
     } catch (err: any) {
       setStatus("error");
       setError(err.message || "Unknown error");

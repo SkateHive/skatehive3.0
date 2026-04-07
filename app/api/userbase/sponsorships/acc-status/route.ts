@@ -1,20 +1,20 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSponsorClaimedAccounts } from '@/lib/hive/accountCreation';
-import { SPONSORSHIP_CONFIG } from '@/config/app.config';
 
 /**
- * GET /api/userbase/sponsorships/acc-status
+ * GET /api/userbase/sponsorships/acc-status?username=steemskate
  *
- * Returns the number of ACC tokens available on the platform account.
- * Used by the sponsorship modal to decide whether to show the free ACC option.
+ * Returns the number of pending claimed account tokens (ACC) for the given
+ * Hive account. Used by the sponsorship modal to decide whether to offer
+ * the free ACC option for the connected sponsor.
  */
-export async function GET() {
-  const platformAccount = SPONSORSHIP_CONFIG.PLATFORM_ACC_ACCOUNT;
+export async function GET(request: NextRequest) {
+  const username = request.nextUrl.searchParams.get('username');
 
-  if (!platformAccount) {
+  if (!username) {
     return NextResponse.json({ available: 0, account: null });
   }
 
-  const available = await getSponsorClaimedAccounts(platformAccount);
-  return NextResponse.json({ available, account: platformAccount });
+  const available = await getSponsorClaimedAccounts(username);
+  return NextResponse.json({ available, account: username });
 }
