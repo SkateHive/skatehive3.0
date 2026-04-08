@@ -31,7 +31,7 @@ interface VideoConversionRequest {
 }
 
 class VideoApiService {
-  private readonly oracleApiUrl = 'https://146-235-239-243.sslip.io';
+  private readonly oracleApiUrl = 'https://transcode.skatehive.app';
   private readonly macMiniApiUrl = 'https://minivlad.tail83ea3e.ts.net/video';
   private readonly raspberryPiApiUrl = 'https://vladsberry.tail83ea3e.ts.net/video';
 
@@ -395,17 +395,30 @@ class VideoApiService {
   }> {
     const startTime = Date.now();
 
-    console.log('📊 Simplified API status check - assuming services are available...');
+    const check = async (url: string): Promise<boolean> => {
+      try {
+        const response = await fetch(`${url}/healthz`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(5000),
+        });
+        return response.ok;
+      } catch {
+        return false;
+      }
+    };
 
-    // Simplified approach: assume APIs are available
-    // Real availability will be tested during actual upload attempts
+    const [oracleOk, macOk] = await Promise.all([
+      check(this.oracleApiUrl),
+      check(this.macMiniApiUrl),
+    ]);
+
     const duration = Date.now() - startTime;
 
     return {
-      primaryAPI: true,  // Assume available, will fail gracefully if not
+      primaryAPI: oracleOk,
       primaryURL: this.oracleApiUrl,
-      fallbackAPI: true, // Assume available, will fail gracefully if not
-      fallbackURL: this.raspberryPiApiUrl,
+      fallbackAPI: macOk,
+      fallbackURL: this.macMiniApiUrl,
       checkDuration: `${duration}ms`,
       timestamp: new Date().toISOString()
     };
