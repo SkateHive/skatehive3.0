@@ -204,7 +204,7 @@ async function tryServer(
     serverName.toLowerCase().includes('mac') ? 'macmini' : 'pi';
 
   // Determine endpoint paths based on server
-  const transcodeUrl = `/api/video-proxy?url=${encodeURIComponent(`${serverBaseUrl}/transcode`)}`;
+  const transcodeUrl = `${serverBaseUrl}/transcode`;
 
   let eventSource: EventSource | null = null;
 
