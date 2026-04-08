@@ -76,9 +76,9 @@ export async function processVideoOnServer(
   username: string = 'anonymous',
   enhancedOptions?: EnhancedProcessingOptions
 ): Promise<ProcessingResult> {
-  // PRIMARY: Mac Mini M4
-  const primaryServer = SERVER_CONFIG[0];
-  const primaryUrl = 'https://minivlad.tail83ea3e.ts.net/video';
+  // PRIMARY: Oracle Cloud (public domain, reachable by all users)
+  const primaryServer = SERVER_CONFIG[1];
+  const primaryUrl = 'https://transcode.skatehive.app';
 
   console.log(`🔍 Checking ${primaryServer.name} health...`);
   const isPrimaryHealthy = await checkServerHealth(primaryUrl);
@@ -111,9 +111,9 @@ export async function processVideoOnServer(
 
   enhancedOptions?.onServerFailed?.(primaryServer.key, primaryResult.error);
 
-  // SECONDARY: Oracle Cloud
-  const secondaryServer = SERVER_CONFIG[1];
-  const secondaryUrl = 'https://transcode.skatehive.app';
+  // SECONDARY: Mac Mini M4 (funnel)
+  const secondaryServer = SERVER_CONFIG[0];
+  const secondaryUrl = 'https://minivlad.tail83ea3e.ts.net/video';
 
   console.log(`🔍 Checking ${secondaryServer.name} health...`);
   const isSecondaryHealthy = await checkServerHealth(secondaryUrl);

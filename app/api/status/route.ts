@@ -78,7 +78,7 @@ const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     name: 'Oracle (Primary)',
     category: 'Video Transcoding',
     description: 'Oracle (Primary) video transcoding node',
-    healthUrl: 'https://146-235-239-243.sslip.io/healthz',
+    healthUrl: 'https://transcode.skatehive.app/healthz',
     priority: 1,
   },
   {
