@@ -9,4 +9,5 @@ export interface SearchOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenAirdrop?: () => void;
+  onOpenReport?: () => void;
 }

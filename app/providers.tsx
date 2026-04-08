@@ -15,6 +15,7 @@ import { LinkedIdentityProvider } from "@/contexts/LinkedIdentityContext";
 import { VoteWeightProvider } from "@/contexts/VoteWeightContext";
 import { WindowProvider } from "@/contexts/WindowContext";
 import { LocaleProvider } from "@/contexts/LocaleContext";
+import { ReportProvider } from "@/contexts/ReportContext";
 // import { ClientOnlyAuthKit } from "@/components/providers/ClientOnlyAuthKit"; // Removed: not needed, auth-kit works without global provider
 import { dynamicRainbowTheme } from "@/lib/themes/rainbowkitTheme";
 import { useState, useEffect } from "react";
@@ -107,7 +108,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
                               <CSSReset />
                               <FarcasterFrameInit />
                               <UserbaseWalletBootstrapper />
-                              {children}
+                              <ReportProvider>
+                                {children}
+                              </ReportProvider>
                             </WindowProvider>
                           </VoteWeightProvider>
                         </UserProvider>

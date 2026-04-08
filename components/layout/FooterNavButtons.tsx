@@ -43,9 +43,12 @@ import {
   FiUsers,
   FiMail,
   FiLogOut,
+  FiFlag,
 } from "react-icons/fi";
+import { useReport } from "@/contexts/ReportContext";
 
 export default function FooterNavButtons() {
+  const { openReport } = useReport();
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAioha();
@@ -991,9 +994,28 @@ export default function FooterNavButtons() {
                 </Box>
               ))}
 
+              {/* Report Bug */}
+              <Box pt={2}>
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  pl={4}
+                  py={1.5}
+                  cursor="pointer"
+                  _hover={{ bg: "primary", color: "background" }}
+                  transition="all 0.15s ease"
+                  onClick={() => { setIsDrawerOpen(false); openReport({ type: "bug" }); }}
+                >
+                  <HStack spacing={3}>
+                    <Icon as={FiFlag} boxSize={4} />
+                    <Text fontSize="sm">Report Bug</Text>
+                  </HStack>
+                </Box>
+              </Box>
+
               {/* Logout option */}
               {(user || isFarcasterConnected) && (
-                <Box pt={4}>
+                <Box pt={2}>
                   <DrawerSectionLabel label="" />
                   <Box
                     display="flex"
