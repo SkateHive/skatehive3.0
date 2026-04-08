@@ -46,15 +46,15 @@ export interface EnhancedProcessingOptions {
 }
 
 /**
- * Quick health check for a server (8 second timeout)
- * Tailscale Funnel URLs can take 2-3s from some regions
+ * Quick health check for a server via same-origin proxy
+ * Avoids browser CORS failures against external transcoder hosts from some regions
  */
 async function checkServerHealth(serverBaseUrl: string): Promise<boolean> {
   try {
-    const healthUrl = `${serverBaseUrl}/healthz`;
+    const healthUrl = `/api/video-proxy?url=${encodeURIComponent(`${serverBaseUrl}/healthz`)}`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(healthUrl, {
       method: 'GET',
@@ -204,9 +204,7 @@ async function tryServer(
     serverName.toLowerCase().includes('mac') ? 'macmini' : 'pi';
 
   // Determine endpoint paths based on server
-  const transcodeUrl = serverBaseUrl.includes('sslip.io')
-    ? `${serverBaseUrl}/transcode`  // Oracle uses /transcode
-    : `${serverBaseUrl}/transcode`; // Others use /video/transcode but we changed base URL
+  const transcodeUrl = `/api/video-proxy?url=${encodeURIComponent(`${serverBaseUrl}/transcode`)}`;
 
   let eventSource: EventSource | null = null;
 
