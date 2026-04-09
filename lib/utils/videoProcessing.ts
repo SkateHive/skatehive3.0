@@ -23,8 +23,8 @@ export type ServerKey = 'macmini' | 'oracle' | 'pi';
 /** Server configuration - SINGLE SOURCE OF TRUTH for server order
  *  All servers run the same SkateHive video-transcoder codebase */
 export const SERVER_CONFIG: Array<{ key: ServerKey; name: string; emoji: string; priority: string }> = [
-  { key: 'macmini', name: 'Mac Mini M4', emoji: '🍎', priority: 'PRIMARY' },
-  { key: 'oracle', name: 'Oracle', emoji: '🔮', priority: 'SECONDARY' },
+  { key: 'oracle', name: 'Oracle', emoji: '🔮', priority: 'PRIMARY' },
+  { key: 'macmini', name: 'Mac Mini M4', emoji: '🍎', priority: 'SECONDARY' },
   { key: 'pi', name: 'Raspberry Pi', emoji: '🫐', priority: 'TERTIARY' },
 ];
 
@@ -76,9 +76,11 @@ export async function processVideoOnServer(
   username: string = 'anonymous',
   enhancedOptions?: EnhancedProcessingOptions
 ): Promise<ProcessingResult> {
-  // PRIMARY: Mac Mini M4 (best performance)
+  // PRIMARY: Oracle (public endpoint, reliable from browsers)
+  // Mac Mini Tailscale Funnel works for health checks (via Vercel proxy) but
+  // large POST uploads fail when the browser connects directly — demoted to SECONDARY.
   const primaryServer = SERVER_CONFIG[0];
-  const primaryUrl = 'https://minivlad.tail83ea3e.ts.net/video';
+  const primaryUrl = 'https://transcode.skatehive.app';
 
   console.log(`🔍 Checking ${primaryServer.name} health...`);
   const isPrimaryHealthy = await checkServerHealth(primaryUrl);
@@ -111,9 +113,9 @@ export async function processVideoOnServer(
 
   enhancedOptions?.onServerFailed?.(primaryServer.key, primaryResult.error);
 
-  // SECONDARY: Oracle Cloud (public fallback)
+  // SECONDARY: Mac Mini M4 (Tailscale Funnel — works if browser can reach it)
   const secondaryServer = SERVER_CONFIG[1];
-  const secondaryUrl = 'https://transcode.skatehive.app';
+  const secondaryUrl = 'https://minivlad.tail83ea3e.ts.net/video';
 
   console.log(`🔍 Checking ${secondaryServer.name} health...`);
   const isSecondaryHealthy = await checkServerHealth(secondaryUrl);
