@@ -268,8 +268,9 @@ async function tryServer(
     // Create abort controller with shorter timeout for faster failover
     const controller = new AbortController();
     const fileSizeMB = file.size / (1024 * 1024);
-    // Dynamic timeout: 30s base + 10s per MB (max 3 minutes)
-    const timeout = Math.min(30000 + (fileSizeMB * 10000), 180000);
+    // Dynamic timeout: 60s base + 5s per MB (max 15 minutes)
+    // A 79MB MOV file takes ~6min to transcode+upload — the old 3min cap was killing it
+    const timeout = Math.min(60000 + (fileSizeMB * 5000), 900000);
     const timeoutId = setTimeout(() => {
       controller.abort();
     }, timeout);
