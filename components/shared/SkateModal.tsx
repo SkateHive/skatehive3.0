@@ -162,7 +162,7 @@ const SkateModal: React.FC<SkateModalProps> = ({
         </Flex>
 
         {/* Modal Body */}
-        <ModalBody p={0}>
+        <ModalBody p={0} overflowY="auto" maxH="75vh">
           {children}
         </ModalBody>
 
