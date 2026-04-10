@@ -75,19 +75,19 @@ const SERVICE_DEFINITIONS: ServiceDefinition[] = [
   // Video Transcoding  
   {
     id: 'transcode-macmini',
-    name: 'Mac Mini M4 (Primary)',
+    name: 'Mac Mini M4 (Secondary)',
     category: 'Video Transcoding',
-    description: 'Mac Mini M4 (Primary) video transcoding node',
+    description: 'Mac Mini M4 (Secondary) — Tailscale Funnel, browser uploads unreliable',
     healthUrl: 'https://minivlad.tail83ea3e.ts.net/video/healthz',
-    priority: 1,
+    priority: 2,
   },
   {
     id: 'transcode-oracle',
-    name: 'Oracle (Secondary)',
+    name: 'Oracle (Primary)',
     category: 'Video Transcoding',
-    description: 'Oracle (Secondary) video transcoding node',
+    description: 'Oracle (Primary) — public IP, all browser uploads go here',
     healthUrl: 'https://transcode.skatehive.app/healthz',
-    priority: 2,
+    priority: 1,
   },
   {
     id: 'transcode-pi',
