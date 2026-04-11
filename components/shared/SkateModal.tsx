@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   Modal,
   ModalOverlay,
@@ -27,6 +27,7 @@ interface SkateModalProps {
   closeOnOverlayClick?: boolean;
   motionPreset?: "slideInBottom" | "slideInRight" | "scale" | "none";
   windowId?: string;
+  resizable?: boolean;
 }
 
 const SkateModal: React.FC<SkateModalProps> = ({
@@ -42,8 +43,50 @@ const SkateModal: React.FC<SkateModalProps> = ({
   closeOnOverlayClick = true,
   motionPreset,
   windowId: customWindowId,
+  resizable = false,
 }) => {
   const theme = useTheme();
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  type ResizeDir = "e" | "w" | "s" | "n" | "se" | "sw" | "ne" | "nw";
+
+  const resizeState = useRef<{
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+    dir: ResizeDir;
+  } | null>(null);
+
+  const startResize = useCallback((e: React.MouseEvent, dir: ResizeDir) => {
+    e.preventDefault();
+    const el = contentRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    resizeState.current = { startX: e.clientX, startY: e.clientY, startWidth: rect.width, startHeight: rect.height, dir };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizeState.current) return;
+      const { startX, startY, startWidth, startHeight, dir } = resizeState.current;
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      const growsH = dir.includes("e") ? dx : dir.includes("w") ? -dx : 0;
+      const growsV = dir.includes("s") ? dy : dir.includes("n") ? -dy : 0;
+      setDimensions({
+        width: growsH !== 0 ? Math.max(320, startWidth + growsH) : startWidth,
+        height: growsV !== 0 ? Math.max(200, startHeight + growsV) : startHeight,
+      });
+    };
+
+    const onUp = () => {
+      resizeState.current = null;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, []);
   const {
     registerWindow,
     unregisterWindow,
@@ -110,7 +153,18 @@ const SkateModal: React.FC<SkateModalProps> = ({
         border="1px solid"
         borderColor={borderColor}
         overflow="hidden"
+        position="relative"
+        display="flex"
+        flexDirection="column"
+        sx={resizable && dimensions ? {
+          width: `${dimensions.width}px !important`,
+          maxWidth: "none !important",
+          height: `${dimensions.height}px !important`,
+          maxHeight: "none !important",
+        } : undefined}
       >
+        {/* Invisible wrapper used only to measure dimensions for resize */}
+        {resizable && <Box ref={contentRef} position="absolute" inset={0} pointerEvents="none" zIndex={-1} />}
         {/* Custom Terminal-style Header */}
         <Flex
           alignItems="center"
@@ -162,7 +216,12 @@ const SkateModal: React.FC<SkateModalProps> = ({
         </Flex>
 
         {/* Modal Body */}
-        <ModalBody p={0} overflowY="auto" maxH="75vh">
+        <ModalBody
+          p={0}
+          overflowY="auto"
+          flex="1"
+          maxH={isMaximized || (resizable && dimensions) ? "none" : "75vh"}
+        >
           {children}
         </ModalBody>
 
@@ -177,6 +236,21 @@ const SkateModal: React.FC<SkateModalProps> = ({
           >
             {footer}
           </ModalFooter>
+        )}
+        {/* Resize handles — inside the modal borders */}
+        {resizable && !isMaximized && (
+          <>
+            {/* Edges */}
+            <Box position="absolute" top="0" left="0" w="full" h="5px" cursor="ns-resize" zIndex={10} onMouseDown={(e) => startResize(e, "n")} />
+            <Box position="absolute" bottom="0" left="0" w="full" h="5px" cursor="ns-resize" zIndex={10} onMouseDown={(e) => startResize(e, "s")} />
+            <Box position="absolute" top="0" left="0" w="5px" h="full" cursor="ew-resize" zIndex={10} onMouseDown={(e) => startResize(e, "w")} />
+            <Box position="absolute" top="0" right="0" w="5px" h="full" cursor="ew-resize" zIndex={10} onMouseDown={(e) => startResize(e, "e")} />
+            {/* Corners */}
+            <Box position="absolute" top="0" left="0" w="12px" h="12px" cursor="nwse-resize" zIndex={11} onMouseDown={(e) => startResize(e, "nw")} />
+            <Box position="absolute" top="0" right="0" w="12px" h="12px" cursor="nesw-resize" zIndex={11} onMouseDown={(e) => startResize(e, "ne")} />
+            <Box position="absolute" bottom="0" left="0" w="12px" h="12px" cursor="nesw-resize" zIndex={11} onMouseDown={(e) => startResize(e, "sw")} />
+            <Box position="absolute" bottom="0" right="0" w="12px" h="12px" cursor="nwse-resize" zIndex={11} onMouseDown={(e) => startResize(e, "se")} />
+          </>
         )}
       </ModalContent>
     </Modal>
