@@ -126,7 +126,7 @@ const Settings = () => {
                 fontWeight="semibold"
               >
                 <Icon as={FiFlag} mr={1} />
-                Report Bug
+                {t('settings.reportBugTab')}
               </Tab>
             </TabList>
 

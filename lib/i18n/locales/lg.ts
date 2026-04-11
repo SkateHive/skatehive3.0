@@ -542,6 +542,15 @@ export const lg = {
     profileRestoreWarning: 'Profile Restore Warning',
     profileRestoreWarningDescription: 'Okukolaganya kuno kijja kugyako SkateHive-specific metadata mu profile yo. Kozesa yokka singa oyagala okukweka Hive account profile yo.',
     restoreProfileButton: '🔄 Okuzzaawo Profile okukoma mu Original State',
+    reportBugTab: 'Muŋongeeza Bug',
+    report: {
+      bugTitle: 'Muŋongeeza Bug',
+      bugDescription: 'Ofunye ekintu ekyabika? Tuŋamba.',
+      bugCta: 'Ssula Foomu',
+      featureTitle: 'Okusaba Ekintu Ekipya',
+      featureDescription: 'Olina entekateka yokonona Skatehive?',
+      featureCta: 'Weereza Okusaba',
+    },
   },
   invite: {
     title: 'Mwaliko Amusika Okuyingira Skatehive',
