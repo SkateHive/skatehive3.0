@@ -1,5 +1,3 @@
-// components/report/ReportModal.tsx
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -17,6 +15,8 @@ import {
 import { FiImage, FiX } from "react-icons/fi";
 import SkateModal from "@/components/shared/SkateModal";
 import { ReportFormData, ReportOptions, ReportType } from "@/types/report";
+import { useHiveUser } from "@/contexts/UserContext";
+import { useAioha } from "@aioha/react-ui";
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -42,6 +42,9 @@ function buildInitialForm(initialData?: ReportOptions): ReportFormData {
 }
 
 export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) {
+  const { hiveUser } = useHiveUser();
+  const { user: aiohaUser } = useAioha();
+  const reporter = hiveUser?.name ?? aiohaUser ?? "anonymous";
   const [form, setForm] = useState<ReportFormData>(() => buildInitialForm(initialData));
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
@@ -117,7 +120,7 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
       const response = await fetch("/api/trello/create-card", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, reporter }),
         signal: controller.signal,
       });
 
@@ -125,7 +128,8 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
 
       setStatus("success");
       closeTimerRef.current = setTimeout(handleClose, 2000);
-    } catch {
+    } catch (err) {
+      console.error('Report submission failed:', err);
       setStatus("error");
     } finally {
       clearTimeout(timeoutId);
@@ -157,9 +161,10 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
       title="report_bug.exe"
       windowId="report-modal"
       footer={footer}
+      resizable
     >
-      <Box p={4}>
-        <VStack gap={4} align="stretch">
+      <Box p={4} h="full" display="flex" flexDirection="column">
+        <VStack gap={4} align="stretch" flex="1">
           {/* Type selector */}
           <HStack gap={2} flexWrap="wrap">
             {REPORT_TYPES.map((t) => (
@@ -190,7 +195,9 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             onPaste={handlePaste}
-            rows={4}
+            flex="1"
+            minH="80px"
+            resize="none"
             isDisabled={isLoading}
             color="text"
           />
@@ -235,13 +242,13 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
                 px={3}
                 py={2}
                 border="1px dashed"
-                borderColor="gray.500"
+                borderColor="border"
                 borderRadius="md"
-                color="gray.300"
+                color="dim"
                 fontSize="sm"
                 cursor="pointer"
                 w="full"
-                _hover={{ borderColor: "gray.300", color: "white" }}
+                _hover={{ borderColor: "primary", color: "text" }}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Icon as={FiImage} />

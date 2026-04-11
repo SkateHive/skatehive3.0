@@ -75,7 +75,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             </Box>
           </Alert>
           {process.env.NODE_ENV === 'development' && this.state.error && (
-            <Box mt={4} p={4} bg="gray.100" borderRadius="md" fontSize="sm">
+            <Box mt={4} p={4} bg="muted" borderRadius="md" fontSize="sm">
               <details>
                 <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
                   Error Details (Development)
