@@ -249,7 +249,7 @@ export default function ZoraSwapSection() {
       {/* Header */}
       <HStack px={3} py={2} bg="primary" justify="space-between">
         <HStack spacing={2}>
-          <Image src="/logos/Zorb.png" w="18px" h="18px" borderRadius="full" />
+          <Image src="/logos/Zorb.png" w="18px" h="18px" borderRadius="full" alt="" />
           <Text fontWeight="black" fontSize="sm" color="background"
             textTransform="uppercase" letterSpacing="widest" fontFamily="mono">
             Zora Swap
@@ -272,7 +272,7 @@ export default function ZoraSwapSection() {
             <HStack>
               <HStack spacing={2} flex={1} minW={0}>
                 {sellLogo && (
-                  <Image src={sellLogo} w="22px" h="22px" objectFit="contain" borderRadius="full"
+                  <Image src={sellLogo} w="22px" h="22px" objectFit="contain" borderRadius="full" alt=""
                     fallback={<Box w="22px" h="22px" borderRadius="full" bg="border" />} />
                 )}
                 <Input
@@ -331,7 +331,7 @@ export default function ZoraSwapSection() {
             <HStack>
               <HStack spacing={2} flex={1} minW={0}>
                 {buyLogo && (
-                  <Image src={buyLogo} w="22px" h="22px" objectFit="contain" borderRadius="full"
+                  <Image src={buyLogo} w="22px" h="22px" objectFit="contain" borderRadius="full" alt=""
                     fallback={<Box w="22px" h="22px" borderRadius="full" bg="border" />} />
                 )}
                 <Text fontSize="2xl" fontFamily="mono" fontWeight="black" color="primary">
@@ -406,7 +406,7 @@ export default function ZoraSwapSection() {
                 >
                   <HStack spacing={2}>
                     {searchResult.logo && (
-                      <Image src={searchResult.logo} w="20px" h="20px" borderRadius="full"
+                      <Image src={searchResult.logo} w="20px" h="20px" borderRadius="full" alt=""
                         fallback={<Box w="20px" h="20px" borderRadius="full" bg="border" />} />
                     )}
                     <Text fontSize="sm" fontFamily="mono" fontWeight="bold" color="primary">

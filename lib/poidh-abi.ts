@@ -1,4 +1,4 @@
-// POIDH v2 Contract ABI — Read + Write functions
+// POIDH v3 Contract ABI — Read + Write functions
 export const POIDH_ABI = [
   // ── Read functions ──────────────────────────────────────────
   {

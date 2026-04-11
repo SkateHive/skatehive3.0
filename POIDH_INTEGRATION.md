@@ -96,7 +96,7 @@ All core POIDH features are now integrated natively — create, contribute, clai
 ## Infrastructure Done
 
 - [x] Wagmi v2 + viem + RainbowKit configured in providers (Base + Mainnet + Arbitrum)
-- [x] Full POIDH v2 ABI with all read + write functions (`lib/poidh-abi.ts`)
+- [x] Full POIDH v3 ABI with all read + write functions (`lib/poidh-abi.ts`)
 - [x] Contract config per chain (`lib/poidh-contracts.ts`)
 - [x] `usePoidhWrite` hook — unified write operations for all POIDH contract functions
 - [x] `usePoidhRead` hooks — participants, voting state, participant amounts, pending withdrawals, open bounty detection
@@ -144,9 +144,9 @@ All core POIDH features are now integrated natively — create, contribute, clai
 
 | Chain | Contract | Address |
 |-------|----------|---------|
-| Base (8453) | Bounty v2 | `0x5555fa783936c260f77385b4e153b9725fef1719` |
-| Arbitrum (42161) | Bounty v2 | `0x5555fa783936c260f77385b4e153b9725fef1719` |
-| Degen (666666666) | Bounty v2 | `0x18e5585ca7ce31b90bc8bb7aaf84152857ce243f` |
+| Base (8453) | Bounty v3 | `0x5555fa783936c260f77385b4e153b9725fef1719` |
+| Arbitrum (42161) | Bounty v3 | `0x5555fa783936c260f77385b4e153b9725fef1719` |
+| Degen (666666666) | Bounty v3 | `0x18e5585ca7ce31b90bc8bb7aaf84152857ce243f` |
 | Base/Arb | NFT | `0x27E117Cc9A8DA363442e7Bd0618939E3EEEACF6A` |
 | Degen | NFT | `0x39f04b7897dcaf9dc454e433f43fb1c3bb528e11` |
 
@@ -171,7 +171,7 @@ All core POIDH features are now integrated natively — create, contribute, clai
 
 | File | Changes |
 |------|---------|
-| `lib/poidh-abi.ts` | Full v2 ABI (18 read + 16 write functions) |
+| `lib/poidh-abi.ts` | Full v3 ABI (18 read + 16 write functions) |
 | `app/providers.tsx` | Added Arbitrum chain + transport |
 | `components/bounties/PoidhBountyDetail.tsx` | Full native interaction + claim detail modal + share dialog + Hive cross-post |
 | `components/bounties/BountiesHubClient.tsx` | Native ETH bounty creation (no more external redirect) |

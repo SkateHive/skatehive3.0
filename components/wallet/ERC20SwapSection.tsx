@@ -92,7 +92,7 @@ function getRoute(sell: TokenInfo, buy: TokenInfo): "zora" | "0x" {
 function TokenLogo({ token, size = "28px" }: { token: TokenInfo; size?: string }) {
   if (token.logo) {
     return (
-      <Image src={token.logo} w={size} h={size} objectFit="contain" borderRadius="full"
+      <Image src={token.logo} w={size} h={size} objectFit="contain" borderRadius="full" alt=""
         fallback={
           <Box w={size} h={size} borderRadius="full" bg="border" display="flex"
             alignItems="center" justifyContent="center">
@@ -102,7 +102,7 @@ function TokenLogo({ token, size = "28px" }: { token: TokenInfo; size?: string }
     );
   }
   if (token.source === "zora") {
-    return <Image src="/logos/Zorb.png" w={size} h={size} borderRadius="full" />;
+    return <Image src="/logos/Zorb.png" w={size} h={size} borderRadius="full" alt="" />;
   }
   return (
     <Box w={size} h={size} borderRadius="full" bg="border" display="flex"
@@ -763,7 +763,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             <HStack>
               <HStack spacing={2} flex={1} minW={0}>
                 {sellToken.logo && (
-                  <Image src={sellToken.logo} w="22px" h="22px" objectFit="contain" borderRadius="full"
+                  <Image src={sellToken.logo} w="22px" h="22px" objectFit="contain" borderRadius="full" alt=""
                     fallback={<Box w="22px" h="22px" borderRadius="full" bg="border" />} />
                 )}
                 <Input
@@ -808,7 +808,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             <HStack>
               <HStack spacing={2} flex={1} minW={0}>
                 {buyToken.logo && (
-                  <Image src={buyToken.logo} w="22px" h="22px" objectFit="contain" borderRadius="full"
+                  <Image src={buyToken.logo} w="22px" h="22px" objectFit="contain" borderRadius="full" alt=""
                     fallback={<Box w="22px" h="22px" borderRadius="full" bg="border" />} />
                 )}
                 <Text fontSize="2xl" fontFamily="mono" fontWeight="black" color="primary">
@@ -879,10 +879,10 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
                 >
                   <HStack spacing={2}>
                     {searchResult.logo ? (
-                      <Image src={searchResult.logo} w="20px" h="20px" borderRadius="full"
+                      <Image src={searchResult.logo} w="20px" h="20px" borderRadius="full" alt=""
                         fallback={<Box w="20px" h="20px" borderRadius="full" bg="border" />} />
                     ) : (
-                      <Image src="/logos/Zorb.png" w="20px" h="20px" borderRadius="full" />
+                      <Image src="/logos/Zorb.png" w="20px" h="20px" borderRadius="full" alt="" />
                     )}
                     <Text fontSize="sm" fontFamily="mono" fontWeight="bold" color="primary">
                       {searchResult.symbol}

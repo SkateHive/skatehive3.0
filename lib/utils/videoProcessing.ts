@@ -23,8 +23,8 @@ export type ServerKey = 'macmini' | 'oracle' | 'pi';
 /** Server configuration - SINGLE SOURCE OF TRUTH for server order
  *  All servers run the same SkateHive video-transcoder codebase */
 export const SERVER_CONFIG: Array<{ key: ServerKey; name: string; emoji: string; priority: string }> = [
-  { key: 'macmini', name: 'Mac Mini M4', emoji: '🍎', priority: 'PRIMARY' },
-  { key: 'oracle', name: 'Oracle', emoji: '🔮', priority: 'SECONDARY' },
+  { key: 'oracle', name: 'Oracle', emoji: '🔮', priority: 'PRIMARY' },
+  { key: 'macmini', name: 'Mac Mini M4', emoji: '🍎', priority: 'SECONDARY' },
   { key: 'pi', name: 'Raspberry Pi', emoji: '🫐', priority: 'TERTIARY' },
 ];
 
@@ -46,15 +46,15 @@ export interface EnhancedProcessingOptions {
 }
 
 /**
- * Quick health check for a server (8 second timeout)
- * Tailscale Funnel URLs can take 2-3s from some regions
+ * Quick health check for a server via same-origin proxy
+ * Avoids browser CORS failures against external transcoder hosts from some regions
  */
 async function checkServerHealth(serverBaseUrl: string): Promise<boolean> {
   try {
-    const healthUrl = `${serverBaseUrl}/healthz`;
+    const healthUrl = `/api/video-proxy?url=${encodeURIComponent(`${serverBaseUrl}/healthz`)}`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(healthUrl, {
       method: 'GET',
@@ -76,9 +76,11 @@ export async function processVideoOnServer(
   username: string = 'anonymous',
   enhancedOptions?: EnhancedProcessingOptions
 ): Promise<ProcessingResult> {
-  // PRIMARY: Mac Mini M4
+  // PRIMARY: Oracle (public endpoint, reliable from browsers)
+  // Mac Mini Tailscale Funnel works for health checks (via Vercel proxy) but
+  // large POST uploads fail when the browser connects directly — demoted to SECONDARY.
   const primaryServer = SERVER_CONFIG[0];
-  const primaryUrl = 'https://minivlad.tail83ea3e.ts.net/video';
+  const primaryUrl = 'https://transcode.skatehive.app';
 
   console.log(`🔍 Checking ${primaryServer.name} health...`);
   const isPrimaryHealthy = await checkServerHealth(primaryUrl);
@@ -111,9 +113,9 @@ export async function processVideoOnServer(
 
   enhancedOptions?.onServerFailed?.(primaryServer.key, primaryResult.error);
 
-  // SECONDARY: Oracle Cloud
+  // SECONDARY: Mac Mini M4 (Tailscale Funnel — works if browser can reach it)
   const secondaryServer = SERVER_CONFIG[1];
-  const secondaryUrl = 'https://transcode.skatehive.app';
+  const secondaryUrl = 'https://minivlad.tail83ea3e.ts.net/video';
 
   console.log(`🔍 Checking ${secondaryServer.name} health...`);
   const isSecondaryHealthy = await checkServerHealth(secondaryUrl);
@@ -204,9 +206,7 @@ async function tryServer(
     serverName.toLowerCase().includes('mac') ? 'macmini' : 'pi';
 
   // Determine endpoint paths based on server
-  const transcodeUrl = serverBaseUrl.includes('sslip.io')
-    ? `${serverBaseUrl}/transcode`  // Oracle uses /transcode
-    : `${serverBaseUrl}/transcode`; // Others use /video/transcode but we changed base URL
+  const transcodeUrl = `${serverBaseUrl}/transcode`;
 
   let eventSource: EventSource | null = null;
 
@@ -268,8 +268,9 @@ async function tryServer(
     // Create abort controller with shorter timeout for faster failover
     const controller = new AbortController();
     const fileSizeMB = file.size / (1024 * 1024);
-    // Dynamic timeout: 30s base + 10s per MB (max 3 minutes)
-    const timeout = Math.min(30000 + (fileSizeMB * 10000), 180000);
+    // Dynamic timeout: 60s base + 5s per MB (max 15 minutes)
+    // A 79MB MOV file takes ~6min to transcode+upload — the old 3min cap was killing it
+    const timeout = Math.min(60000 + (fileSizeMB * 5000), 900000);
     const timeoutId = setTimeout(() => {
       controller.abort();
     }, timeout);

@@ -199,7 +199,7 @@ function HiveSwapPanel({
         </Text>
         <HStack>
           <HStack spacing={2} flex={1} minW={0}>
-            <Image src={fromLogo} w="22px" h="22px" objectFit="contain" />
+            <Image src={fromLogo} w="22px" h="22px" objectFit="contain" alt="" />
             <Input
               type="number"
               placeholder="0"
@@ -256,7 +256,7 @@ function HiveSwapPanel({
         </Text>
         <HStack>
           <HStack spacing={2} flex={1} minW={0}>
-            <Image src={toLogo} w="22px" h="22px" objectFit="contain" />
+            <Image src={toLogo} w="22px" h="22px" objectFit="contain" alt="" />
             <Text
               fontSize="2xl"
               fontFamily="mono"
