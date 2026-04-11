@@ -543,6 +543,15 @@ export const ptBR = {
     profileRestoreWarning: 'Aviso de Restauração de Perfil',
     profileRestoreWarningDescription: 'Esta ação removerá metadados específicos do SkateHive do seu perfil. Use apenas se quiser limpar o perfil da sua conta Hive.',
     restoreProfileButton: '🔄 Restaurar Perfil ao Estado Original',
+    reportBugTab: 'Reportar Bug',
+    report: {
+      bugTitle: 'Reportar um Bug',
+      bugDescription: 'Encontrou algo quebrado? Nos avise.',
+      bugCta: 'Abrir Formulário',
+      featureTitle: 'Sugestão de Funcionalidade',
+      featureDescription: 'Tem uma ideia para melhorar o Skatehive?',
+      featureCta: 'Enviar Sugestão',
+    },
   },
   invite: {
     title: 'Convide um Skatista para o Skatehive',

@@ -27,7 +27,6 @@ import {
   FiFilm,
   FiUsers,
   FiMail,
-  FiFlag,
 } from "react-icons/fi";
 import { useTheme } from "@/app/themeProvider";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -35,7 +34,7 @@ import SidebarLogo from "../graphics/SidebarLogo";
 import AuthButton from "./AuthButton";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useSoundSettings } from "@/contexts/SoundSettingsContext";
-import { useReport } from "@/contexts/ReportContext";
+
 
 interface NavItemDef {
   href?: string;
@@ -53,7 +52,7 @@ interface NavGroupDef {
 }
 
 export default function Sidebar() {
-  const { openReport } = useReport();
+
   const { handle: hiveHandle, canUseAppFeatures } = useEffectiveHiveUser();
   const { isConnected: isEthereumConnected } = useAccount();
   const { isAuthenticated: isFarcasterConnected } = useFarcasterSession();
