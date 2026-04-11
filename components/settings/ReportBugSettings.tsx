@@ -24,7 +24,7 @@ const ReportBugSettings: React.FC = () => {
           <Button
             leftIcon={<Icon as={FiFlag} />}
             variant="outline"
-            colorScheme="red"
+            colorScheme="gray"
             alignSelf="flex-start"
             onClick={() => openReport({ type: "bug" })}
           >
@@ -46,7 +46,7 @@ const ReportBugSettings: React.FC = () => {
           <Button
             leftIcon={<Icon as={FiFlag} />}
             variant="outline"
-            colorScheme="green"
+            colorScheme="gray"
             alignSelf="flex-start"
             onClick={() => openReport({ type: "feature" })}
           >
