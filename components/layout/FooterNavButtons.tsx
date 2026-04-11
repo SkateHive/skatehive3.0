@@ -57,6 +57,7 @@ export default function FooterNavButtons() {
   const t = useTranslations('navigation');
   const tCommon = useTranslations('common');
   const tAuth = useTranslations('auth');
+  const tSettings = useTranslations('settings');
 
   // Farcaster integration - use methods from island
   const farcasterMethods = useFarcasterAuthMethods();
@@ -1008,7 +1009,7 @@ export default function FooterNavButtons() {
                 >
                   <HStack spacing={3}>
                     <Icon as={FiFlag} boxSize={4} />
-                    <Text fontSize="sm">Report Bug</Text>
+                    <Text fontSize="sm">{tSettings('reportBugTab')}</Text>
                   </HStack>
                 </Box>
               </Box>
