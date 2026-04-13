@@ -21,7 +21,7 @@ export default function SearchTips({ show }: SearchTipsProps) {
             Type usernames to find skaters
           </Text>
           <Text fontSize="sm" color="secondary">
-            Use / to search pages and features
+            Search pages and commands by name
           </Text>
           <Text fontSize="sm" color="secondary">
             Navigate with ↑↓, select with Enter

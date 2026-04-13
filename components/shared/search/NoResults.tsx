@@ -47,11 +47,9 @@ export default function NoResults({
       <Text color="primary" fontSize="md">
         No results found for &ldquo;{query}&rdquo;
       </Text>
-      {!query.startsWith("/") && (
-        <Text color="secondary" fontSize="sm" mt={1}>
-          Try typing / to search pages
-        </Text>
-      )}
+      <Text color="secondary" fontSize="sm" mt={1}>
+        Try searching for a username, page or command
+      </Text>
     </Box>
   );
 }

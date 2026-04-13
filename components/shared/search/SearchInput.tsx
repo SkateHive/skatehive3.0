@@ -50,7 +50,7 @@ export default function SearchInput({
         </InputLeftElement>
         <Input
           ref={inputRef}
-          placeholder="Search users or type / for pages..."
+          placeholder="Search users, pages or commands..."
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           onKeyDown={handleKeyDown}
