@@ -1154,7 +1154,19 @@ export const en = {
   },
   share: {
     pageTitle: 'Shared Cast',
-  }
+  },
+  searchOverlay: {
+    tips: {
+      title: 'Search Tips',
+      usernames: 'Type usernames to find skaters',
+      pagesAndCommands: 'Search pages and commands by name',
+      navigate: 'Navigate with ↑↓, select with Enter',
+    },
+    noResults: {
+      heading: 'No results found for',
+      hint: 'Try searching for a username, page or command',
+    },
+  },
 };
 
 

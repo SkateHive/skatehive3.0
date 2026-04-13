@@ -1154,4 +1154,16 @@ export const ptBR = {
   share: {
     pageTitle: 'Cast Compartilhado',
   },
+  searchOverlay: {
+    tips: {
+      title: 'Dicas de Busca',
+      usernames: 'Digite nomes de usuário para encontrar skaters',
+      pagesAndCommands: 'Busque páginas e comandos pelo nome',
+      navigate: 'Navegue com ↑↓, selecione com Enter',
+    },
+    noResults: {
+      heading: 'Nenhum resultado encontrado para',
+      hint: 'Tente buscar um usuário, página ou comando',
+    },
+  },
 };

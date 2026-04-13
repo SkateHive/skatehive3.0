@@ -30,6 +30,7 @@ import { FaEthereum, FaHive, FaLink } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { useTranslations } from "@/contexts/LocaleContext";
+import useIsMobile from "@/hooks/useIsMobile";
 import UserbaseEmailLoginForm from "@/components/userbase/UserbaseEmailLoginForm";
 import AccountLinkingModal from "@/components/layout/AccountLinkingModal";
 import { useAccountLinkingOpportunities } from "@/hooks/useAccountLinkingOpportunities";
@@ -248,6 +249,7 @@ export default function ConnectionModal({
   isFarcasterAuthInProgress,
   actualFarcasterConnection,
 }: ConnectionModalProps) {
+  const isMobile = useIsMobile();
   const { user, aioha } = useAioha();
   const { user: userbaseUser, signOut: signOutUserbase } = useUserbaseAuth();
   const { disconnect: disconnectEth } = useDisconnect();
@@ -337,7 +339,7 @@ export default function ConnectionModal({
       onClose={onClose}
       title={isLoggedIn ? "session" : "authenticate"}
       isCentered={true}
-      resizable
+      resizable={!isMobile}
     >
       {/* Subtle noise overlay */}
       <Box

@@ -1152,4 +1152,16 @@ export const lg = {
   share: {
     pageTitle: 'Cast Ekakasizza',
   },
+  searchOverlay: {
+    tips: {
+      title: 'Amagezi g\'Okunoonyereza',
+      usernames: 'Wandika erinnya ery\'omukozesa okufuna abaskater',
+      pagesAndCommands: 'Noonyereza emipapula n\'ebiragiro mu linnya',
+      navigate: 'Tambula n\'↑↓, londa n\'Enter',
+    },
+    noResults: {
+      heading: 'Tewali binannyikiriziddwa kubikwata ku',
+      hint: 'Gezaako okunoonyereza omukozesa, empapula oba ekiragiro',
+    },
+  },
 };

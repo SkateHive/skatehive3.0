@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Box, HStack, Text, Spinner, Image, VStack } from "@chakra-ui/react";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 interface NoResultsProps {
   query: string;
@@ -14,6 +15,7 @@ export default function NoResults({
   hasPages,
   hasSkaters,
 }: NoResultsProps) {
+  const t = useTranslations();
   if (hasPages || hasSkaters) return null;
 
   // Easter egg for HZC search
@@ -45,10 +47,10 @@ export default function NoResults({
   return (
     <Box p={4} textAlign="center">
       <Text color="primary" fontSize="md">
-        No results found for &ldquo;{query}&rdquo;
+        {t("searchOverlay.noResults.heading")} &ldquo;{query}&rdquo;
       </Text>
       <Text color="secondary" fontSize="sm" mt={1}>
-        Try searching for a username, page or command
+        {t("searchOverlay.noResults.hint")}
       </Text>
     </Box>
   );
