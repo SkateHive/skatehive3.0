@@ -23,7 +23,7 @@ import { SkaterData } from "@/types/leaderboard";
 // Deferred — not needed for first paint
 const SearchOverlay = dynamic(() => import("@/components/shared/SearchOverlay"), { ssr: false });
 const AirdropModal = dynamic(() => import("@/components/airdrop/AirdropModal"), { ssr: false });
-import ReportModal from "@/components/report/ReportModal";
+const ReportModal = dynamic(() => import("@/components/report/ReportModal"), { ssr: false });
 const AccountLinkingDetector = dynamic(() => import("@/components/layout/AccountLinkingDetector"), { ssr: false });
 const CommunityToasts = dynamic(() => import("@/components/homepage/CommunityToasts"), { ssr: false });
 const IOSAppBanner = dynamic(() => import("@/components/shared/IOSAppBanner"), { ssr: false });
