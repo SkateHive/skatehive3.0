@@ -1164,5 +1164,6 @@ export const lg = {
       hint: 'Gezaako okunoonyereza omukozesa, empapula oba ekiragiro',
     },
     popularCommands: 'Ebiragiro Ebisinga Okukozesebwa',
+    inputPlaceholder: 'Noonyereza abakozesa, emipapula oba ebiragiro...',
   },
 };

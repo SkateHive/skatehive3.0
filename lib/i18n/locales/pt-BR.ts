@@ -1166,5 +1166,6 @@ export const ptBR = {
       hint: 'Tente buscar um usuário, página ou comando',
     },
     popularCommands: 'Comandos Populares',
+    inputPlaceholder: 'Buscar usuários, páginas ou comandos...',
   },
 };

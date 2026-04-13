@@ -1165,5 +1165,6 @@ export const es = {
       hint: 'Intenta buscar un nombre de usuario, página o comando',
     },
     popularCommands: 'Comandos Populares',
+    inputPlaceholder: 'Buscar usuarios, páginas o comandos...',
   },
 };

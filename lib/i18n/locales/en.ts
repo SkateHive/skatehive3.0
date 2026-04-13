@@ -1167,6 +1167,7 @@ export const en = {
       hint: 'Try searching for a username, page or command',
     },
     popularCommands: 'Popular Commands',
+    inputPlaceholder: 'Search users, pages or commands...',
   },
 };
 

@@ -3,7 +3,7 @@ import React from "react";
 import { Box, Text, VStack, Heading, Button, Icon } from "@chakra-ui/react";
 import { FiFlag } from "react-icons/fi";
 import { useReport } from "@/contexts/ReportContext";
-import { useTranslations } from "@/contexts/LocaleContext";
+import { useTranslations } from "@/lib/i18n/hooks";
 
 const ReportBugSettings: React.FC = () => {
   const { openReport } = useReport();

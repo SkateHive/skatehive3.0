@@ -10,6 +10,7 @@ import {
   Spinner,
 } from "@chakra-ui/react";
 import { FaSearch } from "react-icons/fa";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 interface SearchInputProps {
   query: string;
@@ -24,6 +25,7 @@ export default function SearchInput({
   inputRef,
   isLoading,
 }: SearchInputProps) {
+  const t = useTranslations();
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Prevent arrow keys from moving cursor when we want to navigate results
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -50,7 +52,7 @@ export default function SearchInput({
         </InputLeftElement>
         <Input
           ref={inputRef}
-          placeholder="Search users, pages or commands..."
+          placeholder={t("searchOverlay.inputPlaceholder")}
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           onKeyDown={handleKeyDown}
