@@ -11,7 +11,7 @@ import {
   VStack,
   Box,
 } from "@chakra-ui/react";
-import { FaSearch, FaUser, FaHome, FaTrophy, FaGift } from "react-icons/fa";
+import { FaSearch, FaUser, FaHome, FaTrophy, FaGift, FaBolt } from "react-icons/fa";
 import { useRouter, usePathname } from "next/navigation";
 import { useSoundSettings } from "@/contexts/SoundSettingsContext";
 
@@ -34,6 +34,7 @@ import {
   STATIC_PAGES,
   COMMAND_PAGES,
   getPopularPages,
+  getPopularCommands,
 } from "./search/constants";
 import { SkaterData } from "@/types/leaderboard";
 
@@ -87,6 +88,9 @@ export default function SearchOverlay({
   const popularPages = useMemo(() => {
     return getPopularPages().filter((page) => page.path !== pathname);
   }, [pathname]);
+
+  // Get popular commands
+  const popularCommands = useMemo(() => getPopularCommands(), []);
 
   // Fetch top skaters
   useEffect(() => {
@@ -189,6 +193,7 @@ export default function SearchOverlay({
         ]
       : [
           ...popularPages,
+          ...popularCommands,
         ];
 
     switch (e.key) {
@@ -234,6 +239,7 @@ export default function SearchOverlay({
       title="global-search"
       size="xl"
       blockScrollOnMount={false}
+      resizable
     >
       <Box p={0}>
         <VStack spacing={0} align="stretch">
@@ -250,7 +256,7 @@ export default function SearchOverlay({
             <Box
               flex="1"
               overflowY="auto"
-              maxH="50vh"
+              maxH="100%"
               css={{
                 "&::-webkit-scrollbar": {
                   width: "6px",
@@ -345,6 +351,23 @@ export default function SearchOverlay({
                         key={`popular-${page.path}`}
                         page={page}
                         index={index}
+                        highlightedIndex={highlightedIndex}
+                        onSelect={handleSelect}
+                        onHover={playHoverSound}
+                      />
+                    ))}
+                  </>
+                )}
+
+                {/* Show popular commands when no query */}
+                {!query && popularCommands.length > 0 && (
+                  <>
+                    <SectionHeader icon={FaBolt} title="Popular Commands" />
+                    {popularCommands.map((command, index) => (
+                      <PageResult
+                        key={`popular-command-${command.path}`}
+                        page={command}
+                        index={popularPages.length + index}
                         highlightedIndex={highlightedIndex}
                         onSelect={handleSelect}
                         onHover={playHoverSound}

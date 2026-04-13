@@ -713,6 +713,7 @@ export function AirdropModal({
       size={isMobile ? "full" : "xl"}
       footer={modalContent.footer}
       blockScrollOnMount={false}
+      resizable={!isMobile}
     >
       <Box 
         px={isMobile ? 4 : 8}

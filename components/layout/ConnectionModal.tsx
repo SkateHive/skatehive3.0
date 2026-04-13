@@ -337,6 +337,7 @@ export default function ConnectionModal({
       onClose={onClose}
       title={isLoggedIn ? "session" : "authenticate"}
       isCentered={true}
+      resizable
     >
       {/* Subtle noise overlay */}
       <Box
