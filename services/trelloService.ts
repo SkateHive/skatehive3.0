@@ -26,9 +26,10 @@ function buildCardDescription(data: ReportFormData): string {
 }
 
 function getListId(type: ReportFormData['type']): string {
-    if (type === 'feature') return requireEnv('TRELLO_LIST_ID_FEATURE');
-    if (type === 'feedback') return requireEnv('TRELLO_LIST_ID_FEEDBACK');
-    return requireEnv('TRELLO_LIST_ID');
+    const defaultListId = () => requireEnv('TRELLO_LIST_ID');
+    if (type === 'feature') return process.env.TRELLO_LIST_ID_FEATURE || defaultListId();
+    if (type === 'feedback') return process.env.TRELLO_LIST_ID_FEEDBACK || defaultListId();
+    return defaultListId();
 }
 
 function buildCardPayload(data: ReportFormData): TrelloCardPayload {
@@ -78,6 +79,9 @@ export async function createTrelloCard(data: ReportFormData): Promise<void> {
     }
 }
 
+const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024;
+
 async function attachScreenshotToCard(cardId: string, base64DataUrl: string): Promise<void> {
     const commaIndex = base64DataUrl.indexOf(',');
     if (commaIndex === -1) throw new Error('Invalid base64 data URL format');
@@ -86,6 +90,13 @@ async function attachScreenshotToCard(cardId: string, base64DataUrl: string): Pr
     const data = base64DataUrl.slice(commaIndex + 1);
     const mimeType = meta.match(/:(.*?);/)?.[1] ?? 'image/png';
     const buffer = Buffer.from(data, 'base64');
+
+    if (!ALLOWED_IMAGE_TYPES.has(mimeType)) {
+        throw new Error(`Screenshot type not allowed: ${mimeType}`);
+    }
+    if (buffer.byteLength > MAX_SCREENSHOT_BYTES) {
+        throw new Error(`Screenshot exceeds 2 MB limit (${buffer.byteLength} bytes)`);
+    }
     const blob = new Blob([buffer], { type: mimeType });
 
     const formData = new FormData();
