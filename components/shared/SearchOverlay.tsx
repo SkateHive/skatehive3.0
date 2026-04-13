@@ -24,6 +24,7 @@ import SectionHeader from "./search/SectionHeader";
 import SearchTips from "./search/SearchTips";
 import NoResults from "./search/NoResults";
 import SkateModal from "./SkateModal";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 // Import types and constants
 import {
@@ -44,6 +45,7 @@ export default function SearchOverlay({
   onOpenAirdrop,
   onOpenReport,
 }: SearchOverlayProps) {
+  const t = useTranslations();
   const [query, setQuery] = useState("");
   const [skaters, setSkaters] = useState<SkaterData[]>([]);
   const [filteredPages, setFilteredPages] = useState<PageResultType[]>([]);
@@ -363,7 +365,7 @@ export default function SearchOverlay({
                 {/* Show popular commands when no query */}
                 {!query && popularCommands.length > 0 && (
                   <>
-                    <SectionHeader icon={FaBolt} title="Popular Commands" />
+                    <SectionHeader icon={FaBolt} title={t("searchOverlay.popularCommands")} />
                     {popularCommands.map((command, index) => (
                       <PageResult
                         key={`popular-command-${command.path}`}

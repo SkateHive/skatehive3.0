@@ -1164,5 +1164,6 @@ export const es = {
       heading: 'No se encontraron resultados para',
       hint: 'Intenta buscar un nombre de usuario, página o comando',
     },
+    popularCommands: 'Comandos Populares',
   },
 };

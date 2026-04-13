@@ -1165,5 +1165,6 @@ export const ptBR = {
       heading: 'Nenhum resultado encontrado para',
       hint: 'Tente buscar um usuário, página ou comando',
     },
+    popularCommands: 'Comandos Populares',
   },
 };

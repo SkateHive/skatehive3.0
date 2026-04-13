@@ -1163,5 +1163,6 @@ export const lg = {
       heading: 'Tewali binannyikiriziddwa kubikwata ku',
       hint: 'Gezaako okunoonyereza omukozesa, empapula oba ekiragiro',
     },
+    popularCommands: 'Ebiragiro Ebisinga Okukozesebwa',
   },
 };
