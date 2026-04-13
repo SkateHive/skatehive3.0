@@ -255,7 +255,7 @@ export default function SearchOverlay({
           />
 
           {/* Results Area */}
-          {query || popularPages.length > 0 || isLoadingTopSkaters ? (
+          {query || popularPages.length > 0 || popularCommands.length > 0 || isLoadingTopSkaters ? (
             <Box
               flex="1"
               overflowY="auto"
