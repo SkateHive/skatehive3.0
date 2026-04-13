@@ -162,6 +162,7 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
       windowId="report-modal"
       footer={footer}
       resizable
+      preciseResize
     >
       <Box p={4} h="full" display="flex" flexDirection="column">
         <VStack gap={4} align="stretch" flex="1">

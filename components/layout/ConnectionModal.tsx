@@ -340,6 +340,7 @@ export default function ConnectionModal({
       title={isLoggedIn ? "session" : "authenticate"}
       isCentered={true}
       resizable={!isMobile}
+      preciseResize={!isMobile}
     >
       {/* Subtle noise overlay */}
       <Box

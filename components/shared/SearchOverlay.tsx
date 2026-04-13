@@ -240,6 +240,7 @@ export default function SearchOverlay({
       size="xl"
       blockScrollOnMount={false}
       resizable
+      preciseResize
     >
       <Box p={0}>
         <VStack spacing={0} align="stretch">
