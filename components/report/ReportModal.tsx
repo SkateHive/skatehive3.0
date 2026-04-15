@@ -1,5 +1,3 @@
-// components/report/ReportModal.tsx
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -11,9 +9,14 @@ import {
   HStack,
   Text,
   Box,
+  Icon,
+  Image,
 } from "@chakra-ui/react";
+import { FiImage, FiX } from "react-icons/fi";
 import SkateModal from "@/components/shared/SkateModal";
 import { ReportFormData, ReportOptions, ReportType } from "@/types/report";
+import { useHiveUser } from "@/contexts/UserContext";
+import { useAioha } from "@aioha/react-ui";
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -39,9 +42,15 @@ function buildInitialForm(initialData?: ReportOptions): ReportFormData {
 }
 
 export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) {
+  const { hiveUser } = useHiveUser();
+  const { user: aiohaUser } = useAioha();
+  const reporter = hiveUser?.name ?? aiohaUser ?? "anonymous";
   const [form, setForm] = useState<ReportFormData>(() => buildInitialForm(initialData));
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Re-seed form whenever modal opens with new initialData
@@ -49,8 +58,35 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
     if (isOpen) {
       setForm(buildInitialForm(initialData));
       setStatus("idle");
+      setImagePreview(null);
+      setImageError(null);
     }
   }, [isOpen, initialData]);
+
+  function handlePaste(e: React.ClipboardEvent) {
+    const file = Array.from(e.clipboardData.items)
+      .find((item) => item.type.startsWith("image/"))
+      ?.getAsFile();
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setImageError("Image must be under 2MB");
+      return;
+    }
+    setImageError(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setImagePreview(base64);
+      setForm((f) => ({ ...f, screenshot: base64 }));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleRemoveImage() {
+    setImagePreview(null);
+    setImageError(null);
+    setForm((f) => ({ ...f, screenshot: undefined }));
+  }
 
   // Cleanup pending auto-close timer on unmount
   useEffect(() => {
@@ -66,6 +102,8 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
     }
     setForm(buildInitialForm());
     setStatus("idle");
+    setImagePreview(null);
+    setImageError(null);
     onClose();
   }
 
@@ -82,7 +120,7 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
       const response = await fetch("/api/trello/create-card", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, reporter }),
         signal: controller.signal,
       });
 
@@ -90,7 +128,8 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
 
       setStatus("success");
       closeTimerRef.current = setTimeout(handleClose, 2000);
-    } catch {
+    } catch (err) {
+      console.error('Report submission failed:', err);
       setStatus("error");
     } finally {
       clearTimeout(timeoutId);
@@ -122,9 +161,11 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
       title="report_bug.exe"
       windowId="report-modal"
       footer={footer}
+      resizable
+      preciseResize
     >
-      <Box p={4}>
-        <VStack gap={4} align="stretch">
+      <Box p={4} h="full" display="flex" flexDirection="column">
+        <VStack gap={4} align="stretch" flex="1">
           {/* Type selector */}
           <HStack gap={2} flexWrap="wrap">
             {REPORT_TYPES.map((t) => (
@@ -151,13 +192,72 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
 
           {/* Description */}
           <Textarea
-            placeholder="Describe the problem or suggestion..."
+            placeholder="Describe the problem or suggestion... (Ctrl+V to paste screenshot)"
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            rows={4}
+            onPaste={handlePaste}
+            flex="1"
+            minH="80px"
+            resize="none"
             isDisabled={isLoading}
             color="text"
           />
+
+          {/* Screenshot upload */}
+          <Box>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 2 * 1024 * 1024) {
+                  setImageError("Image must be under 2MB");
+                  return;
+                }
+                setImageError(null);
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const base64 = reader.result as string;
+                  setImagePreview(base64);
+                  setForm((f) => ({ ...f, screenshot: base64 }));
+                };
+                reader.readAsDataURL(file);
+              }}
+            />
+            {imagePreview ? (
+              <Box position="relative" display="inline-block">
+                <Image src={imagePreview} alt="Screenshot preview" maxH="120px" borderRadius="md" border="1px solid" borderColor="primary" />
+                <Button position="absolute" top={1} right={1} size="xs" onClick={handleRemoveImage} isDisabled={isLoading} aria-label="Remove">
+                  <Icon as={FiX} />
+                </Button>
+              </Box>
+            ) : (
+              <Box
+                as="button"
+                display="flex"
+                alignItems="center"
+                gap={2}
+                px={3}
+                py={2}
+                border="1px dashed"
+                borderColor="border"
+                borderRadius="md"
+                color="dim"
+                fontSize="sm"
+                cursor="pointer"
+                w="full"
+                _hover={{ borderColor: "primary", color: "text" }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Icon as={FiImage} />
+                Attach Screenshot
+              </Box>
+            )}
+            {imageError && <Text fontSize="xs" color="red.400" mt={1}>{imageError}</Text>}
+          </Box>
 
           {/* Stack trace preview (read-only, only when auto-filled) */}
           {form.errorStack && (

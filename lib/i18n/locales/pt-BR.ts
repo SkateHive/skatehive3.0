@@ -543,6 +543,15 @@ export const ptBR = {
     profileRestoreWarning: 'Aviso de Restauração de Perfil',
     profileRestoreWarningDescription: 'Esta ação removerá metadados específicos do SkateHive do seu perfil. Use apenas se quiser limpar o perfil da sua conta Hive.',
     restoreProfileButton: '🔄 Restaurar Perfil ao Estado Original',
+    reportBugTab: 'Reportar Bug',
+    report: {
+      bugTitle: 'Reportar um Bug',
+      bugDescription: 'Encontrou algo quebrado? Nos avise.',
+      bugCta: 'Abrir Formulário',
+      featureTitle: 'Sugestão de Funcionalidade',
+      featureDescription: 'Tem uma ideia para melhorar o Skatehive?',
+      featureCta: 'Enviar Sugestão',
+    },
   },
   invite: {
     title: 'Convide um Skatista para o Skatehive',
@@ -1144,5 +1153,19 @@ export const ptBR = {
   },
   share: {
     pageTitle: 'Cast Compartilhado',
+  },
+  searchOverlay: {
+    tips: {
+      title: 'Dicas de Busca',
+      usernames: 'Digite nomes de usuário para encontrar skaters',
+      pagesAndCommands: 'Busque páginas e comandos pelo nome',
+      navigate: 'Navegue com ↑↓, selecione com Enter',
+    },
+    noResults: {
+      heading: 'Nenhum resultado encontrado para',
+      hint: 'Tente buscar um usuário, página ou comando',
+    },
+    popularCommands: 'Comandos Populares',
+    inputPlaceholder: 'Buscar usuários, páginas ou comandos...',
   },
 };

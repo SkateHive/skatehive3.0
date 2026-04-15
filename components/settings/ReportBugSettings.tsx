@@ -3,9 +3,11 @@ import React from "react";
 import { Box, Text, VStack, Heading, Button, Icon } from "@chakra-ui/react";
 import { FiFlag } from "react-icons/fi";
 import { useReport } from "@/contexts/ReportContext";
+import { useTranslations } from "@/lib/i18n/hooks";
 
 const ReportBugSettings: React.FC = () => {
   const { openReport } = useReport();
+  const t = useTranslations();
 
   return (
     <VStack spacing={4} align="stretch">
@@ -13,20 +15,20 @@ const ReportBugSettings: React.FC = () => {
         <VStack spacing={4} align="stretch">
           <Box>
             <Heading size="md" color="primary" mb={1}>
-              Report a Bug
+              {t('settings.report.bugTitle')}
             </Heading>
             <Text color="primary" fontSize="sm">
-              Found something broken? Let us know and we&apos;ll fix it as soon as possible.
+              {t('settings.report.bugDescription')}
             </Text>
           </Box>
           <Button
             leftIcon={<Icon as={FiFlag} />}
-            colorScheme="red"
             variant="outline"
+            colorScheme="gray"
             alignSelf="flex-start"
             onClick={() => openReport({ type: "bug" })}
           >
-            Open Report Form
+            {t('settings.report.bugCta')}
           </Button>
         </VStack>
       </Box>
@@ -35,20 +37,20 @@ const ReportBugSettings: React.FC = () => {
         <VStack spacing={4} align="stretch">
           <Box>
             <Heading size="md" color="primary" mb={1}>
-              Feature Request
+              {t('settings.report.featureTitle')}
             </Heading>
             <Text color="primary" fontSize="sm">
-              Have an idea to improve Skatehive? We&apos;d love to hear it.
+              {t('settings.report.featureDescription')}
             </Text>
           </Box>
           <Button
             leftIcon={<Icon as={FiFlag} />}
-            colorScheme="green"
             variant="outline"
+            colorScheme="gray"
             alignSelf="flex-start"
             onClick={() => openReport({ type: "feature" })}
           >
-            Submit Feature Request
+            {t('settings.report.featureCta')}
           </Button>
         </VStack>
       </Box>

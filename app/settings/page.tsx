@@ -117,8 +117,8 @@ const Settings = () => {
               </Tab>
               <Tab
                 _selected={{
-                  color: "red.400",
-                  borderColor: "red.400",
+                  color: "primary",
+                  borderColor: "primary",
                   borderBottomColor: "background",
                   bg: "background",
                 }}
@@ -126,7 +126,7 @@ const Settings = () => {
                 fontWeight="semibold"
               >
                 <Icon as={FiFlag} mr={1} />
-                Report Bug
+                {t('settings.reportBugTab')}
               </Tab>
             </TabList>
 

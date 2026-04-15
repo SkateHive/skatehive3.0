@@ -8,6 +8,7 @@ export interface ReportFormData {
     errorStack?: string;
     pageUrl?: string;
     userAgent?: string;
+    reporter?: string;
 }
 
 export interface TrelloCardPayload {

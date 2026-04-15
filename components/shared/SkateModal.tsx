@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   Modal,
   ModalOverlay,
@@ -27,6 +27,11 @@ interface SkateModalProps {
   closeOnOverlayClick?: boolean;
   motionPreset?: "slideInBottom" | "slideInRight" | "scale" | "none";
   windowId?: string;
+  resizable?: boolean;
+  /** When true, north/west handles anchor the opposite edge instead of expanding from centre.
+   *  Requires the modal to be detached from Chakra's flex layout via position:fixed.
+   *  Do not enable for modals whose inner content constrains its own height (e.g. AirdropModal). */
+  preciseResize?: boolean;
 }
 
 const SkateModal: React.FC<SkateModalProps> = ({
@@ -42,8 +47,96 @@ const SkateModal: React.FC<SkateModalProps> = ({
   closeOnOverlayClick = true,
   motionPreset,
   windowId: customWindowId,
+  resizable = false,
+  preciseResize = false,
 }) => {
   const theme = useTheme();
+
+  // preciseResize tracks position too so n/w handles move the correct edge
+  const [dimensions, setDimensions] = useState<{
+    width: number;
+    height: number;
+    top?: number;
+    left?: number;
+  } | null>(null);
+
+  const contentRef = useRef<HTMLDivElement>(null);
+  type ResizeDir = "e" | "w" | "s" | "n" | "se" | "sw" | "ne" | "nw";
+
+  const resizeState = useRef<{
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+    startTop: number;
+    startLeft: number;
+    dir: ResizeDir;
+  } | null>(null);
+
+  // Reset dimensions when modal closes so next open starts fresh
+  useEffect(() => {
+    if (!isOpen) setDimensions(null);
+  }, [isOpen]);
+
+  const startResize = useCallback((e: React.MouseEvent, dir: ResizeDir) => {
+    e.preventDefault();
+    const el = contentRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    resizeState.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startWidth: rect.width,
+      startHeight: rect.height,
+      startTop: rect.top,
+      startLeft: rect.left,
+      dir,
+    };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizeState.current) return;
+      const { startX, startY, startWidth, startHeight, startTop, startLeft, dir } = resizeState.current;
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+
+      if (preciseResize) {
+        let newWidth = startWidth;
+        let newHeight = startHeight;
+        let newTop = startTop;
+        let newLeft = startLeft;
+
+        if (dir.includes("e")) newWidth = Math.max(320, startWidth + dx);
+        if (dir.includes("w")) {
+          newWidth = Math.max(320, startWidth - dx);
+          newLeft = startLeft + startWidth - newWidth;
+        }
+        if (dir.includes("s")) newHeight = Math.max(200, startHeight + dy);
+        if (dir.includes("n")) {
+          newHeight = Math.max(200, startHeight - dy);
+          newTop = startTop + startHeight - newHeight;
+        }
+
+        setDimensions({ width: newWidth, height: newHeight, top: newTop, left: newLeft });
+      } else {
+        const growsH = dir.includes("e") ? dx : dir.includes("w") ? -dx : 0;
+        const growsV = dir.includes("s") ? dy : dir.includes("n") ? -dy : 0;
+        setDimensions({
+          width: growsH !== 0 ? Math.max(320, startWidth + growsH) : startWidth,
+          height: growsV !== 0 ? Math.max(200, startHeight + growsV) : startHeight,
+        });
+      }
+    };
+
+    const onUp = () => {
+      resizeState.current = null;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [preciseResize]);
+
   const {
     registerWindow,
     unregisterWindow,
@@ -70,28 +163,37 @@ const SkateModal: React.FC<SkateModalProps> = ({
     };
   }, [isOpen, windowId, title, registerWindow, unregisterWindow]);
 
-  // Handle minimize
-  const handleMinimize = () => {
-    minimizeWindow(windowId);
-  };
-
-  // Handle maximize/unmaximize toggle
+  const handleMinimize = () => minimizeWindow(windowId);
   const handleMaximize = () => {
-    if (isMaximized) {
-      unmaximizeWindow(windowId);
-    } else {
-      maximizeWindow(windowId);
-    }
+    if (isMaximized) unmaximizeWindow(windowId);
+    else maximizeWindow(windowId);
   };
 
-  // Don't render if minimized
   if (isMinimized) return null;
 
-  // Get theme colors for consistent styling
   const bgColor = theme.colors.background;
   const headerBgColor = theme.colors.panel || bgColor;
   const borderColor = theme.colors.border;
   const dimColor = theme.colors.dim;
+
+  const resizeSx = resizable && dimensions && !isMaximized
+    ? preciseResize
+      ? {
+          position: "fixed !important",
+          top: `${dimensions.top}px !important`,
+          left: `${dimensions.left}px !important`,
+          width: `${dimensions.width}px !important`,
+          maxWidth: "none !important",
+          height: `${dimensions.height}px !important`,
+          maxHeight: "none !important",
+        }
+      : {
+          width: `${dimensions.width}px !important`,
+          maxWidth: "none !important",
+          height: `${dimensions.height}px !important`,
+          maxHeight: "none !important",
+        }
+    : undefined;
 
   return (
     <Modal
@@ -110,7 +212,18 @@ const SkateModal: React.FC<SkateModalProps> = ({
         border="1px solid"
         borderColor={borderColor}
         overflow="hidden"
+        position="relative"
+        display="flex"
+        flexDirection="column"
+        sx={resizeSx}
       >
+        {/* Invisible element used to measure modal viewport coords for resize */}
+        {resizable && (
+          <div
+            ref={contentRef}
+            style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, pointerEvents: "none", zIndex: -1 }}
+          />
+        )}
         {/* Custom Terminal-style Header */}
         <Flex
           alignItems="center"
@@ -162,7 +275,12 @@ const SkateModal: React.FC<SkateModalProps> = ({
         </Flex>
 
         {/* Modal Body */}
-        <ModalBody p={0}>
+        <ModalBody
+          p={0}
+          overflowY="auto"
+          flex="1"
+          maxH={isMaximized || (resizable && dimensions) ? "none" : "75vh"}
+        >
           {children}
         </ModalBody>
 
@@ -177,6 +295,21 @@ const SkateModal: React.FC<SkateModalProps> = ({
           >
             {footer}
           </ModalFooter>
+        )}
+        {/* Resize handles — inside the modal borders */}
+        {resizable && !isMaximized && (
+          <>
+            {/* Edges */}
+            <Box position="absolute" top="0" left="0" w="full" h="5px" cursor="ns-resize" zIndex={10} onMouseDown={(e) => startResize(e, "n")} />
+            <Box position="absolute" bottom="0" left="0" w="full" h="5px" cursor="ns-resize" zIndex={10} onMouseDown={(e) => startResize(e, "s")} />
+            <Box position="absolute" top="0" left="0" w="5px" h="full" cursor="ew-resize" zIndex={10} onMouseDown={(e) => startResize(e, "w")} />
+            <Box position="absolute" top="0" right="0" w="5px" h="full" cursor="ew-resize" zIndex={10} onMouseDown={(e) => startResize(e, "e")} />
+            {/* Corners */}
+            <Box position="absolute" top="0" left="0" w="12px" h="12px" cursor="nwse-resize" zIndex={11} onMouseDown={(e) => startResize(e, "nw")} />
+            <Box position="absolute" top="0" right="0" w="12px" h="12px" cursor="nesw-resize" zIndex={11} onMouseDown={(e) => startResize(e, "ne")} />
+            <Box position="absolute" bottom="0" left="0" w="12px" h="12px" cursor="nesw-resize" zIndex={11} onMouseDown={(e) => startResize(e, "sw")} />
+            <Box position="absolute" bottom="0" right="0" w="12px" h="12px" cursor="nwse-resize" zIndex={11} onMouseDown={(e) => startResize(e, "se")} />
+          </>
         )}
       </ModalContent>
     </Modal>

@@ -542,6 +542,15 @@ export const lg = {
     profileRestoreWarning: 'Profile Restore Warning',
     profileRestoreWarningDescription: 'Okukolaganya kuno kijja kugyako SkateHive-specific metadata mu profile yo. Kozesa yokka singa oyagala okukweka Hive account profile yo.',
     restoreProfileButton: '🔄 Okuzzaawo Profile okukoma mu Original State',
+    reportBugTab: 'Muŋongeeza Bug',
+    report: {
+      bugTitle: 'Muŋongeeza Bug',
+      bugDescription: 'Ofunye ekintu ekyabika? Tuŋamba.',
+      bugCta: 'Ssula Foomu',
+      featureTitle: 'Okusaba Ekintu Ekipya',
+      featureDescription: 'Olina entekateka yokonona Skatehive?',
+      featureCta: 'Weereza Okusaba',
+    },
   },
   invite: {
     title: 'Mwaliko Amusika Okuyingira Skatehive',
@@ -1142,5 +1151,19 @@ export const lg = {
   },
   share: {
     pageTitle: 'Cast Ekakasizza',
+  },
+  searchOverlay: {
+    tips: {
+      title: 'Amagezi g\'Okunoonyereza',
+      usernames: 'Wandika erinnya ery\'omukozesa okufuna abaskater',
+      pagesAndCommands: 'Noonyereza emipapula n\'ebiragiro mu linnya',
+      navigate: 'Tambula n\'↑↓, londa n\'Enter',
+    },
+    noResults: {
+      heading: 'Tewali binannyikiriziddwa kubikwata ku',
+      hint: 'Gezaako okunoonyereza omukozesa, empapula oba ekiragiro',
+    },
+    popularCommands: 'Ebiragiro Ebisinga Okukozesebwa',
+    inputPlaceholder: 'Noonyereza abakozesa, emipapula oba ebiragiro...',
   },
 };

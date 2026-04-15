@@ -545,6 +545,15 @@ export const en = {
     profileRestoreWarning: 'Profile Restore Warning',
     profileRestoreWarningDescription: 'This action will remove SkateHive-specific metadata from your profile. Only use this if you want to clean your Hive account profile.',
     restoreProfileButton: '🔄 Restore Profile to Original State',
+    reportBugTab: 'Report Bug',
+    report: {
+      bugTitle: 'Report a Bug',
+      bugDescription: 'Found something broken? Let us know.',
+      bugCta: 'Open Report Form',
+      featureTitle: 'Feature Request',
+      featureDescription: 'Have an idea to improve Skatehive?',
+      featureCta: 'Submit Feature Request',
+    },
   },
   invite: {
     title: 'Invite a Shredder to Skatehive',
@@ -1145,7 +1154,21 @@ export const en = {
   },
   share: {
     pageTitle: 'Shared Cast',
-  }
+  },
+  searchOverlay: {
+    tips: {
+      title: 'Search Tips',
+      usernames: 'Type usernames to find skaters',
+      pagesAndCommands: 'Search pages and commands by name',
+      navigate: 'Navigate with ↑↓, select with Enter',
+    },
+    noResults: {
+      heading: 'No results found for',
+      hint: 'Try searching for a username, page or command',
+    },
+    popularCommands: 'Popular Commands',
+    inputPlaceholder: 'Search users, pages or commands...',
+  },
 };
 
 

@@ -151,17 +151,11 @@ export const COMMAND_PAGES: PageResult[] = [
   }
 ];
 
-export const getPopularPages = () => {
-  const popularStaticPages = STATIC_PAGES.filter((page) =>
+export const getPopularPages = () =>
+  STATIC_PAGES.filter((page) =>
     ["Home", "Blog", "Skate Games", "Bounties", "Leaderboard", "Create Post"].includes(
       page.title
     )
   );
-  
-  // Add airdrop command to popular pages
-  const popularCommands = COMMAND_PAGES.filter((page) =>
-    ["Airdrop"].includes(page.title)
-  );
-  
-  return [...popularStaticPages, ...popularCommands];
-};
+
+export const getPopularCommands = () => COMMAND_PAGES;
