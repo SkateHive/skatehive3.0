@@ -7,7 +7,7 @@ export default function FooterLinks() {
 
   const exploreLinks = [
     { label: t("tricksGuide") || "Tricks Guide", href: "/tricks" },
-    { label: t("skateSpots") || "Skate Spots", href: "/spots" },
+    { label: t("skateSpots") || "Skate Spots", href: "/map" },
     { label: t("latestVideos") || "Latest Videos", href: "/videos" },
     { label: t("skateMap") || "Map", href: "/map" },
     { label: t("skateshops") || "Skateshops", href: "/skateshops" },
