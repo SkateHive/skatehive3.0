@@ -433,12 +433,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // DRY RUN — set HIVE_DRY_RUN=true in .env.local to skip broadcast during local dev
-    if (process.env.HIVE_DRY_RUN === "true") {
+    // DRY RUN — set HIVE_DRY_RUN=true in .env.local to skip broadcast during local dev.
+    // Guarded by NODE_ENV=development to prevent accidental use in staging/CI.
+    if (process.env.NODE_ENV === "development" && process.env.HIVE_DRY_RUN === "true") {
       console.log("[dry-run] Hive broadcast skipped:", { author, permlink, ops });
-      if (usingDefaultAccount) {
-        await updateSoftPostStatus(softPostId, "broadcasted");
-      }
       return NextResponse.json({ success: true, author, permlink, dry_run: true });
     }
 

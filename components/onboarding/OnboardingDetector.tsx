@@ -53,7 +53,7 @@ export default function OnboardingDetector() {
     if (isLoading || !user) return;
     if (hasAutoOpened.current) return;
 
-    const isDone = (user.onboarding_step ?? 0) >= ONBOARDING_ALL_DONE || isLocallyDone();
+    const isDone = ((user.onboarding_step ?? 0) & ONBOARDING_ALL_DONE) === ONBOARDING_ALL_DONE || isLocallyDone();
     if (isDone) return;
 
     const alreadySeen = typeof window !== "undefined"
@@ -75,7 +75,7 @@ export default function OnboardingDetector() {
   // ── Clean up SS_DONE once the server confirms onboarding_step === 7 ───────
   useEffect(() => {
     if (!user) return;
-    if ((user.onboarding_step ?? 0) >= ONBOARDING_ALL_DONE) {
+    if (((user.onboarding_step ?? 0) & ONBOARDING_ALL_DONE) === ONBOARDING_ALL_DONE) {
       sessionStorage.removeItem(SS_DONE);
     }
   }, [user]);
@@ -94,7 +94,7 @@ export default function OnboardingDetector() {
   if (!user || isLoading) return null;
 
   const step = user.onboarding_step ?? 0;
-  const isDone = step >= ONBOARDING_ALL_DONE || isLocallyDone();
+  const isDone = (step & ONBOARDING_ALL_DONE) === ONBOARDING_ALL_DONE || isLocallyDone();
   if (isDone) return null;
 
   const items = [
