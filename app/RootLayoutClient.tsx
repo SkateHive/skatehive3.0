@@ -25,6 +25,7 @@ const SearchOverlay = dynamic(() => import("@/components/shared/SearchOverlay"),
 const AirdropModal = dynamic(() => import("@/components/airdrop/AirdropModal"), { ssr: false });
 const ReportModal = dynamic(() => import("@/components/report/ReportModal"), { ssr: false });
 const AccountLinkingDetector = dynamic(() => import("@/components/layout/AccountLinkingDetector"), { ssr: false });
+const OnboardingDetector = dynamic(() => import("@/components/onboarding/OnboardingDetector"), { ssr: false });
 const CommunityToasts = dynamic(() => import("@/components/homepage/CommunityToasts"), { ssr: false });
 const IOSAppBanner = dynamic(() => import("@/components/shared/IOSAppBanner"), { ssr: false });
 const HZCEasterEgg = dynamic(() => import("@/components/shared/HZCEasterEgg"), { ssr: false });
@@ -234,6 +235,9 @@ function InnerLayout({
 
       {/* Account Linking Detector - auto-prompts when wallets are connected */}
       <AccountLinkingDetector />
+
+      {/* Onboarding Detector - guides new users through profile setup */}
+      <OnboardingDetector />
 
       {/* HZC Easter Egg */}
       <HZCEasterEgg onTrigger={() => searchProps?.setIsSearchOpen(false)} />

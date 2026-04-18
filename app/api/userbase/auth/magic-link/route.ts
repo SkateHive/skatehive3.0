@@ -88,6 +88,10 @@ function createTransport() {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    // In development, bypass TLS verification (self-signed / proxy certs)
+    ...(process.env.NODE_ENV !== 'production' && {
+      tls: { rejectUnauthorized: false },
+    }),
   });
 }
 
