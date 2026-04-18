@@ -245,10 +245,10 @@ export async function PATCH(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { display_name, avatar_url, cover_url, bio, location, handle } = body;
+    const { display_name, avatar_url, cover_url, bio, location, handle, onboarding_step_flag } = body;
 
     // Build update object with only provided fields
-    const updateData: Record<string, string | null> = {};
+    const updateData: Record<string, string | number | null> = {};
     if (display_name !== undefined) updateData.display_name = display_name;
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
     if (cover_url !== undefined) updateData.cover_url = cover_url;
@@ -260,6 +260,18 @@ export async function PATCH(request: NextRequest) {
       // Normalize handle
       const normalizedHandle = handle ? handle.trim().toLowerCase() : null;
       updateData.handle = normalizedHandle;
+    }
+
+    // onboarding_step_flag: bitmask OR — only adds bits, never removes them
+    // bit 0 (1) = photo, bit 1 (2) = bio, bit 2 (4) = intro post
+    if (typeof onboarding_step_flag === "number" && onboarding_step_flag > 0) {
+      const { data: currentUser } = await supabase
+        .from("userbase_users")
+        .select("onboarding_step")
+        .eq("id", userId)
+        .single();
+      const currentStep = currentUser?.onboarding_step ?? 0;
+      updateData.onboarding_step = currentStep | onboarding_step_flag;
     }
 
     if (Object.keys(updateData).length === 0) {

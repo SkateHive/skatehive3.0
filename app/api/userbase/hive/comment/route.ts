@@ -433,6 +433,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // DRY RUN — set HIVE_DRY_RUN=true in .env.local to skip broadcast during local dev.
+    // Guarded by NODE_ENV=development to prevent accidental use in staging/CI.
+    if (process.env.NODE_ENV === "development" && process.env.HIVE_DRY_RUN === "true") {
+      console.log("[dry-run] Hive broadcast skipped:", { author, permlink, ops });
+      return NextResponse.json({ success: true, author, permlink, dry_run: true });
+    }
+
     const privateKey = PrivateKey.fromString(postingKey as string);
     await HiveClient.broadcast.sendOperations(ops, privateKey);
 
