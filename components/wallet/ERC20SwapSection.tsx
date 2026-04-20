@@ -643,8 +643,9 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
       });
       toast({ title: "Approval submitted", description: hash, status: "info", duration: 5000, isClosable: true });
       setNeedsApproval(false);
-    } catch (e: any) {
-      toast({ title: "Approval failed", description: e?.shortMessage ?? e?.message, status: "error", duration: 4000, isClosable: true });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : (e as { shortMessage?: string })?.shortMessage ?? "Unknown error";
+      toast({ title: "Approval failed", description: msg, status: "error", duration: 4000, isClosable: true });
     }
   }, [approvalTarget, sellToken, writeContractAsync, toast]);
 
@@ -676,19 +677,22 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
           return;
         }
 
+        const tx = quote.transaction;
         const hash = await sendTransactionAsync({
-          to: quote.transaction.to,
-          data: quote.transaction.data,
-          value: quote.transaction.value ? BigInt(quote.transaction.value) : undefined,
-          gas: quote.transaction.gas ? BigInt(quote.transaction.gas) : undefined,
+          to: tx.to as `0x${string}`,
+          data: tx.data as `0x${string}`,
+          value: tx.value ? BigInt(tx.value) : undefined,
+          gas: tx.gas ? BigInt(tx.gas) : undefined,
+          chainId,
         });
 
         setTxHash(hash);
         toast({ title: "Swap submitted!", description: hash, status: "success", duration: 6000, isClosable: true });
         setSellAmount("");
         setPrice(null);
-      } catch (e: any) {
-        toast({ title: "Swap failed", description: e?.shortMessage ?? e?.message, status: "error", duration: 4000, isClosable: true });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : (e as { shortMessage?: string })?.shortMessage ?? "Unknown error";
+        toast({ title: "Swap failed", description: msg, status: "error", duration: 4000, isClosable: true });
       }
     } else {
       // ── Zora bonding curve swap ─────────────────────────────────────
