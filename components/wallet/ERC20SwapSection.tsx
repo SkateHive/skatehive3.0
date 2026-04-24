@@ -9,7 +9,7 @@ import {
 import { keyframes } from "@emotion/react";
 import { FaExchangeAlt, FaInfoCircle, FaSearch, FaChevronDown, FaCheck } from "react-icons/fa";
 import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceipt, useWriteContract, useSwitchChain } from "wagmi";
-import { parseUnits, parseEther, formatUnits, formatEther, maxUint256, isAddress } from "viem";
+import { parseUnits, parseEther, formatUnits, formatEther, maxUint256, isAddress, UserRejectedRequestError } from "viem";
 import { base } from "wagmi/chains";
 import { getCoin } from "@zoralabs/coins-sdk";
 import { useZoraTrade } from "@/hooks/useZoraTrade";
@@ -388,6 +388,22 @@ function TokenPicker({
   );
 }
 
+// ─── Error helpers ──────────────────────────────────────────────────────────
+
+function isUserRejection(e: unknown): boolean {
+  if (e instanceof UserRejectedRequestError) return true;
+  const text = `${(e as { shortMessage?: string })?.shortMessage ?? ""} ${(e as { message?: string })?.message ?? ""}`.toLowerCase();
+  return text.includes("user denied") || text.includes("user rejected");
+}
+
+function friendlyError(e: unknown): string {
+  return (
+    (e as { shortMessage?: string })?.shortMessage ||
+    (e instanceof Error ? e.message : null) ||
+    "Unknown error"
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface ERC20SwapSectionProps {
@@ -644,8 +660,10 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
       toast({ title: "Approval submitted", description: hash, status: "info", duration: 5000, isClosable: true });
       setNeedsApproval(false);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : (e as { shortMessage?: string })?.shortMessage ?? "Unknown error";
-      toast({ title: "Approval failed", description: msg, status: "error", duration: 4000, isClosable: true });
+      if (isUserRejection(e))
+        toast({ title: "Transaction cancelled", status: "info", duration: 2000, isClosable: true });
+      else
+        toast({ title: "Approval failed", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
     }
   }, [approvalTarget, sellToken, writeContractAsync, toast]);
 
@@ -691,8 +709,10 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
         setSellAmount("");
         setPrice(null);
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : (e as { shortMessage?: string })?.shortMessage ?? "Unknown error";
-        toast({ title: "Swap failed", description: msg, status: "error", duration: 4000, isClosable: true });
+        if (isUserRejection(e))
+          toast({ title: "Transaction cancelled", status: "info", duration: 2000, isClosable: true });
+        else
+          toast({ title: "Swap failed", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
       }
     } else {
       // ── Zora bonding curve swap ─────────────────────────────────────
