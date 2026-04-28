@@ -13,6 +13,7 @@ const COMMUNITY_TAG_ALLOWLIST = new Set([
 const TAG_SLUG_REGEX = /^[a-z0-9][a-z0-9-]{1,48}$/;
 const MIN_TAG_POSTS_FOR_SITEMAP = 2;
 
+export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
 
 type HivePost = { author?: string; permlink?: string; created?: string; last_update?: string; json_metadata?: any; pending_payout_value?: string; total_payout_value?: string; net_votes?: number; children?: number; };
