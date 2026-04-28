@@ -2251,12 +2251,12 @@
     },
     {
       "slug": "tony-hawks-project-8-game-movies-2006",
-      "title": "Tony Hawk's Project 8: “Game Movies” (2006)",
+      "title": "Tony Hawk's Project 8: Game Movies (2006)",
       "brand": "Tony Hawk",
       "year": 2006,
       "embedUrl": "https://odysee.com/$/embed/Tony-Hawks-Project-8-Game-Movies-2006:b1c3e26679aa4f342d8a8d3426145e8093cb4f13",
       "thumbnail": "https://thumbs.odycdn.com/59e3e1a991b93ca1c08ee30042c8cf3a.webp",
-      "description": "Neversoft Presents: “Tony Hawk's Project 8 | Game Movies”Featuring Bam Margera, Bob Burnquist, Daewon Song, Dustin Dollin, Lyn-Z Adams Hawkins, Mike Vallely, Nyjah Huston, Paul Rodriguez, Rodney Mullen, Ryan Sheckler, Stevie Williams, Tony Hawk and more.Chapters00:00 Tony Hawk00:46 Lyn-Z Adams Hawki",
+      "description": "Watch Tony Hawk's Project 8: Game Movies (2006), a skateboarding game film packed with clips and appearances from Tony Hawk, Bam Margera, Bob Burnquist, Daewon Song, Rodney Mullen, and more iconic skaters.",
       "channel": "Skate Video Library",
       "link": "https://odysee.com/Tony-Hawks-Project-8-Game-Movies-2006:b1c3e26679aa4f342d8a8d3426145e8093cb4f13",
       "soundtrack": [
@@ -2418,7 +2418,22 @@
         }
       ],
       "svsSlug": "tony-hawks-secret-skatepark-tour",
-      "dataSource": "skatevideosite"
+      "dataSource": "skatevideosite",
+      "cast": [
+        "Tony Hawk",
+        "Bam Margera",
+        "Bob Burnquist",
+        "Daewon Song",
+        "Dustin Dollin",
+        "Lyn-Z Adams Hawkins",
+        "Mike Vallely",
+        "Nyjah Huston",
+        "Paul Rodriguez",
+        "Rodney Mullen",
+        "Ryan Sheckler",
+        "Stevie Williams"
+      ],
+      "type": "film"
     },
     {
       "slug": "skate-media-production-imagination-2-bonus-2006",
@@ -10160,15 +10175,16 @@
     },
     {
       "slug": "rush-film-presents-last-season-2003",
-      "title": "Rush Film Presents \"Last Season\" (2003)",
+      "title": "Rush Film Presents Last Season (2003)",
       "brand": "Rush Film",
       "year": 2003,
       "embedUrl": "https://www.youtube.com/embed/fns6Y43l5sk",
       "thumbnail": "https://i.ytimg.com/vi/fns6Y43l5sk/maxresdefault.jpg",
-      "description": "Discord Server Skate Video Archive / Skate Video Library: https://discord.me/skatevideolibrary\n\nSkate Video Archive: https://www.youtube.com/channel/UCI93zR95xMw-fvI7JLwsOwA\n\nSkate Video Library:...",
+      "description": "Watch Rush Film Presents Last Season (2003), a full-length skate film from the early 2000s skate video era, preserved in the Skatehive cinema archive for fans of classic street skating and independent skate filmmaking.",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=fns6Y43l5sk",
-      "duration": 2917
+      "duration": 2917,
+      "type": "film"
     },
     {
       "slug": "toy-machine-skateboards-jump-off-a-building-1998",
@@ -10508,12 +10524,12 @@
     },
     {
       "slug": "absurd-theatre-films-presents-theatre-of-the-absurd-2008",
-      "title": "Absurd Theatre Films Presents \"Theatre of The Absurd\" (2008)",
+      "title": "Absurd Theatre Films Presents Theatre of the Absurd (2008)",
       "brand": "Absurd Theatre Films",
       "year": 2008,
       "embedUrl": "https://www.youtube.com/embed/v42_RTVlHrE",
       "thumbnail": "https://i.ytimg.com/vi/v42_RTVlHrE/maxresdefault.jpg",
-      "description": "Discord Server Skate Video Archive / Skate Video Library: https://discord.me/skatevideolibrary\n\nSkate Video Archive: https://www.youtube.com/channel/UCI93zR95xMw-fvI7JLwsOwA\n\nSkate Video Library:...",
+      "description": "Watch Theatre of the Absurd (2008), an underground full-length skate film from Absurd Theatre Films featuring raw street skating and the gritty independent energy of late-2000s skate cinema.",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=v42_RTVlHrE",
       "duration": 2444,
@@ -10636,7 +10652,8 @@
         }
       ],
       "svsSlug": "atf-theatre-of-the-absurd",
-      "dataSource": "skatevideosite"
+      "dataSource": "skatevideosite",
+      "type": "film"
     },
     {
       "slug": "girl-skateboards-yeah-right--2003",
@@ -11384,12 +11401,12 @@
     },
     {
       "slug": "scarecrow-wheels-scarecrow-the-movie-1996",
-      "title": "Scarecrow Wheels \"Scarecrow The Movie\" (1996)",
+      "title": "Scarecrow Wheels: Scarecrow The Movie (1996)",
       "brand": "Scarecrow Wheels",
       "year": 1996,
       "embedUrl": "https://www.youtube.com/embed/X-i8qp9LYIE",
       "thumbnail": "https://i.ytimg.com/vi/X-i8qp9LYIE/maxresdefault.jpg",
-      "description": "Discord Server Skate Video Archive / Skate Video Library: https://discord.me/skatevideolibrary\n\nSkate Video Archive: https://www.youtube.com/channel/UCI93zR95xMw-fvI7JLwsOwA\n\nSkate Video Library:...",
+      "description": "Watch Scarecrow The Movie (1996), a vintage full-length skateboarding film from Scarecrow Wheels and a deep-cut classic for anyone searching old school skate movies and 90s skate video history.",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=X-i8qp9LYIE",
       "duration": 1622,
@@ -11468,7 +11485,8 @@
         }
       ],
       "svsSlug": "skatenostro-the-movie",
-      "dataSource": "skatevideosite"
+      "dataSource": "skatevideosite",
+      "type": "film"
     },
     {
       "slug": "nike-sb-footwear-on-tap-2004",
@@ -18607,12 +18625,12 @@
     },
     {
       "slug": "900-films-presents-tony-hawk-s-secret-skatepark-tour-2004",
-      "title": "900 Films Presents \"Tony Hawk's Secret Skatepark Tour\" (2004)",
-      "brand": "900 Films",
+      "title": "900 Films Presents Tony Hawk's Secret Skatepark Tour (2004)",
+      "brand": "Tony Hawk",
       "year": 2004,
       "embedUrl": "https://www.youtube.com/embed/-g1SoYoTb0o",
       "thumbnail": "https://i.ytimg.com/vi/-g1SoYoTb0o/maxresdefault.jpg",
-      "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
+      "description": "Watch Tony Hawk's Secret Skatepark Tour (2004), a full-length skate film from 900 Films capturing Tony Hawk and friends on the road with demos, sessions, and classic early-2000s skateboarding energy.",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=-g1SoYoTb0o",
       "duration": 3742,
@@ -18775,7 +18793,11 @@
           "song": "Bobby Darin - Delicate Pimp"
         }
       ],
-      "dataSource": "skatevideosite"
+      "dataSource": "skatevideosite",
+      "cast": [
+        "Tony Hawk"
+      ],
+      "type": "film"
     },
     {
       "slug": "411-video-magazine-issue-00-promo-issue-1993",
@@ -18967,12 +18989,12 @@
     },
     {
       "slug": "900-films-presents-tony-hawk-s-secret-skatepark-tour-3-2007",
-      "title": "900 Films Presents \"Tony Hawk's Secret Skatepark Tour 3\" (2007)",
-      "brand": "900 Films",
+      "title": "900 Films Presents Tony Hawk's Secret Skatepark Tour 3 (2007)",
+      "brand": "Tony Hawk",
       "year": 2007,
       "embedUrl": "https://www.youtube.com/embed/h8zjaft0sAQ",
       "thumbnail": "https://i.ytimg.com/vi/h8zjaft0sAQ/maxresdefault.jpg",
-      "description": "If you have Proper Skate Videos Digitized VHS Tapes or DVDs, please feel free to join our Discord Server (Made by Skate Video Archive & High Quality Skate Videos) and help us to Archive old...",
+      "description": "Watch Tony Hawk's Secret Skatepark Tour 3 (2007), a skateboarding road movie and tour film from 900 Films featuring Tony Hawk and the demo-driven spirit of mid-2000s skate culture.",
       "channel": "High Quality Skate Videos",
       "link": "https://www.youtube.com/watch?v=h8zjaft0sAQ",
       "duration": 3349,
@@ -19135,7 +19157,11 @@
           "song": "Bobby Darin - Delicate Pimp"
         }
       ],
-      "dataSource": "skatevideosite"
+      "dataSource": "skatevideosite",
+      "cast": [
+        "Tony Hawk"
+      ],
+      "type": "film"
     },
     {
       "slug": "real-skateboards-real-to-reel-2001",
