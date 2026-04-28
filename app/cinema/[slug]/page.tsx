@@ -20,6 +20,8 @@ interface CinemaVideo {
   link: string;
   soundtrack?: { part: string; song: string }[];
   skaters?: string[];
+  cast?: string[];
+  type?: string;
   dataSource?: string;
   svsSlug?: string;
 }
@@ -87,6 +89,8 @@ export async function generateMetadata({
   const title = `${video.title} — Skatehive Cinema`;
   const rawDescription = video.description || `Watch ${video.title} from ${video.brand}. Classic skateboarding video from the Skatehive cinema archive.`;
   const description = rawDescription.length > 160 ? rawDescription.substring(0, 157) + "..." : rawDescription;
+  const normalizedTitle = video.title.toLowerCase();
+  const isGrindMovie = slug === "grind-the-movie-2003" || normalizedTitle.includes("grind");
 
   return {
     title,
@@ -98,6 +102,10 @@ export async function generateMetadata({
       video.year ? `${video.year} skate video` : "",
       "full length",
       "skateboarding film",
+      isGrindMovie ? "grind movie" : "",
+      isGrindMovie ? "grind 2003" : "",
+      isGrindMovie ? "grind skate movie" : "",
+      isGrindMovie ? "cult skateboarding movie" : "",
     ].filter(Boolean),
     openGraph: {
       title,
@@ -164,7 +172,7 @@ export default async function CinemaSlugPage({
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "VideoObject",
+    "@type": video.type === "film" ? "Movie" : "VideoObject",
     name: video.title,
     description: video.description || `${video.title} — classic skateboarding video.`,
     thumbnailUrl: video.thumbnail,
@@ -174,6 +182,9 @@ export default async function CinemaSlugPage({
     publisher: { "@type": "Organization", name: "Skatehive", url: BASE_URL },
     ...(video.brand !== "Other" && {
       productionCompany: { "@type": "Organization", name: video.brand },
+    }),
+    ...(video.cast?.length && {
+      actor: video.cast.map((name) => ({ "@type": "Person", name })),
     }),
   };
 

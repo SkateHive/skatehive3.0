@@ -195,14 +195,25 @@
     },
     {
       "slug": "grind-the-movie-2003",
-      "title": "Grind The Movie (2003)",
+      "title": "Grind (2003)",
       "brand": "Independent",
       "year": 2003,
       "embedUrl": "https://odysee.com/$/embed/grind:ca",
       "thumbnail": "https://thumbnails.odycdn.com/card/s:1280:720/quality:85/plain/https://www.acmodasi.in/amdb/images/movie/q/3/grind-2003-RnbD0w.jpg",
-      "description": "Four skaters follow their idol on his summer tour in an attempt to get noticed, get sponsored, and become stars themselves.",
+      "description": "Watch Grind (2003), the cult skateboarding comedy film starring Mike Vogel, Adam Brody, Vince Vieluf, and Joey Kern. Follow four skaters chasing sponsors, demos, and skate dreams on a summer road trip in this classic skate movie.",
       "channel": "Anonymous",
-      "link": "https://odysee.com/grind:ca"
+      "link": "https://odysee.com/grind:ca",
+      "cast": [
+        "Mike Vogel",
+        "Adam Brody",
+        "Vince Vieluf",
+        "Joey Kern",
+        "Jennifer Morrison",
+        "Bam Margera",
+        "Bob Burnquist",
+        "Pierre Luc Gagnon"
+      ],
+      "type": "film"
     },
     {
       "slug": "zero-painkiller-2021",
