@@ -213,7 +213,93 @@
         "Bob Burnquist",
         "Pierre Luc Gagnon"
       ],
-      "type": "film"
+      "type": "film",
+      "soundtrack": [
+        {
+          "part": "Official soundtrack",
+          "song": "The Donnas - Too Bad About Your Girl [Radio Mix]"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "P.O.D. - Boom"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Sean Paul feat. Fatman Scoop - Get Busy [Clap Your Hands Now Remix]"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Simple Plan - I'm Just a Kid"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Ill Kid - Donkey Song"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Sublime - Smoke Two Joints"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Unwritten Law - Seein' Red"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Wayne Wonder - No Letting Go"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Lil' Kim feat. Mobb Deep & Mr. Cheeks - The Jump Off [Remix]"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Trapt - These Walls"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "The Used - Poetic Tragedy"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "All Too Much - More Than a Friend"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Less Than Jake - Look What Happened"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "SLR Whitestarr - 99 Bottles"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Jazze Pha - Ay Dawg"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Shinedown - Fly from the Inside"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Hot Action Cop - Goin' Down on It"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "The Peak Show - Stupid Little Fellow"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Blindside - Pitiful"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Hot Action Cop - Fever for the Flava"
+        },
+        {
+          "part": "Official soundtrack",
+          "song": "Billy Talent - Line and Sinker"
+        }
+      ]
     },
     {
       "slug": "zero-painkiller-2021",
