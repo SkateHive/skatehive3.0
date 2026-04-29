@@ -156,8 +156,13 @@ function ConnectionStatus({
       px={2}
       cursor="pointer"
       onClick={onClick}
-      transition="all 0.15s"
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(); }}
+      tabIndex={0}
+      role="button"
+      aria-label={`${name} connection — ${config.label}`}
+      transition="background-color 0.15s"
       _hover={{ bg: "whiteAlpha.50" }}
+      _focusVisible={{ outline: "2px solid", outlineColor: "primary", outlineOffset: "2px" }}
       borderRadius="sm"
       mx={-2}
     >
@@ -347,18 +352,23 @@ export default function ConnectionModal({
                   py={3}
                   px={2}
                   align="center"
-                  role="group"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Go to ${displayName}'s profile`}
+                  data-group
                   cursor="pointer"
                   onClick={handleProfileClick}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleProfileClick(); }}
                   borderRadius="sm"
                   border="1px solid"
                   borderColor="transparent"
-                  transition="border-color 0.15s, box-shadow 0.15s, background 0.15s"
+                  transition="border-color 0.15s, box-shadow 0.15s, background-color 0.15s"
                   _hover={{
                     borderColor: "primary",
                     boxShadow: "0 0 6px var(--chakra-colors-primary)",
                     bg: "whiteAlpha.50",
                   }}
+                  _focusVisible={{ outline: "2px solid", outlineColor: "primary", outlineOffset: "2px" }}
                 >
                   <Box position="relative" flexShrink={0}>
                     <Box
