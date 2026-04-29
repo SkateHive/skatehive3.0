@@ -630,7 +630,6 @@ export default function ConnectionModal({
                       icon={FaHive}
                       color="red.400"
                       state="not-linked"
-                      hint="rewards & posting"
                       onClick={onHiveLogin}
                     />
 
@@ -642,7 +641,6 @@ export default function ConnectionModal({
                           icon={FaEthereum}
                           color="blue.300"
                           state="not-linked"
-                          hint="nfts & tokens"
                           onClick={() => {
                             onClose();
                             openConnectModal();
