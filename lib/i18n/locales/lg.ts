@@ -47,6 +47,8 @@ export const lg = {
     magazineTotalRewards: 'Maggazini Akutegeeza Akakoma',
     profileNotFound: 'Profile terabiddwa',
     noSnaps: 'Tewali snaps naye.',
+    noFarcasterAccountLinked: 'No Farcaster account linked',
+    socialShareDefault: 'Join Skatehive - The Web3 Skateboard Community!',
   },
   auth: {
     connectWallet: 'Okukoboka Ekilinja',
@@ -142,6 +144,22 @@ export const lg = {
       noEvmIdentity: 'Tewali bukakafu bwa EVM bugattiddwa.',
       noFarcasterIdentity: 'Tewali bukakafu bwa Farcaster bugattiddwa.',
       noIdentities: 'Tewali bukakafu bunasangiddwa.',
+    },
+    fields: {
+      username: 'Username',
+      viewMode: 'View Mode',
+      isHiveProfile: 'Is Hive Profile',
+      isOwner: 'Is Owner',
+      isUserbaseOwner: 'Is Userbase Owner',
+      canShowHiveViews: 'Can Show Hive Views',
+      hiveLookupHandle: 'Hive Lookup Handle',
+      hiveIdentityHandle: 'Hive Identity Handle',
+      hivePostsHandle: 'Hive Posts Handle',
+      userbaseMatch: 'Userbase Match',
+    },
+    values: {
+      true: 'TRUE',
+      false: 'FALSE',
     },
     },
   userbaseAuth: {
