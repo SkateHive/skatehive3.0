@@ -48,6 +48,13 @@ export interface ServerConfig {
   useProxy: boolean;
 }
 
+/** Carries per-server failure info through the orchestrator loop. */
+interface FailureRecord {
+  server: ServerConfig;
+  error: string;
+  errorType: ProcessingResult["errorType"];
+}
+
 /**
  * Single source of truth for server order and routing.
  * All servers run the same SkateHive video-transcoder codebase.
@@ -92,6 +99,32 @@ export interface EnhancedProcessingOptions {
 }
 
 // ---------------------------------------------------------------------------
+// Custom error — carries HTTP status, errorType and failedServer so the catch
+// block can inspect structured fields without throwing plain objects.
+// ---------------------------------------------------------------------------
+
+class TranscoderError extends Error {
+  statusCode?: number;
+  errorType?: ProcessingResult["errorType"];
+  failedServer?: ServerKey;
+
+  constructor(
+    message: string,
+    opts?: {
+      statusCode?: number;
+      errorType?: ProcessingResult["errorType"];
+      failedServer?: ServerKey;
+    }
+  ) {
+    super(message);
+    this.name = "TranscoderError";
+    this.statusCode = opts?.statusCode;
+    this.errorType = opts?.errorType;
+    this.failedServer = opts?.failedServer;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Circuit breaker — sessionStorage-backed, 5-minute TTL per server.
 // Prevents retrying a server that just failed within the same session.
 // ---------------------------------------------------------------------------
@@ -100,8 +133,11 @@ const CIRCUIT_TTL_MS = 5 * 60 * 1000;
 
 function isCircuitOpen(key: ServerKey): boolean {
   try {
-    const trippedAt = sessionStorage.getItem(`circuit_${key}`);
-    return !!trippedAt && Date.now() - Number(trippedAt) < CIRCUIT_TTL_MS;
+    const raw = sessionStorage.getItem(`circuit_${key}`);
+    if (!raw) return false;
+    const trippedAt = Number(raw);
+    if (isNaN(trippedAt)) return false; // corrupted value — treat as closed
+    return Date.now() - trippedAt < CIRCUIT_TTL_MS;
   } catch {
     return false;
   }
@@ -118,8 +154,18 @@ function tripCircuit(key: ServerKey): void {
 function resetCircuit(key: ServerKey): void {
   try {
     sessionStorage.removeItem(`circuit_${key}`);
-  } catch {}
+  } catch (_e) {
+    // sessionStorage unavailable — safe to ignore on reset
+  }
 }
+
+// ---------------------------------------------------------------------------
+// Timeout constants for tryServer
+// ---------------------------------------------------------------------------
+
+const BASE_TIMEOUT_MS = 60_000;
+const PER_MB_TIMEOUT_MS = 5_000;
+const MAX_TIMEOUT_MS = 900_000; // 15 minutes
 
 // ---------------------------------------------------------------------------
 // Health check — always via same-origin proxy to avoid CORS from any region
@@ -157,11 +203,6 @@ export async function processVideoOnServer(
     .toString(36)
     .slice(2, 8)}`;
 
-  type FailureRecord = {
-    server: ServerConfig;
-    error: string;
-    errorType: ProcessingResult["errorType"];
-  };
   const failures: FailureRecord[] = [];
 
   for (const server of SERVER_CONFIG) {
@@ -222,7 +263,7 @@ export async function processVideoOnServer(
   console.error(`❌ [${correlationId}] All servers failed — ${summary}`);
 
   // Pick the most informative error type to surface to the UI
-  const priority: ProcessingResult["errorType"][] = [
+  const errorTypePriority: ProcessingResult["errorType"][] = [
     "server_error",
     "timeout",
     "file_too_large",
@@ -231,7 +272,7 @@ export async function processVideoOnServer(
     "unknown",
   ];
   const bestFailure =
-    priority.reduce<FailureRecord | undefined>(
+    errorTypePriority.reduce<FailureRecord | undefined>(
       (best, type) => best ?? failures.find((f) => f.errorType === type),
       undefined
     ) ?? failures[failures.length - 1];
@@ -307,8 +348,10 @@ async function tryServer(
 
     const controller = new AbortController();
     const fileSizeMB = file.size / (1024 * 1024);
-    // Dynamic timeout: 60 s base + 5 s/MB, capped at 15 minutes
-    const timeout = Math.min(60_000 + fileSizeMB * 5_000, 900_000);
+    const timeout = Math.min(
+      BASE_TIMEOUT_MS + fileSizeMB * PER_MB_TIMEOUT_MS,
+      MAX_TIMEOUT_MS
+    );
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
@@ -329,12 +372,10 @@ async function tryServer(
         if (response.status === 403) errorType = "upload_rejected";
         else if (response.status === 413) errorType = "file_too_large";
 
-        throw {
-          message: `${label} responded with ${response.status}: ${errorText}`,
-          statusCode: response.status,
-          errorType,
-          failedServer: serverKey,
-        };
+        throw new TranscoderError(
+          `${label} responded with ${response.status}: ${errorText}`,
+          { statusCode: response.status, errorType, failedServer: serverKey }
+        );
       }
 
       const result = await response.json();
@@ -353,26 +394,20 @@ async function tryServer(
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === "AbortError") {
-        throw {
-          message: `${label} timed out after ${Math.round(timeout / 1000)}s`,
-          errorType: "timeout" as const,
-          failedServer: serverKey,
-        };
+        throw new TranscoderError(
+          `${label} timed out after ${Math.round(timeout / 1000)}s`,
+          { errorType: "timeout", failedServer: serverKey }
+        );
       }
       throw error;
     }
   } catch (error) {
-    if (error && typeof error === "object" && "message" in error) {
-      const e = error as {
-        message: string;
-        statusCode?: number;
-        errorType?: ProcessingResult["errorType"];
-      };
+    if (error instanceof TranscoderError) {
       return {
         success: false,
-        error: e.message,
-        statusCode: e.statusCode,
-        errorType: e.errorType ?? "unknown",
+        error: error.message,
+        statusCode: error.statusCode,
+        errorType: error.errorType ?? "unknown",
         failedServer: serverKey,
       };
     }

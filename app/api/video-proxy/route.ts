@@ -3,6 +3,32 @@ import { NextRequest, NextResponse } from "next/server";
 // Allow up to 5 minutes for large transcoding responses on Vercel Pro+
 export const maxDuration = 300;
 
+// ---------------------------------------------------------------------------
+// SSRF protection — only proxy requests to known transcoding hosts.
+// ---------------------------------------------------------------------------
+
+const ALLOWED_HOSTS = [
+  "transcode.skatehive.app",
+  "minivlad.tail83ea3e.ts.net",
+  "vladsberry.tail83ea3e.ts.net",
+  "skatehive-transcoder.onrender.com",
+];
+
+function isAllowedUrl(raw: string): boolean {
+  try {
+    const { hostname } = new URL(raw);
+    return ALLOWED_HOSTS.some(
+      (h) => hostname === h || hostname.endsWith(`.${h}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Route handlers
+// ---------------------------------------------------------------------------
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -21,6 +47,13 @@ export async function GET(request: NextRequest) {
       targetUrl ??
       `https://skatehive-transcoder.onrender.com${endpoint}`;
 
+    if (!isAllowedUrl(apiUrl)) {
+      return NextResponse.json(
+        { error: "Target host not allowed" },
+        { status: 403 }
+      );
+    }
+
     console.log(`🔗 [${correlationId}] Proxying GET → ${apiUrl}`);
 
     const controller = new AbortController();
@@ -31,7 +64,6 @@ export async function GET(request: NextRequest) {
 
     const response = await fetch(apiUrl, {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
       signal: controller.signal,
     });
 
@@ -76,10 +108,16 @@ export async function POST(request: NextRequest) {
       targetUrl ??
       `https://skatehive-transcoder.onrender.com${endpoint}`;
 
+    if (!isAllowedUrl(apiUrl)) {
+      return NextResponse.json(
+        { error: "Target host not allowed" },
+        { status: 403 }
+      );
+    }
+
+    const contentLength = Number(request.headers.get("content-length") ?? "0");
     console.log(
-      `🔗 [${bodyCorrelationId}] Proxying POST → ${apiUrl} (${
-        Math.round((request.headers.get("content-length") ? Number(request.headers.get("content-length")) : 0) / 1024 / 1024)
-      } MB)`
+      `🔗 [${bodyCorrelationId}] Proxying POST → ${apiUrl} (${Math.round(contentLength / 1024 / 1024)} MB)`
     );
 
     const controller = new AbortController();
