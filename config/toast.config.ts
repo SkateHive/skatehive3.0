@@ -12,6 +12,7 @@ export const TOAST_CONFIG = {
   LOGIN_WITNESS_DELAY: 2000, // Show witness toast after login
   VOTE_WEIGHT: 10000, // 100% upvote weight
   DESKTOP_BREAKPOINT: 768, // md breakpoint
+  SNOOZE_DURATION: 30 * 60 * 1000, // Dismiss snooze duration (30 minutes)
 } as const;
 
 export const TOAST_STYLES = {
