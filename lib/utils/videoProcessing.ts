@@ -1,5 +1,13 @@
 /**
- * Clean video processing service - Step 2
+ * Video processing service — server-side transcoding with multi-server fallback.
+ *
+ * Architecture note:
+ *   Health checks always go through /api/video-proxy (same-origin, avoids CORS).
+ *   Uploads for Tailscale hosts (Mac Mini, Pi) also go through the proxy because
+ *   the browser may not be able to reach *.tail83ea3e.ts.net directly from all
+ *   networks — the proxy path ensures the transfer goes browser → Vercel → host
+ *   instead of browser → host, eliminating the false-positive-health / real-upload-fail
+ *   race condition.
  */
 
 import { APP_CONFIG } from "@/config/app.config";
@@ -9,28 +17,68 @@ export interface ProcessingResult {
   url?: string;
   hash?: string;
   error?: string;
-  /** Which server(s) failed: 'macmini' | 'oracle' | 'pi' | 'all' */
-  failedServer?: 'macmini' | 'oracle' | 'pi' | 'all';
+  /** Which server(s) failed */
+  failedServer?: "macmini" | "oracle" | "pi" | "all";
   /** HTTP status code if applicable */
   statusCode?: number;
-  /** Error type: 'connection' | 'timeout' | 'server_error' | 'upload_rejected' | 'file_too_large' | 'unknown' */
-  errorType?: 'connection' | 'timeout' | 'server_error' | 'upload_rejected' | 'file_too_large' | 'unknown';
+  /** Structured error type for UI routing */
+  errorType?:
+    | "connection"
+    | "timeout"
+    | "server_error"
+    | "upload_rejected"
+    | "file_too_large"
+    | "unknown";
 }
 
-/** Server type identifiers */
-export type ServerKey = 'macmini' | 'oracle' | 'pi';
+export type ServerKey = "macmini" | "oracle" | "pi";
 
-/** Server configuration - SINGLE SOURCE OF TRUTH for server order
- *  All servers run the same SkateHive video-transcoder codebase */
-export const SERVER_CONFIG: Array<{ key: ServerKey; name: string; emoji: string; priority: string }> = [
-  { key: 'oracle', name: 'Oracle', emoji: '🔮', priority: 'PRIMARY' },
-  { key: 'macmini', name: 'Mac Mini M4', emoji: '🍎', priority: 'SECONDARY' },
-  { key: 'pi', name: 'Raspberry Pi', emoji: '🫐', priority: 'TERTIARY' },
-];
+export interface ServerConfig {
+  key: ServerKey;
+  name: string;
+  emoji: string;
+  priority: string;
+  /** Base URL of the transcoding server */
+  url: string;
+  /**
+   * When true, uploads are routed through /api/video-proxy instead of going
+   * directly from the browser. Required for Tailscale hosts which are publicly
+   * reachable from Vercel but may be blocked or CORS-restricted in some browsers.
+   */
+  useProxy: boolean;
+}
 
 /**
- * Enhanced processing options interface
+ * Single source of truth for server order and routing.
+ * All servers run the same SkateHive video-transcoder codebase.
  */
+export const SERVER_CONFIG: ServerConfig[] = [
+  {
+    key: "oracle",
+    name: "Oracle",
+    emoji: "🔮",
+    priority: "PRIMARY",
+    url: "https://transcode.skatehive.app",
+    useProxy: false, // Public endpoint — browser can POST directly
+  },
+  {
+    key: "macmini",
+    name: "Mac Mini M4",
+    emoji: "🍎",
+    priority: "SECONDARY",
+    url: "https://minivlad.tail83ea3e.ts.net/video",
+    useProxy: true, // Tailscale Funnel — route through Vercel to avoid browser CORS/firewall
+  },
+  {
+    key: "pi",
+    name: "Raspberry Pi",
+    emoji: "🫐",
+    priority: "TERTIARY",
+    url: "https://vladsberry.tail83ea3e.ts.net/video",
+    useProxy: true, // Tailscale Funnel — same reason as Mac Mini
+  },
+];
+
 export interface EnhancedProcessingOptions {
   userHP?: number;
   platform?: string;
@@ -39,214 +87,206 @@ export interface EnhancedProcessingOptions {
   viewport?: string;
   connectionType?: string;
   onProgress?: (progress: number, stage: string) => void;
-  /** Called when attempting a new server */
   onServerAttempt?: (serverKey: ServerKey, serverName: string, priority: string) => void;
-  /** Called when a server fails */
   onServerFailed?: (serverKey: ServerKey, error?: string) => void;
 }
 
-/**
- * Quick health check for a server via same-origin proxy
- * Avoids browser CORS failures against external transcoder hosts from some regions
- */
-async function checkServerHealth(serverBaseUrl: string): Promise<boolean> {
+// ---------------------------------------------------------------------------
+// Circuit breaker — sessionStorage-backed, 5-minute TTL per server.
+// Prevents retrying a server that just failed within the same session.
+// ---------------------------------------------------------------------------
+
+const CIRCUIT_TTL_MS = 5 * 60 * 1000;
+
+function isCircuitOpen(key: ServerKey): boolean {
   try {
-    const healthUrl = `/api/video-proxy?url=${encodeURIComponent(`${serverBaseUrl}/healthz`)}`;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-    const response = await fetch(healthUrl, {
-      method: 'GET',
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    return response.ok;
-  } catch (error) {
+    const trippedAt = sessionStorage.getItem(`circuit_${key}`);
+    return !!trippedAt && Date.now() - Number(trippedAt) < CIRCUIT_TTL_MS;
+  } catch {
     return false;
   }
 }
 
-/**
- * Process non-MP4 video on server - tries servers in order defined by SERVER_CONFIG
- */
+function tripCircuit(key: ServerKey): void {
+  try {
+    sessionStorage.setItem(`circuit_${key}`, String(Date.now()));
+  } catch {
+    // sessionStorage unavailable (SSR guard — this module is client-only)
+  }
+}
+
+function resetCircuit(key: ServerKey): void {
+  try {
+    sessionStorage.removeItem(`circuit_${key}`);
+  } catch {}
+}
+
+// ---------------------------------------------------------------------------
+// Health check — always via same-origin proxy to avoid CORS from any region
+// ---------------------------------------------------------------------------
+
+async function checkServerHealth(serverBaseUrl: string): Promise<boolean> {
+  try {
+    const healthUrl = `/api/video-proxy?url=${encodeURIComponent(
+      `${serverBaseUrl}/healthz`
+    )}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    const response = await fetch(healthUrl, {
+      method: "GET",
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Orchestrator — loop over SERVER_CONFIG with circuit breaker + rich errors
+// ---------------------------------------------------------------------------
+
 export async function processVideoOnServer(
   file: File,
-  username: string = 'anonymous',
+  username: string = "anonymous",
   enhancedOptions?: EnhancedProcessingOptions
 ): Promise<ProcessingResult> {
-  // PRIMARY: Oracle (public endpoint, reliable from browsers)
-  // Mac Mini Tailscale Funnel works for health checks (via Vercel proxy) but
-  // large POST uploads fail when the browser connects directly — demoted to SECONDARY.
-  const primaryServer = SERVER_CONFIG[0];
-  const primaryUrl = 'https://transcode.skatehive.app';
+  // One correlationId covers the entire multi-server attempt for end-to-end tracing
+  const correlationId = `${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
 
-  console.log(`🔍 Checking ${primaryServer.name} health...`);
-  const isPrimaryHealthy = await checkServerHealth(primaryUrl);
+  type FailureRecord = {
+    server: ServerConfig;
+    error: string;
+    errorType: ProcessingResult["errorType"];
+  };
+  const failures: FailureRecord[] = [];
 
-  let primaryResult: ProcessingResult;
-  if (isPrimaryHealthy) {
-    console.log(`✅ ${primaryServer.name} is healthy, attempting upload...`);
-    enhancedOptions?.onServerAttempt?.(primaryServer.key, primaryServer.name, primaryServer.priority);
+  for (const server of SERVER_CONFIG) {
+    // --- Circuit breaker ---
+    if (isCircuitOpen(server.key)) {
+      const msg = `${server.name} skipped — circuit open (failed recently)`;
+      console.log(`⚡ [${correlationId}] ${msg}`);
+      failures.push({ server, error: msg, errorType: "connection" });
+      enhancedOptions?.onServerFailed?.(server.key, msg);
+      continue;
+    }
 
-    primaryResult = await tryServer(
-      primaryUrl,
+    // --- Health check ---
+    console.log(`🔍 [${correlationId}] Checking ${server.name} health...`);
+    const healthy = await checkServerHealth(server.url);
+
+    if (!healthy) {
+      const msg = `${server.name} offline (health check failed)`;
+      console.log(`❌ [${correlationId}] ${msg}`);
+      failures.push({ server, error: msg, errorType: "connection" });
+      enhancedOptions?.onServerFailed?.(server.key, msg);
+      tripCircuit(server.key);
+      continue;
+    }
+
+    // --- Upload attempt ---
+    const uploadPath = server.useProxy ? "via proxy" : "direct";
+    console.log(
+      `✅ [${correlationId}] ${server.name} healthy — uploading (${uploadPath})...`
+    );
+    enhancedOptions?.onServerAttempt?.(server.key, server.name, server.priority);
+
+    const result = await tryServer(
+      server,
       file,
       username,
-      `${primaryServer.name} (${primaryServer.priority})`,
-      enhancedOptions
+      enhancedOptions,
+      correlationId
     );
 
-    if (primaryResult.success) {
-      return primaryResult;
+    if (result.success) {
+      resetCircuit(server.key);
+      return result;
     }
-  } else {
-    console.log(`❌ ${primaryServer.name} health check failed, skipping...`);
-    primaryResult = {
-      success: false,
-      error: `${primaryServer.name} is offline (health check failed)`,
-      errorType: 'connection',
-      failedServer: primaryServer.key
-    };
+
+    const errMsg = result.error ?? `${server.name} failed`;
+    console.warn(`⚠️ [${correlationId}] ${server.name} upload failed: ${errMsg}`);
+    failures.push({ server, error: errMsg, errorType: result.errorType });
+    enhancedOptions?.onServerFailed?.(server.key, errMsg);
+    tripCircuit(server.key);
   }
 
-  enhancedOptions?.onServerFailed?.(primaryServer.key, primaryResult.error);
+  // --- All servers failed — build rich, non-opaque error ---
+  const summary = failures
+    .map((f) => `${f.server.key}(${f.errorType ?? "unknown"}): ${f.error}`)
+    .join(" | ");
 
-  // SECONDARY: Mac Mini M4 (Tailscale Funnel — works if browser can reach it)
-  const secondaryServer = SERVER_CONFIG[1];
-  const secondaryUrl = 'https://minivlad.tail83ea3e.ts.net/video';
+  console.error(`❌ [${correlationId}] All servers failed — ${summary}`);
 
-  console.log(`🔍 Checking ${secondaryServer.name} health...`);
-  const isSecondaryHealthy = await checkServerHealth(secondaryUrl);
+  // Pick the most informative error type to surface to the UI
+  const priority: ProcessingResult["errorType"][] = [
+    "server_error",
+    "timeout",
+    "file_too_large",
+    "upload_rejected",
+    "connection",
+    "unknown",
+  ];
+  const bestFailure =
+    priority.reduce<FailureRecord | undefined>(
+      (best, type) => best ?? failures.find((f) => f.errorType === type),
+      undefined
+    ) ?? failures[failures.length - 1];
 
-  let secondaryResult: ProcessingResult;
-  if (isSecondaryHealthy) {
-    console.log(`✅ ${secondaryServer.name} is healthy, attempting upload...`);
-    enhancedOptions?.onServerAttempt?.(secondaryServer.key, secondaryServer.name, secondaryServer.priority);
-
-    secondaryResult = await tryServer(
-      secondaryUrl,
-      file,
-      username,
-      `${secondaryServer.name} (${secondaryServer.priority})`,
-      enhancedOptions
-    );
-
-    if (secondaryResult.success) {
-      return secondaryResult;
-    }
-  } else {
-    console.log(`❌ ${secondaryServer.name} health check failed, skipping...`);
-    secondaryResult = {
-      success: false,
-      error: `${secondaryServer.name} is offline (health check failed)`,
-      errorType: 'connection',
-      failedServer: secondaryServer.key
-    };
-  }
-
-  enhancedOptions?.onServerFailed?.(secondaryServer.key, secondaryResult.error);
-
-  // TERTIARY: Raspberry Pi (backup)
-  const tertiaryServer = SERVER_CONFIG[2];
-  const tertiaryUrl = 'https://vladsberry.tail83ea3e.ts.net/video';
-
-  console.log(`🔍 Checking ${tertiaryServer.name} health...`);
-  const isTertiaryHealthy = await checkServerHealth(tertiaryUrl);
-
-  let tertiaryResult: ProcessingResult;
-  if (isTertiaryHealthy) {
-    console.log(`✅ ${tertiaryServer.name} is healthy, attempting upload...`);
-    enhancedOptions?.onServerAttempt?.(tertiaryServer.key, tertiaryServer.name, tertiaryServer.priority);
-
-    tertiaryResult = await tryServer(
-      tertiaryUrl,
-      file,
-      username,
-      `${tertiaryServer.name} (${tertiaryServer.priority})`,
-      enhancedOptions
-    );
-
-    if (tertiaryResult.success) {
-      return tertiaryResult;
-    }
-  } else {
-    console.log(`❌ ${tertiaryServer.name} health check failed, skipping...`);
-    tertiaryResult = {
-      success: false,
-      error: `${tertiaryServer.name} is offline (health check failed)`,
-      errorType: 'connection',
-      failedServer: tertiaryServer.key
-    };
-  }
-
-  enhancedOptions?.onServerFailed?.(tertiaryServer.key, tertiaryResult.error);
-
-  // All servers failed
-  const bestError = tertiaryResult.error ? tertiaryResult : (secondaryResult.error ? secondaryResult : primaryResult);
   return {
-    ...bestError,
-    failedServer: 'all'
+    success: false,
+    error: `All servers failed — ${summary}`,
+    errorType: bestFailure?.errorType ?? "unknown",
+    failedServer: "all",
   };
 }
 
-/**
- * Try processing on a specific server with SSE progress streaming
- */
+// ---------------------------------------------------------------------------
+// Single-server attempt
+// ---------------------------------------------------------------------------
+
 async function tryServer(
-  serverBaseUrl: string,
+  server: ServerConfig,
   file: File,
   username: string,
-  serverName: string,
-  enhancedOptions?: EnhancedProcessingOptions
+  enhancedOptions: EnhancedProcessingOptions | undefined,
+  correlationId: string
 ): Promise<ProcessingResult> {
-  // Extract server identifier from serverName
-  const serverKey = serverName.toLowerCase().includes('oracle') ? 'oracle' :
-    serverName.toLowerCase().includes('mac') ? 'macmini' : 'pi';
+  const { key: serverKey, name: serverName, url: serverBaseUrl, useProxy } = server;
+  const label = `${serverName} (${server.priority})`;
 
-  // Determine endpoint paths based on server
-  const transcodeUrl = `${serverBaseUrl}/transcode`;
+  // Route Tailscale hosts through the Vercel proxy to avoid browser CORS/firewall.
+  // Direct (non-proxied) hosts are reached straight from the browser.
+  const transcodeUrl = useProxy
+    ? `/api/video-proxy?url=${encodeURIComponent(`${serverBaseUrl}/transcode`)}`
+    : `${serverBaseUrl}/transcode`;
 
   let eventSource: EventSource | null = null;
 
   try {
     const formData = new FormData();
-    formData.append('video', file);
-    formData.append('creator', username);
+    formData.append("video", file);
+    formData.append("creator", username);
+    formData.append("source_app", "webapp");
+    formData.append("correlationId", correlationId);
 
-    // SOURCE APP IDENTIFIER - Always send 'webapp' from web application
-    formData.append('source_app', 'webapp');
+    if (enhancedOptions?.platform) formData.append("platform", enhancedOptions.platform);
+    if (enhancedOptions?.userHP !== undefined)
+      formData.append("userHP", enhancedOptions.userHP.toString());
+    if (enhancedOptions?.deviceInfo) formData.append("deviceInfo", enhancedOptions.deviceInfo);
+    if (enhancedOptions?.browserInfo)
+      formData.append("browserInfo", enhancedOptions.browserInfo);
+    if (enhancedOptions?.viewport) formData.append("viewport", enhancedOptions.viewport);
+    if (enhancedOptions?.connectionType)
+      formData.append("connectionType", enhancedOptions.connectionType);
 
-    // Add enhanced tracking information if provided
-    if (enhancedOptions?.platform) {
-      formData.append('platform', enhancedOptions.platform);
-    }
-    if (enhancedOptions?.userHP !== undefined) {
-      formData.append('userHP', enhancedOptions.userHP.toString());
-    }
-    if (enhancedOptions?.deviceInfo) {
-      formData.append('deviceInfo', enhancedOptions.deviceInfo);
-    }
-    if (enhancedOptions?.browserInfo) {
-      formData.append('browserInfo', enhancedOptions.browserInfo);
-    }
-    if (enhancedOptions?.viewport) {
-      formData.append('viewport', enhancedOptions.viewport);
-    }
-    if (enhancedOptions?.connectionType) {
-      formData.append('connectionType', enhancedOptions.connectionType);
-    }
-
-    // Generate correlation ID for tracking AND for SSE progress
-    const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 6)}`;
-    formData.append('correlationId', requestId);
-
-    // Start SSE listener for progress updates BEFORE sending request
-    // All servers now support /progress SSE endpoint
-    if (enhancedOptions?.onProgress) {
-      const progressUrl = `${serverBaseUrl}/progress/${requestId}`;
-
+    // SSE progress is only possible for direct uploads — proxied servers are not
+    // reachable by the browser, so opening an EventSource to them would silently fail.
+    if (enhancedOptions?.onProgress && !useProxy) {
+      const progressUrl = `${serverBaseUrl}/progress/${correlationId}`;
       try {
         eventSource = new EventSource(progressUrl);
         eventSource.onmessage = (event) => {
@@ -254,122 +294,107 @@ async function tryServer(
             const data = JSON.parse(event.data);
             enhancedOptions.onProgress?.(data.progress, data.stage);
           } catch {
-            // Ignore parse errors
+            // Ignore SSE parse errors
           }
         };
         eventSource.onerror = () => {
-          // SSE errors are non-fatal, continue silently
+          // SSE errors are non-fatal; upload continues without progress
         };
       } catch {
-        // SSE not supported or failed to connect - continue without progress
+        // EventSource not supported or failed — continue without progress
       }
     }
 
-    // Create abort controller with shorter timeout for faster failover
     const controller = new AbortController();
     const fileSizeMB = file.size / (1024 * 1024);
-    // Dynamic timeout: 60s base + 5s per MB (max 15 minutes)
-    // A 79MB MOV file takes ~6min to transcode+upload — the old 3min cap was killing it
-    const timeout = Math.min(60000 + (fileSizeMB * 5000), 900000);
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, timeout);
+    // Dynamic timeout: 60 s base + 5 s/MB, capped at 15 minutes
+    const timeout = Math.min(60_000 + fileSizeMB * 5_000, 900_000);
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
       const response = await fetch(transcodeUrl, {
-        method: 'POST',
+        method: "POST",
         body: formData,
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = await response
+          .text()
+          .catch(() => `HTTP ${response.status}`);
 
-        let errorType: ProcessingResult['errorType'] = 'server_error';
-        if (response.status === 403) {
-          errorType = 'upload_rejected';
-        } else if (response.status === 413) {
-          errorType = 'file_too_large';
-        } else if (response.status >= 500) {
-          errorType = 'server_error';
-        }
+        let errorType: ProcessingResult["errorType"] = "server_error";
+        if (response.status === 403) errorType = "upload_rejected";
+        else if (response.status === 413) errorType = "file_too_large";
 
         throw {
-          message: `${serverName} responded with ${response.status}: ${errorText}`,
+          message: `${label} responded with ${response.status}: ${errorText}`,
           statusCode: response.status,
           errorType,
-          failedServer: serverKey
+          failedServer: serverKey,
         };
       }
 
       const result = await response.json();
 
       if (!result.cid && !result.gatewayUrl && !result.ipfsUrl) {
-        throw new Error(result.error || `${serverName} processing failed - no valid URL returned`);
+        throw new Error(
+          result.error ?? `${label} processing failed — no valid URL returned`
+        );
       }
 
       const hash = result.cid;
       const skateHiveUrl = `https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${hash}`;
+      enhancedOptions?.onProgress?.(100, "complete");
 
-      // Final progress update
-      enhancedOptions?.onProgress?.(100, 'complete');
-
-      return {
-        success: true,
-        url: skateHiveUrl,
-        hash
-      };
+      return { success: true, url: skateHiveUrl, hash };
     } catch (error) {
       clearTimeout(timeoutId);
-
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (error instanceof Error && error.name === "AbortError") {
         throw {
-          message: `${serverName} request timed out`,
-          errorType: 'timeout' as const,
-          failedServer: serverKey
+          message: `${label} timed out after ${Math.round(timeout / 1000)}s`,
+          errorType: "timeout" as const,
+          failedServer: serverKey,
         };
       }
-
       throw error;
     }
   } catch (error) {
-    // Handle custom error objects with extended info
-    if (error && typeof error === 'object' && 'message' in error) {
-      const customError = error as { message: string; statusCode?: number; errorType?: ProcessingResult['errorType']; failedServer?: string };
+    if (error && typeof error === "object" && "message" in error) {
+      const e = error as {
+        message: string;
+        statusCode?: number;
+        errorType?: ProcessingResult["errorType"];
+      };
       return {
         success: false,
-        error: customError.message,
-        statusCode: customError.statusCode,
-        errorType: customError.errorType || 'unknown',
-        failedServer: serverKey
+        error: e.message,
+        statusCode: e.statusCode,
+        errorType: e.errorType ?? "unknown",
+        failedServer: serverKey,
       };
     }
-
-    // Handle connection errors
     if (error instanceof Error) {
-      const isConnectionError = error.message.includes('Failed to fetch') ||
-        error.message.includes('NetworkError') ||
-        error.message.includes('net::ERR');
+      const isConn =
+        error.message.includes("Failed to fetch") ||
+        error.message.includes("NetworkError") ||
+        error.message.includes("net::ERR");
       return {
         success: false,
         error: error.message,
-        errorType: isConnectionError ? 'connection' : 'unknown',
-        failedServer: serverKey
+        errorType: isConn ? "connection" : "unknown",
+        failedServer: serverKey,
       };
     }
-
     return {
       success: false,
-      error: `${serverName} failed`,
-      errorType: 'unknown',
-      failedServer: serverKey
+      error: `${label} failed`,
+      errorType: "unknown",
+      failedServer: serverKey,
     };
   } finally {
-    // Clean up SSE connection
-    if (eventSource) {
-      eventSource.close();
-    }
+    eventSource?.close();
   }
 }
