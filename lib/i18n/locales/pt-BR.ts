@@ -47,6 +47,8 @@ export const ptBR = {
     magazineTotalRewards: 'Recompensas Totais da Revista',
     profileNotFound: 'Perfil não encontrado',
     noSnaps: 'Nenhum snap ainda.',
+    noFarcasterAccountLinked: 'Nenhuma conta Farcaster vinculada',
+    socialShareDefault: 'Junte-se ao Skatehive - A Comunidade Web3 do Skate!',
   },
   auth: {
     connectWallet: 'Conectar Carteira',
@@ -142,6 +144,22 @@ export const ptBR = {
       noEvmIdentity: 'Nenhuma identidade EVM vinculada.',
       noFarcasterIdentity: 'Nenhuma identidade Farcaster vinculada.',
       noIdentities: 'Nenhuma identidade encontrada.',
+    },
+    fields: {
+      username: 'Nome de usuário',
+      viewMode: 'Modo de visualização',
+      isHiveProfile: 'É perfil Hive',
+      isOwner: 'É proprietário',
+      isUserbaseOwner: 'É proprietário Userbase',
+      canShowHiveViews: 'Pode exibir views Hive',
+      hiveLookupHandle: 'Handle de busca Hive',
+      hiveIdentityHandle: 'Handle de identidade Hive',
+      hivePostsHandle: 'Handle de posts Hive',
+      userbaseMatch: 'Correspondência Userbase',
+    },
+    values: {
+      true: 'VERDADEIRO',
+      false: 'FALSO',
     },
     },
   userbaseAuth: {
