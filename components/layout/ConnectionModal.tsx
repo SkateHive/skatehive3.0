@@ -27,6 +27,8 @@ import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { useFarcasterMiniapp } from "@/hooks/useFarcasterMiniapp";
 import { useFarcasterAuthMethods } from "@/components/farcaster/FarcasterAuthIsland";
 import { FaEthereum, FaHive, FaLink } from "react-icons/fa";
+import { FiLogOut } from "react-icons/fi";
+import { IconType } from "react-icons";
 import { SiFarcaster } from "react-icons/si";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { useTranslations } from "@/contexts/LocaleContext";
@@ -40,6 +42,11 @@ import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 const blink = keyframes`
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
+`;
+
+const pulse = keyframes`
+  0%, 100% { box-shadow: 0 0 0 0 var(--chakra-colors-primary); opacity: 1; }
+  50% { box-shadow: 0 0 0 4px transparent; opacity: 0.6; }
 `;
 
 interface ConnectionModalProps {
@@ -96,144 +103,127 @@ function InfoContent({ onBack }: { onBack: () => void }) {
   );
 }
 
-// Connection status indicator - terminal style with lines + dots
+const connectionStateConfig = {
+  "not-linked": {
+    badgeBg: "whiteAlpha.50",
+    badgeBorder: "whiteAlpha.200",
+    badgeColor: "gray.600",
+    dotColor: "gray.600",
+    dotFilled: false,
+    label: "not linked",
+  },
+  linked: {
+    badgeBg: "whiteAlpha.100",
+    badgeBorder: "primary",
+    badgeColor: "gray.300",
+    dotColor: "primary",
+    dotFilled: false,
+    label: "linked",
+  },
+  active: {
+    badgeBg: "whiteAlpha.100",
+    badgeBorder: "primary",
+    badgeColor: "primary",
+    dotColor: "primary",
+    dotFilled: true,
+    label: "active",
+  },
+};
+
+// Connection status indicator - terminal style with badges
 function ConnectionStatus({
   name,
   icon,
   color,
   state,
   onClick,
-  isLoading,
-  hint,
   subState,
 }: {
   name: string;
-  icon: any;
+  icon: IconType;
   color: string;
   state: "not-linked" | "linked" | "active";
   onClick: () => void;
-  isLoading?: boolean;
-  hint?: string;
   subState?: string;
 }) {
-  const stateConfig = {
-    "not-linked": {
-      lineColor: "whiteAlpha.200",
-      dotFill: "transparent",
-      dotBorder: "whiteAlpha.300",
-      textColor: "gray.500",
-      label: "not linked",
-      actionLabel: "link →",
-    },
-    linked: {
-      lineColor: "primary",
-      dotFill: "transparent",
-      dotBorder: "primary",
-      textColor: "gray.400",
-      label: "linked",
-      actionLabel: "connect →",
-    },
-    active: {
-      lineColor: "primary",
-      dotFill: "primary",
-      dotBorder: "primary",
-      textColor: "primary",
-      label: "active",
-      actionLabel: "disconnect",
-    },
-  };
 
-  const config = stateConfig[state];
+  const config = connectionStateConfig[state];
 
   const rowContent = (
     <HStack
-        spacing={2}
-        py={1.5}
-        cursor="pointer"
-        onClick={onClick}
-        transition="all 0.2s"
-        _hover={{
-          bg: "whiteAlpha.50",
-          "& .connection-line": {
-            opacity: 1,
-            bg: state === "not-linked" ? "whiteAlpha.400" : config.lineColor,
-          },
-          "& .connection-icon": {
-            opacity: 1,
-            transform: "scale(1.1)",
-          },
-        }}
-        borderRadius="sm"
-        px={1}
-        mx={-1}
+      spacing={3}
+      py={2}
+      px={2}
+      cursor="pointer"
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(); }}
+      tabIndex={0}
+      role="button"
+      aria-label={`${name} connection — ${config.label}`}
+      transition="background-color 0.15s"
+      _hover={{ bg: "whiteAlpha.50" }}
+      _focusVisible={{ outline: "2px solid", outlineColor: "primary", outlineOffset: "2px" }}
+      borderRadius="sm"
+      mx={-2}
+    >
+      <Icon
+        as={icon}
+        boxSize={3.5}
+        color={color}
+        opacity={state === "not-linked" ? 0.35 : 1}
+        flexShrink={0}
+      />
+      <Text
+        fontSize="xs"
+        fontFamily="mono"
+        color={state === "not-linked" ? "gray.600" : "gray.300"}
+        textTransform="lowercase"
+        flex={1}
       >
-        <Icon
-          className="connection-icon"
-          as={icon}
-          boxSize={3}
-          color={color}
-          opacity={state === "not-linked" ? 0.4 : 1}
-          transition="all 0.2s"
-        />
-        <Text
-          fontSize="xs"
-          fontFamily="mono"
-          color="gray.400"
-          textTransform="lowercase"
-          w="70px"
-        >
-          {name}
-        </Text>
+        {name}
+        {subState && (
+          <Text as="span" fontSize="2xs" color="gray.600" ml={2}>
+            · {subState}
+          </Text>
+        )}
+      </Text>
 
-        {/* Connection line */}
-        <Box
-          className="connection-line"
-          flex={1}
-          h="1px"
-          bg={config.lineColor}
-          opacity={state === "not-linked" ? 0.3 : 1}
-          transition="all 0.2s"
-        />
-
-        {/* Status dot */}
+      {/* Status badge */}
+      <HStack
+        spacing={1.5}
+        px={2}
+        py={0.5}
+        borderRadius="sm"
+        border="1px solid"
+        borderColor={config.badgeBorder}
+        bg={config.badgeBg}
+        flexShrink={0}
+      >
         <Circle
-          size="8px"
-          bg={config.dotFill}
-          border="2px solid"
-          borderColor={config.dotBorder}
+          size="6px"
+          bg={config.dotFilled ? config.dotColor : "transparent"}
+          border="1.5px solid"
+          borderColor={config.dotColor}
+          boxShadow={config.dotFilled ? `0 0 4px var(--chakra-colors-primary)` : "none"}
+          animation={config.dotFilled ? `${pulse} 2s ease-in-out infinite` : undefined}
         />
-
-        <Text
-          fontSize="2xs"
-          fontFamily="mono"
-          color={config.textColor}
-          w="60px"
-          textAlign="right"
-        >
+        <Text fontSize="2xs" fontFamily="mono" color={config.badgeColor} lineHeight={1}>
           {config.label}
         </Text>
       </HStack>
+    </HStack>
   );
 
   return (
-    <VStack spacing={0} align="stretch">
+    <Box>
       {state === "active" ? (
-        <Tooltip label="disconnect" placement="top" hasArrow>
+        <Tooltip label="click to disconnect" placement="top" hasArrow>
           {rowContent}
         </Tooltip>
       ) : (
         rowContent
       )}
-
-      {/* Sub-state info - no action button needed, clicking row handles it */}
-      {subState && (
-        <HStack spacing={2} pl="90px" pb={1}>
-          <Text fontSize="2xs" fontFamily="mono" color="gray.600">
-            {subState}
-          </Text>
-        </HStack>
-      )}
-    </VStack>
+    </Box>
   );
 }
 
@@ -357,31 +347,63 @@ export default function ConnectionModal({
             {isLoggedIn ? (
               <>
                 {/* Session Info */}
-                <HStack spacing={3} py={2}>
-                  <Image
-                    src={avatarUrl}
-                    boxSize={10}
-                    borderRadius="sm"
-                    alt=""
-                  />
+                <HStack
+                  spacing={4}
+                  py={3}
+                  px={2}
+                  align="center"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Go to ${displayName}'s profile`}
+                  data-group
+                  cursor="pointer"
+                  onClick={handleProfileClick}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleProfileClick(); }}
+                  borderRadius="sm"
+                  border="1px solid"
+                  borderColor="transparent"
+                  transition="border-color 0.15s, box-shadow 0.15s, background-color 0.15s"
+                  _hover={{
+                    borderColor: "primary",
+                    boxShadow: "0 0 6px var(--chakra-colors-primary)",
+                    bg: "whiteAlpha.50",
+                  }}
+                  _focusVisible={{ outline: "2px solid", outlineColor: "primary", outlineOffset: "2px" }}
+                >
+                  <Box position="relative" flexShrink={0}>
+                    <Box
+                      position="absolute"
+                      inset="-3px"
+                      borderRadius="md"
+                      border="2px solid"
+                      borderColor="primary"
+                      boxShadow="0 0 8px var(--chakra-colors-primary)"
+                      pointerEvents="none"
+                    />
+                    <Image
+                      src={avatarUrl}
+                      boxSize={14}
+                      borderRadius="sm"
+                      alt=""
+                    />
+                  </Box>
                   <VStack align="start" spacing={0} flex={1}>
-                    <Text fontFamily="mono" fontSize="sm" color="primary">
+                    <Text fontFamily="mono" fontSize="md" fontWeight="bold" color="primary">
                       {displayName}
                     </Text>
                     <Text fontFamily="mono" fontSize="xs" color="gray.500">
                       {user ? "hive" : "email"} session active
                     </Text>
                   </VStack>
-                  <Button
-                    size="xs"
-                    variant="ghost"
+                  <Text
                     fontFamily="mono"
-                    color="gray.500"
-                    onClick={handleProfileClick}
-                    _hover={{ color: "primary" }}
+                    fontSize="xs"
+                    color="gray.600"
+                    transition="color 0.15s"
+                    _groupHover={{ color: "primary" }}
                   >
-                    profile →
-                  </Button>
+                    PROFILE →
+                  </Text>
                 </HStack>
 
                 {/* Linking prompt - show when there are unlinked opportunities */}
@@ -417,16 +439,20 @@ export default function ConnectionModal({
                 )}
 
                 {/* Connections - explicit states */}
-                <Box pt={2}>
-                  <Text
-                    fontFamily="mono"
-                    fontSize="xs"
-                    color="gray.500"
-                    mb={3}
-                    textTransform="lowercase"
-                  >
-                    available connections
-                  </Text>
+                <Box pt={1}>
+                  <HStack spacing={2} mb={2} align="center">
+                    <Box flex={1} h="1px" bg="whiteAlpha.100" />
+                    <Text
+                      fontFamily="mono"
+                      fontSize="2xs"
+                      color="gray.600"
+                      textTransform="lowercase"
+                      flexShrink={0}
+                    >
+                      available connections
+                    </Text>
+                    <Box flex={1} h="1px" bg="whiteAlpha.100" />
+                  </HStack>
                   <VStack spacing={0} align="stretch">
                     {/* Hive Connection */}
                     <ConnectionStatus
@@ -500,18 +526,21 @@ export default function ConnectionModal({
                           ? handleFarcasterDisconnect()
                           : onFarcasterConnect()
                       }
-                      isLoading={isFarcasterAuthInProgress}
                     />
                   </VStack>
                 </Box>
 
                 {/* Sign Out */}
-                <Box pt={3} borderTop="1px solid" borderColor="whiteAlpha.100">
+                <Box pt={2} borderTop="1px solid" borderColor="whiteAlpha.100">
                   <Button
                     variant="ghost"
                     size="xs"
                     fontFamily="mono"
-                    color="gray.600"
+                    color="red.700"
+                    w="full"
+                    leftIcon={<Icon as={FiLogOut} boxSize={3} />}
+                    border="1px solid"
+                    borderColor="red.900"
                     onClick={() => {
                       if (userbaseUser) signOutUserbase();
                       if (user) handleHiveLogout();
@@ -519,9 +548,9 @@ export default function ConnectionModal({
                       if (isEthereumConnected) disconnectEth();
                       onClose();
                     }}
-                    _hover={{ color: "red.400" }}
+                    _hover={{ color: "red.400", borderColor: "red.500", bg: "whiteAlpha.50" }}
                   >
-                    end session
+                    END SESSION
                   </Button>
                 </Box>
               </>
@@ -602,9 +631,7 @@ export default function ConnectionModal({
                       icon={SiFarcaster}
                       color="purple.400"
                       state="not-linked"
-                      hint="social identity"
                       onClick={onFarcasterConnect}
-                      isLoading={isFarcasterAuthInProgress}
                     />
 
                     {/* Hive */}
@@ -613,7 +640,6 @@ export default function ConnectionModal({
                       icon={FaHive}
                       color="red.400"
                       state="not-linked"
-                      hint="rewards & posting"
                       onClick={onHiveLogin}
                     />
 
@@ -625,7 +651,6 @@ export default function ConnectionModal({
                           icon={FaEthereum}
                           color="blue.300"
                           state="not-linked"
-                          hint="nfts & tokens"
                           onClick={() => {
                             onClose();
                             openConnectModal();
