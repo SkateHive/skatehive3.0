@@ -29,6 +29,9 @@ function isAllowedUrl(raw: string): boolean {
 // Route handlers
 // ---------------------------------------------------------------------------
 
+const DEFAULT_TRANSCODER_BASE_URL = "https://transcode.skatehive.app";
+
+// Proxy endpoint to bypass CORS for video API
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -43,9 +46,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const apiUrl =
-      targetUrl ??
-      `https://skatehive-transcoder.onrender.com${endpoint}`;
+    const apiUrl = targetUrl ?? `${DEFAULT_TRANSCODER_BASE_URL}${endpoint}`;
 
     if (!isAllowedUrl(apiUrl)) {
       return NextResponse.json(
@@ -104,9 +105,7 @@ export async function POST(request: NextRequest) {
     const bodyCorrelationId =
       (formData.get("correlationId") as string | null) ?? correlationId;
 
-    const apiUrl =
-      targetUrl ??
-      `https://skatehive-transcoder.onrender.com${endpoint}`;
+    const apiUrl = targetUrl ?? `${DEFAULT_TRANSCODER_BASE_URL}${endpoint}`;
 
     if (!isAllowedUrl(apiUrl)) {
       return NextResponse.json(
