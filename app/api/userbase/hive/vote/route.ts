@@ -259,12 +259,14 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Check if this is a sponsored key (JSON format)
       if (secret.startsWith('{')) {
         const encryptedData = JSON.parse(secret);
-        postingKey = decryptHivePostingKey(encryptedData, session.userId);
+        try {
+          postingKey = decryptHivePostingKey(encryptedData, session.userId);
+        } catch (decryptError) {
+          postingKey = decryptSecret(secret);
+        }
       } else {
-        // Old system decryption
         postingKey = decryptSecret(secret);
       }
       userKeyId = keyId;
