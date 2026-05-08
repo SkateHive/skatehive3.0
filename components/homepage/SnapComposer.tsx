@@ -522,6 +522,15 @@ const SnapComposer = React.memo(function SnapComposer({
     const TIMEOUT_MS = 3000; // 3 second timeout
 
     try {
+      let parentAuthor = pa;
+      let parentPermlink = pp;
+
+      if (parentPermlink === HIVE_CONFIG.THREADS.PERMLINK) {
+        const latestSnapsContainer = await getLastSnapsContainer();
+        parentAuthor = latestSnapsContainer.author;
+        parentPermlink = latestSnapsContainer.permlink;
+      }
+
       // Create a timeout promise
       const timeoutPromise = new Promise<never>((_, reject) => {
         const timeoutId = setTimeout(() => {
@@ -533,8 +542,8 @@ const SnapComposer = React.memo(function SnapComposer({
 
       // Create the API call promise
       const fetchPromise = HiveClient.database.call('get_content_replies', [
-        pa,
-        pp,
+        parentAuthor,
+        parentPermlink,
       ]) as Promise<Discussion[]>;
 
       // Race the API call against the timeout
