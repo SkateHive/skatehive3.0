@@ -45,7 +45,7 @@ export function extractMediaFromBody(body: string): ExtractedMedia {
 
     // YouTube embed patterns
     const youtubeEmbedMatch = iframeSrc.match(
-      /(?:youtube\.com\/embed\/|youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/
+      /(?:youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?(?:[^\s]*&)?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
     );
     const vimeoMatch = iframeSrc.match(/vimeo\.com\/(?:video\/)?(\d+)/);
 
