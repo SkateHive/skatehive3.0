@@ -166,28 +166,40 @@ export default function PostCard({
   }, [body, listView]);
 
   const mediaData = useMemo(() => {
-    let images: string[] = [];
-    if (metadata.image) {
-      images = Array.isArray(metadata.image) ? metadata.image : [metadata.image];
-    }
+    const metadataImages = metadata.image
+      ? Array.isArray(metadata.image)
+        ? metadata.image
+        : [metadata.image]
+      : [];
 
     const markdownImages = extractImageUrls(body);
-    images = images.concat(markdownImages);
+    const ytLinks = extractYoutubeLinks(body);
 
-    const uniqueImages = Array.from(new Set(images));
-    const validImages = uniqueImages
-      .filter((img) => typeof img === 'string' && img.length > 0 && !failedImages.has(img))
-      .map((img) => optimizeImageUrl(img, IMAGE_SIZES.SIDEBAR_THUMB.w, IMAGE_SIZES.SIDEBAR_THUMB.h));
-    if (validImages.length > 0) {
-      return { imageUrls: validImages, youtubeLinks: [] as LinkWithDomain[] };
+    const validMarkdownImages = Array.from(new Set(markdownImages))
+      .filter((img) => typeof img === "string" && img.length > 0 && !failedImages.has(img))
+      .map((img) =>
+        optimizeImageUrl(img, IMAGE_SIZES.SIDEBAR_THUMB.w, IMAGE_SIZES.SIDEBAR_THUMB.h)
+      );
+
+    if (validMarkdownImages.length > 0) {
+      return { imageUrls: validMarkdownImages, youtubeLinks: [] as LinkWithDomain[] };
     }
 
-    const ytLinks = extractYoutubeLinks(body);
     if (ytLinks.length > 0) {
       const uniqueLinks = Array.from(new Set(ytLinks.map((link) => link.url)))
         .map((url) => ytLinks.find((link) => link.url === url)!)
         .filter(Boolean);
       return { imageUrls: [] as string[], youtubeLinks: uniqueLinks };
+    }
+
+    const validMetadataImages = Array.from(new Set(metadataImages))
+      .filter((img) => typeof img === "string" && img.length > 0 && !failedImages.has(img))
+      .map((img) =>
+        optimizeImageUrl(img, IMAGE_SIZES.SIDEBAR_THUMB.w, IMAGE_SIZES.SIDEBAR_THUMB.h)
+      );
+
+    if (validMetadataImages.length > 0) {
+      return { imageUrls: validMetadataImages, youtubeLinks: [] as LinkWithDomain[] };
     }
 
     return {

@@ -88,9 +88,9 @@ const VIDEO_PATTERNS: {
 }[] = [
   {
     platform: "youtube",
-    test: /youtu\.?be/i,
+    test: /(?:youtu\.be|youtube(?:-nocookie)?\.com)/i,
     extract:
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+      /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^\s"'<>]*&)?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
   },
   {
     platform: "3speak",
@@ -166,7 +166,7 @@ function extractVideoInfo(body: string): VideoInfo {
 
 function getYouTubeThumbnail(body: string): string | null {
   const match = body.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^\s"'<>]*&)?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
   );
   return match ? `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg` : null;
 }
