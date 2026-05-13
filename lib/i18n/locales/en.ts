@@ -1169,6 +1169,11 @@ export const en = {
     popularCommands: 'Popular Commands',
     inputPlaceholder: 'Search users, pages or commands...',
   },
+  spotWidget: {
+    title: 'Discover a spot 🛹',
+    viewMore: 'view more',
+    viewAllSpots: 'view all spots',
+  },
 };
 
 

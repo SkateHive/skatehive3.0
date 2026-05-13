@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useSkatespots } from "@/hooks/useSkatespots"
 import { Discussion } from "@hiveio/dhive"
 import { useMemo } from "react"
+import { useTranslations } from "@/contexts/LocaleContext"
 
 function getSpotImage(spot: Discussion): string {
   try {
@@ -25,6 +26,7 @@ function getSpotTitle(spot: Discussion): string {
 export default function SpotNearYou() {
   const { spots, isLoading } = useSkatespots()
   const router = useRouter()
+  const t = useTranslations("spotWidget")
 
   const randomSpot = useMemo(() => {
     if (!spots.length) return null
@@ -46,7 +48,7 @@ export default function SpotNearYou() {
     >
       <Flex align="center" justify="space-between" mb={3}>
         <Text fontSize="sm" fontWeight="500" color="primary">
-          Descubra um pico 🛹 
+          {t("title")}
         </Text>
         {randomSpot && (
           <Button
@@ -56,7 +58,7 @@ export default function SpotNearYou() {
             fontSize="11px"
             onClick={() => router.push(`/post/${randomSpot.author}/${randomSpot.permlink}`)}
           >
-            ver mais
+            {t("viewMore")}
           </Button>
         )}
       </Flex>
@@ -101,7 +103,7 @@ export default function SpotNearYou() {
         mt={2}
         onClick={() => router.push("/map")}
       >
-        ver todos os picos
+        {t("viewAllSpots")}
       </Button>
     </Box>
   )

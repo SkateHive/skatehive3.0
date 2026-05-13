@@ -1186,4 +1186,9 @@ export const ptBR = {
     popularCommands: 'Comandos Populares',
     inputPlaceholder: 'Buscar usuários, páginas ou comandos...',
   },
+  spotWidget: {
+    title: 'Descubra um pico 🛹',
+    viewMore: 'ver mais',
+    viewAllSpots: 'ver todos os picos',
+  },
 };
