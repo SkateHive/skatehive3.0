@@ -28,7 +28,6 @@ import {
   type QueryType,
   type ViewMode,
 } from "@/config/blog.config";
-import { HIVE_CONFIG } from "@/config/app.config";
 import { fetchHighestPaidPosts, convertToDiscussionFormat } from "@/services/skatehiveApiService";
 
 function BlogContent() {
@@ -318,13 +317,7 @@ function BlogContent() {
 
   // Modal logic for magazine view
   const isMagazineOpen = viewMode === "magazine";
-  const closeMagazine = () => {
-    // Simple state change - just close the magazine
-    setViewMode("grid");
-  };
-  // Magazine props (same as /magazine/page.tsx)
-  const magazineTag = [{ tag: HIVE_CONFIG.COMMUNITY_TAG, limit: 20 }]; // Bridge API max limit is 20
-  const magazineQuery = "created"; // Use trending for blog magazine view
+  const closeMagazine = useCallback(() => setViewMode("grid"), []);
 
   return (
     <>
@@ -333,8 +326,7 @@ function BlogContent() {
         <MagazineModal
           isOpen={isMagazineOpen}
           onClose={closeMagazine}
-          magazineTag={magazineTag}
-          magazineQuery={magazineQuery}
+          posts={allPosts}
         />
       )}
       {/* Main Blog Content */}

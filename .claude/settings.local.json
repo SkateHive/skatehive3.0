@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"app\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\bielc\\\\Dev\\\\skatehive3.0\" -Force)",
+      "Bash(Select-Object Name)"
+    ]
+  }
+}

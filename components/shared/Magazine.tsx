@@ -88,7 +88,8 @@ function useMagazinePosts(
     return () => {
       isMounted = false;
     };
-  }, [query, tagString, tag]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, tagString]);
 
   return { posts, error, isLoading };
 }
@@ -304,7 +305,7 @@ export default function Magazine(props: MagazineProps) {
           onInit={(instance: any) => {
             flipBookRef.current = instance;
           }}
-          onFlip={(e: any) => {
+          onFlip={() => {
             playSound();
             // Pause all native videos
             const videos = document.querySelectorAll(".flipbook video");

@@ -29,9 +29,6 @@ export async function GET(request: NextRequest) {
       const tags = post.tags || [];
       return tags.includes('skatespot') && tags.includes(HIVE_CONFIG.COMMUNITY_TAG);
     });
-    
-    // TEMP DEBUG
-    if (skatespots[0]) console.log('[skatespots] first raw spot:', JSON.stringify(skatespots[0], null, 2));
 
     // Transform the data to match the expected Discussion format
     const transformedSpots = skatespots.map((spot: any) => ({

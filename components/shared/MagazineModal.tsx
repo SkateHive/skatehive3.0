@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import {
   Box,
   Modal,
@@ -52,6 +52,16 @@ const MagazineModal = React.memo(function MagazineModal({
   userLocation,
 }: MagazineModalProps) {
   const [currentQuery, setCurrentQuery] = React.useState(magazineQuery);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsMounted(false);
+      return;
+    }
+    const id = setTimeout(() => setIsMounted(true), 50);
+    return () => clearTimeout(id);
+  }, [isOpen]);
 
   // Memoize the tag calculation to prevent unnecessary re-renders
   const tag = useMemo(() => {
@@ -92,7 +102,7 @@ const MagazineModal = React.memo(function MagazineModal({
     userLocation,
   ]);
 
-  if (!isOpen) return null; // Don't render anything when closed
+  if (!isOpen) return null;
 
   return (
     <Modal
@@ -119,7 +129,7 @@ const MagazineModal = React.memo(function MagazineModal({
             overflow="hidden"
             position="relative"
           >
-            <Magazine {...magazineProps} />
+            {isMounted && <Magazine {...magazineProps} />}
           </Box>
         </ModalBody>
       </ModalContent>
