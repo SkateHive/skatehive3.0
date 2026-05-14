@@ -227,11 +227,11 @@ const SnapComposer = React.memo(function SnapComposer({
         return;
       }
 
-      // Only for videos under 15s and users without bypass - upload directly
+      // Only for videos under 15s and users without bypass - upload directly.
+      // VideoUploader already owns onUploadStart/onUploadFinish, so do not
+      // double-book upload state here or cancel/retry flows can get stuck.
       if (videoUploaderRef.current) {
-        startUpload();
         await videoUploaderRef.current.handleFile(file);
-        finishUpload();
       }
     } catch (error) {
       console.error("Error checking video duration:", error);
