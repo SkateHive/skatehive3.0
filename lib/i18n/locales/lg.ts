@@ -1188,5 +1188,6 @@ export const lg = {
     title: 'Londa ekifo 🛹',
     viewMore: 'laba nnyini',
     viewAllSpots: 'laba ebifo byonna',
+    noName: 'Ekifo tekiinaama',
   },
 };

@@ -1189,5 +1189,6 @@ export const es = {
     title: 'Descubre un spot 🛹',
     viewMore: 'ver más',
     viewAllSpots: 'ver todos los spots',
+    noName: 'Spot sin nombre',
   },
 };

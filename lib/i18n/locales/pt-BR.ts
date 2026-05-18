@@ -1190,5 +1190,6 @@ export const ptBR = {
     title: 'Descubra um pico 🛹',
     viewMore: 'ver mais',
     viewAllSpots: 'ver todos os picos',
+    noName: 'Pico sem nome',
   },
 };

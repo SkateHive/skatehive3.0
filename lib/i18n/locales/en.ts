@@ -1173,6 +1173,7 @@ export const en = {
     title: 'Discover a spot 🛹',
     viewMore: 'view more',
     viewAllSpots: 'view all spots',
+    noName: 'Unnamed spot',
   },
 };
 

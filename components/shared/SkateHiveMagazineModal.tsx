@@ -35,7 +35,7 @@ export default function SkateHiveMagazineModal({
   };
 
   const magazineTag = useMemo(() => [{ tag: HIVE_CONFIG.COMMUNITY_TAG, limit: 20 }], []);
-  const magazineQuery = "trending";
+  const magazineQuery = "created";
 
   return (
     <>
@@ -114,6 +114,7 @@ export default function SkateHiveMagazineModal({
         onClose={handleCloseMagazine}
         magazineTag={magazineTag}
         magazineQuery={magazineQuery}
+
       />
     </>
   );

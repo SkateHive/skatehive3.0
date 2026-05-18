@@ -59,8 +59,14 @@ const MagazineModal = React.memo(function MagazineModal({
       setIsMounted(false);
       return;
     }
-    const id = setTimeout(() => setIsMounted(true), 50);
-    return () => clearTimeout(id);
+    let raf: number;
+    const id = setTimeout(() => {
+      raf = requestAnimationFrame(() => setIsMounted(true));
+    }, 100);
+    return () => {
+      clearTimeout(id);
+      cancelAnimationFrame(raf);
+    };
   }, [isOpen]);
 
   // Memoize the tag calculation to prevent unnecessary re-renders
