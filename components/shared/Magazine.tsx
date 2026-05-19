@@ -36,14 +36,12 @@ function useMagazinePosts(
   const tagString = JSON.stringify(tag);
 
   useEffect(() => {
-    // Don't fetch if tag is empty or query is not provided
     if (!query || !tag || tag.length === 0) {
       setIsLoading(false);
       setError(null);
       return;
     }
 
-    // Validate that tag has valid structure
     const hasValidTag = tag.every(
       (t) =>
         t &&
@@ -63,17 +61,11 @@ function useMagazinePosts(
     setIsLoading(true);
     setError(null);
     setPosts([]);
+
     findPosts(query, tag)
       .then((data) => {
         if (isMounted) {
-          // Bridge API returns an array directly
-          let postsArray = [];
-          if (Array.isArray(data)) {
-            postsArray = data;
-          } else if (data && typeof data === "object") {
-            // Fallback for unexpected response format
-            postsArray = [data];
-          }
+          const postsArray = Array.isArray(data) ? data : data ? [data] : [];
           setPosts(postsArray);
           setIsLoading(false);
         }
@@ -85,10 +77,12 @@ function useMagazinePosts(
           setIsLoading(false);
         }
       });
+
     return () => {
       isMounted = false;
     };
-  }, [query, tagString, tag]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, tagString]);
 
   return { posts, error, isLoading };
 }
@@ -227,7 +221,6 @@ export default function Magazine(props: MagazineProps) {
         Number(getPayoutValue(b as any)) - Number(getPayoutValue(a as any))
     );
 
-    // Return all posts - limit should be controlled by the tag.limit parameter
     return sortedPosts;
   }, [posts, isInitialized]);
 
@@ -304,7 +297,7 @@ export default function Magazine(props: MagazineProps) {
           onInit={(instance: any) => {
             flipBookRef.current = instance;
           }}
-          onFlip={(e: any) => {
+          onFlip={() => {
             playSound();
             // Pause all native videos
             const videos = document.querySelectorAll(".flipbook video");

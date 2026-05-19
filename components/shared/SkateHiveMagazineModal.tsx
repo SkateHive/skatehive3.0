@@ -7,7 +7,7 @@ import {
   Icon,
 } from "@chakra-ui/react";
 import { FaBookOpen, FaTrophy, FaCoins } from "react-icons/fa";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import MagazineModal from "./MagazineModal";
 import { HIVE_CONFIG } from "@/config/app.config";
 import SkateModal from "./SkateModal";
@@ -34,9 +34,8 @@ export default function SkateHiveMagazineModal({
     setIsMagazineOpen(false);
   };
 
-  const communityTag = HIVE_CONFIG.COMMUNITY_TAG;
-  const magazineTag = [{ tag: communityTag, limit: 20 }]; // Bridge API max limit is 20
-  const magazineQuery = "trending";
+  const magazineTag = useMemo(() => [{ tag: HIVE_CONFIG.COMMUNITY_TAG, limit: 20 }], []);
+  const magazineQuery = "created";
 
   return (
     <>
@@ -115,6 +114,7 @@ export default function SkateHiveMagazineModal({
         onClose={handleCloseMagazine}
         magazineTag={magazineTag}
         magazineQuery={magazineQuery}
+
       />
     </>
   );

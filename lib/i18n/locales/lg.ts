@@ -1191,4 +1191,10 @@ export const lg = {
     popularCommands: 'Ebiragiro Ebisinga Okukozesebwa',
     inputPlaceholder: 'Noonyereza abakozesa, emipapula oba ebiragiro...',
   },
+  spotWidget: {
+    title: 'Londa ekifo 🛹',
+    viewMore: 'laba nnyini',
+    viewAllSpots: 'laba ebifo byonna',
+    noName: 'Ekifo tekiinaama',
+  },
 };

@@ -1192,4 +1192,10 @@ export const es = {
     popularCommands: 'Comandos Populares',
     inputPlaceholder: 'Buscar usuarios, páginas o comandos...',
   },
+  spotWidget: {
+    title: 'Descubre un spot 🛹',
+    viewMore: 'ver más',
+    viewAllSpots: 'ver todos los spots',
+    noName: 'Spot sin nombre',
+  },
 };
