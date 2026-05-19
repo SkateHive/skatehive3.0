@@ -1197,5 +1197,8 @@ export const es = {
     viewMore: 'ver más',
     viewAllSpots: 'ver todos los spots',
     noName: 'Spot sin nombre',
+    dialogTitle: 'Spot cerca de ti 🛹',
+    viewOnMap: 'ver en el mapa',
+    dismiss: 'descartar',
   },
 };
