@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@chakra-ui/react";
 import { FaHeart } from "react-icons/fa";
 import useHiveVote from "@/hooks/useHiveVote";
@@ -11,6 +11,31 @@ import { usePeriodicTimer } from "@/hooks/usePeriodicTimer";
 import { TOAST_CONFIG } from "@/config/toast.config";
 import ToastCard from "@/components/shared/ToastCard";
 import { useTranslations } from "@/contexts/LocaleContext";
+
+const SNOOZE_KEY = "upvote_toast_snoozed_until";
+
+function isSnoozeActive(): boolean {
+  try {
+    const snoozedUntil = localStorage.getItem(SNOOZE_KEY);
+    if (!snoozedUntil) return false;
+    const parsed = Number(snoozedUntil);
+    if (isNaN(parsed)) return false;
+    return Date.now() < parsed;
+  } catch (_e) {
+    return false;
+  }
+}
+
+function snoozeToast(): void {
+  try {
+    localStorage.setItem(
+      SNOOZE_KEY,
+      String(Date.now() + TOAST_CONFIG.SNOOZE_DURATION)
+    );
+  } catch (_e) {
+    // localStorage unavailable in SSR or strict private mode
+  }
+}
 
 interface UpvoteSnapToastProps {
   showInterval?: number;
@@ -29,6 +54,9 @@ export default function UpvoteSnapToast({
   const [lastShownTime, setLastShownTime] = useState<number>(0);
   const toast = useToast();
   const { isDesktop, isMounted } = useIsDesktop();
+  // Tracks which permlink was locally confirmed as voted, preventing a delayed
+  // blockchain refetch from resetting hasVoted to false before Hive propagates.
+  const voteConfirmedPermlink = useRef<string | null>(null);
 
   const fetchSnapContainerData = useCallback(async () => {
     if (!canVote) {
@@ -41,16 +69,24 @@ export default function UpvoteSnapToast({
     try {
       const containerInfo = await getLastSnapsContainer();
       if (containerInfo) {
+        // New container = clear local vote confirmation
+        if (containerInfo.permlink !== voteConfirmedPermlink.current) {
+          voteConfirmedPermlink.current = null;
+        }
+
         const postDetails = await getPost(
           containerInfo.author,
           containerInfo.permlink
         );
         setSnapContainer(postDetails);
         if (effectiveUser && postDetails) {
-          const userVote = postDetails.active_votes.some(
+          const onChainVote = postDetails.active_votes.some(
             (v) => v.voter === effectiveUser
           );
-          setHasVoted(userVote);
+          // Preserve locally confirmed vote even if Hive hasn't propagated yet
+          const locallyConfirmed =
+            voteConfirmedPermlink.current === postDetails.permlink;
+          setHasVoted(onChainVote || locallyConfirmed);
         } else {
           setHasVoted(false);
         }
@@ -74,6 +110,9 @@ export default function UpvoteSnapToast({
       );
 
       if (response.success) {
+        // Set ref before state update so concurrent refetches don't race us
+        voteConfirmedPermlink.current = snapContainer.permlink;
+        setHasVoted(true);
         toast({
           title: t('upvoteToast.successTitle'),
           description: t('upvoteToast.successDescription'),
@@ -81,16 +120,17 @@ export default function UpvoteSnapToast({
           duration: 3000,
           isClosable: true,
         });
-        setHasVoted(true);
       } else {
         throw new Error("Vote failed");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to upvote:", error);
       toast({
         title: t('upvoteToast.failedTitle'),
         description:
-          error.message || t('upvoteToast.errorOccurred'),
+          error instanceof Error
+            ? error.message
+            : t('upvoteToast.errorOccurred'),
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -105,7 +145,8 @@ export default function UpvoteSnapToast({
       !canVote ||
       !snapContainer ||
       hasVoted ||
-      isSnapVoteLoading
+      isSnapVoteLoading ||
+      isSnoozeActive()
     ) {
       return;
     }
@@ -124,29 +165,36 @@ export default function UpvoteSnapToast({
       duration: displayDuration,
       isClosable: true,
       position: "bottom-right",
-      render: ({ onClose }) => (
-        <ToastCard
-          title={t('upvoteToast.supportCommunity')}
-          description={t('upvoteToast.helpSkateHiveDetailed')}
-          detail={`${t('upvoteToast.container')}: ${snapContainer.author}/${snapContainer.permlink}`}
-          icon={<FaHeart size={16} />}
-          primaryButton={{
-            label: t('upvoteToast.upvoteNow'),
-            icon: <FaHeart size={12} />,
-            onClick: async () => {
-              await handleUpvote();
-              onClose();
-            },
-            colorScheme: "blue",
-          }}
-          onClose={onClose}
-        />
-      ),
+      render: ({ onClose }) => {
+        const handleDismiss = () => {
+          snoozeToast();
+          onClose();
+        };
+        return (
+          <ToastCard
+            title={t('upvoteToast.supportCommunity')}
+            description={t('upvoteToast.helpSkateHiveDetailed')}
+            detail={`${t('upvoteToast.container')}: ${snapContainer.author}/${snapContainer.permlink}`}
+            icon={<FaHeart size={16} />}
+            primaryButton={{
+              label: t('upvoteToast.upvoteNow'),
+              icon: <FaHeart size={12} />,
+              onClick: async () => {
+                await handleUpvote();
+                onClose();
+              },
+              colorScheme: "blue",
+            }}
+            onClose={handleDismiss}
+          />
+        );
+      },
     });
 
-    // Auto-close after duration if user hasn't interacted
+    // Auto-close after duration; snooze so the timer doesn't reopen immediately
     setTimeout(() => {
       if (toast.isActive(toastId)) {
+        snoozeToast();
         toast.close(toastId);
       }
     }, displayDuration);
