@@ -253,14 +253,9 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
       if (srcMatch && srcMatch[1]) {
         const url = srcMatch[1];
 
-        // Skip YouTube iframes (handled by auto-embed logic)
-        if (
-          url.includes("youtube.com/embed/") ||
-          url.includes("youtube-nocookie.com/embed/") ||
-          url.includes("youtu.be/")
-        ) {
-          return;
-        }
+        // Keep YouTube iframes in mediaItems.
+        // In snaps, media is separated from text first, so skipping them here
+        // makes the preview disappear from the feed card.
 
         // Handle IPFS videos from any gateway
         if (isIpfsUrl(url)) {

@@ -247,6 +247,12 @@ export const en = {
     amountExceedsBalance: 'Amount exceeds available balance',
     transactionInitiated: 'Transaction Initiated',
     sendingTokens: 'Sending {amount} {symbol} to {address}',
+    transactionFailedRetry: 'Failed to send transaction. Please try again.',
+    availableBalance: 'Available Balance',
+    recipientAddress: 'Recipient Address',
+    amount: 'Amount',
+    max: 'MAX',
+    largeBalanceWarning: 'You are sending a large portion of your balance. Please double-check the amount.',
     qrCodeError: 'Failed to generate QR code',
     copiedToClipboard: 'Copied to clipboard',
     addressCopied: '{type} address copied',
@@ -1168,6 +1174,12 @@ export const en = {
     },
     popularCommands: 'Popular Commands',
     inputPlaceholder: 'Search users, pages or commands...',
+  },
+  spotWidget: {
+    title: 'Discover a spot 🛹',
+    viewMore: 'view more',
+    viewAllSpots: 'view all spots',
+    noName: 'Unnamed spot',
   },
 };
 

@@ -227,11 +227,11 @@ const SnapComposer = React.memo(function SnapComposer({
         return;
       }
 
-      // Only for videos under 15s and users without bypass - upload directly
+      // Only for videos under 15s and users without bypass - upload directly.
+      // VideoUploader already owns onUploadStart/onUploadFinish, so do not
+      // double-book upload state here or cancel/retry flows can get stuck.
       if (videoUploaderRef.current) {
-        startUpload();
         await videoUploaderRef.current.handleFile(file);
-        finishUpload();
       }
     } catch (error) {
       console.error("Error checking video duration:", error);
@@ -522,6 +522,15 @@ const SnapComposer = React.memo(function SnapComposer({
     const TIMEOUT_MS = 3000; // 3 second timeout
 
     try {
+      let parentAuthor = pa;
+      let parentPermlink = pp;
+
+      if (parentPermlink === HIVE_CONFIG.THREADS.PERMLINK) {
+        const latestSnapsContainer = await getLastSnapsContainer();
+        parentAuthor = latestSnapsContainer.author;
+        parentPermlink = latestSnapsContainer.permlink;
+      }
+
       // Create a timeout promise
       const timeoutPromise = new Promise<never>((_, reject) => {
         const timeoutId = setTimeout(() => {
@@ -533,8 +542,8 @@ const SnapComposer = React.memo(function SnapComposer({
 
       // Create the API call promise
       const fetchPromise = HiveClient.database.call('get_content_replies', [
-        pa,
-        pp,
+        parentAuthor,
+        parentPermlink,
       ]) as Promise<Discussion[]>;
 
       // Race the API call against the timeout

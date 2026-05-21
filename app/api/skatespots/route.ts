@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       const tags = post.tags || [];
       return tags.includes('skatespot') && tags.includes(HIVE_CONFIG.COMMUNITY_TAG);
     });
-    
+
     // Transform the data to match the expected Discussion format
     const transformedSpots = skatespots.map((spot: any) => ({
       body: spot.body,
@@ -52,13 +52,13 @@ export async function GET(request: NextRequest) {
       allow_curation_rewards: spot.allow_curation_rewards,
       net_rshares: spot.net_rshares,
       total_vote_weight: spot.total_vote_weight,
-      title: '',
+      title: spot.title || '',
       abs_rshares: '',
       children: 0,
       reblogged_by: [],
       replies: [],
       vote_rshares: '',
-      json_metadata: JSON.stringify(spot.post_json_metadata || {}),
+      json_metadata: JSON.stringify(spot.json_metadata || spot.post_json_metadata || {}),
       author_reputation: parseFloat(spot.reputation || 0),
       active_votes: spot.votes?.map((vote: any) => ({
         percent: 0,

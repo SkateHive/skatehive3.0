@@ -32,6 +32,7 @@ function getSanitizedHTML(html: string): string {
                 // Define trusted domains with more specific patterns
                 const trustedPatterns = [
                     /^https:\/\/(www\.)?youtube\.com\/embed\/[a-zA-Z0-9_-]{11}(\?.*)?$/,
+                    /^https:\/\/(www\.)?youtube-nocookie\.com\/embed\/[a-zA-Z0-9_-]{11}(\?.*)?$/,
                     /^https:\/\/youtu\.be\/[a-zA-Z0-9_-]{11}(\?.*)?$/,
                     /^https:\/\/player\.vimeo\.com\/video\/[0-9]+(\?.*)?$/,
                     /^https:\/\/3speak\.tv\/embed\?v=[^"'<>\s]+$/,
@@ -171,12 +172,12 @@ export function processMediaContent(content: string): string {
     );
     // YouTube iframe embeds
     processedContent = processedContent.replace(
-        /<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube\.com|youtu.be)\/embed\/([a-zA-Z0-9_-]{11})[^"']*["'][^>]*><\/iframe>/gim,
+        /<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})[^"']*["'][^>]*><\/iframe>/gim,
         (_match, videoId) => `[[YOUTUBE:${videoId}]]`
     );
     // YouTube direct links
     processedContent = processedContent.replace(
-        /^https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu.be\/)([a-zA-Z0-9_-]{11})[\S]*/gim,
+        /^https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^\s]*&)?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})[\S]*/gim,
         (_match, videoId) => `[[YOUTUBE:${videoId}]]`
     );
     // Vimeo iframe embeds

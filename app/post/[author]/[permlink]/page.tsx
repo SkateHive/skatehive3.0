@@ -166,7 +166,7 @@ async function extractFirstVideoUrl(body: string): Promise<string | null> {
 
   // 3. YouTube (always video)
   const ytMatch = body.match(
-    /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+    /https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^\s]*&)?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
   );
   if (ytMatch) return `https://www.youtube.com/watch?v=${ytMatch[1]}`;
 
