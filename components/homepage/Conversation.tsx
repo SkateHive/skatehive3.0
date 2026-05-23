@@ -44,6 +44,7 @@ import { BiMessage } from "react-icons/bi";
 import { useAioha } from "@aioha/react-ui";
 import useHiveVote from "@/hooks/useHiveVote";
 import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
+import { useErrorToast } from "@/hooks/useErrorToast";
 import { EnhancedMarkdownRenderer } from "../markdown/EnhancedMarkdownRenderer";
 import useSoftPostOverlay from "@/hooks/useSoftPostOverlay";
 import { extractSafeUser } from "@/lib/userbase/safeUserMetadata";
@@ -89,6 +90,7 @@ const Conversation = ({
   );
   const theme = useTheme();
   const toast = useToast();
+  const showError = useErrorToast();
   const [primaryColor] = useToken("colors", ["primary"]);
 
   // Theme-aware colors
@@ -162,12 +164,10 @@ const Conversation = ({
     if (!commentText.trim() || isSubmitting) return;
 
     if (!canUseAppFeatures) {
-      toast({
+      showError({
         title: "Please log in",
         description: "You need to be logged in to comment",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
+        isTechnical: false,
       });
       return;
     }
@@ -298,12 +298,14 @@ const Conversation = ({
       }, 0);
     } catch (error: any) {
       console.error("Comment submission error:", error);
-      toast({
+      showError({
         title: "Failed to post comment",
         description: error.message || "Please try again",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
+        isTechnical: true,
+        errorContext: {
+          prefillTitle: "Failed to post comment",
+          errorStack: error instanceof Error ? error.stack : String(error),
+        },
       });
     } finally {
       setIsSubmitting(false);
@@ -337,12 +339,10 @@ const Conversation = ({
   const handleLikeComment = useCallback(
     async (commentPermlink: string) => {
       if (!canVote) {
-        toast({
+        showError({
           title: "Please log in",
           description: "You need to be logged in to like comments",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
+          isTechnical: false,
         });
         return;
       }
@@ -405,12 +405,14 @@ const Conversation = ({
           return newSet;
         });
 
-        toast({
+        showError({
           title: "Failed to like comment",
           description: error.message || "Please try again",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
+          isTechnical: true,
+          errorContext: {
+            prefillTitle: "Failed to like comment",
+            errorStack: error instanceof Error ? error.stack : String(error),
+          },
         });
       }
     },
@@ -452,12 +454,14 @@ const Conversation = ({
         setExpandedReplies((prev) => new Set(prev));
       } catch (error) {
         console.error("Error fetching replies:", error);
-        toast({
+        showError({
           title: "Failed to load replies",
           description: "Please try again",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
+          isTechnical: true,
+          errorContext: {
+            prefillTitle: "Failed to load replies",
+            errorStack: error instanceof Error ? error.stack : undefined,
+          },
         });
       }
     },

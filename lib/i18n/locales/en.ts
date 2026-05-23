@@ -1181,6 +1181,10 @@ export const en = {
     viewAllSpots: 'view all spots',
     noName: 'Unnamed spot',
   },
+  errorToast: {
+    reportBug: 'Report bug',
+    screenshotHint: '⌘/Ctrl+Enter to attach screenshot',
+  },
 };
 
 

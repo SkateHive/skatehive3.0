@@ -1198,4 +1198,8 @@ export const es = {
     viewAllSpots: 'ver todos los spots',
     noName: 'Spot sin nombre',
   },
+  errorToast: {
+    reportBug: 'Reportar bug',
+    screenshotHint: '⌘/Ctrl+Enter para adjuntar captura de pantalla',
+  },
 };

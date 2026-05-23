@@ -23,4 +23,5 @@ export interface ReportOptions {
   prefillTitle?: string;
   prefillDescription?: string;
   errorStack?: string;
+  screenshot?: string;
 }
