@@ -14,7 +14,7 @@ export interface ProcessedMarkdown {
 }
 
 export interface VideoPlaceholder {
-  type: 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY';
+  type: 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | '3SPEAK' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY';
   id: string;
   placeholder: string;
 }
@@ -149,12 +149,12 @@ export class MarkdownProcessor {
 
   private static extractVideoPlaceholders(content: string): VideoPlaceholder[] {
     const placeholders: VideoPlaceholder[] = [];
-    const regex = /\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):([^\]]+)\]\]/g;
+    const regex = /\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):([^\]]+)\]\]/g;
     let match;
 
     while ((match = regex.exec(content)) !== null) {
       placeholders.push({
-        type: match[1] as 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY',
+        type: match[1] as 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | '3SPEAK' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY',
         id: match[2],
         placeholder: match[0],
       });

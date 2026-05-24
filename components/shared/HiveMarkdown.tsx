@@ -3,6 +3,12 @@ import markdownRenderer from "@/lib/markdown/MarkdownRenderer";
 import SkateErrorBoundary from "./SkateErrorBoundary";
 import { Skeleton } from "@chakra-ui/react";
 import { observeHeicImages } from "@/lib/utils/heicImageFallback";
+import dynamic from "next/dynamic";
+
+const ThreeSpeakPlayer = dynamic(
+  () => import("@/components/markdown/ThreeSpeakPlayer").then((m) => m.ThreeSpeakPlayer),
+  { ssr: false }
+);
 
 interface HiveMarkdownProps {
   markdown: string;
@@ -196,14 +202,36 @@ const HiveMarkdown: React.FC<HiveMarkdownProps> = ({
     );
   }
 
+  const htmlParts = renderedHtml.split(/(\[\[3SPEAK:[^\]]+\]\])/g);
+  const has3Speak = htmlParts.length > 1;
+
+  if (!has3Speak) {
+    return (
+      <SkateErrorBoundary>
+        <div
+          ref={containerRef}
+          className={className}
+          style={style}
+          dangerouslySetInnerHTML={{ __html: renderedHtml }}
+        />
+      </SkateErrorBoundary>
+    );
+  }
+
   return (
     <SkateErrorBoundary>
-      <div
-        ref={containerRef}
-        className={className}
-        style={style}
-        dangerouslySetInnerHTML={{ __html: renderedHtml }}
-      />
+      <div ref={containerRef} className={className} style={style}>
+        {htmlParts.map((part, i) => {
+          const match = part.match(/^\[\[3SPEAK:([^\]]+)\]\]$/);
+          if (match) {
+            return <ThreeSpeakPlayer key={`3speak-${i}`} videoId={match[1]} />;
+          }
+          if (!part) return null;
+          return (
+            <span key={i} dangerouslySetInnerHTML={{ __html: part }} />
+          );
+        })}
+      </div>
     </SkateErrorBoundary>
   );
 };

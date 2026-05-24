@@ -54,6 +54,10 @@ const VideoRenderer = dynamic(
   () => import("@/components/layout/VideoRenderer"),
   { ssr: false },
 );
+const ThreeSpeakPlayer = dynamic(
+  () => import("@/components/markdown/ThreeSpeakPlayer").then((m) => m.ThreeSpeakPlayer),
+  { ssr: false },
+);
 const HiveMarkdown = dynamic(() => import("@/components/shared/HiveMarkdown"), {
   ssr: false,
 });
@@ -512,6 +516,12 @@ function MainPlayer({ videoInfo }: { videoInfo: VideoInfo }) {
     /\.(mp4|webm|mov)(\?|$)/i.test(videoInfo.embedUrl)
   ) {
     return <VideoRenderer src={videoInfo.embedUrl} disableAutoplay={false} />;
+  }
+  if (videoInfo.platform === "3speak") {
+    const videoId = videoInfo.embedUrl.match(/[?&]v=([^&]+)/)?.[1];
+    if (videoId) {
+      return <ThreeSpeakPlayer videoId={videoId} />;
+    }
   }
   return (
     <iframe
