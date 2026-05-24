@@ -90,6 +90,8 @@ function TechnicalErrorToast({
   );
 }
 
+let isCapturing = false;
+
 async function captureScreenshot(): Promise<string | undefined> {
   try {
     const { toJpeg } = await import("html-to-image");
@@ -134,15 +136,16 @@ export function useErrorToast() {
           };
 
           const handleReportWithScreenshot = async () => {
+            if (isCapturing) return;
+            isCapturing = true;
             onClose();
             const screenshot = await captureScreenshot();
-            openReport({
-              type: "bug",
-              prefillTitle: errorContext?.prefillTitle,
-              prefillDescription: errorContext?.prefillDescription,
-              errorStack: errorContext?.errorStack,
-              screenshot,
-            });
+            // ~2MB in base64 ≈ 2.7M chars
+            const safeScreenshot = screenshot && screenshot.length < 2_700_000
+              ? screenshot
+              : undefined;
+            openReport({ type: "bug", ...errorContext, screenshot: safeScreenshot });
+            isCapturing = false;
           };
 
           return (
