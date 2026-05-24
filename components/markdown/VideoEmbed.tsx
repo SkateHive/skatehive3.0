@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import VideoRenderer from "@/components/layout/VideoRenderer";
 import { APP_CONFIG } from "@/config/app.config";
+import { useStopFlipbookEvents } from "@/hooks/useStopFlipbookEvents";
 
 interface VideoEmbedProps {
   type: "VIDEO" | "ODYSEE" | "YOUTUBE" | "VIMEO";
@@ -15,20 +16,25 @@ function YouTubeLite({ id }: { id: string }) {
   const [posterSrc, setPosterSrc] = useState(
     `https://img.youtube.com/vi/${id}/maxresdefault.jpg`
   );
+  const buttonRef = useStopFlipbookEvents<HTMLButtonElement>();
+  const iframeWrapperRef = useStopFlipbookEvents<HTMLDivElement>();
 
   if (active) {
     return (
-      <iframe
-        src={`https://www.youtube.com/embed/${id}?autoplay=1`}
-        style={{ width: "100%", aspectRatio: "16 / 9", border: 0 }}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-      />
+      <div ref={iframeWrapperRef}>
+        <iframe
+          src={`https://www.youtube.com/embed/${id}?autoplay=1`}
+          style={{ width: "100%", aspectRatio: "16 / 9", border: 0 }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
     );
   }
 
   return (
     <button
+      ref={buttonRef}
       type="button"
       onClick={() => setActive(true)}
       aria-label="Play video"

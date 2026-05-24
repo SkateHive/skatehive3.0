@@ -2,15 +2,28 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { Player } from "@mantequilla-soft/3speak-player";
+import { useStopFlipbookEvents } from "@/hooks/useStopFlipbookEvents";
 
 interface ThreeSpeakPlayerProps {
   videoId: string; // "author/permlink"
 }
 
+// Known 3Speak thumbnail pattern — shown immediately so the player has
+// something visible while the SDK's load() finishes its API round-trip.
+// The SDK will overwrite video.poster with the real thumbnail once load()
+// resolves with the canonical URL from the 3Speak API.
+function initialPoster(videoId: string): string | undefined {
+  const [author, permlink] = videoId.replace(/^@/, "").split("/");
+  if (!author || !permlink) return undefined;
+  return `https://img.3speakcontent.co/${author}/${permlink}/thumbnail.png`;
+}
+
 export function ThreeSpeakPlayer({ videoId }: ThreeSpeakPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useStopFlipbookEvents<HTMLDivElement>();
   const [aspectRatio, setAspectRatio] = useState("16 / 9");
   const [fatalError, setFatalError] = useState(false);
+  const poster = initialPoster(videoId);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -59,6 +72,7 @@ export function ThreeSpeakPlayer({ videoId }: ThreeSpeakPlayerProps) {
 
   return (
     <div
+      ref={containerRef}
       style={{
         width: "100%",
         aspectRatio,
@@ -71,6 +85,7 @@ export function ThreeSpeakPlayer({ videoId }: ThreeSpeakPlayerProps) {
         ref={videoRef}
         controls
         playsInline
+        poster={poster}
         style={{ width: "100%", height: "100%", display: "block" }}
       />
     </div>

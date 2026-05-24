@@ -299,17 +299,15 @@ export default function Magazine(props: MagazineProps) {
           }}
           onFlip={() => {
             playSound();
-            // Pause all native videos
-            const videos = document.querySelectorAll(".flipbook video");
-            videos.forEach((video) => {
+            // Pause all native <video> elements (3speak SDK, IPFS videos)
+            document.querySelectorAll(".flipbook video").forEach((video) => {
               const vid = video as HTMLVideoElement;
-              if (!vid.paused) {
-                vid.pause();
-              }
+              if (!vid.paused) vid.pause();
             });
-            // Pause all iframe videos
-            const iframes = document.querySelectorAll(".flipbook iframe");
-            iframes.forEach((iframe) => {
+            // Pause iframes we still embed directly (YouTube after the user
+            // clicks the lite-poster, Vimeo, Odysee, skatehype). 3speak iframes
+            // no longer exist — handled by the native <video> branch above.
+            document.querySelectorAll(".flipbook iframe").forEach((iframe) => {
               const ifr = iframe as HTMLIFrameElement;
               if (ifr.src.includes("youtube.com/embed")) {
                 ifr.contentWindow?.postMessage(
@@ -320,10 +318,7 @@ export default function Magazine(props: MagazineProps) {
                   }),
                   "*"
                 );
-              } else if (
-                ifr.src.includes("skatehype.com/ifplay.php") ||
-                ifr.src.includes("3speak.tv")
-              ) {
+              } else if (ifr.src.includes("skatehype.com/ifplay.php")) {
                 const oldSrc = ifr.src;
                 ifr.src = "";
                 setTimeout(() => {
