@@ -29,6 +29,10 @@ const CommunityToasts = dynamic(() => import("@/components/homepage/CommunityToa
 const IOSAppBanner = dynamic(() => import("@/components/shared/IOSAppBanner"), { ssr: false });
 const HZCEasterEgg = dynamic(() => import("@/components/shared/HZCEasterEgg"), { ssr: false });
 const WindowDock = dynamic(() => import("@/components/shared/WindowDock"), { ssr: false });
+const MagazineDevPanel = dynamic(
+  () => import("@/components/shared/MagazineDevPanel").then((m) => m.MagazineDevPanel),
+  { ssr: false }
+);
 
 export default function RootLayoutClient({
   children,
@@ -257,6 +261,7 @@ function InnerLayout({
         </Box>
       </Flex>
       {isMobile && <FooterNavButtons />}
+      <MagazineDevPanel />
     </Container>
   );
 }
