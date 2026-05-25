@@ -416,6 +416,18 @@ const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutop
     };
   }, []);
 
+  // User-triggered retry from the error UI. Resets the gateway-tracking refs
+  // so the full fallback chain (primary first) gets a fresh attempt.
+  const handleReload = useCallback(() => {
+    visitedRef.current.clear();
+    retriedRef.current.clear();
+    setHasError(false);
+    setIsVideoLoaded(false);
+    setIsPlaying(false);
+    setCurrentSrc(src);
+    videoRef.current?.load();
+  }, [src]);
+
   const handlePlayPause = useCallback(() => {
     if (videoRef.current && !hasError) {
       if (progress >= 99.9) {
@@ -635,10 +647,13 @@ const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutop
             height="100%"
             zIndex={3}
             display="flex"
+            flexDirection="column"
             alignItems="center"
             justifyContent="center"
+            gap={3}
             bg="gray.800"
             borderRadius="none"
+            px={4}
           >
             <Text color="gray.400" fontSize="sm" textAlign="center">
               Video failed to load
@@ -647,6 +662,21 @@ const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutop
                 Please check your connection and try again
               </Text>
             </Text>
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleReload();
+              }}
+              size="sm"
+              variant="outline"
+              color="limegreen"
+              borderColor="limegreen"
+              _hover={{ bg: "limegreen", color: "black" }}
+              aria-label="Retry video"
+            >
+              <Box as={LuRotateCw} mr={2} display="inline-block" />
+              Retry
+            </Button>
           </Box>
         )}
       </picture>
