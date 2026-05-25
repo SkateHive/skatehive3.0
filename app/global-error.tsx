@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "@/lib/i18n/hooks";
 
 const css = `
@@ -94,11 +94,24 @@ export default function GlobalError({
   const t = useTranslations("globalError");
   const chunkError = isChunkError(error);
 
+  const [shouldReload, setShouldReload] = useState(false);
+
   useEffect(() => {
-    if (chunkError) {
-      window.location.reload();
+    if (!chunkError) return;
+    const hasRetried = localStorage.getItem("chunk-error-retry") === "1";
+    if (!hasRetried) {
+      localStorage.setItem("chunk-error-retry", "1");
+      setShouldReload(true);
+    } else {
+      localStorage.removeItem("chunk-error-retry");
     }
   }, [chunkError]);
+
+  useEffect(() => {
+    if (shouldReload) {
+      window.location.reload();
+    }
+  }, [shouldReload]);
 
   return (
     <html>
@@ -106,6 +119,12 @@ export default function GlobalError({
         <style dangerouslySetInnerHTML={{ __html: css }} />
         <div
           style={{
+            "--ge-bg": "#0a0a0a",
+            "--ge-accent": "#FFD700",
+            "--ge-stroke": "#eee",
+            "--ge-dim": "#888",
+            "--ge-track": "#222",
+            "--ge-ground": "#444",
             minHeight: "100vh",
             display: "flex",
             flexDirection: "column",
@@ -113,14 +132,14 @@ export default function GlobalError({
             justifyContent: "center",
             gap: "2rem",
             padding: "3rem 1rem",
-            background: "#0a0a0a",
-          }}
+            background: "var(--ge-bg)",
+          } as React.CSSProperties}
         >
           <div style={{ position: "relative", width: 340, height: 150, overflow: "hidden" }}>
-            <div style={{ position: "absolute", bottom: 8, left: 0, right: 0, height: "1.5px", background: "#444" }} />
+            <div style={{ position: "absolute", bottom: 8, left: 0, right: 0, height: "1.5px", background: "var(--ge-ground)" }} />
             <img
               src="/logos/skatehive-logo-rounded.png"
-              alt="skatehive logo"
+              alt=""
               style={{
                 position: "absolute",
                 left: 150,
@@ -136,15 +155,15 @@ export default function GlobalError({
                 height="20"
                 viewBox="0 0 50 20"
                 fill="none"
-                style={{ animation: "flipanim 4.2s linear infinite", transformOrigin: "25px 4px" }}
+                style={{ animation: "flipanim 4.2s linear infinite", transformOrigin: "25px 4px", color: "var(--ge-stroke)" }}
               >
-                <line x1="5" y1="4" x2="45" y2="4" stroke="#eee" strokeWidth="2" strokeLinecap="round" />
-                <line x1="3" y1="4" x2="7" y2="2" stroke="#eee" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="47" y1="4" x2="43" y2="2" stroke="#eee" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="13" y1="4" x2="13" y2="8" stroke="#eee" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="37" y1="4" x2="37" y2="8" stroke="#eee" strokeWidth="1.5" strokeLinecap="round" />
-                <circle cx="13" cy="11" r="3" stroke="#eee" strokeWidth="1.5" fill="none" />
-                <circle cx="37" cy="11" r="3" stroke="#eee" strokeWidth="1.5" fill="none" />
+                <line x1="5" y1="4" x2="45" y2="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <line x1="3" y1="4" x2="7" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="47" y1="4" x2="43" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="13" y1="4" x2="13" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="37" y1="4" x2="37" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="13" cy="11" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                <circle cx="37" cy="11" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
               </svg>
             </div>
             <div style={{ position: "absolute", animation: "bodyarc 4.2s linear infinite" }}>
@@ -153,16 +172,16 @@ export default function GlobalError({
                 height="60"
                 viewBox="0 0 50 60"
                 fill="none"
-                style={{ animation: "leananim 4.2s linear infinite", transformOrigin: "center bottom" }}
+                style={{ animation: "leananim 4.2s linear infinite", transformOrigin: "center bottom", color: "var(--ge-stroke)" }}
               >
-                <circle cx="25" cy="7" r="6" stroke="#eee" strokeWidth="2" fill="none" />
-                <line x1="25" y1="13" x2="25" y2="34" stroke="#eee" strokeWidth="2" strokeLinecap="round" />
-                <line x1="25" y1="19" x2="12" y2="27" stroke="#eee" strokeWidth="2" strokeLinecap="round" />
-                <line x1="25" y1="19" x2="38" y2="25" stroke="#eee" strokeWidth="2" strokeLinecap="round" />
-                <line x1="25" y1="34" x2="16" y2="50" stroke="#eee" strokeWidth="2" strokeLinecap="round" />
-                <line x1="25" y1="34" x2="32" y2="50" stroke="#eee" strokeWidth="2" strokeLinecap="round" />
-                <line x1="16" y1="50" x2="14" y2="58" stroke="#eee" strokeWidth="2" strokeLinecap="round" />
-                <line x1="32" y1="50" x2="34" y2="58" stroke="#eee" strokeWidth="2" strokeLinecap="round" />
+                <circle cx="25" cy="7" r="6" stroke="currentColor" strokeWidth="2" fill="none" />
+                <line x1="25" y1="13" x2="25" y2="34" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <line x1="25" y1="19" x2="12" y2="27" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <line x1="25" y1="19" x2="38" y2="25" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <line x1="25" y1="34" x2="16" y2="50" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <line x1="25" y1="34" x2="32" y2="50" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <line x1="16" y1="50" x2="14" y2="58" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <line x1="32" y1="50" x2="34" y2="58" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </div>
           </div>
@@ -172,23 +191,23 @@ export default function GlobalError({
               style={{
                 fontSize: 22,
                 fontWeight: 500,
-                color: "#FFD700",
+                color: "var(--ge-accent)",
                 fontFamily: "monospace",
                 letterSpacing: ".05em",
               }}
             >
               {t("bailDetected")}
             </div>
-            <div style={{ fontSize: 14, color: "#888", fontFamily: "monospace" }}>
+            <div style={{ fontSize: 14, color: "var(--ge-dim)", fontFamily: "monospace" }}>
               {t("gettingBackUp")}
             </div>
           </div>
 
-          <div style={{ width: 200, height: 3, background: "#222", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{ width: 200, height: 3, background: "var(--ge-track)", borderRadius: 2, overflow: "hidden" }}>
             <div
               style={{
                 height: "100%",
-                background: "#FFD700",
+                background: "var(--ge-accent)",
                 borderRadius: 2,
                 animation: "load 4.2s linear infinite",
               }}
@@ -201,8 +220,8 @@ export default function GlobalError({
               style={{
                 padding: "8px 20px",
                 background: "transparent",
-                border: "1px solid #FFD700",
-                color: "#FFD700",
+                border: "1px solid var(--ge-accent)",
+                color: "var(--ge-accent)",
                 fontFamily: "monospace",
                 fontSize: 14,
                 cursor: "pointer",
