@@ -28,11 +28,13 @@ interface PostingKeyStatus {
 interface UserbasePostingKeyPanelProps {
   variant?: "settings" | "modal";
   refreshSignal?: number;
+  onSaveSuccess?: () => void;
 }
 
 export default function UserbasePostingKeyPanel({
   variant = "settings",
   refreshSignal,
+  onSaveSuccess,
 }: UserbasePostingKeyPanelProps) {
   const t = useTranslations();
   const toast = useToast();
@@ -133,6 +135,7 @@ export default function UserbasePostingKeyPanel({
         status: "success",
         duration: 2500,
       });
+      onSaveSuccess?.();
     } catch (error: any) {
       toast({
         title: t("settings.postingKeyError"),

@@ -369,6 +369,14 @@ export interface TranslationSchema {
     helpSkateHiveDetailed: string;
     container: string;
     upvoteNow: string;
+    needsPostingKey: string;
+    addPostingKey: string;
+  };
+  postingKeyDialog: {
+    title: string;
+    description: string;
+    descriptionWithHandle: string;
+    close: string;
   };
   settings: {
     title: string;

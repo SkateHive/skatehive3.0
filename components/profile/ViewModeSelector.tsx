@@ -141,13 +141,8 @@ const ViewModeSelector = memo(function ViewModeSelector({
 
   return (
     <Box>
-      {/* Main tabs with terminal-style border */}
-      <Box
-        border="2px solid"
-        borderColor="border"
-        borderTop="none"
-        bg="background"
-      >
+      {/* Main tabs — sleek terminal style */}
+      <Box borderBottom="1px solid" borderColor="border" bg="background">
         <Tabs
           index={currentMainTabIndex}
           onChange={handleMainTabChange}
@@ -155,37 +150,35 @@ const ViewModeSelector = memo(function ViewModeSelector({
           size="sm"
           isFitted={true}
         >
-          <TabList>
+          <TabList border="none">
             {mainTabs.map((tab, index) => {
               const IconComponent = tab.icon;
               const isSelected = currentMainTabIndex === index;
               return (
                 <Tab
                   key={tab.key}
-                  color={isSelected ? "primary" : "text"}
-                  bg={isSelected ? "muted" : "transparent"}
-                  borderRight={index < mainTabs.length - 1 ? "1px solid" : "none"}
-                  borderColor="border"
-                  _hover={{
-                    bg: "muted",
-                    color: "primary",
-                  }}
-                  _selected={{
-                    color: "primary",
-                    bg: "muted",
-                  }}
-                  transition="all 0.2s"
+                  color={isSelected ? "primary" : "dim"}
+                  bg="transparent"
+                  borderBottom="2px solid"
+                  borderColor={isSelected ? "primary" : "transparent"}
+                  mb="-1px"
+                  _hover={{ color: "primary" }}
+                  _selected={{ color: "primary" }}
+                  transition="color 0.15s, border-color 0.15s"
                   display="flex"
                   alignItems="center"
-                  gap={2}
-                  px={isMobile ? 2 : 4}
-                  py={3}
-                  minW={isMobile ? "auto" : "80px"}
+                  justifyContent="center"
+                  gap={1.5}
+                  px={isMobile ? 1 : 3}
+                  py={2}
+                  minW="auto"
                   fontFamily="mono"
-                  fontSize="sm"
+                  fontSize="xs"
+                  fontWeight={isSelected ? "bold" : "normal"}
+                  textTransform="lowercase"
                   borderRadius="none"
                 >
-                  <IconComponent size={14} />
+                  <IconComponent size={12} />
                   {tab.label}
                 </Tab>
               );
@@ -196,12 +189,7 @@ const ViewModeSelector = memo(function ViewModeSelector({
 
       {/* Sub-selector for Posts view modes */}
       {currentMainTab === "posts" && (
-        <Box
-          border="2px solid"
-          borderColor="border"
-          borderTop="none"
-          bg="background"
-        >
+        <Box borderBottom="1px solid" borderColor="border" bg="background">
           <Tabs
             index={availablePostViewModes.findIndex(
               (mode) => mode.key === currentPostViewMode
@@ -213,7 +201,7 @@ const ViewModeSelector = memo(function ViewModeSelector({
             size="sm"
             isFitted={true}
           >
-            <TabList>
+            <TabList border="none">
               {availablePostViewModes.map((mode, index) => {
                 const IconComponent = mode.icon;
                 const isSelected = availablePostViewModes.findIndex(
@@ -223,29 +211,27 @@ const ViewModeSelector = memo(function ViewModeSelector({
                   <Tab
                     key={mode.key}
                     color={isSelected ? "primary" : "dim"}
-                    bg={isSelected ? "muted" : "transparent"}
-                    borderRight={index < availablePostViewModes.length - 1 ? "1px solid" : "none"}
-                    borderColor="border"
-                    _hover={{
-                      bg: "muted",
-                      color: "primary",
-                    }}
-                    _selected={{
-                      color: "primary",
-                      bg: "muted",
-                    }}
-                    transition="all 0.2s"
+                    bg="transparent"
+                    borderBottom="2px solid"
+                    borderColor={isSelected ? "primary" : "transparent"}
+                    mb="-1px"
+                    _hover={{ color: "primary" }}
+                    _selected={{ color: "primary" }}
+                    transition="color 0.15s, border-color 0.15s"
                     display="flex"
                     alignItems="center"
-                    gap={2}
-                    px={isMobile ? 2 : 4}
-                    py={2}
-                    minW={isMobile ? "auto" : "60px"}
+                    justifyContent="center"
+                    gap={1.5}
+                    px={isMobile ? 1 : 3}
+                    py={1.5}
+                    minW="auto"
                     fontSize="xs"
                     fontFamily="mono"
+                    fontWeight={isSelected ? "bold" : "normal"}
+                    textTransform="lowercase"
                     borderRadius="none"
                   >
-                    <IconComponent size={12} />
+                    <IconComponent size={11} />
                     {mode.label}
                   </Tab>
                 );

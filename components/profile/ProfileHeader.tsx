@@ -366,11 +366,6 @@ const ProfileHeader = function ProfileHeader({
         onFollowingChange={onFollowingChange}
         onLoadingChange={onLoadingChange}
         onEditModalOpen={activeEditHandler}
-        showZoraProfile={activeView === "zora"}
-        onToggleProfile={(show) => setView(show ? "zora" : "hive")}
-        cachedZoraData={null}
-        zoraLoading={false}
-        zoraError={null}
         isLiteUser={isViewerLiteUser}
       />
 

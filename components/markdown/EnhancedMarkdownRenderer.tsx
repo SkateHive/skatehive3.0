@@ -10,6 +10,7 @@ import HiveMarkdown from "@/components/shared/HiveMarkdown";
 
 // Embed components — lazy loaded (only when post contains that embed type)
 const VideoEmbed = dynamic(() => import("./VideoEmbed").then(m => m.VideoEmbed), { ssr: false });
+const ThreeSpeakPlayer = dynamic(() => import("./ThreeSpeakPlayer").then(m => m.ThreeSpeakPlayer), { ssr: false });
 const InstagramEmbed = dynamic(() => import("./InstagramEmbed"), { ssr: false });
 const ZoraCoinPreview = dynamic(() => import("../zora/ZoraCoinPreview"), { ssr: false });
 const SnapshotPreview = dynamic(() => import("../shared/SnapshotPreview"), { ssr: false });
@@ -43,7 +44,7 @@ function renderContentWithVideos(
   // Split on supported video, social media, Zora coin, Snapshot, SkateHive game, and Builder proposal placeholders
   // Use [\s\S] instead of [^\]] to handle newlines inside placeholders
   const parts = processed.contentWithPlaceholders.split(
-    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[\s\S]+?\]\])/g
+    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[\s\S]+?\]\])/g
   );
 
   return parts
@@ -61,6 +62,13 @@ function renderContentWithVideos(
         return (
           <VideoEmbed key={`video-${idx}`} type={type} id={id} index={idx} />
         );
+      }
+
+      // Handle 3Speak placeholders
+      const threeSpeakMatch = part.match(/^\[\[3SPEAK:([\s\S]+?)\]\]$/);
+      if (threeSpeakMatch) {
+        const videoId = threeSpeakMatch[1].trim();
+        return <ThreeSpeakPlayer key={`3speak-${idx}`} videoId={videoId} />;
       }
 
       // Handle Instagram placeholders
@@ -134,6 +142,8 @@ function renderContentWithVideos(
 
 function cleanMarkdownPart(part: string): string {
   return part
+    .replace(/^https?:\/\/(?:www\.)?3speak\.tv\/.*$/gm, "")
+    .replace(/^https?:\/\/play\.3speak\.tv\/.*$/gm, "")
     .replace(/^https?:\/\/(?:www\.)?odysee\.com\/.*$/gm, "")
     .replace(/^https?:\/\/(?:www\.)?instagram\.com\/.*$/gm, "")
     .replace(
@@ -156,9 +166,9 @@ function cleanMarkdownPart(part: string): string {
     .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/bounties\/poidh\/.*$/gm, "") // POIDH bounties
     .replace(/^https?:\/\/(?:www\.)?[^\/\s]+\/(?:proposals|vote)\/\d+$/gm, "") // Builder DAO proposals
     // Remove any leftover placeholders that weren't split properly
-    .replace(/\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[^\]]+\]\]/g, "")
+    .replace(/\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[^\]]+\]\]/g, "")
     .replace(
-      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY)\s*$/gm,
+      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY)\s*$/gm,
       ""
     )
     .replace(/^[a-zA-Z0-9_-]{11}$/gm, "") // YouTube video IDs

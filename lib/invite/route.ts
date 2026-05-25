@@ -2,6 +2,7 @@
 import nodemailer from 'nodemailer';
 import { htmlToText } from 'html-to-text';
 import getMailTemplate_Invite from './template';
+import { buildInviteKeysBackup } from './backup';
 import { APP_CONFIG, EMAIL_DEFAULTS } from '@/config/app.config';
 
 export default async function serverMailer(
@@ -27,17 +28,25 @@ export default async function serverMailer(
 
   // Try sending the email
   try {
-    // Get HTML template and Convert HTML to plain text
+    // Get HTML template and Convert HTML to plain text (fallback for non-HTML clients)
     const html = getMailTemplate_Invite(createdby, desiredUsername, masterPassword, keys, language); // Pass language
     const text = htmlToText(html, {
-      preserveNewlines: true, // Optional: Preserve newlines
-      //wordwrap: 130,   // Optional: Set a word wrap length (e.g., 130 characters)
+      preserveNewlines: true,
     });
 
-    // Define the attachment object
+    // Build a clean, structured key backup file. The attached file is the
+    // user's permanent record of their account — it must spell out the master
+    // password and every key explicitly, not just whatever fell out of htmlToText.
+    const backup = buildInviteKeysBackup({
+      createdby,
+      desiredUsername,
+      masterPassword,
+      keys,
+    });
+
     const attachment = {
-      name: "KEYS-BACKUP" + desiredUsername + "-SKATEHIVE.TXT",
-      data: text,
+      name: `KEYS-BACKUP-${desiredUsername}-SKATEHIVE.TXT`,
+      data: backup,
       type: "text/plain"
     };
 

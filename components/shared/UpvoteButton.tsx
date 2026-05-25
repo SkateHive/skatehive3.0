@@ -139,7 +139,8 @@ const handleVote = useCallback(
           const currentVotes = [...activeVotes];
           if (effectiveUser) {
             const existingVoteIndex = currentVotes.findIndex(
-              (vote: any) => vote.voter === effectiveUser
+              (vote: any) =>
+                vote.voter?.toLowerCase() === effectiveUser?.toLowerCase()
             );
             if (existingVoteIndex >= 0) {
               // Update existing vote

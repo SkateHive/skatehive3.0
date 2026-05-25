@@ -238,8 +238,14 @@ const ProfileHeaderWithFollow = memo(function ProfileHeaderWithFollow({
     useFollowStatus(isHiveProfile ? user : null, followTarget);
 
   const isOwner = useMemo(
-    () => (isHiveProfile ? user === hiveLookupHandle : false),
-    [user, hiveLookupHandle, isHiveProfile]
+    () => {
+      if (!isHiveProfile) return false;
+      if (user && user === hiveLookupHandle) return true;
+      if (viewerHiveUsername && viewerHiveUsername === hiveLookupHandle)
+        return true;
+      return false;
+    },
+    [user, hiveLookupHandle, isHiveProfile, viewerHiveUsername]
   );
   const isUserbaseOwner = useMemo(
     () =>
@@ -556,8 +562,16 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
         svs_profile: "",
       };
     }
+    // Anonymous visitor viewing a likely-Hive-handle profile (e.g. /user/xvlad)
+    // before the Hive RPC call resolves. Use the Hive image gateway as a
+    // pre-fetch avatar so the UI doesn't render an empty avatar in prod when
+    // the RPC is slow.
+    const handleLooksLikeHive =
+      !!username && !isEvmAddress && /^[a-z0-9.\-]{3,16}$/i.test(username);
     return {
-      profileImage: "",
+      profileImage: handleLooksLikeHive
+        ? `https://images.hive.blog/u/${username.toLowerCase()}/avatar`
+        : "",
       coverImage: "",
       website: "",
       name: username,

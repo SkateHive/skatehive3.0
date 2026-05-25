@@ -88,7 +88,8 @@ const SnapModal = ({
   const [voted, setVoted] = useState(
     hasSoftVote ||
       currentSnap.active_votes?.some(
-        (item: { voter: string }) => item.voter === effectiveUser
+        (item: { voter: string }) =>
+          item.voter?.toLowerCase() === effectiveUser?.toLowerCase()
       ) ||
       false
   );
@@ -202,7 +203,8 @@ const SnapModal = ({
     setVoted(
       hasSoftVote ||
         currentSnap.active_votes?.some(
-          (item: { voter: string }) => item.voter === effectiveUser
+          (item: { voter: string }) =>
+          item.voter?.toLowerCase() === effectiveUser?.toLowerCase()
         ) ||
         false
     );

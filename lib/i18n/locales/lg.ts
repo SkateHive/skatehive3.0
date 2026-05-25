@@ -468,6 +468,14 @@ export const lg = {
     helpSkateHiveDetailed: 'Tusobola SkateHive okuweta snap container post gwe snaps zonna ziggala.',
     container: 'Container',
     upvoteNow: 'Weta Kakaati',
+    needsPostingKey: 'Yongerako posting key yo eya Hive okusobola okuweta.',
+    addPostingKey: 'Yongerako posting key',
+  },
+  postingKeyDialog: {
+    title: 'Yongerako posting key yo eya Hive',
+    description: 'Tereka posting key yo eya Hive osobole okuweta, okuwandiika n’okuposta ku akawunti yo eya Hive.',
+    descriptionWithHandle: 'Tereka posting key yo eya Hive osobole okuweta, okuwandiika n’okuposta nga @{handle}.',
+    close: 'Ggalawo',
   },
   settings: {
     title: '⚙️ Setinga',
@@ -1201,5 +1209,9 @@ export const lg = {
     bailDetected: 'Okugwa kwatondebwa',
     gettingBackUp: 'Tugenda okunzita nate...',
     tryAgain: 'Gezaako nate',
+  },
+  errorToast: {
+    reportBug: 'Babaza bug',
+    screenshotHint: '⌘/Ctrl+Enter okukwata screenshot',
   },
 };
