@@ -98,12 +98,13 @@ export default function GlobalError({
 
   useEffect(() => {
     if (!chunkError) return;
-    const hasRetried = localStorage.getItem("chunk-error-retry") === "1";
-    if (!hasRetried) {
-      localStorage.setItem("chunk-error-retry", "1");
+    const retryKey = "chunk-error-retry-ts";
+    const now = Date.now();
+    const lastRetry = Number(sessionStorage.getItem(retryKey) ?? 0);
+    const hasRetriedRecently = now - lastRetry < 30_000;
+    if (!hasRetriedRecently) {
+      sessionStorage.setItem(retryKey, String(now));
       setShouldReload(true);
-    } else {
-      localStorage.removeItem("chunk-error-retry");
     }
   }, [chunkError]);
 
@@ -214,23 +215,21 @@ export default function GlobalError({
             />
           </div>
 
-          {!chunkError && (
-            <button
-              onClick={reset}
-              style={{
-                padding: "8px 20px",
-                background: "transparent",
-                border: "1px solid var(--ge-accent)",
-                color: "var(--ge-accent)",
-                fontFamily: "monospace",
-                fontSize: 14,
-                cursor: "pointer",
-                borderRadius: 4,
-              }}
-            >
-              {t("tryAgain")}
-            </button>
-          )}
+          <button
+            onClick={reset}
+            style={{
+              padding: "8px 20px",
+              background: "transparent",
+              border: "1px solid var(--ge-accent)",
+              color: "var(--ge-accent)",
+              fontFamily: "monospace",
+              fontSize: 14,
+              cursor: "pointer",
+              borderRadius: 4,
+            }}
+          >
+            {t("tryAgain")}
+          </button>
         </div>
       </body>
     </html>
