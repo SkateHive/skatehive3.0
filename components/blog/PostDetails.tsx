@@ -262,11 +262,7 @@ export default function PostDetails({
     prevPayoutValueRef.current = currentPayout;
   }, [payoutValue, triggerUpvoteStoke]);
 
-  // Check if current user is the author
-  const isAuthor =
-    walletUser && walletUser.toLowerCase() === author.toLowerCase();
-
-  // Use the post edit hook
+  // Use the post edit hook (handles Keychain + stored-posting-key paths)
   const {
     isEditing,
     editedContent,
@@ -280,7 +276,12 @@ export default function PostDetails({
     showUpgradeModal,
     upgradeAction,
     closeUpgradeModal,
+    canEditThisPost,
   } = usePostEdit(post);
+
+  // Edit-button visibility: any user whose effective Hive identity matches
+  // the post's author, whether they're on Keychain or using a stored key.
+  const isAuthor = canEditThisPost;
 
   const {
     hivePower,
