@@ -92,15 +92,47 @@ function YouTubeLite({ id }: { id: string }) {
   );
 }
 
+/**
+ * Fallback IPFS gateways. When the primary `APP_CONFIG.IPFS_GATEWAY`
+ * times out or 5xxs, VideoRenderer races these in parallel before giving up.
+ * Order is most-likely-to-work first (used as tie-breaker if the race times out).
+ *
+ * Note on caching: the primary gateway (ipfs.skatehive.app) is a Pinata dedicated
+ * gateway served through Cloudflare. As of 2026 it already returns
+ *   cache-control: public, max-age=29030400
+ *   accept-ranges: bytes
+ *   access-control-allow-origin: *
+ * with cf-cache-status HIT on the edge — so no extra cache configuration is
+ * needed on our side. Verified via `curl -I` against a live CID.
+ */
+const IPFS_FALLBACK_GATEWAYS = [
+  "ipfs.skatehive.app",
+  "gateway.pinata.cloud",
+  "cloudflare-ipfs.com",
+  "ipfs.io",
+];
+
+function buildIpfsUrls(hash: string): { primary: string; fallbacks: string[] } {
+  const primaryGw = APP_CONFIG.IPFS_GATEWAY;
+  const primary = `https://${primaryGw}/ipfs/${hash}`;
+  const fallbacks = IPFS_FALLBACK_GATEWAYS
+    .filter((gw) => gw !== primaryGw)
+    .map((gw) => `https://${gw}/ipfs/${hash}`);
+  return { primary, fallbacks };
+}
+
 export function VideoEmbed({ type, id, index }: VideoEmbedProps) {
   switch (type) {
-    case "VIDEO":
+    case "VIDEO": {
+      const { primary, fallbacks } = buildIpfsUrls(id);
       return (
         <VideoRenderer
           key={`video-${id}-${index}`}
-          src={`https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${id}`}
+          src={primary}
+          fallbackSrcs={fallbacks}
         />
       );
+    }
 
     case "ODYSEE":
       return (
