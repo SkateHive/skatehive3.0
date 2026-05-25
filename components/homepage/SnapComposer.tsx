@@ -686,9 +686,15 @@ const SnapComposer = React.memo(function SnapComposer({
       setIsLoading(true);
       try {
         const castText = buildSnapCastText(commentBody, APP_CONFIG.ORIGIN);
-        const embeds = compressedImages
-          .slice(0, 2)
-          .map((img) => ({ url: img.url }));
+        // No SkateHive snap exists in this branch, so we can't fall back
+        // to a snap URL — embed media directly: images first (up to 2),
+        // else video for the inline player, else nothing.
+        let embeds: { url: string }[] = [];
+        if (compressedImages.length > 0) {
+          embeds = compressedImages.slice(0, 2).map((img) => ({ url: img.url }));
+        } else if (videoUrl) {
+          embeds = [{ url: videoUrl }];
+        }
         const res = await fetch("/api/farcaster/cast", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -919,15 +925,19 @@ const SnapComposer = React.memo(function SnapComposer({
           if (wantsFarcaster && farcasterLinkage) {
             const snapUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/user/${commentAuthor}/snap/${permlink}`;
             const castText = buildSnapCastText(commentBody, snapUrl);
-            // Image snaps: embed the image(s) directly so Warpcast shows them
-            // as visual previews instead of rendering the SkateHive frame
-            // (which falls back to the profile card). Video/text-only snaps
-            // embed the snap URL so the frame can render the video thumbnail.
-            const imageEmbeds = compressedImages
-              .slice(0, 2)
-              .map((img) => ({ url: img.url }));
-            const embeds =
-              imageEmbeds.length > 0 ? imageEmbeds : [{ url: snapUrl }];
+            // Embed selection (max 2 per Neynar):
+            //  - images present → embed up to 2 images (Warpcast renders inline)
+            //  - video present → embed videoUrl FIRST (inline player) + snapUrl
+            //    SECOND (renders the SkateHive miniapp frame for discovery)
+            //  - neither       → embed snapUrl alone (frame card)
+            let embeds: { url: string }[];
+            if (compressedImages.length > 0) {
+              embeds = compressedImages.slice(0, 2).map((img) => ({ url: img.url }));
+            } else if (videoUrl) {
+              embeds = [{ url: videoUrl }, { url: snapUrl }];
+            } else {
+              embeds = [{ url: snapUrl }];
+            }
             fetch("/api/farcaster/cast", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -1842,9 +1852,14 @@ function DestinationMenu({
   buttonSize: "sm" | "md" | "lg";
 }) {
   const farcasterUsable = farcasterEligible && farcasterSignerApproved;
+  // Visible check mirrors actual post intent. Disabled state is enforced
+  // by MenuItemOption's isDisabled — gating the checkmark on
+  // farcasterUsable too produced the misleading "unchecked but still
+  // posts" state when usable transiently lagged behind the linked
+  // identity load.
   const selected: string[] = [];
   if (postToHive) selected.push("hive");
-  if (postToFarcaster && farcasterUsable) selected.push("farcaster");
+  if (postToFarcaster) selected.push("farcaster");
 
   const farcasterTooltip = !farcasterEligible
     ? "Link your Farcaster account in Settings to enable cross-posting"
