@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useMemo, useCallback } from "react";
+import React, { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useSkateDialog } from "@/hooks/useSkateDialog";
@@ -19,10 +19,14 @@ import {
   Switch,
   Text,
   Icon,
-  Link as ChakraLink,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuOptionGroup,
+  MenuItemOption,
   useToast,
 } from "@chakra-ui/react";
-import NextLink from "next/link";
+import { ChevronDownIcon } from "@chakra-ui/icons";
 import { SiFarcaster } from "react-icons/si";
 import { useAioha } from "@aioha/react-ui";
 import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
@@ -69,8 +73,6 @@ import { TbGif } from "react-icons/tb";
 import MatrixOverlay from "@/components/graphics/MatrixOverlay";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
-
-type FarcasterDestination = "skatehive" | "farcaster" | "both";
 
 const CAST_MAX_CHARS = 1024;
 
@@ -132,8 +134,15 @@ const SnapComposer = React.memo(function SnapComposer({
     if (!fid || !username) return null;
     return { fid, username };
   }, [farcasterIdentity, farcasterProfile]);
-  const [farcasterDestination, setFarcasterDestination] =
-    useState<FarcasterDestination>("skatehive");
+  const farcasterAvailable = farcasterEligible && farcasterSignerApproved;
+  // Default: post to every platform the user has linked & authorized.
+  const [postToHive, setPostToHive] = useState(true);
+  const [postToFarcaster, setPostToFarcaster] = useState(false);
+  // Re-sync the default whenever eligibility changes (e.g. user just approved
+  // a signer in another tab).
+  useEffect(() => {
+    setPostToFarcaster(farcasterAvailable);
+  }, [farcasterAvailable]);
   const toast = useToast();
   const t = useTranslations();
   const { prompt, SkateDialogComponent } = useSkateDialog();
@@ -641,10 +650,18 @@ const SnapComposer = React.memo(function SnapComposer({
       return;
     }
 
-    const wantsSkatehive =
-      farcasterDestination === "skatehive" || farcasterDestination === "both";
-    const wantsFarcaster =
-      farcasterDestination === "farcaster" || farcasterDestination === "both";
+    const wantsSkatehive = postToHive;
+    const wantsFarcaster = postToFarcaster;
+
+    if (!wantsSkatehive && !wantsFarcaster) {
+      toast({
+        title: "Pick at least one destination",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
 
     // Farcaster-only: skip Hive entirely, publish a cast directly.
     if (!wantsSkatehive && wantsFarcaster) {
@@ -1028,7 +1045,8 @@ const SnapComposer = React.memo(function SnapComposer({
     linkedHiveHandle,
     instagramCrossPost,
     isMainFeedSnap,
-    farcasterDestination,
+    postToHive,
+    postToFarcaster,
     farcasterEligible,
     farcasterLinkage,
   ]);
@@ -1455,58 +1473,6 @@ const SnapComposer = React.memo(function SnapComposer({
             </HStack>
           )}
 
-          {/* Farcaster destination — only if user has a linked Farcaster identity */}
-          {farcasterEligible && (
-            <HStack justify="flex-end" align="center" spacing={2} mb={2} flexWrap="wrap">
-              <Icon as={SiFarcaster} color="primary" boxSize={3.5} />
-              <Text fontSize="xs" color="dim" fontFamily="mono">
-                {farcasterLinkage ? `@${farcasterLinkage.username}` : "Farcaster"}
-              </Text>
-              <ButtonGroup size="xs" isAttached variant="outline">
-                <DestinationPill
-                  active={farcasterDestination === "skatehive"}
-                  onClick={() => setFarcasterDestination("skatehive")}
-                  label="SkateHive"
-                  disabled={isLoading}
-                />
-                <DestinationPill
-                  active={farcasterDestination === "farcaster"}
-                  onClick={() => setFarcasterDestination("farcaster")}
-                  label="Farcaster"
-                  disabled={isLoading || !farcasterSignerApproved}
-                  disabledHint={
-                    !farcasterSignerApproved
-                      ? "Authorize Farcaster posting in Settings first"
-                      : undefined
-                  }
-                />
-                <DestinationPill
-                  active={farcasterDestination === "both"}
-                  onClick={() => setFarcasterDestination("both")}
-                  label="Both"
-                  disabled={isLoading || !farcasterSignerApproved}
-                  disabledHint={
-                    !farcasterSignerApproved
-                      ? "Authorize Farcaster posting in Settings first"
-                      : undefined
-                  }
-                />
-              </ButtonGroup>
-              {!farcasterSignerApproved && (
-                <ChakraLink
-                  as={NextLink}
-                  href="/settings"
-                  fontSize="xs"
-                  fontFamily="mono"
-                  color="primary"
-                  _hover={{ textDecoration: "underline" }}
-                >
-                  Authorize →
-                </ChakraLink>
-              )}
-            </HStack>
-          )}
-
           {/* Instagram cross-post toggle — only for main-feed snaps */}
           {isMainFeedSnap && (
             <HStack
@@ -1693,32 +1659,45 @@ const SnapComposer = React.memo(function SnapComposer({
               </Tooltip>
             </HStack>
             <Box display={buttonSize === "sm" ? "inline-block" : undefined}>
-              <Button
-                id="snap-composer-submit-btn"
-                data-testid="snap-composer-submit"
-                bg="primary"
-                color="background"
-                _hover={{ bg: "muted", color: "text", border: "tb1" }}
-                isLoading={isLoading}
-                isDisabled={isLoading || isUploadingMedia}
-                onClick={handleComment}
-                borderRadius={"none"}
-                fontWeight="bold"
-                px={buttonSize === "sm" ? 1 : 8}
-                mt={2}
-                mb={1}
-                minWidth={buttonSize === "sm" ? undefined : "120px"}
-                width={buttonSize === "sm" ? undefined : "30%"}
-                maxWidth={buttonSize === "sm" ? undefined : undefined}
-                fontSize={buttonSize === "sm" ? "xs" : "lg"}
-                lineHeight={buttonSize === "sm" ? "1" : undefined}
-                flex={buttonSize === "sm" ? "none" : undefined}
-                alignSelf={buttonSize === "sm" ? "flex-start" : undefined}
-                display={buttonSize === "sm" ? "inline-flex" : undefined}
-                maxH={"2rem"}
-              >
-                {buttonText}
-              </Button>
+              <ButtonGroup isAttached>
+                <Button
+                  id="snap-composer-submit-btn"
+                  data-testid="snap-composer-submit"
+                  bg="primary"
+                  color="background"
+                  _hover={{ bg: "muted", color: "text", border: "tb1" }}
+                  isLoading={isLoading}
+                  isDisabled={isLoading || isUploadingMedia || (!postToHive && !postToFarcaster)}
+                  onClick={handleComment}
+                  borderRadius={"none"}
+                  fontWeight="bold"
+                  px={buttonSize === "sm" ? 1 : 8}
+                  mt={2}
+                  mb={1}
+                  minWidth={buttonSize === "sm" ? undefined : "120px"}
+                  width={buttonSize === "sm" ? undefined : undefined}
+                  fontSize={buttonSize === "sm" ? "xs" : "lg"}
+                  lineHeight={buttonSize === "sm" ? "1" : undefined}
+                  flex={buttonSize === "sm" ? "none" : undefined}
+                  alignSelf={buttonSize === "sm" ? "flex-start" : undefined}
+                  display={buttonSize === "sm" ? "inline-flex" : undefined}
+                  maxH={"2rem"}
+                >
+                  {buttonText}
+                </Button>
+                {farcasterEligible && (
+                  <DestinationMenu
+                    postToHive={postToHive}
+                    postToFarcaster={postToFarcaster}
+                    setPostToHive={setPostToHive}
+                    setPostToFarcaster={setPostToFarcaster}
+                    farcasterSignerApproved={farcasterSignerApproved}
+                    farcasterUsername={farcasterLinkage?.username || null}
+                    isLoading={isLoading}
+                    buttonSize={buttonSize}
+                  />
+                )}
+              </ButtonGroup>
             </Box>
           </HStack>
           <Box width="100%">
@@ -1808,49 +1787,104 @@ const SnapComposer = React.memo(function SnapComposer({
 
 export default SnapComposer;
 
-function DestinationPill({
-  active,
-  onClick,
-  label,
-  disabled,
-  disabledHint,
+function DestinationMenu({
+  postToHive,
+  postToFarcaster,
+  setPostToHive,
+  setPostToFarcaster,
+  farcasterSignerApproved,
+  farcasterUsername,
+  isLoading,
+  buttonSize,
 }: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  disabled?: boolean;
-  disabledHint?: string;
+  postToHive: boolean;
+  postToFarcaster: boolean;
+  setPostToHive: (v: boolean) => void;
+  setPostToFarcaster: (v: boolean) => void;
+  farcasterSignerApproved: boolean;
+  farcasterUsername: string | null;
+  isLoading: boolean;
+  buttonSize: "sm" | "md" | "lg";
 }) {
-  const btn = (
-    <Button
-      onClick={disabled ? undefined : onClick}
-      isDisabled={disabled}
-      bg={active ? "primary" : "transparent"}
-      color={active ? "background" : "dim"}
-      borderColor={active ? "primary" : "border"}
-      borderWidth="1px"
-      fontFamily="mono"
-      fontSize="2xs"
-      fontWeight={active ? "bold" : "medium"}
-      _hover={
-        disabled
-          ? {}
-          : active
-          ? { bg: "accent" }
-          : { bg: "subtle", color: "text" }
-      }
-      _disabled={{ opacity: 0.4, cursor: "not-allowed" }}
-      px={3}
-      h="24px"
-    >
-      {label}
-    </Button>
-  );
-  return disabled && disabledHint ? (
-    <Tooltip label={disabledHint} hasArrow placement="top">
-      <Box>{btn}</Box>
-    </Tooltip>
-  ) : (
-    btn
+  const selected: string[] = [];
+  if (postToHive) selected.push("hive");
+  if (postToFarcaster) selected.push("farcaster");
+
+  return (
+    <Menu placement="top-end" closeOnSelect={false}>
+      <MenuButton
+        as={IconButton}
+        aria-label="Choose destinations"
+        icon={<ChevronDownIcon boxSize={5} />}
+        bg="primary"
+        color="background"
+        borderRadius="none"
+        borderLeft="1px solid"
+        borderColor="background"
+        _hover={{ bg: "muted", color: "text" }}
+        _active={{ bg: "muted" }}
+        isDisabled={isLoading}
+        mt={2}
+        mb={1}
+        maxH="2rem"
+        minW="32px"
+        h={buttonSize === "sm" ? undefined : undefined}
+      />
+      <MenuList bg="background" borderColor="primary" minW="220px">
+        <MenuOptionGroup
+          type="checkbox"
+          value={selected}
+          onChange={(values) => {
+            const next = Array.isArray(values) ? values : [values];
+            setPostToHive(next.includes("hive"));
+            setPostToFarcaster(next.includes("farcaster"));
+          }}
+          title="Post to"
+          fontSize="xs"
+          fontFamily="mono"
+          color="dim"
+        >
+          <MenuItemOption value="hive" bg="background" _hover={{ bg: "subtle" }}>
+            <HStack spacing={2}>
+              <Image
+                src="/logos/SKATE_HIVE_CIRCLE.svg"
+                alt="SkateHive"
+                boxSize="16px"
+              />
+              <Text fontFamily="mono" fontSize="sm" color="text">
+                SkateHive
+              </Text>
+            </HStack>
+          </MenuItemOption>
+          <Tooltip
+            label="Authorize Farcaster posting in Settings first"
+            isDisabled={farcasterSignerApproved}
+            hasArrow
+            placement="left"
+          >
+            <Box>
+              <MenuItemOption
+                value="farcaster"
+                isDisabled={!farcasterSignerApproved}
+                bg="background"
+                _hover={{ bg: "subtle" }}
+              >
+                <HStack spacing={2}>
+                  <Icon as={SiFarcaster} color="primary" boxSize={4} />
+                  <Text fontFamily="mono" fontSize="sm" color="text">
+                    Farcaster
+                    {farcasterUsername && (
+                      <Text as="span" color="dim" fontSize="xs" ml={1}>
+                        @{farcasterUsername}
+                      </Text>
+                    )}
+                  </Text>
+                </HStack>
+              </MenuItemOption>
+            </Box>
+          </Tooltip>
+        </MenuOptionGroup>
+      </MenuList>
+    </Menu>
   );
 }
