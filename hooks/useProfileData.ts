@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { getProfile, getAccountWithPower } from "@/lib/hive/client-functions";
-import { ProfileData } from "../components/profile/ProfilePage";
+import type { ProfileData } from "../components/profile/ProfilePage";
 import { VideoPart } from "@/types/VideoPart";
 import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
 import { useProfileDebug } from "@/lib/utils/profileDebug";

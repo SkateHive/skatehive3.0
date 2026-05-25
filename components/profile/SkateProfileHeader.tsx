@@ -2,7 +2,7 @@
 import React, { memo, useMemo, useState } from "react";
 import { IconButton, HStack, Text, Box } from "@chakra-ui/react";
 import { FaEdit, FaMapMarkerAlt } from "react-icons/fa";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import ProfileHeaderWrapper from "./ProfileHeaderWrapper";
 import IdentityBlock from "./IdentityBlock";
 import { useSponsorshipStatus } from "@/hooks/useSponsorshipStatus";

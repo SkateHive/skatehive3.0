@@ -14,7 +14,7 @@ import HiveProfileHeader from "./HiveProfileHeader";
 import ZoraProfileHeader from "./ZoraProfileHeader";
 import SkateProfileHeader from "./SkateProfileHeader";
 import FarcasterProfileHeader from "./FarcasterProfileHeader";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import ProfileDebugControl from "./ProfileDebugControl";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";

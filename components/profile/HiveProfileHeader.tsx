@@ -3,7 +3,7 @@ import React, { memo, useState, useEffect } from "react";
 import { IconButton, HStack, VStack, Text, Box, Flex } from "@chakra-ui/react";
 import { FaEdit } from "react-icons/fa";
 import FollowButton from "./FollowButton";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import ProfileHeaderWrapper from "./ProfileHeaderWrapper";
 import IdentityBlock from "./IdentityBlock";
 import useHivePower from "@/hooks/useHivePower";

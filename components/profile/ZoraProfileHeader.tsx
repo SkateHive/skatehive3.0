@@ -9,7 +9,7 @@ import {
   Link,
   VStack,
 } from "@chakra-ui/react";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import {
   useZoraProfileCoin,
   ZoraProfileData,

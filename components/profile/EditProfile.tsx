@@ -20,7 +20,7 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import countryList from "react-select-country-list";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAioha } from "@aioha/react-ui";

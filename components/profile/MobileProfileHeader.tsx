@@ -12,7 +12,7 @@ import {
   Badge,
 } from "@chakra-ui/react";
 import { FaSignOutAlt, FaCog } from "react-icons/fa";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import { useRouter } from "next/navigation";
 import { useAioha } from "@aioha/react-ui";
 import { checkFollow, changeFollow } from "@/lib/hive/client-functions";
