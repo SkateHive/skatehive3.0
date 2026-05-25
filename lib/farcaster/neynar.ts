@@ -233,18 +233,24 @@ export async function deleteReaction(
   return { success: true };
 }
 
-// ─── Casts (replies) ────────────────────────────────────────
+// ─── Casts (replies + root casts) ───────────────────────────
+
+export type CastEmbed =
+  | { url: string }
+  | { cast_id: { fid: number; hash: string } };
 
 export async function publishCast(
   signerUuid: string,
   text: string,
-  parentHash?: string
+  parentHash?: string,
+  embeds?: CastEmbed[]
 ): Promise<{ success: boolean; hash?: string; error?: string }> {
   const apiKey = getApiKey();
   if (!apiKey) return { success: false, error: "API key not configured" };
 
-  const body: Record<string, string> = { signer_uuid: signerUuid, text };
+  const body: Record<string, unknown> = { signer_uuid: signerUuid, text };
   if (parentHash) body.parent = parentHash;
+  if (embeds && embeds.length > 0) body.embeds = embeds.slice(0, 2);
 
   const res = await fetch(`${NEYNAR_BASE}/v2/farcaster/cast`, {
     method: "POST",
