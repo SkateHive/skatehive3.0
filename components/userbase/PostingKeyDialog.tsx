@@ -39,7 +39,7 @@ export default function PostingKeyDialog({
           <Text color="text" fontSize="sm">
             {description}
           </Text>
-          <UserbasePostingKeyPanel variant="modal" />
+          <UserbasePostingKeyPanel variant="modal" onSaveSuccess={onClose} />
         </VStack>
       </Box>
     </SkateModal>
