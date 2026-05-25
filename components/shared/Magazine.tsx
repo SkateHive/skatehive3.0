@@ -23,7 +23,11 @@ import MatrixOverlay from "@/components/graphics/MatrixOverlay";
 import { useTheme } from "@/app/themeProvider";
 import SkateErrorBoundary from "./SkateErrorBoundary";
 import ContentErrorWatcher from "./ContentErrorWatcher";
-import { useMagazineTweaks } from "@/hooks/useMagazineTweaks";
+import { usePostProseTweaks } from "@/hooks/usePostProseTweaks";
+import {
+  buildProseStyleVars,
+  wrapDropCapFirstLetter,
+} from "@/lib/prose/proseStyle";
 
 function useMagazinePosts(
   query: string,
@@ -150,7 +154,14 @@ export default function Magazine(props: MagazineProps) {
   const flipBookRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const { tweaks } = useMagazineTweaks();
+  // Magazine shares the post page's reading tweaks. Default values are
+  // tuned for editorial typography on every theme (see
+  // DEFAULT_POST_PROSE_TWEAKS).
+  const { tweaks } = usePostProseTweaks();
+  const proseStyleVars = useMemo(
+    () => buildProseStyleVars(tweaks),
+    [tweaks],
+  );
 
   // Available query types for Bridge API
   const [currentQuery, setCurrentQuery] = useState(props.query || "created");
@@ -510,13 +521,15 @@ export default function Magazine(props: MagazineProps) {
                   overflowY="auto"
                   overflowX="hidden"
                   width="100%"
-                  className="hide-scrollbar magazine-content"
-                  data-body-font={tweaks.bodyFont}
-                  data-body-color={tweaks.bodyColor}
+                  className="hide-scrollbar post-prose"
+                  style={proseStyleVars}
                   data-drop-cap={tweaks.dropCap ? "on" : "off"}
-                  data-pull-quote={tweaks.pullQuote ? "on" : "off"}
                   data-image-frames={tweaks.imageFrames ? "on" : "off"}
                   data-tight-rhythm={tweaks.tightRhythm ? "on" : "off"}
+                  data-blockquote={tweaks.blockquoteStyle}
+                  data-bg-pattern={tweaks.bgPattern}
+                  data-hr-style={tweaks.hrStyle}
+                  data-link-underline={tweaks.linkUnderline}
                 >
                   {!isInitialized ? (
                     <Box
@@ -541,7 +554,9 @@ export default function Magazine(props: MagazineProps) {
                       }
                     >
                       <SkateErrorBoundary>
-                        <EnhancedMarkdownRenderer content={post.body} />
+                        <EnhancedMarkdownRenderer
+                          content={wrapDropCapFirstLetter(post.body)}
+                        />
                       </SkateErrorBoundary>
                     </Suspense>
                   )}
@@ -607,157 +622,14 @@ export default function Magazine(props: MagazineProps) {
             opacity: 0.22;
             margin: 0 0 1rem 0;
           }
-          .magazine-content {
-            color: var(--chakra-colors-text, #fff);
+          /* Magazine post body now shares typography with the post page
+             via .post-prose (see styles/markdown.css). The only flipbook-
+             specific tweak is a perf hint for the scrolling region. */
+          .post-prose {
             contain: layout style paint;
             will-change: transform;
-            --magazine-body-font: 'Georgia', 'Cambria', 'Times New Roman', serif;
-            --magazine-body-color: #ece4cf;
-            --magazine-accent: var(--chakra-colors-primary, #adff2f);
           }
-          /* ─── Body font variants ─────────────────────────── */
-          .magazine-content[data-body-font="serif"] {
-            --magazine-body-font: 'Georgia', 'Cambria', 'Times New Roman', serif;
-          }
-          .magazine-content[data-body-font="sans"] {
-            --magazine-body-font: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-          }
-          .magazine-content[data-body-font="pixel"] {
-            --magazine-body-font: 'Joystix', 'VT323', 'Fira Mono', monospace;
-          }
-          .magazine-content p,
-          .magazine-content li,
-          .magazine-content blockquote,
-          .magazine-content blockquote p {
-            font-family: var(--magazine-body-font);
-          }
-          /* ─── Body color variants ────────────────────────── */
-          .magazine-content[data-body-color="warm"] {
-            --magazine-body-color: #ece4cf;
-          }
-          .magazine-content[data-body-color="neon"] {
-            --magazine-body-color: var(--chakra-colors-text, #adff2f);
-          }
-          .magazine-content[data-body-color="white"] {
-            --magazine-body-color: #ffffff;
-          }
-          .magazine-content p,
-          .magazine-content li {
-            color: var(--magazine-body-color);
-          }
-          .magazine-content a {
-            color: var(--magazine-accent);
-            text-decoration: underline;
-            text-underline-offset: 2px;
-          }
-          /* ─── Tight rhythm ───────────────────────────────── */
-          .magazine-content[data-tight-rhythm="on"] p {
-            margin: 0 0 1.1em 0;
-            line-height: 1.7;
-            font-size: 1.02rem;
-            letter-spacing: 0.01em;
-          }
-          .magazine-content[data-tight-rhythm="on"] h1,
-          .magazine-content[data-tight-rhythm="on"] h2,
-          .magazine-content[data-tight-rhythm="on"] h3,
-          .magazine-content[data-tight-rhythm="on"] h4 {
-            margin-top: 1.6em;
-            margin-bottom: 0.4em;
-            line-height: 1.2;
-          }
-          .magazine-content[data-tight-rhythm="on"] ul,
-          .magazine-content[data-tight-rhythm="on"] ol {
-            margin: 0 0 1.1em 1.5em;
-          }
-          .magazine-content[data-tight-rhythm="on"] li {
-            margin-bottom: 0.4em;
-            line-height: 1.6;
-          }
-          /* ─── Drop cap on the first paragraph of the post ─── */
-          /* EnhancedMarkdownRenderer wraps content in nested divs, so the first <p>
-             ends up at variable depth — target the first <p> in document order. */
-          .magazine-content[data-drop-cap="on"] p:first-of-type:first-child::first-letter {
-            font-family: var(--magazine-body-font);
-            font-size: 3.6em;
-            float: left;
-            line-height: 0.85;
-            margin: 0.05em 0.12em 0 0;
-            font-weight: 700;
-            color: var(--magazine-accent);
-          }
-          /* ─── Pull-quote blockquote ──────────────────────── */
-          .magazine-content[data-pull-quote="on"] blockquote {
-            position: relative;
-            font-style: italic;
-            font-size: 1.18em;
-            line-height: 1.55;
-            padding: 1.4em 1.6em 1.4em 2.4em;
-            margin: 2em 0;
-            border: none;
-            border-left: 3px solid var(--magazine-accent);
-            background: rgba(173, 255, 47, 0.04);
-            border-radius: 0 6px 6px 0;
-          }
-          .magazine-content[data-pull-quote="on"] blockquote::before {
-            content: '\\201C';
-            position: absolute;
-            top: 0.05em;
-            left: 0.35em;
-            font-family: Georgia, serif;
-            font-size: 2.6em;
-            line-height: 1;
-            color: var(--magazine-accent);
-            opacity: 0.4;
-          }
-          .magazine-content[data-pull-quote="on"] blockquote p {
-            margin: 0;
-            color: var(--magazine-body-color);
-          }
-          /* ─── Image frames ───────────────────────────────── */
-          .magazine-content[data-image-frames="on"] img {
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
-          }
-          /* ─── Inner markdown headings (post body h1-h6) ──── */
-          .magazine-content h1,
-          .magazine-content h2,
-          .magazine-content h3,
-          .magazine-content h4,
-          .magazine-content h5,
-          .magazine-content h6 {
-            font-family: var(--magazine-body-font);
-            color: var(--magazine-accent);
-            font-weight: 700;
-            letter-spacing: -0.005em;
-            line-height: 1.25;
-            margin: 1.6em 0 0.4em 0;
-          }
-          .magazine-content h1 {
-            font-size: 1.3rem;
-          }
-          .magazine-content h2 {
-            font-size: 1.15rem;
-          }
-          .magazine-content h3 {
-            font-size: 1.05rem;
-          }
-          .magazine-content h4 {
-            font-size: 1rem;
-          }
-          .magazine-content h5,
-          .magazine-content h6 {
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: rgba(173, 255, 47, 0.7);
-          }
-          /* First inline heading shouldn't have huge top margin */
-          .magazine-content > div > *:first-child,
-          .magazine-content > div > div:first-child > *:first-child {
-            margin-top: 0 !important;
-          }
-          .magazine-content iframe {
+          .post-prose iframe {
             max-width: 100%;
             width: 100%;
             display: block;

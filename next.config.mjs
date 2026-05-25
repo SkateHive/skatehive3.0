@@ -93,6 +93,13 @@ const nextConfig = {
             bodySizeLimit: '200mb', // Increase the body size limit for large video uploads
         },
     },
+
+    // ESM-only packages that webpack chokes on inside dynamically-imported chunks
+    // (e.g. @aioha/providers exposes "./react" with only an "import" condition,
+    // so when CoinCreationModal is loaded via next/dynamic the chunk's module
+    // factory comes back undefined). Transpiling lets Next normalize them.
+    transpilePackages: ['@aioha/react-ui', '@aioha/providers', '@aioha/aioha'],
+
     webpack: (config, { isServer, dev, webpack }) => {
         // On the server, replace idb-keyval with a no-op stub so that
         // indexedDB.open() is never called.  The real idb-keyval will
