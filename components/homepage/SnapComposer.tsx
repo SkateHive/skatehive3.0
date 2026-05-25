@@ -1498,8 +1498,11 @@ const SnapComposer = React.memo(function SnapComposer({
             </HStack>
           )}
 
-          {/* Instagram cross-post toggle — only for main-feed snaps */}
-          {isMainFeedSnap && (
+          {/* Instagram cross-post toggle — main-feed snaps only, gated on
+              100+ HP to mirror the server-side trusted-user check in
+              POST /api/instagram/post. Users below the threshold never
+              see the toggle (they'd otherwise get a 403). */}
+          {isMainFeedSnap && canBypassLimit && (
             <HStack
               justify="flex-end"
               align="center"
