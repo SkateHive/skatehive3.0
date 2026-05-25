@@ -203,6 +203,18 @@ export async function processVideoOnServer(
     .toString(36)
     .slice(2, 8)}`;
 
+  // If every server's circuit is open, the user can't recover — they'd see
+  // "All servers failed" for the full TTL with no way to retry. Treat a
+  // fresh upload attempt as a user intent to try again: clear the breakers
+  // and re-evaluate via real health checks. If the servers are still down,
+  // the per-attempt failures will re-trip the circuits on this run.
+  if (SERVER_CONFIG.every((s) => isCircuitOpen(s.key))) {
+    console.log(
+      `⚡ [${correlationId}] All circuits open — resetting to give the upload a fresh attempt`
+    );
+    SERVER_CONFIG.forEach((s) => resetCircuit(s.key));
+  }
+
   const failures: FailureRecord[] = [];
 
   for (const server of SERVER_CONFIG) {
