@@ -54,6 +54,7 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
                 let profileImage = "";
                 let coverImage = "";
                 let website = "";
+                let instagram = "";
                 let ethereum_address = "";
                 let video_parts: VideoPart[] = [];
                 let vote_weight = 51;
@@ -67,6 +68,19 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
                         profileImage = profile.profile_image || "";
                         coverImage = profile.cover_image || "";
                         website = profile.website || "";
+                        // IG handle: prefer direct field, fall back to nested
+                        // social.instagram, then parse from a website URL.
+                        if (typeof profile.instagram === "string") {
+                            instagram = profile.instagram.trim();
+                        } else if (
+                            profile.social &&
+                            typeof profile.social.instagram === "string"
+                        ) {
+                            instagram = profile.social.instagram.trim();
+                        } else if (typeof profile.website === "string") {
+                            const m = profile.website.match(/instagram\.com\/([A-Za-z0-9._]+)/);
+                            if (m) instagram = m[1];
+                        }
                     } catch (err) {
                         console.error("Failed to parse profile metadata", err);
                     }
@@ -103,6 +117,7 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
                     rc_percent: powerInfo?.data?.rc_percent || "0%",
                     zineCover,
                     svs_profile,
+                    instagram,
                 });
 
             } catch (err) {

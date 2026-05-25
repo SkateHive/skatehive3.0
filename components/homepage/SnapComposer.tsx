@@ -1743,7 +1743,17 @@ const SnapComposer = React.memo(function SnapComposer({
                   postToInstagram={instagramCrossPost}
                   setPostToHive={setPostToHive}
                   setPostToFarcaster={setPostToFarcaster}
-                  setPostToInstagram={setInstagramCrossPost}
+                  setPostToInstagram={(v: boolean) => {
+                    // If the user is enabling IG cross-post for the first time
+                    // and we don't have a stored handle, prompt them so the
+                    // caption can @-tag instead of falling back to plain text.
+                    if (v && igHandleStatus === "absent") {
+                      setIgPromptInput("");
+                      setIgPromptOpen(true);
+                      return;
+                    }
+                    setInstagramCrossPost(v);
+                  }}
                   farcasterChannel={farcasterChannel}
                   setFarcasterChannel={setFarcasterChannel}
                   farcasterEligible={farcasterEligible}
@@ -1832,6 +1842,129 @@ const SnapComposer = React.memo(function SnapComposer({
         onMediaDownloaded={handleInstagramMediaDownloaded}
         healthStatus={instagramHealth}
       />
+
+      {/* IG-handle prompt — opens when the user enables cross-post without
+          a stored handle. Three exits: save+enable, skip+enable, cancel. */}
+      <Modal
+        isOpen={igPromptOpen}
+        onClose={() => setIgPromptOpen(false)}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent bg="background" borderColor="primary" borderWidth="1px">
+          <ModalHeader fontFamily="mono" fontSize="md" color="text">
+            Tag your Instagram?
+          </ModalHeader>
+          <ModalBody>
+            <Text fontSize="sm" color="dim" mb={3}>
+              We&apos;ll @-mention this handle in @skatehive&apos;s Instagram
+              caption. Leave blank to post without a tag — the caption will
+              fall back to your Hive username as plain text.
+            </Text>
+            <FormControl>
+              <FormLabel fontSize="xs" color="dim" fontFamily="mono">
+                Instagram username
+              </FormLabel>
+              <InputGroup size="md">
+                <InputLeftAddon>@</InputLeftAddon>
+                <Input
+                  value={igPromptInput}
+                  onChange={(e) => setIgPromptInput(e.target.value)}
+                  placeholder="yourighandle"
+                  autoFocus
+                  isDisabled={igPromptSubmitting}
+                />
+              </InputGroup>
+            </FormControl>
+          </ModalBody>
+          <ModalFooter gap={2}>
+            <Button
+              variant="ghost"
+              onClick={() => setIgPromptOpen(false)}
+              isDisabled={igPromptSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                // Skip — enable cross-post anyway, caption uses plain Hive name.
+                // Flip status to 'present' so subsequent off→on toggles in
+                // this composer instance don't re-prompt.
+                setIgPromptOpen(false);
+                setIgHandleStatus("present");
+                setInstagramCrossPost(true);
+              }}
+              isDisabled={igPromptSubmitting}
+            >
+              Skip
+            </Button>
+            <Button
+              bg="primary"
+              color="background"
+              _hover={{ bg: "muted", color: "text" }}
+              isLoading={igPromptSubmitting}
+              onClick={async () => {
+                const trimmed = igPromptInput.trim().replace(/^@/, "");
+                if (!trimmed) {
+                  // Treat empty as Skip — be forgiving.
+                  setIgPromptOpen(false);
+                  setInstagramCrossPost(true);
+                  return;
+                }
+                setIgPromptSubmitting(true);
+                try {
+                  const res = await fetch("/api/userbase/profile/instagram", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      handle: trimmed,
+                      source: "crosspost_prompt",
+                    }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    toast({
+                      title: "Couldn't save Instagram handle",
+                      description: data?.error || "Try again.",
+                      status: "warning",
+                      duration: 5000,
+                      isClosable: true,
+                    });
+                    return;
+                  }
+                  const saved = data?.handle || trimmed;
+                  setIgHandleValue(saved);
+                  setIgHandleStatus("present");
+                  setIgPromptOpen(false);
+                  setInstagramCrossPost(true);
+                  toast({
+                    title: `Saved @${saved}`,
+                    description:
+                      "Update it any time in Edit Profile to sync to Hive.",
+                    status: "success",
+                    duration: 3000,
+                    isClosable: true,
+                  });
+                } catch (err: any) {
+                  toast({
+                    title: "Network error",
+                    description: err?.message || "Try again.",
+                    status: "error",
+                    duration: 4000,
+                    isClosable: true,
+                  });
+                } finally {
+                  setIgPromptSubmitting(false);
+                }
+              }}
+            >
+              Save &amp; enable
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       {/* SkateDialog Component */}
       <SkateDialogComponent />

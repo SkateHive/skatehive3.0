@@ -43,6 +43,13 @@ export type BuildCaptionInput = {
   permalinkUrl: string;
   /** Extra tags coming from the post itself (will be deduped against defaults) */
   extraTags?: string[];
+  /**
+   * Resolved Instagram handle for the post author (no leading @, already
+   * sanitized). When provided, the credit line tags the IG account; otherwise
+   * we fall back to a plain "By {hive_author}" form so we don't accidentally
+   * tag an unrelated IG account that happens to share the username.
+   */
+  igHandle?: string | null;
 };
 
 export function buildInstagramCaption(input: BuildCaptionInput): string {
@@ -61,10 +68,12 @@ export function buildInstagramCaption(input: BuildCaptionInput): string {
   }
   const hashtagLine = Array.from(tagSet).slice(0, IG_HASHTAG_LIMIT).map((t) => `#${t}`).join(" ");
 
-  // Plain Hive username (no @) so IG doesn't render it as a tag pointing to a
-  // potentially-unrelated Instagram account. When we add hive→IG handle
-  // mapping in the DB later, the author can be tagged with their real IG.
-  const credit = `By ${input.hiveAuthor} on SkateHive`;
+  // When we have a resolved IG handle for this Hive author, tag them properly.
+  // Otherwise stay with plain text so we don't @-mention a stranger who
+  // happens to share the username.
+  const credit = input.igHandle
+    ? `@${input.igHandle} on SkateHive`
+    : `By ${input.hiveAuthor} on SkateHive`;
   const link = input.permalinkUrl;
 
   // Headline = title for long-form, otherwise the credit line itself.

@@ -8,6 +8,7 @@ import {
 } from "@/lib/instagram/graph";
 import { buildInstagramCaption } from "@/lib/instagram/caption";
 import { getHivePowerForAccount } from "@/lib/hive/serverHivePower";
+import { resolveIgHandleForCaption } from "@/lib/instagram/resolveIgHandle";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -212,12 +213,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const igHandle = await resolveIgHandleForCaption({
+    hiveAuthor,
+    userId,
+    supabase,
+  });
+
   const caption = buildInstagramCaption({
     title,
     body: markdown,
     hiveAuthor,
     permalinkUrl,
     extraTags: tags,
+    igHandle,
   });
 
   const mediaType: "IMAGE" | "REELS" = videoUrl ? "REELS" : "IMAGE";

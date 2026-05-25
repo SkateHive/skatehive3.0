@@ -200,6 +200,8 @@ export interface ProfileData {
   rc_percent?: string;
   zineCover?: string;
   svs_profile?: string;
+  /** Self-claimed Instagram handle (no @). Surfaces in IG cross-post captions. */
+  instagram?: string;
 }
 
 // Wrapper that isolates useFollowStatus + context hooks from ProfilePage.
