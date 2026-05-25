@@ -452,6 +452,14 @@ export const en = {
     helpSkateHiveDetailed: 'Help SkateHive by upvoting the main snap container post where all snaps are stored.',
     container: 'Container',
     upvoteNow: 'Upvote Now',
+    needsPostingKey: 'Add your Hive posting key to vote.',
+    addPostingKey: 'Add posting key',
+  },
+  postingKeyDialog: {
+    title: 'Add your Hive posting key',
+    description: 'Save your Hive posting key so you can vote, comment and post directly under your Hive account.',
+    descriptionWithHandle: 'Save your Hive posting key so you can vote, comment and post directly as @{handle}.',
+    close: 'Close',
   },
   settings: {
     title: '⚙️ Settings',

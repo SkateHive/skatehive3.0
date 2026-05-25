@@ -4,11 +4,15 @@ import { useCallback } from "react";
 import { useAioha } from "@aioha/react-ui";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
+import { usePostingKeyDialog } from "@/contexts/PostingKeyDialogContext";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 export default function useHiveVote() {
   const { user, aioha } = useAioha();
   const { hiveIdentity: identity } = useLinkedIdentities();
   const { user: userbaseUser } = useUserbaseAuth();
+  const { openPostingKeyDialog } = usePostingKeyDialog();
+  const t = useTranslations();
 
   const effectiveUser = user || identity?.handle || null;
   const canVote = !!user || !!identity?.handle || !!userbaseUser;
@@ -34,17 +38,18 @@ export default function useHiveVote() {
       });
       const data = await response.json();
       if (!response.ok) {
-        if (data?.code === "POSTING_KEY_NOT_STORED" && identity?.handle) {
-          throw new Error(
-            `Connect your Hive wallet (@${identity.handle}) or add a posting key to vote.`
-          );
+        if (data?.code === "POSTING_KEY_NOT_STORED") {
+          // Surface the posting-key dialog so the user can save their key
+          // and retry the vote, instead of leaving them stuck on a toast.
+          openPostingKeyDialog({ hiveHandle: identity?.handle ?? null });
+          throw new Error(t("upvoteToast.needsPostingKey"));
         }
         throw new Error(data?.error || "Failed to vote");
       }
 
       return { success: true, result: data };
     },
-    [aioha, user]
+    [aioha, user, identity?.handle, openPostingKeyDialog, t]
   );
 
   return { vote, effectiveUser, isWalletConnected: !!user, canVote };
