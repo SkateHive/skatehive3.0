@@ -16,7 +16,6 @@ import {
   Progress,
   Input,
   Tooltip,
-  Switch,
   Text,
   Icon,
   Menu,
@@ -25,6 +24,16 @@ import {
   MenuOptionGroup,
   MenuItemOption,
   Link as ChakraLink,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  FormControl,
+  FormLabel,
+  InputGroup,
+  InputLeftAddon,
   useToast,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
@@ -186,6 +195,19 @@ const SnapComposer = React.memo(function SnapComposer({
   const isMainFeedSnap = pp === HIVE_CONFIG.THREADS.PERMLINK;
   const hasCrossPostMedia = compressedImages.length > 0 || !!videoUrl;
 
+  // Cached IG handle status. 'unknown' until first lookup; 'present' means
+  // the server already has a tag-able value (DB or Hive metadata); 'absent'
+  // means we should prompt the user when they enable cross-post.
+  const [igHandleStatus, setIgHandleStatus] = useState<
+    "unknown" | "present" | "absent"
+  >("unknown");
+  const [igHandleValue, setIgHandleValue] = useState<string | null>(null);
+  // Dialog state for the inline "what's your IG?" prompt that fires when the
+  // user flips the cross-post switch ON without a stored handle.
+  const [igPromptOpen, setIgPromptOpen] = useState(false);
+  const [igPromptInput, setIgPromptInput] = useState("");
+  const [igPromptSubmitting, setIgPromptSubmitting] = useState(false);
+
   // Error demo panel state
   const [showErrorDemo, setShowErrorDemo] = useState(SHOW_ERROR_DEMO);
 
@@ -212,6 +234,40 @@ const SnapComposer = React.memo(function SnapComposer({
     () => hivePower !== null && hivePower >= 100,
     [hivePower]
   );
+
+  // Lazy-load IG handle status once cross-post is potentially relevant.
+  // Single API call that checks DB + Hive metadata, so we know whether to
+  // prompt when the user flips the cross-post switch on.
+  React.useEffect(() => {
+    if (!isMainFeedSnap || !canBypassLimit || igHandleStatus !== "unknown") {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/userbase/profile/instagram", {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          if (!cancelled) setIgHandleStatus("absent");
+          return;
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        if (data?.handle) {
+          setIgHandleValue(data.handle);
+          setIgHandleStatus("present");
+        } else {
+          setIgHandleStatus("absent");
+        }
+      } catch {
+        if (!cancelled) setIgHandleStatus("absent");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isMainFeedSnap, canBypassLimit, igHandleStatus]);
 
   const buttonText = useMemo(
     () => submitLabel || (post ? "Reply" : "Post"),
@@ -1508,48 +1564,6 @@ const SnapComposer = React.memo(function SnapComposer({
             </HStack>
           )}
 
-          {/* Instagram cross-post toggle — main-feed snaps only, gated on
-              100+ HP to mirror the server-side trusted-user check in
-              POST /api/instagram/post. Users below the threshold never
-              see the toggle (they'd otherwise get a 403). */}
-          {isMainFeedSnap && canBypassLimit && (
-            <HStack
-              justify="flex-end"
-              align="center"
-              spacing={2}
-              mb={2}
-              opacity={hasCrossPostMedia ? 1 : 0.5}
-            >
-              <FaInstagram color="var(--chakra-colors-primary)" size={14} />
-              <Text fontSize="xs" color="dim" fontFamily="mono">
-                {hasCrossPostMedia
-                  ? "Also post to @skatehive on Instagram"
-                  : ""}
-              </Text>
-              <Tooltip
-                label={
-                  hasCrossPostMedia
-                    ? ""
-                    : "Attach an image or video first."
-                }
-                isDisabled={hasCrossPostMedia}
-                hasArrow
-                placement="top"
-              >
-                <Box>
-                  <Switch
-                    size="sm"
-                    colorScheme="green"
-                    isChecked={instagramCrossPost && hasCrossPostMedia}
-                    isDisabled={!hasCrossPostMedia || isLoading}
-                    onChange={(e) => setInstagramCrossPost(e.target.checked)}
-                    aria-label="Cross-post this snap to the SkateHive Instagram"
-                  />
-                </Box>
-              </Tooltip>
-            </HStack>
-          )}
-
           <HStack justify="space-between" mb={0}>
             <HStack spacing={3} align="center" wrap="nowrap">
               {/* Media Upload Button */}
@@ -1726,13 +1740,17 @@ const SnapComposer = React.memo(function SnapComposer({
                 <DestinationMenu
                   postToHive={postToHive}
                   postToFarcaster={postToFarcaster}
+                  postToInstagram={instagramCrossPost}
                   setPostToHive={setPostToHive}
                   setPostToFarcaster={setPostToFarcaster}
+                  setPostToInstagram={setInstagramCrossPost}
                   farcasterChannel={farcasterChannel}
                   setFarcasterChannel={setFarcasterChannel}
                   farcasterEligible={farcasterEligible}
                   farcasterSignerApproved={farcasterSignerApproved}
                   farcasterUsername={farcasterLinkage?.username || null}
+                  instagramEligible={isMainFeedSnap && canBypassLimit}
+                  instagramHasMedia={hasCrossPostMedia}
                   isLoading={isLoading}
                   buttonSize={buttonSize}
                 />
@@ -1829,25 +1847,39 @@ export default SnapComposer;
 function DestinationMenu({
   postToHive,
   postToFarcaster,
+  postToInstagram,
   setPostToHive,
   setPostToFarcaster,
+  setPostToInstagram,
   farcasterChannel,
   setFarcasterChannel,
   farcasterEligible,
   farcasterSignerApproved,
   farcasterUsername,
+  instagramEligible,
+  instagramHasMedia,
   isLoading,
   buttonSize,
 }: {
   postToHive: boolean;
   postToFarcaster: boolean;
+  postToInstagram: boolean;
   setPostToHive: (v: boolean) => void;
   setPostToFarcaster: (v: boolean) => void;
+  setPostToInstagram: (v: boolean) => void;
   farcasterChannel: string | null;
   setFarcasterChannel: (v: string | null) => void;
   farcasterEligible: boolean;
   farcasterSignerApproved: boolean;
   farcasterUsername: string | null;
+  /** Whether the Instagram cross-post option should appear at all
+   *  (main-feed snap + 100+ HP). Below the threshold the row is hidden
+   *  to match the server-side trusted-user check. */
+  instagramEligible: boolean;
+  /** Whether the snap currently has media (image or video) — IG can't
+   *  publish text-only, so without media the option is disabled with a
+   *  tooltip prompting the user to attach something. */
+  instagramHasMedia: boolean;
   isLoading: boolean;
   buttonSize: "sm" | "md" | "lg";
 }) {
@@ -1860,6 +1892,7 @@ function DestinationMenu({
   const selected: string[] = [];
   if (postToHive) selected.push("hive");
   if (postToFarcaster) selected.push("farcaster");
+  if (postToInstagram) selected.push("instagram");
 
   const farcasterTooltip = !farcasterEligible
     ? "Link your Farcaster account in Settings to enable cross-posting"
@@ -1896,6 +1929,7 @@ function DestinationMenu({
             const next = Array.isArray(values) ? values : [values];
             setPostToHive(next.includes("hive"));
             setPostToFarcaster(next.includes("farcaster"));
+            setPostToInstagram(next.includes("instagram"));
           }}
           title="Post to"
           fontSize="xs"
@@ -1955,6 +1989,33 @@ function DestinationMenu({
               </MenuItemOption>
             </Box>
           </Tooltip>
+          {instagramEligible && (
+            <Tooltip
+              label="Add a photo or video to enable Instagram cross-post"
+              isDisabled={instagramHasMedia}
+              hasArrow
+              placement="left"
+            >
+              <Box>
+                <MenuItemOption
+                  value="instagram"
+                  isDisabled={!instagramHasMedia}
+                  bg="background"
+                  _hover={{ bg: "subtle" }}
+                >
+                  <HStack spacing={2} w="full">
+                    <Icon as={FaInstagram} color="primary" boxSize={4} />
+                    <Text fontFamily="mono" fontSize="sm" color="text">
+                      Instagram
+                      <Text as="span" color="dim" fontSize="xs" ml={1}>
+                        @skatehive
+                      </Text>
+                    </Text>
+                  </HStack>
+                </MenuItemOption>
+              </Box>
+            </Tooltip>
+          )}
         </MenuOptionGroup>
 
         {/* Channel selector — only meaningful when Farcaster is checked. */}
