@@ -529,35 +529,33 @@ export default function PostDetails({
           {title}
         </Text>
 
-        {/* Meta row: always horizontal — author + date + reading time | stats + actions */}
+        {/* Meta layout: stacks at true-mobile widths (<sm), single row at sm+
+            so the narrow desktop post column still gets a tidy single line. */}
         <Flex
-          direction="row"
-          alignItems="center"
+          direction={{ base: "column", sm: "row" }}
+          alignItems={{ base: "stretch", sm: "center" }}
           justifyContent="space-between"
-          gap={2}
+          gap={{ base: 2, sm: 2 }}
           w="100%"
-          flexWrap="wrap"
         >
-          {/* Author block */}
-          <Flex alignItems="center" gap={2} minW="0" flexShrink={1}>
+          {/* Author block — avatar + 2-line name/date stack on mobile,
+              keeps horizontal flow on larger widths via baseline + wrap. */}
+          <Flex alignItems="center" gap={2.5} minW="0" flexShrink={1}>
             <Avatar
               size="sm"
               name={displayAuthor}
               src={displayAvatar}
             />
-            <Flex
-              direction="row"
-              alignItems="baseline"
-              gap={1.5}
-              minW="0"
-              flexWrap="wrap"
-            >
+            <Box minW="0">
               <Link
                 href={`/user/${author}`}
                 color="colorBackground"
                 fontWeight="semibold"
                 fontSize="sm"
                 _hover={{ color: "primary" }}
+                display="block"
+                lineHeight="1.25"
+                isTruncated
               >
                 {displayAuthor}
               </Link>
@@ -565,7 +563,8 @@ export default function PostDetails({
                 fontSize="xs"
                 color="colorBackground"
                 opacity={0.6}
-                lineHeight="1.2"
+                lineHeight="1.3"
+                mt="2px"
               >
                 <Tooltip
                   label={postDateFull.absolute}
@@ -578,15 +577,17 @@ export default function PostDetails({
                   <> · {contentAnalysis.readingTime} min read</>
                 )}
               </Text>
-            </Flex>
+            </Box>
           </Flex>
 
-          {/* Stats + actions */}
+          {/* Stats + actions — full-width bar on mobile (payout left, actions
+              right), tight cluster on sm+. */}
           <Flex
             alignItems="center"
             gap={1}
-            justifyContent="flex-end"
+            justifyContent={{ base: "space-between", sm: "flex-end" }}
             flexShrink={0}
+            w={{ base: "100%", sm: "auto" }}
           >
             <Popover
               placement="top"

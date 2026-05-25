@@ -19,6 +19,26 @@ import { extractImageUrls } from "@/lib/utils/extractImageUrls";
 import NextLink from "next/link";
 import { trackInternalLinkClick } from "@/lib/analytics/events";
 import { usePathname } from "next/navigation";
+import { HIVE_CONFIG } from "@/config/app.config";
+
+// Parse the tag list out of a Hive post's json_metadata, which can arrive
+// as an object, JSON string, or double-encoded JSON string.
+function parsePostTags(jsonMetadata: unknown): string[] {
+  if (!jsonMetadata) return [];
+  try {
+    let meta: any = jsonMetadata;
+    if (typeof meta === "string") meta = JSON.parse(meta);
+    if (typeof meta === "string") meta = JSON.parse(meta);
+    if (Array.isArray(meta?.tags)) {
+      return meta.tags.filter(
+        (t: any) => typeof t === "string" && t.length > 1,
+      );
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
 
 interface RelatedPostsProps {
   currentAuthor: string;
@@ -52,33 +72,65 @@ export default function RelatedPosts({
   }, [tags]);
 
   const loadRelatedPosts = async () => {
-    if (!tags || tags.length === 0) {
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     try {
-      // Pick the most specific tag (usually first non-generic tag)
-      const primaryTag =
-        tags.find((t) => !["skateboarding", "hive-173115", "skatehive"].includes(t.toLowerCase())) ||
-        tags[0];
+      // Pull trending posts from the Skatehive community only — the
+      // previous `getDiscussions({ tag: <topic> })` returned posts from
+      // anywhere on Hive that shared a tag like "travel", which surfaced
+      // unrelated content.
+      const skatehivePosts: Discussion[] = await HiveClient.call(
+        "bridge",
+        "get_ranked_posts",
+        {
+          sort: "trending",
+          tag: HIVE_CONFIG.COMMUNITY_TAG,
+          limit: 20,
+          observer: "",
+        },
+      );
 
-      const result = await HiveClient.database.getDiscussions("created", {
-        tag: primaryTag,
-        limit: limit + 5, // fetch extra to filter out current post
-      });
-
-      if (result && result.length > 0) {
-        // Filter out current post and take only `limit` items
-        const filtered = result
-          .filter(
-            (p) =>
-              !(p.author === currentAuthor && p.permlink === currentPermlink)
-          )
-          .slice(0, limit);
-        setPosts(filtered);
+      if (!skatehivePosts || skatehivePosts.length === 0) {
+        setPosts([]);
+        return;
       }
+
+      // Generic tags shouldn't drive "relatedness" — every Skatehive post
+      // has them, so they'd score equal weight on everything.
+      const GENERIC_TAGS = new Set([
+        "skatehive",
+        "skateboarding",
+        "skate",
+        HIVE_CONFIG.COMMUNITY_TAG,
+      ]);
+      const currentTopicTags = new Set(
+        tags
+          .map((t) => t.toLowerCase())
+          .filter((t) => !GENERIC_TAGS.has(t)),
+      );
+
+      // Score each Skatehive post by how many of the current post's
+      // topic tags it shares; trending order is the tiebreaker.
+      const ranked = skatehivePosts
+        .filter(
+          (p) =>
+            !(p.author === currentAuthor && p.permlink === currentPermlink),
+        )
+        .map((p, idx) => {
+          const postTags = parsePostTags(p.json_metadata);
+          const overlap = postTags.reduce(
+            (n, t) =>
+              currentTopicTags.has(t.toLowerCase()) && !GENERIC_TAGS.has(t.toLowerCase())
+                ? n + 1
+                : n,
+            0,
+          );
+          return { post: p, overlap, idx };
+        })
+        .sort((a, b) => b.overlap - a.overlap || a.idx - b.idx)
+        .slice(0, limit)
+        .map(({ post }) => post);
+
+      setPosts(ranked);
     } catch (error) {
       console.error("Error loading related posts:", error);
     } finally {
