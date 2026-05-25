@@ -1,18 +1,40 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ThreeSpeakApi } from "@mantequilla-soft/3speak-player";
 import { useStopFlipbookEvents } from "@/hooks/useStopFlipbookEvents";
 
 interface ThreeSpeakPlayerProps {
   videoId: string; // "author/permlink"
 }
 
+// Shared API client + thumbnail cache. A magazine page with many 3Speak
+// embeds rerenders posters often (flip animations, viewport changes);
+// without caching, each rerender re-hits the 3Speak API. The cache key is
+// "author/permlink"; values are the resolved thumbnail URL (or null when
+// the API returned no thumbnail).
+const threeSpeakApi = new ThreeSpeakApi();
+const thumbnailCache = new Map<string, Promise<string | null>>();
+
+function fetchThumbnail(videoId: string): Promise<string | null> {
+  const [author, permlink] = videoId.replace(/^@/, "").split("/");
+  if (!author || !permlink) return Promise.resolve(null);
+  const key = `${author}/${permlink}`;
+  const cached = thumbnailCache.get(key);
+  if (cached) return cached;
+  const promise = threeSpeakApi
+    .fetchVideoMetadata(author, permlink)
+    .then((meta) => meta?.thumbnail ?? null)
+    .catch(() => null);
+  thumbnailCache.set(key, promise);
+  return promise;
+}
+
 /**
- * Thumbnail URL candidates for a 3Speak video. 3Speak doesn't expose a
- * canonical thumbnail format — the original upload determines the
- * extension. We probe in order (png → jpg → webp) and fall through to
- * the next when one returns 404. A black fallback color is used if all
- * three miss, which is rare in practice.
+ * Static-URL fallback for the thumbnail. The 3Speak API is the source of
+ * truth, but when it's unreachable (offline, rate-limited, CORS hiccup) we
+ * fall back to the legacy CDN convention — `img.3speakcontent.co/{author}/
+ * {permlink}/thumbnail.{ext}` — probed in order (png → jpg → webp).
  */
 function thumbCandidates(videoId: string): string[] {
   const [author, permlink] = videoId.replace(/^@/, "").split("/");
@@ -57,11 +79,37 @@ function ThreeSpeakPoster({
   onActivate: () => void;
 }) {
   const candidates = useMemo(() => thumbCandidates(videoId), [videoId]);
+  // Two-tier resolution:
+  //   1. apiThumbnail — the canonical URL from 3Speak's metadata endpoint.
+  //      Resolves async; null until the fetch settles, then either a URL or
+  //      null (API failure / no thumbnail on record).
+  //   2. candidates[posterIdx] — legacy CDN convention, used only after the
+  //      API attempt has resolved with no thumbnail.
+  const [apiThumbnail, setApiThumbnail] = useState<string | null>(null);
+  const [apiResolved, setApiResolved] = useState(false);
   const [posterIdx, setPosterIdx] = useState(0);
   const [posterFailed, setPosterFailed] = useState(false);
   const buttonRef = useStopFlipbookEvents<HTMLButtonElement>();
 
-  const poster = posterFailed ? undefined : candidates[posterIdx];
+  useEffect(() => {
+    let cancelled = false;
+    setApiThumbnail(null);
+    setApiResolved(false);
+    fetchThumbnail(videoId).then((url) => {
+      if (cancelled) return;
+      setApiThumbnail(url);
+      setApiResolved(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [videoId]);
+
+  // Show the API thumbnail as soon as it resolves; otherwise wait for it
+  // before falling back to the legacy CDN probe. This avoids a flash of the
+  // probe URL on the (common) happy path.
+  const poster = apiThumbnail
+    ?? (apiResolved && !posterFailed ? candidates[posterIdx] : undefined);
 
   return (
     <button
@@ -87,9 +135,15 @@ function ThreeSpeakPoster({
           alt=""
           loading="lazy"
           onError={() => {
-            // Walk the candidate list; mark failure once all are exhausted
-            // so the black background takes over instead of showing a broken
-            // image icon.
+            // If the API thumbnail itself failed to load (rare but
+            // possible — stale metadata pointing at a deleted CDN file),
+            // drop it and fall through to the legacy URL probe.
+            if (apiThumbnail) {
+              setApiThumbnail(null);
+              return;
+            }
+            // Walk the legacy candidate list; mark failure once exhausted
+            // so the black background takes over instead of a broken icon.
             if (posterIdx + 1 < candidates.length) {
               setPosterIdx(posterIdx + 1);
             } else {
