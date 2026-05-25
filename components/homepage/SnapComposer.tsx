@@ -78,6 +78,14 @@ import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 
 const CAST_MAX_CHARS = 1024;
 
+// Channels enabled for Farcaster cross-posting. Mirrors the server-side
+// whitelist in /api/farcaster/cast/route.ts — keep them in sync.
+const FARCASTER_CHANNELS = [
+  { id: "skateboard", label: "/skateboard" },
+  { id: "gnars", label: "/gnars" },
+  { id: "higher", label: "/higher" },
+] as const;
+
 function buildSnapCastText(body: string, url: string | null): string {
     const clean = body.trim();
     if (!url) {
@@ -140,6 +148,7 @@ const SnapComposer = React.memo(function SnapComposer({
   // Default: post to every platform the user has linked & authorized.
   const [postToHive, setPostToHive] = useState(true);
   const [postToFarcaster, setPostToFarcaster] = useState(false);
+  const [farcasterChannel, setFarcasterChannel] = useState<string | null>(null);
   // Re-sync the default whenever eligibility changes (e.g. user just approved
   // a signer in another tab).
   useEffect(() => {
@@ -678,13 +687,18 @@ const SnapComposer = React.memo(function SnapComposer({
       }
       setIsLoading(true);
       try {
-        const firstImage = compressedImages[0]?.url || null;
         const castText = buildSnapCastText(commentBody, APP_CONFIG.ORIGIN);
-        const embeds = firstImage ? [{ url: firstImage }] : undefined;
+        const embeds = compressedImages
+          .slice(0, 2)
+          .map((img) => ({ url: img.url }));
         const res = await fetch("/api/farcaster/cast", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: castText, embeds }),
+          body: JSON.stringify({
+            text: castText,
+            embeds: embeds.length > 0 ? embeds : undefined,
+            channel_id: farcasterChannel || undefined,
+          }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -907,12 +921,22 @@ const SnapComposer = React.memo(function SnapComposer({
           if (wantsFarcaster && farcasterLinkage) {
             const snapUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/user/${commentAuthor}/snap/${permlink}`;
             const castText = buildSnapCastText(commentBody, snapUrl);
+            // Image snaps: embed the image(s) directly so Warpcast shows them
+            // as visual previews instead of rendering the SkateHive frame
+            // (which falls back to the profile card). Video/text-only snaps
+            // embed the snap URL so the frame can render the video thumbnail.
+            const imageEmbeds = compressedImages
+              .slice(0, 2)
+              .map((img) => ({ url: img.url }));
+            const embeds =
+              imageEmbeds.length > 0 ? imageEmbeds : [{ url: snapUrl }];
             fetch("/api/farcaster/cast", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 text: castText,
-                embeds: [{ url: snapUrl }],
+                embeds,
+                channel_id: farcasterChannel || undefined,
               }),
             })
               .then(async (res) => {
@@ -1049,6 +1073,7 @@ const SnapComposer = React.memo(function SnapComposer({
     isMainFeedSnap,
     postToHive,
     postToFarcaster,
+    farcasterChannel,
     farcasterEligible,
     farcasterLinkage,
   ]);
@@ -1692,6 +1717,8 @@ const SnapComposer = React.memo(function SnapComposer({
                   postToFarcaster={postToFarcaster}
                   setPostToHive={setPostToHive}
                   setPostToFarcaster={setPostToFarcaster}
+                  farcasterChannel={farcasterChannel}
+                  setFarcasterChannel={setFarcasterChannel}
                   farcasterEligible={farcasterEligible}
                   farcasterSignerApproved={farcasterSignerApproved}
                   farcasterUsername={farcasterLinkage?.username || null}
@@ -1793,6 +1820,8 @@ function DestinationMenu({
   postToFarcaster,
   setPostToHive,
   setPostToFarcaster,
+  farcasterChannel,
+  setFarcasterChannel,
   farcasterEligible,
   farcasterSignerApproved,
   farcasterUsername,
@@ -1803,6 +1832,8 @@ function DestinationMenu({
   postToFarcaster: boolean;
   setPostToHive: (v: boolean) => void;
   setPostToFarcaster: (v: boolean) => void;
+  farcasterChannel: string | null;
+  setFarcasterChannel: (v: string | null) => void;
   farcasterEligible: boolean;
   farcasterSignerApproved: boolean;
   farcasterUsername: string | null;
@@ -1909,6 +1940,43 @@ function DestinationMenu({
             </Box>
           </Tooltip>
         </MenuOptionGroup>
+
+        {/* Channel selector — only meaningful when Farcaster is checked. */}
+        {postToFarcaster && farcasterUsable && (
+          <MenuOptionGroup
+            type="radio"
+            value={farcasterChannel ?? "__none__"}
+            onChange={(value) => {
+              const v = Array.isArray(value) ? value[0] : value;
+              setFarcasterChannel(v === "__none__" ? null : v);
+            }}
+            title="Farcaster channel"
+            fontSize="xs"
+            fontFamily="mono"
+            color="dim"
+          >
+            <MenuItemOption value="__none__" bg="background" _hover={{ bg: "subtle" }}>
+              <Text fontFamily="mono" fontSize="sm" color="text">
+                no channel
+                <Text as="span" color="dim" fontSize="xs" ml={1}>
+                  (your feed)
+                </Text>
+              </Text>
+            </MenuItemOption>
+            {FARCASTER_CHANNELS.map((ch) => (
+              <MenuItemOption
+                key={ch.id}
+                value={ch.id}
+                bg="background"
+                _hover={{ bg: "subtle" }}
+              >
+                <Text fontFamily="mono" fontSize="sm" color="text">
+                  {ch.label}
+                </Text>
+              </MenuItemOption>
+            ))}
+          </MenuOptionGroup>
+        )}
       </MenuList>
     </Menu>
   );

@@ -243,7 +243,8 @@ export async function publishCast(
   signerUuid: string,
   text: string,
   parentHash?: string,
-  embeds?: CastEmbed[]
+  embeds?: CastEmbed[],
+  channelId?: string
 ): Promise<{ success: boolean; hash?: string; error?: string }> {
   const apiKey = getApiKey();
   if (!apiKey) return { success: false, error: "API key not configured" };
@@ -251,6 +252,7 @@ export async function publishCast(
   const body: Record<string, unknown> = { signer_uuid: signerUuid, text };
   if (parentHash) body.parent = parentHash;
   if (embeds && embeds.length > 0) body.embeds = embeds.slice(0, 2);
+  if (channelId) body.channel_id = channelId;
 
   const res = await fetch(`${NEYNAR_BASE}/v2/farcaster/cast`, {
     method: "POST",

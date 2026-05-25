@@ -62,11 +62,19 @@ async function getSignerUuid(request: NextRequest) {
   return { signerUuid };
 }
 
+// Allowed Farcaster channels for cross-posts. Restricting server-side
+// prevents typos / abuse and matches the UI options surfaced to users.
+const ALLOWED_CHANNELS = new Set(["skateboard", "gnars", "higher"]);
+
 /**
  * POST /api/farcaster/cast
  * Publish a root Farcaster cast (no parent) on behalf of the authenticated user.
  *
- * Body: { text: string, embeds?: ({ url: string } | { cast_id: { fid, hash } })[] }
+ * Body: {
+ *   text: string,
+ *   embeds?: ({ url: string } | { cast_id: { fid, hash } })[],
+ *   channel_id?: string,
+ * }
  */
 export async function POST(request: NextRequest) {
   const signer = await getSignerUuid(request);
@@ -108,7 +116,27 @@ export async function POST(request: NextRequest) {
       .slice(0, 2);
   }
 
-  const result = await publishCast(signer.signerUuid!, text.trim(), undefined, embeds);
+  let channelId: string | undefined;
+  if (body?.channel_id) {
+    const raw = String(body.channel_id).trim().toLowerCase().replace(/^\/+/, "");
+    if (raw) {
+      if (!ALLOWED_CHANNELS.has(raw)) {
+        return NextResponse.json(
+          { error: `Channel /${raw} is not enabled for cross-posting` },
+          { status: 400 }
+        );
+      }
+      channelId = raw;
+    }
+  }
+
+  const result = await publishCast(
+    signer.signerUuid!,
+    text.trim(),
+    undefined,
+    embeds,
+    channelId
+  );
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 500 });
   }
