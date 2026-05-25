@@ -562,8 +562,16 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
         svs_profile: "",
       };
     }
+    // Anonymous visitor viewing a likely-Hive-handle profile (e.g. /user/xvlad)
+    // before the Hive RPC call resolves. Use the Hive image gateway as a
+    // pre-fetch avatar so the UI doesn't render an empty avatar in prod when
+    // the RPC is slow.
+    const handleLooksLikeHive =
+      !!username && !isEvmAddress && /^[a-z0-9.\-]{3,16}$/i.test(username);
     return {
-      profileImage: "",
+      profileImage: handleLooksLikeHive
+        ? `https://images.hive.blog/u/${username.toLowerCase()}/avatar`
+        : "",
       coverImage: "",
       website: "",
       name: username,
