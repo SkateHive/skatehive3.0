@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useRef, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useSkateDialog } from "@/hooks/useSkateDialog";
@@ -144,16 +144,14 @@ const SnapComposer = React.memo(function SnapComposer({
     if (!fid || !username) return null;
     return { fid, username };
   }, [farcasterIdentity, farcasterProfile]);
-  const farcasterAvailable = farcasterEligible && farcasterSignerApproved;
-  // Default: post to every platform the user has linked & authorized.
+  // Default: opt-in to every linked platform. DestinationMenu filters the
+  // rendered checkboxes by actual eligibility (e.g. won't surface
+  // Farcaster as checked if the signer isn't approved), and handleComment
+  // re-checks `farcasterLinkage` before firing the cast — so defaulting
+  // these to true is safe even when Farcaster isn't actually usable.
   const [postToHive, setPostToHive] = useState(true);
-  const [postToFarcaster, setPostToFarcaster] = useState(false);
+  const [postToFarcaster, setPostToFarcaster] = useState(true);
   const [farcasterChannel, setFarcasterChannel] = useState<string | null>(null);
-  // Re-sync the default whenever eligibility changes (e.g. user just approved
-  // a signer in another tab).
-  useEffect(() => {
-    setPostToFarcaster(farcasterAvailable);
-  }, [farcasterAvailable]);
   const toast = useToast();
   const t = useTranslations();
   const { prompt, SkateDialogComponent } = useSkateDialog();
