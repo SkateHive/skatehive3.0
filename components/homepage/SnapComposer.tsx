@@ -1524,7 +1524,7 @@ const SnapComposer = React.memo(function SnapComposer({
               <Text fontSize="xs" color="dim" fontFamily="mono">
                 {hasCrossPostMedia
                   ? "Also post to @skatehive on Instagram"
-                  : "Add a photo or video to enable Instagram cross-post"}
+                  : ""}
               </Text>
               <Tooltip
                 label={
