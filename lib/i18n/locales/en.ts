@@ -1181,6 +1181,11 @@ export const en = {
     viewAllSpots: 'view all spots',
     noName: 'Unnamed spot',
   },
+  globalError: {
+    bailDetected: 'Bail detected',
+    gettingBackUp: 'Getting back up...',
+    tryAgain: 'Try again',
+  },
 };
 
 

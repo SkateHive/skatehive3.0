@@ -1198,4 +1198,9 @@ export const es = {
     viewAllSpots: 'ver todos los spots',
     noName: 'Spot sin nombre',
   },
+  globalError: {
+    bailDetected: 'Caída detectada',
+    gettingBackUp: 'Levantándose...',
+    tryAgain: 'Intentar de nuevo',
+  },
 };

@@ -1197,4 +1197,9 @@ export const lg = {
     viewAllSpots: 'laba ebifo byonna',
     noName: 'Ekifo tekiinaama',
   },
+  globalError: {
+    bailDetected: 'Okugwa kwatondebwa',
+    gettingBackUp: 'Tugenda okunzita nate...',
+    tryAgain: 'Gezaako nate',
+  },
 };
