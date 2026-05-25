@@ -38,9 +38,14 @@ export default function useHiveVote() {
       });
       const data = await response.json();
       if (!response.ok) {
-        if (data?.code === "POSTING_KEY_NOT_STORED") {
-          // Surface the posting-key dialog so the user can save their key
-          // and retry the vote, instead of leaving them stuck on a toast.
+        if (
+          data?.code === "POSTING_KEY_NOT_STORED" ||
+          data?.code === "POSTING_KEY_DECRYPT_FAILED"
+        ) {
+          // Surface the posting-key dialog so the user can save (or
+          // overwrite) their key and retry, instead of leaving them stuck
+          // on a toast. DECRYPT_FAILED covers stored-but-unreadable keys
+          // (corrupted payload, encryption secret rotated, etc.).
           openPostingKeyDialog({ hiveHandle: identity?.handle ?? null });
           throw new Error(t("upvoteToast.needsPostingKey"));
         }

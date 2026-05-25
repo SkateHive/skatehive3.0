@@ -286,8 +286,12 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
       console.error("[POST /comment] Decryption failed:", error);
       return NextResponse.json(
-        { error: error?.message || "Failed to decrypt posting key" },
-        { status: 500 }
+        {
+          error: error?.message || "Failed to decrypt posting key",
+          code: "POSTING_KEY_DECRYPT_FAILED",
+          hive_handle: author,
+        },
+        { status: 400 }
       );
     }
   } else {
