@@ -469,6 +469,14 @@ export const ptBR = {
     helpSkateHiveDetailed: 'Ajude o SkateHive votando no post principal do container de snaps onde todos os snaps são armazenados.',
     container: 'Container',
     upvoteNow: 'Votar Agora',
+    needsPostingKey: 'Adicione sua chave POST do Hive para votar.',
+    addPostingKey: 'Adicionar chave POST',
+  },
+  postingKeyDialog: {
+    title: 'Adicione sua chave POST do Hive',
+    description: 'Salve sua chave POST do Hive para votar, comentar e postar diretamente na sua conta Hive.',
+    descriptionWithHandle: 'Salve sua chave POST do Hive para votar, comentar e postar diretamente como @{handle}.',
+    close: 'Fechar',
   },
   settings: {
     title: '⚙️ Configurações',
