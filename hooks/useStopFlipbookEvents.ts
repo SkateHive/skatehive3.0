@@ -11,6 +11,14 @@ import { useEffect, useRef } from "react";
  * Must use native addEventListener — React's delegated synthetic events
  * fire AFTER the native event has already bubbled past react-pageflip's
  * own native listeners on ancestor nodes.
+ *
+ * Only the *gesture-start* events are stopped (mousedown / pointerdown /
+ * touchstart). react-pageflip uses those to begin drag tracking, so
+ * blocking them is sufficient to prevent a flip. Crucially we let `click`,
+ * `mouseup`, `pointerup`, and `touchend` propagate — React's event
+ * delegation lives on the root container in React 17+, so stopping the
+ * native click here would prevent React's `onClick` from ever firing
+ * (which was breaking the 3Speak / YouTube click-to-play posters).
  */
 export function useStopFlipbookEvents<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
@@ -25,12 +33,8 @@ export function useStopFlipbookEvents<T extends HTMLElement>() {
 
     const events: (keyof HTMLElementEventMap)[] = [
       "mousedown",
-      "mouseup",
-      "click",
       "pointerdown",
-      "pointerup",
       "touchstart",
-      "touchend",
     ];
 
     events.forEach((ev) => el.addEventListener(ev, stop));
