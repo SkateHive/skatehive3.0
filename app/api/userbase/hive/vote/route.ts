@@ -119,11 +119,12 @@ async function getPostingKey(userId: string) {
   const hiveKey = hiveKeyRows?.[0];
 
   if (hiveKey && hiveKey.encrypted_posting_key) {
-    // Format as encrypted secret for decryption
+    // The save path uses encryptSecret(), which produces {iv, tag, data}.
+    // Re-assemble in that shape so decryptSecret() can read it back.
     const secret = JSON.stringify({
-      encryptedKey: hiveKey.encrypted_posting_key,
       iv: hiveKey.encryption_iv,
-      authTag: hiveKey.encryption_auth_tag,
+      tag: hiveKey.encryption_auth_tag,
+      data: hiveKey.encrypted_posting_key,
     });
     return { error: null, userKeyId: hiveKey.id, secret };
   }
