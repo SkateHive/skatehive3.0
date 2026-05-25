@@ -32,7 +32,7 @@ export default function ReplyItem({ reply, currentUser }: ReplyItemProps) {
   useEffect(() => {
     if (reply.active_votes && currentUser) {
       const userVoted = reply.active_votes.some(
-        (vote) => vote.voter === currentUser
+        (vote) => vote.voter?.toLowerCase() === currentUser?.toLowerCase()
       );
       setHasVoted(userVoted);
     }

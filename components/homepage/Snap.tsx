@@ -205,7 +205,8 @@ const Snap = React.memo(function Snap({
     () =>
       hasSoftVote ||
       discussion.active_votes?.some(
-        (item: { voter: string }) => item.voter === effectiveUser
+        (item: { voter: string }) =>
+          item.voter?.toLowerCase() === effectiveUser?.toLowerCase()
       ) ||
       false,
     [discussion.active_votes, effectiveUser, hasSoftVote]
