@@ -1197,4 +1197,8 @@ export const lg = {
     viewAllSpots: 'laba ebifo byonna',
     noName: 'Ekifo tekiinaama',
   },
+  errorToast: {
+    reportBug: 'Babaza bug',
+    screenshotHint: '⌘/Ctrl+Enter okukwata screenshot',
+  },
 };

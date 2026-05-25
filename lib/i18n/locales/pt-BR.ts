@@ -1199,4 +1199,8 @@ export const ptBR = {
     viewAllSpots: 'ver todos os picos',
     noName: 'Pico sem nome',
   },
+  errorToast: {
+    reportBug: 'Reportar bug',
+    screenshotHint: '⌘/Ctrl+Enter para anexar captura de tela',
+  },
 };
