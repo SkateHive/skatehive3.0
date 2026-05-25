@@ -24,8 +24,10 @@ import {
   MenuList,
   MenuOptionGroup,
   MenuItemOption,
+  Link as ChakraLink,
   useToast,
 } from "@chakra-ui/react";
+import NextLink from "next/link";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import { SiFarcaster } from "react-icons/si";
 import { useAioha } from "@aioha/react-ui";
@@ -1685,18 +1687,17 @@ const SnapComposer = React.memo(function SnapComposer({
                 >
                   {buttonText}
                 </Button>
-                {farcasterEligible && (
-                  <DestinationMenu
-                    postToHive={postToHive}
-                    postToFarcaster={postToFarcaster}
-                    setPostToHive={setPostToHive}
-                    setPostToFarcaster={setPostToFarcaster}
-                    farcasterSignerApproved={farcasterSignerApproved}
-                    farcasterUsername={farcasterLinkage?.username || null}
-                    isLoading={isLoading}
-                    buttonSize={buttonSize}
-                  />
-                )}
+                <DestinationMenu
+                  postToHive={postToHive}
+                  postToFarcaster={postToFarcaster}
+                  setPostToHive={setPostToHive}
+                  setPostToFarcaster={setPostToFarcaster}
+                  farcasterEligible={farcasterEligible}
+                  farcasterSignerApproved={farcasterSignerApproved}
+                  farcasterUsername={farcasterLinkage?.username || null}
+                  isLoading={isLoading}
+                  buttonSize={buttonSize}
+                />
               </ButtonGroup>
             </Box>
           </HStack>
@@ -1792,6 +1793,7 @@ function DestinationMenu({
   postToFarcaster,
   setPostToHive,
   setPostToFarcaster,
+  farcasterEligible,
   farcasterSignerApproved,
   farcasterUsername,
   isLoading,
@@ -1801,36 +1803,45 @@ function DestinationMenu({
   postToFarcaster: boolean;
   setPostToHive: (v: boolean) => void;
   setPostToFarcaster: (v: boolean) => void;
+  farcasterEligible: boolean;
   farcasterSignerApproved: boolean;
   farcasterUsername: string | null;
   isLoading: boolean;
   buttonSize: "sm" | "md" | "lg";
 }) {
+  const farcasterUsable = farcasterEligible && farcasterSignerApproved;
   const selected: string[] = [];
   if (postToHive) selected.push("hive");
-  if (postToFarcaster) selected.push("farcaster");
+  if (postToFarcaster && farcasterUsable) selected.push("farcaster");
+
+  const farcasterTooltip = !farcasterEligible
+    ? "Link your Farcaster account in Settings to enable cross-posting"
+    : !farcasterSignerApproved
+    ? "Authorize Farcaster posting in Settings first"
+    : "";
 
   return (
     <Menu placement="top-end" closeOnSelect={false}>
       <MenuButton
-        as={IconButton}
+        as={Button}
         aria-label="Choose destinations"
-        icon={<ChevronDownIcon boxSize={5} />}
         bg="primary"
         color="background"
         borderRadius="none"
         borderLeft="1px solid"
-        borderColor="background"
+        borderLeftColor="background"
         _hover={{ bg: "muted", color: "text" }}
         _active={{ bg: "muted" }}
         isDisabled={isLoading}
         mt={2}
         mb={1}
         maxH="2rem"
-        minW="32px"
-        h={buttonSize === "sm" ? undefined : undefined}
-      />
-      <MenuList bg="background" borderColor="primary" minW="220px">
+        minW="36px"
+        px={2}
+      >
+        <ChevronDownIcon boxSize={5} />
+      </MenuButton>
+      <MenuList bg="background" borderColor="primary" minW="240px">
         <MenuOptionGroup
           type="checkbox"
           value={selected}
@@ -1857,19 +1868,19 @@ function DestinationMenu({
             </HStack>
           </MenuItemOption>
           <Tooltip
-            label="Authorize Farcaster posting in Settings first"
-            isDisabled={farcasterSignerApproved}
+            label={farcasterTooltip}
+            isDisabled={!farcasterTooltip}
             hasArrow
             placement="left"
           >
             <Box>
               <MenuItemOption
                 value="farcaster"
-                isDisabled={!farcasterSignerApproved}
+                isDisabled={!farcasterUsable}
                 bg="background"
                 _hover={{ bg: "subtle" }}
               >
-                <HStack spacing={2}>
+                <HStack spacing={2} w="full">
                   <Icon as={SiFarcaster} color="primary" boxSize={4} />
                   <Text fontFamily="mono" fontSize="sm" color="text">
                     Farcaster
@@ -1879,6 +1890,20 @@ function DestinationMenu({
                       </Text>
                     )}
                   </Text>
+                  {!farcasterUsable && (
+                    <ChakraLink
+                      as={NextLink}
+                      href="/settings"
+                      fontSize="2xs"
+                      fontFamily="mono"
+                      color="primary"
+                      ml="auto"
+                      _hover={{ textDecoration: "underline" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {farcasterEligible ? "authorize" : "link"} →
+                    </ChakraLink>
+                  )}
                 </HStack>
               </MenuItemOption>
             </Box>
