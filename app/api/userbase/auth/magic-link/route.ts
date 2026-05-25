@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { APP_CONFIG, EMAIL_DEFAULTS } from '@/config/app.config';
 import { checkHiveAccountExists } from '@/lib/utils/hiveAccountUtils';
+import { buildMagicLinkEmail } from '@/lib/email/magicLinkTemplate';
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -438,13 +439,15 @@ export async function POST(request: NextRequest) {
       link.searchParams.set('redirect', redirectPath);
     }
 
+    const { subject, html, text } = buildMagicLinkEmail(link.toString());
+
     const transporter = createTransport();
     await transporter.sendMail({
       from: process.env.EMAIL_USER || EMAIL_DEFAULTS.FROM_ADDRESS,
       to: identifier,
-      subject: 'Your Skatehive login link',
-      text: `Click to sign in: ${link.toString()}`,
-      html: `<p>Click to sign in:</p><p><a href="${link.toString()}">${link.toString()}</a></p>`,
+      subject,
+      text,
+      html,
     });
 
     return NextResponse.json({
