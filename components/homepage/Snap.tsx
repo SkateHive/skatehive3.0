@@ -117,6 +117,7 @@ const Snap = React.memo(function Snap({
     handleEditClick,
     handleCancelEdit,
     handleSaveEdit,
+    canEditThisPost,
   } = usePostEdit(discussion);
 
   const [isDeleted, setIsDeleted] = useState(false);
@@ -379,7 +380,7 @@ const Snap = React.memo(function Snap({
               color={"primary"}
             />
             <MenuList bg={"background"} color={"primary"}>
-              {walletUser === discussion.author && (
+              {canEditThisPost && (
                 <MenuItem
                   onClick={handleEditClick}
                   bg={"background"}
