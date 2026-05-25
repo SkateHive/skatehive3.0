@@ -238,8 +238,14 @@ const ProfileHeaderWithFollow = memo(function ProfileHeaderWithFollow({
     useFollowStatus(isHiveProfile ? user : null, followTarget);
 
   const isOwner = useMemo(
-    () => (isHiveProfile ? user === hiveLookupHandle : false),
-    [user, hiveLookupHandle, isHiveProfile]
+    () => {
+      if (!isHiveProfile) return false;
+      if (user && user === hiveLookupHandle) return true;
+      if (viewerHiveUsername && viewerHiveUsername === hiveLookupHandle)
+        return true;
+      return false;
+    },
+    [user, hiveLookupHandle, isHiveProfile, viewerHiveUsername]
   );
   const isUserbaseOwner = useMemo(
     () =>
