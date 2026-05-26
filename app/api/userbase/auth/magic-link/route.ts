@@ -581,6 +581,15 @@ export async function GET(request: NextRequest) {
       maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,
       path: '/',
     });
+    // Companion non-httpOnly flag so the client can short-circuit
+    // /auth/session lookups for anonymous users. See bootstrap route.
+    response.cookies.set('userbase_logged_in', '1', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,
+      path: '/',
+    });
 
     return response;
   } catch (error) {

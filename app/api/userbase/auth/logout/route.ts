@@ -61,6 +61,14 @@ export async function POST(request: NextRequest) {
       maxAge: 0,
       path: "/",
     });
+    // Clear the client-visible companion flag too.
+    response.cookies.set("userbase_logged_in", "", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 0,
+      path: "/",
+    });
     return response;
   } catch (error) {
     console.error("Userbase logout error:", error);
