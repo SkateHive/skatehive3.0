@@ -27,10 +27,9 @@ function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-// Global cap is well under Meta's 25-per-account/24h limit so a moderator can
-// still post a few times directly from Business Suite without hitting the wall.
-const PER_USER_24H_LIMIT = 1;
-const GLOBAL_24H_LIMIT = 20;
+// Per-user 24h cap. No app-level global cap — Meta enforces its own
+// 25/account/24h ceiling, and surfacing that error organically is fine.
+const PER_USER_24H_LIMIT = 7;
 
 // Trusted-user gate: cross-posting publishes to the shared @skatehive IG, so
 // only Hive accounts with enough stake are allowed. Matches the threshold used
@@ -341,34 +340,22 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Rate limits (rolling 24h window).
+  // Per-user rate limit (rolling 24h window). No app-level global cap — if
+  // we'd exceed Meta's 25/24h account ceiling, the publish call itself will
+  // surface that error from graph.instagram.com and the row gets recorded as
+  // failed with Meta's message.
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const [{ count: userCount }, { count: globalCount }] = await Promise.all([
-    supabase
-      .from("userbase_instagram_posts")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("status", "published")
-      .gte("created_at", since),
-    supabase
-      .from("userbase_instagram_posts")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "published")
-      .gte("created_at", since),
-  ]);
+  const { count: userCount } = await supabase
+    .from("userbase_instagram_posts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("status", "published")
+    .gte("created_at", since);
 
   if ((userCount ?? 0) >= PER_USER_24H_LIMIT) {
     return NextResponse.json(
       {
-        error: `You've already cross-posted to Instagram in the last 24 hours (limit ${PER_USER_24H_LIMIT}).`,
-      },
-      { status: 429 }
-    );
-  }
-  if ((globalCount ?? 0) >= GLOBAL_24H_LIMIT) {
-    return NextResponse.json(
-      {
-        error: `SkateHive's Instagram has hit its daily cross-post limit (${GLOBAL_24H_LIMIT}). Try again tomorrow.`,
+        error: `You've already cross-posted to Instagram ${PER_USER_24H_LIMIT} times in the last 24 hours. Try again later.`,
       },
       { status: 429 }
     );
