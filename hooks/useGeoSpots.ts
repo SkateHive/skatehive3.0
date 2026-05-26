@@ -16,6 +16,8 @@ export interface GeoSpot {
   // Hive-only — used by the map popup to link to /spot/[author]/[permlink]
   hiveAuthor: string | null;
   hivePermlink: string | null;
+  // Hive post's created timestamp (ISO). Null for KML-sourced rows.
+  created: string | null;
   // Google-only — raw HTML description from the KML feature
   kmlDescription: string | null;
 }
@@ -95,6 +97,7 @@ export function useGeoSpots() {
       thumbnail: r.thumbnail,
       hiveAuthor: r.hive_author,
       hivePermlink: r.hive_permlink,
+      created: r.hive_created,
       kmlDescription: r.kml_description,
     }));
   }, [rows]);
