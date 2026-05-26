@@ -92,7 +92,26 @@ const nextConfig = {
         serverActions: {
             bodySizeLimit: '200mb', // Increase the body size limit for large video uploads
         },
+        // Cut shared-chunk size by letting Next rewrite barrel-file imports
+        // into direct subpath imports. These libs all have large index.ts
+        // re-exports that defeat tree-shaking otherwise.
+        optimizePackageImports: [
+            '@chakra-ui/react',
+            '@chakra-ui/icons',
+            'react-icons',
+            'wagmi',
+            'viem',
+            '@hiveio/dhive',
+            'framer-motion',
+            '@rainbow-me/rainbowkit',
+        ],
     },
+
+    // Heavy server-only packages with WASM or native bindings — keep them
+    // out of the bundler entirely so they're required at runtime from
+    // node_modules. Also silences the libheif-js "Critical dependency"
+    // warning that adds compile time on every build.
+    serverExternalPackages: ['libheif-js', 'heic-convert', 'heic-decode', 'sharp'],
 
     // ESM-only packages that webpack chokes on inside dynamically-imported chunks
     // (e.g. @aioha/providers exposes "./react" with only an "import" condition,

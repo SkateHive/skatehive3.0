@@ -424,6 +424,12 @@ export async function generateMetadata({
       },
     };
   } catch (error) {
+    // `redirect()` throws a NEXT_REDIRECT signal that the framework
+    // needs to handle. Swallowing it leaves the user on a broken page
+    // and floods prod logs with false-positive errors.
+    if ((error as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
     console.error("Error generating post metadata:", error);
     return {
       title: "Post | Skatehive",
@@ -620,7 +626,12 @@ export default async function PostPageRoute({
         };
       }
     }
-  } catch {
+  } catch (error) {
+    // Same as above — let NEXT_REDIRECT signals propagate so the
+    // framework can perform the redirect; only swallow real errors.
+    if ((error as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
     // Silently fail - page will still render without JSON-LD
   }
 
