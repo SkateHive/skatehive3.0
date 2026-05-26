@@ -33,11 +33,19 @@ export default function SpotsGlobe() {
     [geoSpots]
   );
 
-  // Build an HTML marker per point. Click navigates to the spot page.
+  // Build an HTML marker per point. Click navigates to the spot page
+  // for Hive spots, or opens Google Maps for KML-sourced spots.
   const htmlElementFn = useCallback((d: object) => {
     const p = d as GlobePoint;
     const el = document.createElement("a");
-    el.href = `/spot/${p.spot.author}/${p.spot.permlink}`;
+    const isHive = p.spot.source === "hive" && p.spot.hiveAuthor && p.spot.hivePermlink;
+    el.href = isHive
+      ? `/spot/${p.spot.hiveAuthor}/${p.spot.hivePermlink}`
+      : `https://www.google.com/maps?q=${p.spot.lat},${p.spot.lng}`;
+    if (!isHive) {
+      el.target = "_blank";
+      el.rel = "noopener noreferrer";
+    }
     el.title = p.spot.name;
     el.style.cssText =
       "display:inline-block;cursor:pointer;pointer-events:auto;width:22px;height:22px;";

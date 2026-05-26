@@ -1,32 +1,54 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Discussion } from "@hiveio/dhive";
-import { parseSpotBody } from "@/lib/utils/parseSpotBody";
+
+export type GeoSpotSource = "hive" | "google_my_maps";
 
 export interface GeoSpot {
-  author: string;
-  permlink: string;
+  id: string;
+  source: GeoSpotSource;
+  source_id: string;
   name: string;
   lat: number;
   lng: number;
   address: string | null;
   thumbnail: string | null;
-  created: string;
-  discussion: Discussion;
+  // Hive-only — used by the map popup to link to /spot/[author]/[permlink]
+  hiveAuthor: string | null;
+  hivePermlink: string | null;
+  // Google-only — raw HTML description from the KML feature
+  kmlDescription: string | null;
 }
 
-// The map and globe views want every spot at once — not the SpotList's
-// 10-per-page pagination. We fetch a single large batch directly. 500 is
-// the same ceiling SpotNearYou already uses against the same endpoint.
-const FETCH_LIMIT = 500;
+interface SpotmapRowFromApi {
+  id: string;
+  source: GeoSpotSource;
+  source_id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  address: string | null;
+  thumbnail: string | null;
+  hive_author: string | null;
+  hive_permlink: string | null;
+  hive_created: string | null;
+  kml_description: string | null;
+}
+
+interface SpotmapResponse {
+  success: boolean;
+  count: number;
+  spots: SpotmapRowFromApi[];
+  error?: string;
+}
 
 /**
- * Fetches the full skatespot feed and yields only those with parseable
- * lat/lng (via parseSpotBody, which also handles Google Maps URLs).
+ * Reads the unified spot map from /api/spotmap (backed by spotmap_spots
+ * in Supabase). Single query, no pagination — Hive and Google My Maps
+ * spots come back in one batch ready for the map and globe views.
  */
 export function useGeoSpots() {
-  const [spots, setSpots] = useState<Discussion[]>([]);
+  const [rows, setRows] = useState<SpotmapRowFromApi[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,17 +57,17 @@ export function useGeoSpots() {
     setIsLoading(true);
     setError(null);
 
-    fetch(`/api/skatespots?page=1&limit=${FETCH_LIMIT}`)
+    fetch("/api/spotmap")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
+        return res.json() as Promise<SpotmapResponse>;
       })
       .then((data) => {
         if (cancelled) return;
-        if (data?.success && Array.isArray(data.data)) {
-          setSpots(data.data as Discussion[]);
+        if (data.success) {
+          setRows(data.spots);
         } else {
-          throw new Error(data?.error || "Failed to load spots");
+          throw new Error(data.error ?? "Failed to load spots");
         }
       })
       .catch((err) => {
@@ -62,28 +84,20 @@ export function useGeoSpots() {
   }, []);
 
   const geoSpots = useMemo<GeoSpot[]>(() => {
-    const out: GeoSpot[] = [];
-    for (const spot of spots) {
-      const parsed = parseSpotBody(spot.body);
-      if (parsed.lat == null || parsed.lng == null) continue;
-      out.push({
-        author: spot.author,
-        permlink: spot.permlink,
-        name: parsed.name || spot.title || "Skate spot",
-        lat: parsed.lat,
-        lng: parsed.lng,
-        address: parsed.address,
-        thumbnail: parsed.images[0]?.url ?? null,
-        created: spot.created,
-        discussion: spot,
-      });
-    }
-    return out;
-  }, [spots]);
+    return rows.map((r) => ({
+      id: r.id,
+      source: r.source,
+      source_id: r.source_id,
+      name: r.name || "Skate spot",
+      lat: r.lat,
+      lng: r.lng,
+      address: r.address,
+      thumbnail: r.thumbnail,
+      hiveAuthor: r.hive_author,
+      hivePermlink: r.hive_permlink,
+      kmlDescription: r.kml_description,
+    }));
+  }, [rows]);
 
-  return {
-    geoSpots,
-    isLoading,
-    error,
-  };
+  return { geoSpots, isLoading, error };
 }

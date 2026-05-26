@@ -136,54 +136,64 @@ export default function LeafletWorldMap({ useGeolocation = false }: LeafletWorld
             noWrap
           />
           {icon != null &&
-            spotsForRender.map((spot) => (
-              <Marker
-                // @ts-ignore — runtime fine; types skipped on dynamic import
-                key={`${spot.author}-${spot.permlink}`}
-                position={[spot.lat, spot.lng]}
-                icon={icon}
-              >
-                <Popup>
-                  <Box minW="200px" maxW="240px" color="#111">
-                    {spot.thumbnail && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={spot.thumbnail}
-                        alt={spot.name}
+            spotsForRender.map((spot) => {
+              const isHive = spot.source === "hive" && spot.hiveAuthor && spot.hivePermlink;
+              const ctaHref = isHive
+                ? `/spot/${spot.hiveAuthor}/${spot.hivePermlink}`
+                : `https://www.google.com/maps?q=${spot.lat},${spot.lng}`;
+              const ctaLabel = isHive ? "View spot →" : "Open in Google Maps →";
+              const ctaTarget = isHive ? undefined : "_blank";
+              return (
+                <Marker
+                  // @ts-ignore — runtime fine; types skipped on dynamic import
+                  key={spot.id}
+                  position={[spot.lat, spot.lng]}
+                  icon={icon}
+                >
+                  <Popup>
+                    <Box minW="200px" maxW="240px" color="#111">
+                      {spot.thumbnail && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={spot.thumbnail}
+                          alt={spot.name}
+                          style={{
+                            width: "100%",
+                            height: "120px",
+                            objectFit: "cover",
+                            borderRadius: 4,
+                            marginBottom: 8,
+                          }}
+                        />
+                      )}
+                      <Text fontWeight="bold" fontSize="sm" mb={1} noOfLines={2}>
+                        {spot.name}
+                      </Text>
+                      <Text fontSize="xs" color="gray.600" mb={2}>
+                        {isHive ? `@${spot.hiveAuthor}` : "Google My Maps"}
+                      </Text>
+                      <a
+                        href={ctaHref}
+                        target={ctaTarget}
+                        rel={ctaTarget ? "noopener noreferrer" : undefined}
                         style={{
-                          width: "100%",
-                          height: "120px",
-                          objectFit: "cover",
+                          display: "inline-block",
+                          background: "#a7ff00",
+                          color: "#0a0a0a",
+                          padding: "6px 10px",
                           borderRadius: 4,
-                          marginBottom: 8,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          textDecoration: "none",
                         }}
-                      />
-                    )}
-                    <Text fontWeight="bold" fontSize="sm" mb={1} noOfLines={2}>
-                      {spot.name}
-                    </Text>
-                    <Text fontSize="xs" color="gray.600" mb={2}>
-                      @{spot.author}
-                    </Text>
-                    <a
-                      href={`/spot/${spot.author}/${spot.permlink}`}
-                      style={{
-                        display: "inline-block",
-                        background: "#a7ff00",
-                        color: "#0a0a0a",
-                        padding: "6px 10px",
-                        borderRadius: 4,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        textDecoration: "none",
-                      }}
-                    >
-                      View spot →
-                    </a>
-                  </Box>
-                </Popup>
-              </Marker>
-            ))}
+                      >
+                        {ctaLabel}
+                      </a>
+                    </Box>
+                  </Popup>
+                </Marker>
+              );
+            })}
         </MapContainer>
 
         {/* Locate button */}
