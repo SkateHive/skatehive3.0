@@ -162,6 +162,7 @@ export default function SpotNearYou() {
   const displaySpot = nearestSpot ?? randomSpot
   const image = displaySpot ? getSpotImage(displaySpot) : ""
   const title = displaySpot ? getSpotTitle(displaySpot, t("noName")) : ""
+  const spotHref = displaySpot ? `/spot/${displaySpot.author}/${displaySpot.permlink}` : null
 
   return (
     <Box
@@ -176,13 +177,13 @@ export default function SpotNearYou() {
         <Text fontSize="sm" fontWeight="500" color="primary">
           {t("title")}
         </Text>
-        {displaySpot && (
+        {spotHref && (
           <Button
             size="xs"
             variant="outline"
             borderRadius="0"
             fontSize="11px"
-            onClick={() => router.push(`/post/${displaySpot.author}/${displaySpot.permlink}`)}
+            onClick={() => router.push(spotHref)}
           >
             {t("viewMore")}
           </Button>
@@ -193,8 +194,15 @@ export default function SpotNearYou() {
         <Flex justify="center" py={4}>
           <Spinner size="sm" color="primary" />
         </Flex>
-      ) : displaySpot ? (
-        <>
+      ) : displaySpot && spotHref ? (
+        <Box
+          as="a"
+          href={spotHref}
+          display="block"
+          cursor="pointer"
+          _hover={{ opacity: 0.9 }}
+          transition="opacity 0.15s"
+        >
           {image && (
             <Box position="relative" width="100%" height="160px">
               <Image
@@ -216,7 +224,7 @@ export default function SpotNearYou() {
           >
             {title}
           </Text>
-        </>
+        </Box>
       ) : null}
 
       <Button
