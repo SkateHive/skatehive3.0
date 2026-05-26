@@ -110,7 +110,7 @@ export default function GlobalError({
 
   useEffect(() => {
     if (shouldReload) {
-      window.location.reload();
+      window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
     }
   }, [shouldReload]);
 
