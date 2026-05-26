@@ -1118,7 +1118,12 @@ const SnapComposer = React.memo(function SnapComposer({
             canBypassLimit &&
             (compressedImages[0]?.url || videoUrl)
           ) {
-            const igPermalinkUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/user/${commentAuthor}/snap/${permlink}`;
+            // Use /post/{author}/{permlink} for the IG caption link. The
+            // alternative /user/{username}/snap/{permlink} route server-
+            // redirects to the profile page, so Instagram followers tapping
+            // through would land on the user's profile instead of the snap
+            // (which is what kept happening in production reports).
+            const igPermalinkUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${commentAuthor}/${permlink}`;
             // For video snaps, send the locally-captured thumbnail as
             // image_url so the IG route uses it as the Reel cover (the
             // route maps image_url + video_url → cover_url + video_url).
