@@ -110,7 +110,9 @@ export default function GlobalError({
 
   useEffect(() => {
     if (shouldReload) {
-      window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+      const url = new URL(window.location.href);
+      url.searchParams.set("v", String(Date.now()));
+      window.location.replace(url.toString());
     }
   }, [shouldReload]);
 
