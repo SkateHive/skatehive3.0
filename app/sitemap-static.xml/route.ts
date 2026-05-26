@@ -9,7 +9,6 @@ export async function GET() {
     { path: '', freq: 'daily', prio: 1 },
     { path: '/blog', freq: 'daily', prio: 0.9 },
     { path: '/map', freq: 'weekly', prio: 0.8 },
-    { path: '/map/globe', freq: 'weekly', prio: 0.8 },
     { path: '/map/google', freq: 'weekly', prio: 0.7 },
     { path: '/leaderboard', freq: 'weekly', prio: 0.7 },
     { path: '/bounties', freq: 'daily', prio: 0.7 },

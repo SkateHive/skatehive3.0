@@ -87,8 +87,7 @@ export default function GoogleMapPage() {
         <p style={{ lineHeight: 1.7, marginBottom: 16 }}>
           This is the original curated Google My Maps view of skate spots, kept around because the
           dataset still has spots not yet posted on-chain. Prefer the live Hive-powered view? Try
-          the <Link href="/map">standard map</Link> or the{" "}
-          <Link href="/map/globe">3D globe</Link>.
+          the <Link href="/map">interactive map</Link>.
         </p>
       </section>
     </>

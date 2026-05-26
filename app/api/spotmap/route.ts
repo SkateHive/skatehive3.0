@@ -33,8 +33,9 @@ export async function GET(_request: NextRequest) {
     { success: true, count: data?.length ?? 0, spots: data ?? [] as Partial<SpotmapRow>[] },
     {
       headers: {
-        // Edge-cache for a minute — sync is manual so freshness pressure is low.
-        "Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300",
+        // Edge-cache — sync is manual so freshness pressure is low.
+        // Bumped from 60s to 300s; observed 100% MISS rate previously.
+        "Cache-Control": "public, max-age=120, s-maxage=300, stale-while-revalidate=600",
       },
     }
   );

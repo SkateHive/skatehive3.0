@@ -3,9 +3,9 @@
 import React from "react";
 import NextLink from "next/link";
 import { HStack, Box, Text } from "@chakra-ui/react";
-import { FaGlobe, FaMap, FaMapMarkedAlt } from "react-icons/fa";
+import { FaMap, FaMapMarkedAlt } from "react-icons/fa";
 
-export type MapTabKey = "map" | "globe" | "google";
+export type MapTabKey = "map" | "google";
 
 interface TabDef {
   key: MapTabKey;
@@ -16,7 +16,6 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { key: "map", href: "/map", label: "Map", icon: <FaMap /> },
-  { key: "globe", href: "/map/globe", label: "Globe", icon: <FaGlobe /> },
   { key: "google", href: "/map/google", label: "Google Map", icon: <FaMapMarkedAlt /> },
 ];
 

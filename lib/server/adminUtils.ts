@@ -1,7 +1,17 @@
 // Server-side admin utilities - NEVER expose this to client
 // This file should only be used in API routes
 
-const ADMIN_USERS = process.env.ADMIN_USERS?.split(',').map(u => u.trim().toLowerCase()) || [];
+// Support both server-only and public-prefixed env var names. The project
+// uses NEXT_PUBLIC_ADMIN_USERS in production; ADMIN_USERS is kept as a
+// fallback so a server-only override still works.
+const ADMIN_USERS = (
+  process.env.ADMIN_USERS ||
+  process.env.NEXT_PUBLIC_ADMIN_USERS ||
+  ''
+)
+  .split(',')
+  .map((u) => u.trim().toLowerCase())
+  .filter(Boolean);
 
 export const isServerSideAdmin = (username: string): boolean => {
     if (!username) return false;

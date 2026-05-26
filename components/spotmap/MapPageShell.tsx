@@ -25,9 +25,19 @@ import { useSkatespots } from "@/hooks/useSkatespots";
 interface MapPageShellProps {
   activeTab: MapTabKey;
   children: React.ReactNode;
+  /**
+   * Hide the "Recent spots" grid that normally renders under the children.
+   * The Airbnb-style /map view ships its own card rail beside the map, so
+   * a second list below would be redundant.
+   */
+  suppressSpotList?: boolean;
 }
 
-export default function MapPageShell({ activeTab, children }: MapPageShellProps) {
+export default function MapPageShell({
+  activeTab,
+  children,
+  suppressSpotList = false,
+}: MapPageShellProps) {
   const t = useTranslations("map");
   const [newSpot, setNewSpot] = useState<Discussion | null>(null);
   const [composerKey, setComposerKey] = useState(0);
@@ -149,34 +159,37 @@ export default function MapPageShell({ activeTab, children }: MapPageShellProps)
         </ModalContent>
       </Modal>
 
-      {/* Spot List */}
-      <Box maxW="7xl" mx="auto" px={{ base: 3, md: 6 }} pt={0} pb={6} w="100%">
-        {error && (
-          <Box
-            textAlign="center"
-            my={4}
-            p={4}
-            bg="rgba(255, 80, 80, 0.08)"
-            border="1px solid"
-            borderColor="red.400"
-            borderRadius="md"
-          >
-            <Text color="red.300" fontWeight="bold">
-              {t("errorLoadingSpots")}
-            </Text>
-            <Text color="red.200" fontSize="sm">
-              {error}
-            </Text>
-          </Box>
-        )}
-        <SpotList
-          spots={spots}
-          newSpot={newSpot}
-          isLoading={isLoading}
-          hasMore={hasMore}
-          onLoadMore={loadNextPage}
-        />
-      </Box>
+      {/* Spot List (suppressed when the children own the list, e.g. the
+          Airbnb-style /map tab has its own side rail). */}
+      {!suppressSpotList && (
+        <Box maxW="7xl" mx="auto" px={{ base: 3, md: 6 }} pt={0} pb={6} w="100%">
+          {error && (
+            <Box
+              textAlign="center"
+              my={4}
+              p={4}
+              bg="rgba(255, 80, 80, 0.08)"
+              border="1px solid"
+              borderColor="red.400"
+              borderRadius="md"
+            >
+              <Text color="red.300" fontWeight="bold">
+                {t("errorLoadingSpots")}
+              </Text>
+              <Text color="red.200" fontSize="sm">
+                {error}
+              </Text>
+            </Box>
+          )}
+          <SpotList
+            spots={spots}
+            newSpot={newSpot}
+            isLoading={isLoading}
+            hasMore={hasMore}
+            onLoadMore={loadNextPage}
+          />
+        </Box>
+      )}
     </Box>
   );
 }

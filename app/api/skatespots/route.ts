@@ -89,20 +89,28 @@ export async function GET(request: NextRequest) {
     const limitNum = parseInt(limit);
     const pageNum = parseInt(page);
     
-    // If we have filtered results, we need to recalculate pagination
-    // But since the external API already returns skatespots, we can use their pagination
-    return NextResponse.json({
-      success: true,
-      data: transformedSpots,
-      pagination: {
-        total: data.pagination.total,
-        totalPages: data.pagination.totalPages,
-        currentPage: data.pagination.currentPage,
-        limit: data.pagination.limit,
-        hasNextPage: data.pagination.hasNextPage,
-        hasPrevPage: data.pagination.hasPrevPage,
+    // Edge-cache: public skatespots data, ~18 MISS/hr previously.
+    // 5min cache + 10min SWR keeps map fast and cuts invocations.
+    return NextResponse.json(
+      {
+        success: true,
+        data: transformedSpots,
+        pagination: {
+          total: data.pagination.total,
+          totalPages: data.pagination.totalPages,
+          currentPage: data.pagination.currentPage,
+          limit: data.pagination.limit,
+          hasNextPage: data.pagination.hasNextPage,
+          hasPrevPage: data.pagination.hasPrevPage,
+        }
+      },
+      {
+        headers: {
+          "Cache-Control":
+            "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+        },
       }
-    });
+    );
     
   } catch (error) {
     console.error('Error fetching skatespots:', error);
