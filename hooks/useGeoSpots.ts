@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Discussion } from "@hiveio/dhive";
-import { useSkatespots } from "./useSkatespots";
 import { parseSpotBody } from "@/lib/utils/parseSpotBody";
 
 export interface GeoSpot {
@@ -17,20 +16,50 @@ export interface GeoSpot {
   discussion: Discussion;
 }
 
+// The map and globe views want every spot at once — not the SpotList's
+// 10-per-page pagination. We fetch a single large batch directly. 500 is
+// the same ceiling SpotNearYou already uses against the same endpoint.
+const FETCH_LIMIT = 500;
+
 /**
- * Wraps `useSkatespots` and filters down to spots that have parseable
- * decimal coordinates. Used by the interactive Leaflet and Globe views.
+ * Fetches the full skatespot feed and yields only those with parseable
+ * lat/lng (via parseSpotBody, which also handles Google Maps URLs).
  */
 export function useGeoSpots() {
-  const {
-    spots,
-    isLoading,
-    hasMore,
-    error,
-    loadNextPage,
-    refresh,
-    currentPage,
-  } = useSkatespots();
+  const [spots, setSpots] = useState<Discussion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+
+    fetch(`/api/skatespots?page=1&limit=${FETCH_LIMIT}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.success && Array.isArray(data.data)) {
+          setSpots(data.data as Discussion[]);
+        } else {
+          throw new Error(data?.error || "Failed to load spots");
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to load spots");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const geoSpots = useMemo<GeoSpot[]>(() => {
     const out: GeoSpot[] = [];
@@ -53,13 +82,8 @@ export function useGeoSpots() {
   }, [spots]);
 
   return {
-    spots,
     geoSpots,
     isLoading,
-    hasMore,
     error,
-    loadNextPage,
-    refresh,
-    currentPage,
   };
 }

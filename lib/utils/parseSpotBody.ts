@@ -23,6 +23,17 @@ export interface ParsedSpot {
 
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)]+)\)/g;
 
+function isValidCoord(lat: number, lng: number): boolean {
+  return (
+    !Number.isNaN(lat) &&
+    !Number.isNaN(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
+
 // Loose decimal-coordinate parser. Accepts e.g. "44.98898, -93.22583".
 // Returns null if either side doesn't look like a decimal coord.
 function parseDecimalCoords(s: string): { lat: number; lng: number } | null {
@@ -30,9 +41,35 @@ function parseDecimalCoords(s: string): { lat: number; lng: number } | null {
   if (!m) return null;
   const lat = parseFloat(m[1]);
   const lng = parseFloat(m[2]);
-  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
-  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-  return { lat, lng };
+  return isValidCoord(lat, lng) ? { lat, lng } : null;
+}
+
+/**
+ * Pull lat/lng out of a Google Maps URL. Tries the patterns Google uses
+ * (in priority order, most precise first):
+ *   1. ...!3d<lat>!4d<lng>     — data param, exact place coords
+ *   2. .../@<lat>,<lng>,<z>z   — viewport center
+ *   3. ...?q=<lat>,<lng>       — explicit query
+ *   4. ...?ll=<lat>,<lng>      — legacy lat/long param
+ *   5. /place/<lat>,+<lng>     — coordinate path component
+ */
+function parseGoogleMapsUrl(s: string): { lat: number; lng: number } | null {
+  const patterns = [
+    /[!?&]3d(-?\d+(?:\.\d+)?)[!&]4d(-?\d+(?:\.\d+)?)/,
+    /google\.[^/]+\/maps[^\s]*@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /google\.[^/]+\/maps[^\s]*[?&]q=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /google\.[^/]+\/maps[^\s]*[?&]ll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /google\.[^/]+\/maps\/place\/(-?\d+(?:\.\d+)?),\+?(-?\d+(?:\.\d+)?)/,
+  ];
+  for (const re of patterns) {
+    const m = s.match(re);
+    if (m) {
+      const lat = parseFloat(m[1]);
+      const lng = parseFloat(m[2]);
+      if (isValidCoord(lat, lng)) return { lat, lng };
+    }
+  }
+  return null;
 }
 
 export function parseSpotBody(body: string | undefined | null): ParsedSpot {
@@ -72,18 +109,29 @@ export function parseSpotBody(body: string | undefined | null): ParsedSpot {
       const value = locMatch[1].trim();
       out.rawLocation = value;
 
-      // Try "lat, lng (address)" or "lat, lng"
+      // (a) "lat, lng (address)" — coords with parenthesized address
       const withAddr = value.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
       const coordsPart = withAddr ? withAddr[1].trim() : value;
-      const coords = parseDecimalCoords(coordsPart);
-      if (coords) {
-        out.lat = coords.lat;
-        out.lng = coords.lng;
+      const decimal = parseDecimalCoords(coordsPart);
+      if (decimal) {
+        out.lat = decimal.lat;
+        out.lng = decimal.lng;
         if (withAddr) out.address = withAddr[2].trim();
-      } else {
-        // No decimal coords — treat the whole value as a freeform address
-        out.address = value;
+        continue;
       }
+
+      // (b) A Google Maps URL pasted as the location — extract coords.
+      // We deliberately don't surface the raw URL as the "address" since
+      // it would render as a giant unreadable string on the spot page.
+      const fromUrl = parseGoogleMapsUrl(value);
+      if (fromUrl) {
+        out.lat = fromUrl.lat;
+        out.lng = fromUrl.lng;
+        continue;
+      }
+
+      // (c) Freeform address — no coords we could extract.
+      out.address = value;
       continue;
     }
 
