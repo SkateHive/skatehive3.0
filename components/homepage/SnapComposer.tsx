@@ -197,9 +197,13 @@ const SnapComposer = React.memo(function SnapComposer({
   // Instagram modal state (for importing IG content into a snap)
   const [isInstagramModalOpen, setInstagramModalOpen] = useState(false);
 
-  // Instagram cross-post (outbound) state. Only meaningful for main-feed snaps
-  // (parent permlink === THREADS.PERMLINK) with attached media.
-  const [instagramCrossPost, setInstagramCrossPost] = useState(false);
+  // Instagram cross-post (outbound) state. Only meaningful for main-feed
+  // snaps (parent permlink === THREADS.PERMLINK) with attached media.
+  // Default is true so eligible users (100+ HP, main feed, media attached)
+  // get IG cross-posting auto-checked alongside SkateHive + Farcaster.
+  // The DestinationMenu disables the row when there's no media yet, so
+  // text-only drafts can't accidentally send to IG.
+  const [instagramCrossPost, setInstagramCrossPost] = useState(true);
   const isMainFeedSnap = pp === HIVE_CONFIG.THREADS.PERMLINK;
   const hasCrossPostMedia = compressedImages.length > 0 || !!videoUrl;
 
@@ -1105,9 +1109,13 @@ const SnapComposer = React.memo(function SnapComposer({
           // Fire-and-forget Instagram cross-post. We deliberately don't await:
           // Reels can take 30s+ to process and we don't want to block the UI.
           // Toasts surface result/failure even after the composer modal closes.
+          // We re-check canBypassLimit (100+ HP) here even though the menu row
+          // is hidden for sub-100-HP users — instagramCrossPost defaults to
+          // true, so without this gate a low-HP user would get a 403 toast.
           if (
             instagramCrossPost &&
             isMainFeedSnap &&
+            canBypassLimit &&
             (compressedImages[0]?.url || videoUrl)
           ) {
             const igPermalinkUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/user/${commentAuthor}/snap/${permlink}`;
