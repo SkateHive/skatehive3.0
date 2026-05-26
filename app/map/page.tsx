@@ -1,8 +1,9 @@
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Metadata } from "next";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
+import MapPageShell from "@/components/spotmap/MapPageShell";
+import LeafletWorldMap from "@/components/spotmap/views/LeafletWorldMap";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 const ogImageUrl = `${BASE_URL}/api/og/map`;
@@ -73,8 +74,6 @@ export const metadata: Metadata = {
   },
 };
 
-const EmbeddedMap = dynamic(() => import("@/components/spotmap/EmbeddedMap"), { ssr: true });
-
 export default function MapPage() {
   const jsonLd = [
     {
@@ -144,7 +143,9 @@ export default function MapPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(jsonLd) }}
       />
-      <EmbeddedMap />
+      <MapPageShell activeTab="map">
+        <LeafletWorldMap />
+      </MapPageShell>
       <section style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px 56px" }}>
         <h2 style={{ fontSize: "1.75rem", fontWeight: 800, marginBottom: 12 }}>
           A skate spot map built for real-world sessions
@@ -156,9 +157,10 @@ export default function MapPage() {
           session, this page gives you an indexable, community-built map that keeps growing.
         </p>
         <p style={{ lineHeight: 1.7, marginBottom: 16 }}>
-          Looking for local results first? Visit the{" "}
-          <Link href="/map/near-me">skate spots near me map</Link>
-          {" "}to center the experience around your current location.
+          Prefer a 3D view of the planet?{" "}
+          <Link href="/map/globe">Explore spots on the globe</Link>. Or browse the curated{" "}
+          <Link href="/map/google">Google Maps view</Link>. Looking for local results?{" "}
+          <Link href="/map/near-me">Open the near-me map</Link>.
         </p>
         <h2 style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: 12 }}>
           Why this skatepark map is useful
