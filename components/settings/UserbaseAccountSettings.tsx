@@ -1,12 +1,12 @@
 "use client";
 
-import React from "react";
-import NextLink from "next/link";
+import React, { useState, useCallback } from "react";
 import {
   Box,
+  Button,
   Heading,
-  Link,
   Text,
+  useToast,
   VStack,
 } from "@chakra-ui/react";
 import { useTranslations } from "@/contexts/LocaleContext";
@@ -15,21 +15,79 @@ import UserbaseIdentitiesSection from "@/components/userbase/UserbaseIdentitiesS
 import UserbasePostingKeyPanel from "@/components/userbase/UserbasePostingKeyPanel";
 import UserbaseMergePanel from "@/components/userbase/UserbaseMergePanel";
 import HiveSponsorshipInfo from "@/components/userbase/HiveSponsorshipInfo";
+import HiveLoginModal from "@/components/layout/HiveLoginModal";
+import ConnectionModal from "@/components/layout/ConnectionModal";
+import { FarcasterAuthIsland, useFarcasterAuthMethods } from "@/components/farcaster/FarcasterAuthIsland";
+import { useAioha } from "@aioha/react-ui";
 
 export default function UserbaseAccountSettings() {
   const t = useTranslations();
   const { user } = useUserbaseAuth();
+  const { aioha } = useAioha();
+  const toast = useToast();
+  const [modalDisplayed, setModalDisplayed] = useState(false);
+  const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
+  const [isFarcasterAuthInProgress, setIsFarcasterAuthInProgress] = useState(false);
+  const farcasterAuth = useFarcasterAuthMethods();
+
+  const handleHiveLogin = useCallback(async () => {
+    setIsConnectionModalOpen(false);
+    await aioha.logout();
+    setModalDisplayed(true);
+  }, [aioha]);
+
+  const handleFarcasterConnect = useCallback(() => {
+    if (isFarcasterAuthInProgress) return;
+    setIsFarcasterAuthInProgress(true);
+    try {
+      farcasterAuth.connect();
+    } catch {
+      setIsFarcasterAuthInProgress(false);
+    }
+  }, [isFarcasterAuthInProgress, farcasterAuth]);
 
   if (!user) {
     return (
-      <Box textAlign="center" py={10}>
-        <Text color="primary" mb={3}>
-          {t("settings.signInToManage")}
-        </Text>
-        <Link as={NextLink} href="/sign-in" color="primary">
-          {t("auth.signIn")}
-        </Link>
-      </Box>
+      <>
+        <Box textAlign="center" py={10}>
+          <Text color="primary" mb={3}>
+            {t("settings.signInToManage")}
+          </Text>
+          <Button colorScheme="green" onClick={() => setIsConnectionModalOpen(true)}>
+            {t("auth.signIn")}
+          </Button>
+        </Box>
+        <ConnectionModal
+          isOpen={isConnectionModalOpen}
+          onClose={() => setIsConnectionModalOpen(false)}
+          onHiveLogin={handleHiveLogin}
+          onFarcasterConnect={handleFarcasterConnect}
+          isFarcasterAuthInProgress={isFarcasterAuthInProgress}
+        />
+        <HiveLoginModal
+          isOpen={modalDisplayed}
+          onClose={() => setModalDisplayed(false)}
+          onSuccess={() => setIsConnectionModalOpen(false)}
+        />
+        <FarcasterAuthIsland
+          onSuccess={({ fid, username }: any) => {
+            setIsFarcasterAuthInProgress(false);
+            setIsConnectionModalOpen(false);
+            setTimeout(() => { farcasterAuth.signOut(); }, 100);
+            const displayName = username ? `@${username}` : fid ? `#${fid}` : "user";
+            setTimeout(() => {
+              toast({ status: "success", title: "Connected to Farcaster!",
+                description: `Welcome, ${displayName}!`, duration: 3000 });
+            }, 200);
+          }}
+          onError={(error: any) => {
+            setIsFarcasterAuthInProgress(false);
+            toast({ status: "error", title: "Authentication failed",
+              description: error?.message || "Failed to authenticate with Farcaster",
+              duration: 5000 });
+          }}
+        />
+      </>
     );
   }
 
