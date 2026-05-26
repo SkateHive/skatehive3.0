@@ -73,17 +73,16 @@ export default function UserbaseAccountSettings() {
           onSuccess={({ fid, username }: any) => {
             setIsFarcasterAuthInProgress(false);
             setIsConnectionModalOpen(false);
-            setTimeout(() => { farcasterAuth.signOut(); }, 100);
             const displayName = username ? `@${username}` : fid ? `#${fid}` : "user";
             setTimeout(() => {
-              toast({ status: "success", title: "Connected to Farcaster!",
-                description: `Welcome, ${displayName}!`, duration: 3000 });
-            }, 200);
+              toast({ status: "success", title: t("auth.connectedSuccess"),
+                description: `${t("auth.welcome")} ${displayName}!`, duration: 3000 });
+            }, 100);
           }}
           onError={(error: any) => {
             setIsFarcasterAuthInProgress(false);
-            toast({ status: "error", title: "Authentication failed",
-              description: error?.message || "Failed to authenticate with Farcaster",
+            toast({ status: "error", title: t("auth.authenticationFailed"),
+              description: error?.message || t("auth.farcasterAuthFailed"),
               duration: 5000 });
           }}
         />
