@@ -66,9 +66,15 @@ const SpotMarker = memo(function SpotMarker({
   highlighted,
   onHover,
 }: SpotMarkerProps) {
-  const isHive = spot.source === "hive" && spot.hiveAuthor && spot.hivePermlink;
-  const spotHref = isHive ? `/spot/${spot.hiveAuthor}/${spot.hivePermlink}` : null;
+  // Every spot row now has a (hive_author, hive_permlink). For Hive spots
+  // that's the real identity; for KML spots it's the synthetic
+  // "skatehive-map" author and the row uuid.
+  const spotHref =
+    spot.hiveAuthor && spot.hivePermlink
+      ? `/spot/${spot.hiveAuthor}/${spot.hivePermlink}`
+      : null;
   const mapsHref = `https://www.google.com/maps?q=${spot.lat},${spot.lng}`;
+  const isHive = spot.source === "hive";
 
   return (
     <Marker

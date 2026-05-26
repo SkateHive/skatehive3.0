@@ -6,7 +6,29 @@ import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
 import { isSpotPost, parseSpotBody } from "@/lib/utils/parseSpotBody";
 import SpotPageClient from "@/components/spotmap/SpotPageClient";
+import KmlSpotClient from "@/components/spotmap/KmlSpotClient";
+import { getSpotmapSupabase, type SpotmapRow } from "@/lib/spotmap/supabase";
+import { parseKmlDescription } from "@/lib/spotmap/parseKmlDescription";
 import { Discussion } from "@hiveio/dhive";
+
+// Reserved "author" used for spots that were imported from the curated
+// Google My Maps KML feed. These aren't real Hive posts — when the URL
+// uses this author we skip the Hive RPC entirely and serve from
+// spotmap_spots in Supabase.
+const SYNTHETIC_KML_AUTHOR = "skatehive-map";
+
+async function getKmlSpot(permlink: string): Promise<SpotmapRow | null> {
+  const supabase = getSpotmapSupabase();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("spotmap_spots")
+    .select("*")
+    .eq("hive_author", SYNTHETIC_KML_AUTHOR)
+    .eq("hive_permlink", permlink)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as SpotmapRow;
+}
 
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
 const FALLBACK_IMAGE = `${APP_CONFIG.BASE_URL}/ogimage.png`;
@@ -50,6 +72,39 @@ export async function generateMetadata({
   const { author, permlink } = await params;
   const decodedAuthor = decodeURIComponent(author);
   const decodedPermlink = decodeURIComponent(permlink);
+
+  // KML-backed spot — metadata comes straight from spotmap_spots.
+  if (decodedAuthor === SYNTHETIC_KML_AUTHOR) {
+    const kml = await getKmlSpot(decodedPermlink);
+    if (!kml) {
+      return { title: "Spot | Skatehive", description: "View this skate spot on Skatehive." };
+    }
+    const url = `${DOMAIN_URL}/spot/${SYNTHETIC_KML_AUTHOR}/${decodedPermlink}`;
+    const description = kml.kml_description
+      ? parseKmlDescription(kml.kml_description).text.slice(0, 200)
+      : `Community-mapped skate spot at ${kml.lat.toFixed(4)}, ${kml.lng.toFixed(4)}.`;
+    const image = kml.thumbnail || FALLBACK_IMAGE;
+    return {
+      title: `${kml.name} — Skate spot on Skatehive`,
+      description,
+      alternates: { canonical: url },
+      openGraph: {
+        title: `${kml.name} — Skate spot on Skatehive`,
+        description,
+        url,
+        siteName: "Skatehive",
+        type: "article",
+        images: [{ url: image, width: 1200, height: 630, alt: kml.name }],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: `${kml.name} — Skate spot on Skatehive`,
+        description,
+        images: [image],
+        site: "@skatehive",
+      },
+    };
+  }
 
   const post = await getSpot(decodedAuthor, decodedPermlink);
   if (!post) {
@@ -136,6 +191,48 @@ export default async function SpotPage({
   const { author, permlink } = await params;
   const decodedAuthor = decodeURIComponent(author);
   const decodedPermlink = decodeURIComponent(permlink);
+
+  // KML-backed spot — render the lightweight client and bail out early.
+  if (decodedAuthor === SYNTHETIC_KML_AUTHOR) {
+    const kml = await getKmlSpot(decodedPermlink);
+    if (!kml) notFound();
+    const parsed = parseKmlDescription(kml.kml_description);
+    const url = `${DOMAIN_URL}/spot/${SYNTHETIC_KML_AUTHOR}/${decodedPermlink}`;
+    const placeJsonLd: Record<string, unknown> = {
+      "@context": "https://schema.org",
+      "@type": "Place",
+      name: kml.name,
+      description:
+        parsed.text.slice(0, 240) || `Skate spot from the Skatehive Google My Maps dataset.`,
+      url,
+      ...(kml.thumbnail || parsed.images[0]
+        ? { image: [kml.thumbnail, ...parsed.images].filter(Boolean) }
+        : {}),
+      geo: { "@type": "GeoCoordinates", latitude: kml.lat, longitude: kml.lng },
+    };
+    const breadcrumbJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: DOMAIN_URL },
+        { "@type": "ListItem", position: 2, name: "Skate Map", item: `${DOMAIN_URL}/map` },
+        { "@type": "ListItem", position: 3, name: kml.name, item: url },
+      ],
+    };
+    return (
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(placeJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(breadcrumbJsonLd) }}
+        />
+        <KmlSpotClient spot={kml} parsed={parsed} />
+      </>
+    );
+  }
 
   const post = await getSpot(decodedAuthor, decodedPermlink);
   if (!post) notFound();

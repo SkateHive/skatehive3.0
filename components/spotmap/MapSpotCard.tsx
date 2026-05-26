@@ -34,10 +34,20 @@ const MapSpotCard = forwardRef<HTMLDivElement, MapSpotCardProps>(function MapSpo
 ) {
   const [imgErrored, setImgErrored] = useState(false);
 
-  const isHive = spot.source === "hive" && spot.hiveAuthor && spot.hivePermlink;
-  const spotHref = isHive ? `/spot/${spot.hiveAuthor}/${spot.hivePermlink}` : null;
+  // Every spot in spotmap_spots has a (hive_author, hive_permlink) — Hive
+  // spots use the real Hive identity, KML spots use the synthetic
+  // "skatehive-map" author and the row uuid. Either way the URL pattern
+  // is /spot/[author]/[permlink].
+  const spotHref =
+    spot.hiveAuthor && spot.hivePermlink
+      ? `/spot/${spot.hiveAuthor}/${spot.hivePermlink}`
+      : null;
   const mapsHref = `https://www.google.com/maps?q=${spot.lat},${spot.lng}`;
-  // Image click target: spot page for Hive, Google Maps otherwise.
+  const isHive = spot.source === "hive";
+
+  // Image is always the primary click target. If we somehow lost the
+  // author/permlink, fall back to Google Maps so the click still does
+  // something useful.
   const imageHref = spotHref ?? mapsHref;
   const imageOpensExternal = !spotHref;
 
