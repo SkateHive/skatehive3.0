@@ -503,8 +503,9 @@ export default function PostDetails({
       w="100%"
       mt={{ base: "0px", md: "10px" }}
     >
-      {/* Breadcrumbs Navigation */}
-      <Box px={2} pt={2}>
+      {/* Breadcrumbs Navigation — force theme font so the .post-page serif
+          override (which is meant for long-form prose) doesn't leak here. */}
+      <Box px={2} pt={2} fontFamily="heading">
         <Breadcrumbs items={breadcrumbs} />
       </Box>
 
@@ -517,6 +518,7 @@ export default function PostDetails({
         mb={3}
         borderBottom="1px solid"
         borderColor="muted"
+        fontFamily="heading"
       >
         {/* Title — leads on both mobile and desktop */}
         <Text

@@ -206,9 +206,11 @@ function ThreeSpeakPoster({
 
 function ThreeSpeakActivePlayer({ videoId }: { videoId: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  // Default to 16/9 while the SDK loads metadata. The resize event below
+  // refines this to the video's actual ratio (handles vertical, 4:3,
+  // ultrawide, etc. — not just the two binary presets).
   const [aspectRatio, setAspectRatio] = useState<string>("16 / 9");
   const [fatalError, setFatalError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -225,16 +227,14 @@ function ThreeSpeakActivePlayer({ videoId }: { videoId: string }) {
       const p = new Player({ muted: false, autopause: true });
       player = p;
 
-      p.on("ready", ({ isVertical }) => {
-        if (cancelled) return;
-        setAspectRatio(isVertical ? "9 / 16" : "16 / 9");
-        setIsLoading(false);
+      // Use the exact dimensions reported by the player (fires once
+      // metadata is loaded) so the container hugs the real video shape.
+      p.on("resize", (info: { width: number; height: number; isVertical: boolean }) => {
+        if (cancelled || !info.width || !info.height) return;
+        setAspectRatio(`${info.width} / ${info.height}`);
       });
-      p.on("loading", (loading) => {
-        if (!cancelled) setIsLoading(loading);
-      });
-      p.on("error", ({ fatal }) => {
-        if (!cancelled && fatal) setFatalError(true);
+      p.on("error", (err: { fatal: boolean }) => {
+        if (!cancelled && err.fatal) setFatalError(true);
       });
 
       p.attach(video);
@@ -293,38 +293,6 @@ function ThreeSpeakActivePlayer({ videoId }: { videoId: string }) {
           objectFit: "contain",
         }}
       />
-      {isLoading && (
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "none",
-            background: "rgba(0,0,0,0.35)",
-          }}
-        >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              border: "3px solid rgba(255,255,255,0.25)",
-              borderTopColor: "rgba(255, 88, 0, 0.95)",
-              borderRadius: "50%",
-              animation: "tspeak-spin 0.85s linear infinite",
-            }}
-          />
-        </div>
-      )}
-      <style jsx>{`
-        @keyframes tspeak-spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
   );
 }
