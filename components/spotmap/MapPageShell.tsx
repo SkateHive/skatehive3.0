@@ -55,53 +55,70 @@ export default function MapPageShell({ activeTab, children }: MapPageShellProps)
         position={{ base: "relative", md: "sticky" }}
         top={{ base: "auto", md: 0 }}
         zIndex={10}
-        bg="background"
-        backdropFilter={{ base: "none", md: "blur(10px)" }}
+        bg="rgba(10,10,10,0.85)"
+        backdropFilter="blur(10px)"
         borderBottom="1px solid"
         borderColor="whiteAlpha.100"
       >
-        <Box textAlign="center" p={{ base: 3, md: 4 }} pb={2}>
-          <Heading
-            as="h1"
-            className="fretqwik-title"
-            fontSize={{ base: "3xl", sm: "4xl", md: "5xl" }}
-            fontWeight="extrabold"
-            color="primary"
-            letterSpacing={{ base: "wide", md: "wider" }}
-            mb={1}
+        <Box maxW="7xl" mx="auto" px={{ base: 3, md: 6 }} py={{ base: 3, md: 4 }}>
+          {/* Top row: title + add button. On mobile they stack. */}
+          <Flex
+            align={{ base: "stretch", md: "center" }}
+            justify="space-between"
+            direction={{ base: "column", md: "row" }}
+            gap={{ base: 2, md: 4 }}
+            mb={{ base: 3, md: 4 }}
           >
-            {t("title")}
-          </Heading>
-          <Text color="gray.400" fontSize={{ base: "xs", md: "sm" }} mb={3}>
-            Find skateparks, street spots &amp; DIY spots worldwide — built by skaters, for skaters
-          </Text>
-
-          <Flex justify="center" mb={3}>
-            <MapTabs active={activeTab} />
-          </Flex>
-
-          <Flex justify="center" gap={3} align="center" flexWrap="wrap">
+            <Box textAlign={{ base: "center", md: "left" }}>
+              <Heading
+                as="h1"
+                className="fretqwik-title"
+                fontSize={{ base: "3xl", sm: "4xl", md: "5xl" }}
+                fontWeight="extrabold"
+                color="primary"
+                letterSpacing={{ base: "wide", md: "wider" }}
+                lineHeight="1"
+              >
+                {t("title")}
+              </Heading>
+              <Text
+                color="gray.400"
+                fontSize={{ base: "xs", md: "sm" }}
+                mt={1}
+                display={{ base: "none", md: "block" }}
+              >
+                Find skateparks, street spots &amp; DIY spots worldwide — built by skaters,
+                for skaters
+              </Text>
+            </Box>
             <Button
               size="sm"
-              bg="transparent"
-              color="primary"
+              bg="primary"
+              color="background"
               border="1px solid"
               borderColor="primary"
               borderRadius="md"
-              px={4}
-              fontWeight="bold"
+              px={5}
+              fontWeight="800"
               fontSize="sm"
-              _hover={{ bg: "primary", color: "background" }}
+              flexShrink={0}
+              alignSelf={{ base: "center", md: "auto" }}
+              _hover={{ bg: "accent", color: "text" }}
               onClick={onComposerOpen}
             >
               + {t("addASpot")}
             </Button>
           </Flex>
+
+          {/* Tab row */}
+          <Flex justify={{ base: "center", md: "flex-start" }}>
+            <MapTabs active={activeTab} />
+          </Flex>
         </Box>
       </Box>
 
       {/* Map view (per-tab) */}
-      <Box p={{ base: 2, md: 4 }} pt={2} w="100%" mx="auto">
+      <Box maxW="7xl" mx="auto" px={{ base: 2, md: 6 }} pt={{ base: 3, md: 4 }} w="100%">
         {children}
       </Box>
 
@@ -133,13 +150,23 @@ export default function MapPageShell({ activeTab, children }: MapPageShellProps)
       </Modal>
 
       {/* Spot List */}
-      <Box p={4} pt={0}>
+      <Box maxW="7xl" mx="auto" px={{ base: 3, md: 6 }} pt={0} pb={6} w="100%">
         {error && (
-          <Box textAlign="center" my={4} p={4} bg="red.50" border="1px solid" borderColor="red.200">
-            <Text color="red.600" fontWeight="bold">
+          <Box
+            textAlign="center"
+            my={4}
+            p={4}
+            bg="rgba(255, 80, 80, 0.08)"
+            border="1px solid"
+            borderColor="red.400"
+            borderRadius="md"
+          >
+            <Text color="red.300" fontWeight="bold">
               {t("errorLoadingSpots")}
             </Text>
-            <Text color="red.500">{error}</Text>
+            <Text color="red.200" fontSize="sm">
+              {error}
+            </Text>
           </Box>
         )}
         <SpotList
