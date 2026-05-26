@@ -9,8 +9,14 @@ const BASE_URL = APP_CONFIG.BASE_URL;
 // ISR: cache the tag listing HTML for 5 min. The list of posts under
 // each tag changes slowly and live engagement loads client-side. Cuts
 // ~9 serverless invocations/hour from currently uncached MISS traffic.
+// `generateStaticParams` returning [] is required to opt into ISR on
+// dynamic segments in Next 15 — `revalidate` alone is ignored.
 export const revalidate = 300;
 export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  return [];
+}
 
 type Props = {
   params: Promise<{ tag: string }>;

@@ -11,8 +11,18 @@ import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 // doesn't hide engagement. Previously the route was forced dynamic by
 // `headers()` in generateMetadata, causing every request to hit a
 // serverless function (~70/hr).
+//
+// `generateStaticParams` returning [] is required to opt the route
+// into static/ISR mode in Next 15 — `revalidate` alone is ignored on
+// parameterized routes without it. We don't want to prerender any
+// posts at build time (impossibly many), so we return [] and let
+// every URL ISR on first visit.
 export const revalidate = 300;
 export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  return [];
+}
 
 // Known profile tab slugs that bots/crawlers mistakenly request as
 // /post/{user}/{tab} instead of /user/{user}/{tab}.

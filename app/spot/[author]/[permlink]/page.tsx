@@ -14,8 +14,14 @@ const FALLBACK_IMAGE = `${APP_CONFIG.BASE_URL}/ogimage.png`;
 // ISR: cache HTML for 5 min. Spot body is fetched from Hive RPC and
 // changes rarely after publish; making this static cuts ~48 serverless
 // invocations/hour (was the third-highest cache-MISS route).
+// `generateStaticParams` returning [] is required to opt into ISR on
+// dynamic segments in Next 15 — `revalidate` alone is ignored.
 export const revalidate = 300;
 export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  return [];
+}
 
 async function getSpot(author: string, permlink: string): Promise<Discussion | null> {
   // Basic sanity check on the permlink shape — Hive permlinks are kebab-case slugs.
