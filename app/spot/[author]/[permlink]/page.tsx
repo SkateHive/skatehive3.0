@@ -11,6 +11,12 @@ import { Discussion } from "@hiveio/dhive";
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
 const FALLBACK_IMAGE = `${APP_CONFIG.BASE_URL}/ogimage.png`;
 
+// ISR: cache HTML for 5 min. Spot body is fetched from Hive RPC and
+// changes rarely after publish; making this static cuts ~48 serverless
+// invocations/hour (was the third-highest cache-MISS route).
+export const revalidate = 300;
+export const dynamicParams = true;
+
 async function getSpot(author: string, permlink: string): Promise<Discussion | null> {
   // Basic sanity check on the permlink shape — Hive permlinks are kebab-case slugs.
   if (typeof permlink !== "string" || permlink.length < 2 || /^\d+$/.test(permlink)) {

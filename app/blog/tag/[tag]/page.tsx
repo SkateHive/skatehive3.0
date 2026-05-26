@@ -6,6 +6,12 @@ import TagPageClient from "./TagPageClient";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 
+// ISR: cache the tag listing HTML for 5 min. The list of posts under
+// each tag changes slowly and live engagement loads client-side. Cuts
+// ~9 serverless invocations/hour from currently uncached MISS traffic.
+export const revalidate = 300;
+export const dynamicParams = true;
+
 type Props = {
   params: Promise<{ tag: string }>;
 };

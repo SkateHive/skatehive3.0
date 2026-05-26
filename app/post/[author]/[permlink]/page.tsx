@@ -2,18 +2,17 @@ import PostPage from "@/components/blog/PostPage";
 import HiveClient from "@/lib/hive/hiveclient";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
 import { Metadata } from "next";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 
-async function getBaseUrl() {
-  const hdrs = await headers();
-  const host = hdrs.get("host");
-  const protocol = hdrs.get("x-forwarded-proto") || "http";
-  if (host) return `${protocol}://${host}`;
-  return APP_CONFIG.BASE_URL;
-}
+// ISR: cache rendered HTML for 5 min. The body of a Hive post rarely
+// changes after publish; votes/comments load client-side so staleness
+// doesn't hide engagement. Previously the route was forced dynamic by
+// `headers()` in generateMetadata, causing every request to hit a
+// serverless function (~70/hr).
+export const revalidate = 300;
+export const dynamicParams = true;
 
 // Known profile tab slugs that bots/crawlers mistakenly request as
 // /post/{user}/{tab} instead of /user/{user}/{tab}.
@@ -351,10 +350,12 @@ export async function generateMetadata({
       bannerImage = imageUrls[0];
     }
 
-    const dynamicBase = await getBaseUrl();
+    // Always point OG images to the canonical domain. Previously this
+    // used a `headers()`-derived host so preview deploys could serve
+    // their own OG, but that forced the entire route into dynamic SSR.
     const postUrl = `${DOMAIN_URL}/post/${cleanedAuthor}/${permlink}`;
-    const ogImage = `${dynamicBase}/api/og/post/${cleanedAuthor}/${permlink}`;
-    const frameOgImage = `${dynamicBase}/api/og/post/${cleanedAuthor}/${permlink}?format=frame`;
+    const ogImage = `${DOMAIN_URL}/api/og/post/${cleanedAuthor}/${permlink}`;
+    const frameOgImage = `${DOMAIN_URL}/api/og/post/${cleanedAuthor}/${permlink}?format=frame`;
 
     // Extract keywords from post tags
     const postTags: string[] = [];
