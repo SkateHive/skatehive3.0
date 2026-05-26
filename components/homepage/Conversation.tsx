@@ -35,10 +35,13 @@ import {
   SkeletonText,
   Tooltip,
   useBreakpointValue,
+  Link,
 } from "@chakra-ui/react";
 import { Discussion } from "@hiveio/dhive";
 import { useComments } from "@/hooks/useComments";
-import { ArrowBackIcon, CloseIcon, ChatIcon } from "@chakra-ui/icons";
+import NextLink from "next/link";
+import { ArrowBackIcon, CloseIcon, ChatIcon, ExternalLinkIcon } from "@chakra-ui/icons";
+import { isSpotPost } from "@/lib/utils/parseSpotBody";
 import { AiOutlineHeart, AiFillHeart } from "react-icons/ai";
 import { BiMessage } from "react-icons/bi";
 import { useAioha } from "@aioha/react-ui";
@@ -752,8 +755,27 @@ const Conversation = ({
           >
             Comments
           </Text>
-          <Box w="44px" aria-hidden="true" />{" "}
-          {/* Spacer for center alignment */}
+          {isSpotPost({ body: discussion.body, json_metadata: discussion.json_metadata }) ? (
+            <Link
+              as={NextLink}
+              href={`/spot/${discussion.author}/${discussion.permlink}`}
+              fontSize="sm"
+              color="primary"
+              display="inline-flex"
+              alignItems="center"
+              gap={1}
+              minW="44px"
+              h="44px"
+              px={2}
+              justifyContent="center"
+              _hover={{ textDecoration: "underline" }}
+              aria-label="Open spot page"
+            >
+              Spot <ExternalLinkIcon />
+            </Link>
+          ) : (
+            <Box w="44px" aria-hidden="true" />
+          )}
         </HStack>
       </Box>
 
