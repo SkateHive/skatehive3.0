@@ -64,8 +64,7 @@ import HiveClient from "@/lib/hive/hiveclient";
 import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
 import { extractIPFSHash } from "@/lib/utils/ipfsMetadata";
 import {
-  generateThumbnailWithCanvas,
-  uploadThumbnail,
+  generateThumbnail,
 } from "@/lib/utils/videoThumbnailUtils";
 import { generateVideoIframeMarkdown, uploadToIpfs } from "@/lib/markdown/composeUtils";
 import { FaVideo } from "react-icons/fa6";
@@ -170,6 +169,12 @@ const SnapComposer = React.memo(function SnapComposer({
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number[]>([]);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  // Thumbnail captured from the local video file (canvas → IPFS) so the
+  // snap's OG image / Farcaster frame can render a real preview instead
+  // of the SkateHive fallback. Generated in parallel with the transcode
+  // so it almost always finishes before the user posts.
+  const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null);
+  const ffmpegRef = useRef<any>(null);
   const [videoProcessingError, setVideoProcessingError] = useState<
     string | null
   >(null);
@@ -339,6 +344,8 @@ const SnapComposer = React.memo(function SnapComposer({
       if (pendingVideoFile) {
         setPendingVideoFile(null);
       }
+      // Reset stale thumbnail from any prior video before we kick off a new one
+      setVideoThumbnailUrl(null);
 
       const duration = await getVideoDuration(file);
 
@@ -356,6 +363,17 @@ const SnapComposer = React.memo(function SnapComposer({
       // double-book upload state here or cancel/retry flows can get stuck.
       if (videoUploaderRef.current) {
         await videoUploaderRef.current.handleFile(file);
+        // Fire-and-forget thumbnail capture from the local file so the
+        // snap's OG image / Farcaster frame can show a real preview.
+        // Runs in parallel with the transcode and is best-effort: if it
+        // fails the snap still posts (just without a frame thumbnail).
+        generateThumbnail(file, ffmpegRef, effectiveUser || undefined)
+          .then((thumbUrl) => {
+            if (thumbUrl) setVideoThumbnailUrl(thumbUrl);
+          })
+          .catch((err) =>
+            console.warn("[SnapComposer] Video thumbnail generation failed:", err)
+          );
       }
     } catch (error) {
       console.error("Error checking video duration:", error);
@@ -373,6 +391,38 @@ const SnapComposer = React.memo(function SnapComposer({
       await videoUploaderRef.current.handleFile(result);
     }
     setPendingVideoFile(null);
+    // Trim modal already generated a thumbnail blob URL during preview.
+    // Upload it to IPFS in the background so it has a durable URL we
+    // can persist in json_metadata.thumbnail.
+    if (result.thumbnailUrl) {
+      (async () => {
+        try {
+          const blob = await fetch(result.thumbnailUrl!).then((r) => r.blob());
+          const { uploadThumbnail } = await import(
+            "@/lib/utils/videoThumbnailUtils"
+          );
+          const uploaded = await uploadThumbnail(blob, effectiveUser || undefined);
+          if (uploaded) setVideoThumbnailUrl(uploaded);
+        } catch (err) {
+          console.warn(
+            "[SnapComposer] Trimmed-video thumbnail upload failed, falling back:",
+            err
+          );
+          // Fall back to generating + uploading from the trimmed file
+          generateThumbnail(result.file, ffmpegRef, effectiveUser || undefined)
+            .then((thumbUrl) => {
+              if (thumbUrl) setVideoThumbnailUrl(thumbUrl);
+            })
+            .catch(() => {});
+        }
+      })();
+    } else {
+      generateThumbnail(result.file, ffmpegRef, effectiveUser || undefined)
+        .then((thumbUrl) => {
+          if (thumbUrl) setVideoThumbnailUrl(thumbUrl);
+        })
+        .catch(() => {});
+    }
   };
 
   // Handle trim modal close
@@ -792,6 +842,7 @@ const SnapComposer = React.memo(function SnapComposer({
         setCompressedImages([]);
         setSelectedGif(null);
         setVideoUrl(null);
+        setVideoThumbnailUrl(null);
         onClose();
       } catch (err: any) {
         toast({
@@ -855,10 +906,6 @@ const SnapComposer = React.memo(function SnapComposer({
 
         const validUrls = compressedImages.map((image) => image.url);
 
-        // Prepare metadata with proper thumbnail handling for video-only posts
-        const hasRegularImages = compressedImages.length > 0;
-        const hasVideoThumbnails = validUrls.length > compressedImages.length; // validUrls includes video thumbnails
-
         // Build metadata object
         const metadata: any = {
           app: "Skatehive App 3.0",
@@ -866,14 +913,13 @@ const SnapComposer = React.memo(function SnapComposer({
           images: validUrls,
         };
 
-        // For video-only posts (no regular images), add video thumbnails to thumbnail field for better Farcaster frame support
-        if (!hasRegularImages && hasVideoThumbnails) {
-          const videoThumbnails = validUrls.slice(compressedImages.length); // Get only the video thumbnails
-          metadata.thumbnail = videoThumbnails;
-          console.log(
-            "🎬 Video-only post detected, added thumbnails to metadata.thumbnail:",
-            videoThumbnails
-          );
+        // For video snaps, persist the locally-captured thumbnail (canvas
+        // frame uploaded to IPFS) in json_metadata.thumbnail. The
+        // /api/og/post/... route reads thumbnail[0] when building the
+        // Farcaster frame image, so this is what makes the cross-post
+        // embed show the video's first frame instead of a placeholder.
+        if (videoUrl && videoThumbnailUrl) {
+          metadata.thumbnail = [videoThumbnailUrl];
         }
 
         // Cross-post linkage: store the Farcaster fid + username on the Hive
@@ -960,6 +1006,7 @@ const SnapComposer = React.memo(function SnapComposer({
           setCompressedImages([]);
           setSelectedGif(null);
           setVideoUrl(null);
+          setVideoThumbnailUrl(null);
 
           setIsProcessingGif(false);
 
@@ -1130,6 +1177,7 @@ const SnapComposer = React.memo(function SnapComposer({
   }, [
     compressedImages,
     videoUrl,
+    videoThumbnailUrl,
     pa,
     pp,
     extractHashtags,
@@ -1488,7 +1536,10 @@ const SnapComposer = React.memo(function SnapComposer({
                     position="absolute"
                     top="8px"
                     right="8px"
-                    onClick={() => setVideoUrl(null)}
+                    onClick={() => {
+                      setVideoUrl(null);
+                      setVideoThumbnailUrl(null);
+                    }}
                     isDisabled={isLoading}
                     bg="blackAlpha.800"
                     color="white"
