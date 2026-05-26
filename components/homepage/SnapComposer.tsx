@@ -979,18 +979,28 @@ const SnapComposer = React.memo(function SnapComposer({
           // Fire-and-forget Farcaster cross-post. Same pattern as Instagram:
           // don't block the UI; a warning toast surfaces if it fails.
           if (wantsFarcaster && farcasterLinkage) {
-            const snapUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/user/${commentAuthor}/snap/${permlink}`;
+            // Use /post/{author}/{permlink}, not /user/{username}/snap/...
+            // The latter redirects non-bot UAs to the profile page, which
+            // makes Warpcast scrape profile metadata and launch the
+            // miniapp on the user's profile instead of the actual snap.
+            // The /post route returns proper snap-specific fc:frame
+            // metadata with the snap's image (or video thumbnail).
+            const snapUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${commentAuthor}/${permlink}`;
             const castText = buildSnapCastText(commentBody, snapUrl);
             // Embed selection (max 2 per Neynar):
-            //  - images present → embed up to 2 images (Warpcast renders inline)
-            //  - video present → embed videoUrl FIRST (inline player) + snapUrl
-            //    SECOND (renders the SkateHive miniapp frame for discovery)
-            //  - neither       → embed snapUrl alone (frame card)
+            //  - images present → embed up to 2 images directly (Warpcast
+            //    renders inline image previews — better than the frame).
+            //  - video present  → embed snapUrl FIRST so Warpcast renders
+            //    the SkateHive frame with the video thumbnail (raw IPFS
+            //    video URLs without an .mp4 extension render as broken
+            //    link cards in Warpcast). videoUrl goes SECOND as a hint
+            //    for clients that DO support inline video players.
+            //  - text only      → embed snapUrl alone (frame card).
             let embeds: { url: string }[];
             if (compressedImages.length > 0) {
               embeds = compressedImages.slice(0, 2).map((img) => ({ url: img.url }));
             } else if (videoUrl) {
-              embeds = [{ url: videoUrl }, { url: snapUrl }];
+              embeds = [{ url: snapUrl }, { url: videoUrl }];
             } else {
               embeds = [{ url: snapUrl }];
             }
