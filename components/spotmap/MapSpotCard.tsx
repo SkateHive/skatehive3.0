@@ -3,7 +3,8 @@
 import React, { forwardRef, useState } from "react";
 import NextLink from "next/link";
 import NextImage from "next/image";
-import { Box, Flex, HStack, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
+import { FaMapMarkedAlt } from "react-icons/fa";
 import type { GeoSpot } from "@/hooks/useGeoSpots";
 
 interface MapSpotCardProps {
@@ -12,14 +13,16 @@ interface MapSpotCardProps {
   highlighted?: boolean;
   /** Fires when the user hovers/focuses the card so the map can highlight the matching marker. */
   onHover?: (id: string | null) => void;
-  /** Fires on click — the parent panes/zooms the map to this spot (instead of navigating away). */
+  /** Fires on click of the card image — parent pans/zooms the map to this spot. */
   onSelect?: (spot: GeoSpot) => void;
 }
 
 /**
  * Compact card used in the Airbnb-style /map left column. Renders for both
- * Hive spots and Google-My-Maps spots — the source determines the link
- * target and the meta line.
+ * Hive spots and Google-My-Maps spots — the source determines which action
+ * buttons appear:
+ *   - Hive: "View spot" (filled) + "Maps" (outline)
+ *   - KML:  "Open in Google Maps" only
  *
  * Cards intentionally don't fetch live Hive data (vote/comment counts);
  * those live on the spot page. Keeping this component cheap lets the left
@@ -32,11 +35,11 @@ const MapSpotCard = forwardRef<HTMLDivElement, MapSpotCardProps>(function MapSpo
   const [imgErrored, setImgErrored] = useState(false);
 
   const isHive = spot.source === "hive" && spot.hiveAuthor && spot.hivePermlink;
-  const detailHref = isHive
-    ? `/spot/${spot.hiveAuthor}/${spot.hivePermlink}`
-    : `https://www.google.com/maps?q=${spot.lat},${spot.lng}`;
-  const detailTarget = isHive ? undefined : "_blank";
-  const detailRel = detailTarget ? "noopener noreferrer" : undefined;
+  const spotHref = isHive ? `/spot/${spot.hiveAuthor}/${spot.hivePermlink}` : null;
+  const mapsHref = `https://www.google.com/maps?q=${spot.lat},${spot.lng}`;
+  // Image click target: spot page for Hive, Google Maps otherwise.
+  const imageHref = spotHref ?? mapsHref;
+  const imageOpensExternal = !spotHref;
 
   const showImage = spot.thumbnail && !imgErrored;
   const subtitle = isHive ? (
@@ -72,18 +75,23 @@ const MapSpotCard = forwardRef<HTMLDivElement, MapSpotCardProps>(function MapSpo
       onBlur={() => onHover?.(null)}
       data-spot-id={spot.id}
       role="article"
-      cursor="pointer"
     >
-      {/* Click target: title + image. Wrapped in a NextLink for Hive spots
-          so the browser still handles middle-click / cmd-click cleanly. */}
+      {/* Image / title area — clickable, opens primary detail (spot page or
+          Google Maps). The action buttons below live OUTSIDE this link so
+          we don't nest <a>s, which is invalid HTML. */}
       <Box
         as={NextLink}
-        href={detailHref}
-        target={detailTarget}
-        rel={detailRel}
+        href={imageHref}
+        target={imageOpensExternal ? "_blank" : undefined}
+        rel={imageOpensExternal ? "noopener noreferrer" : undefined}
         display="block"
-        textDecoration="none"
+        cursor="pointer"
         onClick={() => onSelect?.(spot)}
+        sx={{
+          "&, &:hover, &:focus, &:active, &:visited": {
+            textDecoration: "none",
+          },
+        }}
       >
         {showImage ? (
           <Box position="relative" h="180px" overflow="hidden" bg="#0a0a0a">
@@ -139,28 +147,56 @@ const MapSpotCard = forwardRef<HTMLDivElement, MapSpotCardProps>(function MapSpo
           </Box>
         )}
 
-        <Flex direction="column" px={3} py={2} gap={1}>
+        <Box px={3} pt={2} pb={1}>
           <Text fontSize="xs" color="gray.400" noOfLines={1}>
             {subtitle}
           </Text>
-          <HStack spacing={2} fontSize="11px" color="gray.500" fontFamily="ui-monospace, monospace">
-            <Text>
-              📍 {spot.lat.toFixed(4)}, {spot.lng.toFixed(4)}
-            </Text>
-            {isHive && (
-              <Text
-                ml="auto"
-                color="primary"
-                opacity={0.85}
-                fontWeight="bold"
-                fontSize="11px"
-              >
-                View →
-              </Text>
-            )}
-          </HStack>
-        </Flex>
+        </Box>
       </Box>
+
+      {/* Action buttons row — Hive spots get two; KML spots get one. */}
+      <HStack spacing={2} px={3} pb={3} pt={2}>
+        {spotHref && (
+          <Button
+            as={NextLink}
+            href={spotHref}
+            size="xs"
+            bg="primary"
+            color="background"
+            fontWeight="800"
+            flex={1}
+            borderRadius="md"
+            _hover={{ bg: "accent", color: "background" }}
+            sx={{
+              "&, &:hover, &:focus, &:active, &:visited": { textDecoration: "none" },
+            }}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          >
+            View spot →
+          </Button>
+        )}
+        <Button
+          as="a"
+          href={mapsHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          size="xs"
+          variant="outline"
+          borderColor="primary"
+          color="primary"
+          fontWeight="700"
+          flex={1}
+          borderRadius="md"
+          leftIcon={<FaMapMarkedAlt />}
+          _hover={{ bg: "primary", color: "background" }}
+          sx={{
+            "&, &:hover, &:focus, &:active, &:visited": { textDecoration: "none" },
+          }}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
+          Maps
+        </Button>
+      </HStack>
     </Box>
   );
 });

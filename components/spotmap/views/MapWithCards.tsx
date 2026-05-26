@@ -67,12 +67,8 @@ const SpotMarker = memo(function SpotMarker({
   onHover,
 }: SpotMarkerProps) {
   const isHive = spot.source === "hive" && spot.hiveAuthor && spot.hivePermlink;
-  const ctaHref = isHive
-    ? `/spot/${spot.hiveAuthor}/${spot.hivePermlink}`
-    : `https://www.google.com/maps?q=${spot.lat},${spot.lng}`;
-  const ctaLabel = isHive ? "View spot →" : "Open in Google Maps →";
-  const ctaTarget = isHive ? undefined : "_blank";
-  const ctaRel = ctaTarget ? "noopener noreferrer" : undefined;
+  const spotHref = isHive ? `/spot/${spot.hiveAuthor}/${spot.hivePermlink}` : null;
+  const mapsHref = `https://www.google.com/maps?q=${spot.lat},${spot.lng}`;
 
   return (
     <Marker
@@ -108,9 +104,21 @@ const SpotMarker = memo(function SpotMarker({
             <div className="spot-popup-meta">
               {isHive ? <>by @{spot.hiveAuthor}</> : <>Google My Maps</>}
             </div>
-            <a href={ctaHref} target={ctaTarget} rel={ctaRel} className="spot-popup-cta">
-              {ctaLabel}
-            </a>
+            <div className="spot-popup-actions">
+              {spotHref && (
+                <a href={spotHref} className="spot-popup-cta">
+                  View spot →
+                </a>
+              )}
+              <a
+                href={mapsHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="spot-popup-cta spot-popup-cta-secondary"
+              >
+                Maps ↗
+              </a>
+            </div>
           </div>
         </div>
       </Popup>

@@ -101,18 +101,39 @@
   color: #a7ff00;
   text-decoration: underline;
 }
+.spot-popup-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .spot-popup-cta {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
   background: #a7ff00;
   color: #0a0a0a;
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 800;
   text-decoration: none;
   letter-spacing: 0.02em;
+  border: 1px solid #a7ff00;
+  white-space: nowrap;
 }
 .spot-popup-cta:hover {
   background: #ffffff;
   color: #0a0a0a;
+  border-color: #ffffff;
+}
+.spot-popup-cta-secondary {
+  background: transparent;
+  color: #a7ff00;
+  border-color: rgba(167, 255, 0, 0.55);
+}
+.spot-popup-cta-secondary:hover {
+  background: #a7ff00;
+  color: #0a0a0a;
+  border-color: #a7ff00;
 }
