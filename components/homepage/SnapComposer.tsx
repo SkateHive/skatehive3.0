@@ -82,6 +82,8 @@ import { useInstagramHealth } from "@/hooks/useInstagramHealth";
 import { TbGif } from "react-icons/tb";
 import MatrixOverlay from "@/components/graphics/MatrixOverlay";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
+import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
+import { KeyTypes } from "@aioha/aioha";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 
 const CAST_MAX_CHARS = 1024;
@@ -135,6 +137,7 @@ const SnapComposer = React.memo(function SnapComposer({
   const { user, aioha } = useAioha();
   const { handle: effectiveUser, canUseAppFeatures } = useEffectiveHiveUser();
   const { hiveIdentity: userbaseHiveIdentity, connections } = useLinkedIdentities();
+  const { user: userbaseUser } = useUserbaseAuth();
   const { profile: farcasterProfile } = useFarcasterSession();
   const linkedHiveHandle = userbaseHiveIdentity?.handle || null;
 
@@ -1108,7 +1111,13 @@ const SnapComposer = React.memo(function SnapComposer({
             (compressedImages[0]?.url || videoUrl)
           ) {
             const igPermalinkUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/user/${commentAuthor}/snap/${permlink}`;
-            const igImageUrl = compressedImages[0]?.url || null;
+            // For video snaps, send the locally-captured thumbnail as
+            // image_url so the IG route uses it as the Reel cover (the
+            // route maps image_url + video_url → cover_url + video_url).
+            // Without this, video-only snaps had no cover and Meta would
+            // extract its own frame, which is often a blank/intro frame.
+            const igImageUrl =
+              compressedImages[0]?.url || (videoUrl ? videoThumbnailUrl : null);
             const igVideoUrl = videoUrl || null;
             toast({
               title: "Cross-posting to Instagram...",
@@ -1116,10 +1125,12 @@ const SnapComposer = React.memo(function SnapComposer({
               duration: 4000,
               isClosable: true,
             });
-            fetch("/api/instagram/post", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
+            // Keychain-only users have no userbase_refresh cookie, so the IG
+            // endpoint can't auth them via session. Sign a fresh challenge
+            // with the Hive posting key so the route can verify ownership
+            // of @commentAuthor via the alternate signature path.
+            const igRequest = (async () => {
+              const basePayload: Record<string, unknown> = {
                 hive_author: commentAuthor,
                 hive_permlink: permlink,
                 body: finalCommentBody,
@@ -1127,8 +1138,34 @@ const SnapComposer = React.memo(function SnapComposer({
                 image_url: igImageUrl,
                 video_url: igVideoUrl,
                 permalink_url: igPermalinkUrl,
-              }),
-            })
+              };
+              if (!userbaseUser && user) {
+                const issuedAt = new Date().toISOString();
+                const message = [
+                  "Skatehive: cross-post snap to @skatehive on Instagram.",
+                  `Author: @${commentAuthor}`,
+                  `Permlink: ${permlink}`,
+                  `Issued at: ${issuedAt}`,
+                ].join("\n");
+                const signResult = await aioha.signMessage(message, KeyTypes.Posting);
+                if (!signResult?.success || !signResult.result || !signResult.publicKey) {
+                  throw new Error(
+                    signResult?.error ||
+                      "Keychain signature was rejected — Instagram cross-post cancelled."
+                  );
+                }
+                basePayload.hive_signature = signResult.result;
+                basePayload.hive_public_key = signResult.publicKey;
+                basePayload.signed_at = issuedAt;
+              }
+              return fetch("/api/instagram/post", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(basePayload),
+              });
+            })();
+
+            igRequest
               .then(async (res) => {
                 const data = await res.json().catch(() => ({}));
                 if (res.ok) {
@@ -1191,6 +1228,7 @@ const SnapComposer = React.memo(function SnapComposer({
     t,
     canUseAppFeatures,
     linkedHiveHandle,
+    userbaseUser,
     instagramCrossPost,
     isMainFeedSnap,
     postToHive,
