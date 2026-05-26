@@ -9,7 +9,8 @@ import { Discussion } from "@hiveio/dhive";
 import Conversation from "@/components/homepage/Conversation";
 import SnapReplyModal from "@/components/homepage/SnapReplyModal";
 import { useSnaps } from "@/hooks/useSnaps";
-import { HIVE_CONFIG } from "@/config/app.config";
+import { HIVE_CONFIG } from "@/config/app.config"
+import SpotNearYouDialog from "@/components/homepage/SpotNearYouDialog";
 
 export default function HomePageClient() {
   const thread_author = HIVE_CONFIG.THREADS.AUTHOR;
@@ -34,6 +35,7 @@ export default function HomePageClient() {
 
   return (
     <Flex direction={{ base: "column", md: "row" }} justifyContent="center">
+      <SpotNearYouDialog />
       <Box
         maxH="100vh"
         overflowY="auto"

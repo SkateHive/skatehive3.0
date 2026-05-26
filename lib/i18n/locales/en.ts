@@ -1188,6 +1188,9 @@ export const en = {
     viewMore: 'view more',
     viewAllSpots: 'view all spots',
     noName: 'Unnamed spot',
+    dialogTitle: 'Spot near you 🛹',
+    viewOnMap: 'view on map',
+    dismiss: 'dismiss',
   },
   errorToast: {
     reportBug: 'Report bug',

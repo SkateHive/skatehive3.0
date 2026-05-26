@@ -75,3 +75,6 @@ yarn-error.log*
 .npmrc
 .yarnrc
 vercel.json
+
+# Claude local config
+.claude/

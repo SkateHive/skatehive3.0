@@ -1204,6 +1204,9 @@ export const lg = {
     viewMore: 'laba nnyini',
     viewAllSpots: 'laba ebifo byonna',
     noName: 'Ekifo tekiinaama',
+    dialogTitle: 'Ekifo eggwanirira 🛹',
+    viewOnMap: 'laba ku mapu',
+    dismiss: 'sazaamu',
   },
   errorToast: {
     reportBug: 'Babaza bug',
