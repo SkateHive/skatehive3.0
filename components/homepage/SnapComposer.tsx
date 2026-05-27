@@ -21,8 +21,11 @@ import {
   Menu,
   MenuButton,
   MenuList,
+  MenuItem,
   MenuOptionGroup,
   MenuItemOption,
+  MenuDivider,
+  Checkbox,
   Link as ChakraLink,
   Modal,
   ModalOverlay,
@@ -148,7 +151,12 @@ const SnapComposer = React.memo(function SnapComposer({
   // these to true is safe even when Farcaster isn't actually usable.
   const [postToHive, setPostToHive] = useState(true);
   const [postToFarcaster, setPostToFarcaster] = useState(true);
-  const [farcasterChannel, setFarcasterChannel] = useState<string | null>(null);
+  // Default Farcaster channel: /skateboard. Most cross-posts belong in
+  // the community channel — pick "no channel (your feed)" or one of the
+  // other allowed channels via the dropdown if you want different.
+  const [farcasterChannel, setFarcasterChannel] = useState<string | null>(
+    "skateboard"
+  );
   const toast = useToast();
   const t = useTranslations();
   const { prompt, SkateDialogComponent } = useSkateDialog();
@@ -2150,15 +2158,6 @@ function DestinationMenu({
   buttonSize: "sm" | "md" | "lg";
 }) {
   const farcasterUsable = farcasterEligible && farcasterSignerApproved;
-  // Visible check mirrors actual post intent. Disabled state is enforced
-  // by MenuItemOption's isDisabled — gating the checkmark on
-  // farcasterUsable too produced the misleading "unchecked but still
-  // posts" state when usable transiently lagged behind the linked
-  // identity load.
-  const selected: string[] = [];
-  if (postToHive) selected.push("hive");
-  if (postToFarcaster) selected.push("farcaster");
-  if (postToInstagram) selected.push("instagram");
 
   const farcasterTooltip = !farcasterEligible
     ? "Link your Farcaster account in Settings to enable cross-posting"
@@ -2187,140 +2186,180 @@ function DestinationMenu({
       >
         <ChevronDownIcon boxSize={5} />
       </MenuButton>
-      <MenuList bg="background" borderColor="primary" minW="240px">
-        <MenuOptionGroup
-          type="checkbox"
-          value={selected}
-          onChange={(values) => {
-            const next = Array.isArray(values) ? values : [values];
-            setPostToHive(next.includes("hive"));
-            setPostToFarcaster(next.includes("farcaster"));
-            setPostToInstagram(next.includes("instagram"));
-          }}
-          title="Post to"
-          fontSize="xs"
-          fontFamily="mono"
-          color="dim"
-        >
-          <MenuItemOption value="hive" bg="background" _hover={{ bg: "subtle" }}>
-            <HStack spacing={2}>
-              <Image
-                src="/logos/SKATE_HIVE_CIRCLE.svg"
-                alt="SkateHive"
-                boxSize="16px"
-              />
-              <Text fontFamily="mono" fontSize="sm" color="text">
-                SkateHive
-              </Text>
-            </HStack>
-          </MenuItemOption>
-          <Tooltip
-            label={farcasterTooltip}
-            isDisabled={!farcasterTooltip}
-            hasArrow
-            placement="left"
-          >
-            <Box>
-              <MenuItemOption
-                value="farcaster"
-                isDisabled={!farcasterUsable}
-                bg="background"
-                _hover={{ bg: "subtle" }}
+      <MenuList bg="background" borderColor="primary" minW="260px" py={1}>
+        <Box px={3} py={2}>
+          <Text fontFamily="mono" fontSize="2xs" color="dim" letterSpacing="wider" textTransform="uppercase">
+            Post to
+          </Text>
+        </Box>
+
+        <PlatformToggleRow
+          checked={postToHive}
+          onToggle={() => setPostToHive(!postToHive)}
+          icon={
+            <Image
+              src="/logos/SKATE_HIVE_CIRCLE.svg"
+              alt="SkateHive"
+              boxSize="16px"
+            />
+          }
+          label="SkateHive"
+        />
+
+        <PlatformToggleRow
+          checked={postToFarcaster}
+          onToggle={() => setPostToFarcaster(!postToFarcaster)}
+          disabled={!farcasterUsable}
+          disabledHint={farcasterTooltip}
+          icon={<Icon as={SiFarcaster} color="primary" boxSize={4} />}
+          label="Farcaster"
+          subLabel={farcasterUsername ? `@${farcasterUsername}` : undefined}
+          trailing={
+            !farcasterUsable ? (
+              <ChakraLink
+                as={NextLink}
+                href="/settings"
+                fontSize="2xs"
+                fontFamily="mono"
+                color="primary"
+                _hover={{ textDecoration: "underline" }}
+                onClick={(e) => e.stopPropagation()}
               >
-                <HStack spacing={2} w="full">
-                  <Icon as={SiFarcaster} color="primary" boxSize={4} />
-                  <Text fontFamily="mono" fontSize="sm" color="text">
-                    Farcaster
-                    {farcasterUsername && (
-                      <Text as="span" color="dim" fontSize="xs" ml={1}>
-                        @{farcasterUsername}
-                      </Text>
-                    )}
-                  </Text>
-                  {!farcasterUsable && (
-                    <ChakraLink
-                      as={NextLink}
-                      href="/settings"
-                      fontSize="2xs"
-                      fontFamily="mono"
-                      color="primary"
-                      ml="auto"
-                      _hover={{ textDecoration: "underline" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {farcasterEligible ? "authorize" : "link"} →
-                    </ChakraLink>
-                  )}
-                </HStack>
-              </MenuItemOption>
-            </Box>
-          </Tooltip>
-          {instagramEligible && (
-            <Tooltip
-              label="Add a photo or video to enable Instagram cross-post"
-              isDisabled={instagramHasMedia}
-              hasArrow
-              placement="left"
+                {farcasterEligible ? "authorize" : "link"} →
+              </ChakraLink>
+            ) : null
+          }
+        />
+
+        {instagramEligible && (
+          <PlatformToggleRow
+            checked={postToInstagram}
+            onToggle={() => setPostToInstagram(!postToInstagram)}
+            disabled={!instagramHasMedia}
+            disabledHint="Add a photo or video to enable Instagram cross-post"
+            icon={<Icon as={FaInstagram} color="primary" boxSize={4} />}
+            label="Instagram"
+            subLabel="@skatehive"
+          />
+        )}
+
+        {/* Channel selector — only meaningful when Farcaster is checked.
+            We keep the MenuOptionGroup radio pattern here since this is a
+            true single-select (the checkbox-style toggle UI above is for
+            multi-select platform opt-in). */}
+        {postToFarcaster && farcasterUsable && (
+          <>
+            <MenuDivider borderColor="border" my={1} />
+            <MenuOptionGroup
+              type="radio"
+              value={farcasterChannel ?? "__none__"}
+              onChange={(value) => {
+                const v = Array.isArray(value) ? value[0] : value;
+                setFarcasterChannel(v === "__none__" ? null : v);
+              }}
+              title="Farcaster channel"
+              fontSize="2xs"
+              fontFamily="mono"
+              color="dim"
+              textTransform="uppercase"
             >
-              <Box>
+              <MenuItemOption value="__none__" bg="background" _hover={{ bg: "subtle" }}>
+                <Text fontFamily="mono" fontSize="sm" color="text">
+                  no channel
+                  <Text as="span" color="dim" fontSize="xs" ml={1}>
+                    (your feed)
+                  </Text>
+                </Text>
+              </MenuItemOption>
+              {FARCASTER_CHANNELS.map((ch) => (
                 <MenuItemOption
-                  value="instagram"
-                  isDisabled={!instagramHasMedia}
+                  key={ch.id}
+                  value={ch.id}
                   bg="background"
                   _hover={{ bg: "subtle" }}
                 >
-                  <HStack spacing={2} w="full">
-                    <Icon as={FaInstagram} color="primary" boxSize={4} />
-                    <Text fontFamily="mono" fontSize="sm" color="text">
-                      Instagram
-                      <Text as="span" color="dim" fontSize="xs" ml={1}>
-                        @skatehive
-                      </Text>
-                    </Text>
-                  </HStack>
+                  <Text fontFamily="mono" fontSize="sm" color="text">
+                    {ch.label}
+                  </Text>
                 </MenuItemOption>
-              </Box>
-            </Tooltip>
-          )}
-        </MenuOptionGroup>
-
-        {/* Channel selector — only meaningful when Farcaster is checked. */}
-        {postToFarcaster && farcasterUsable && (
-          <MenuOptionGroup
-            type="radio"
-            value={farcasterChannel ?? "__none__"}
-            onChange={(value) => {
-              const v = Array.isArray(value) ? value[0] : value;
-              setFarcasterChannel(v === "__none__" ? null : v);
-            }}
-            title="Farcaster channel"
-            fontSize="xs"
-            fontFamily="mono"
-            color="dim"
-          >
-            <MenuItemOption value="__none__" bg="background" _hover={{ bg: "subtle" }}>
-              <Text fontFamily="mono" fontSize="sm" color="text">
-                no channel
-                <Text as="span" color="dim" fontSize="xs" ml={1}>
-                  (your feed)
-                </Text>
-              </Text>
-            </MenuItemOption>
-            {FARCASTER_CHANNELS.map((ch) => (
-              <MenuItemOption
-                key={ch.id}
-                value={ch.id}
-                bg="background"
-                _hover={{ bg: "subtle" }}
-              >
-                <Text fontFamily="mono" fontSize="sm" color="text">
-                  {ch.label}
-                </Text>
-              </MenuItemOption>
-            ))}
-          </MenuOptionGroup>
+              ))}
+            </MenuOptionGroup>
+          </>
         )}
       </MenuList>
     </Menu>
   );
+}
+
+/**
+ * Single row in the "Post to" platform picker. Clicking anywhere on the
+ * row flips the checkbox — much more obvious than the previous tick-
+ * in-the-left-margin pattern, where users couldn't tell that the tick
+ * meant "will post here".
+ */
+function PlatformToggleRow({
+  checked,
+  onToggle,
+  icon,
+  label,
+  subLabel,
+  trailing,
+  disabled,
+  disabledHint,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  icon: React.ReactNode;
+  label: string;
+  subLabel?: string;
+  trailing?: React.ReactNode;
+  disabled?: boolean;
+  disabledHint?: string;
+}) {
+  const row = (
+    <MenuItem
+      closeOnSelect={false}
+      isDisabled={disabled}
+      bg="background"
+      _hover={{ bg: disabled ? "background" : "subtle" }}
+      onClick={() => {
+        if (!disabled) onToggle();
+      }}
+      px={3}
+      py={2}
+    >
+      <HStack spacing={3} w="full">
+        {/* pointerEvents="none" lets clicks fall through to the parent
+            MenuItem, so clicking the checkbox OR the row label toggles
+            once instead of double-firing. */}
+        <Checkbox
+          isChecked={checked}
+          isDisabled={disabled}
+          pointerEvents="none"
+          colorScheme="green"
+          size="md"
+        />
+        <Box flexShrink={0}>{icon}</Box>
+        <Box flex="1" minW={0}>
+          <Text fontFamily="mono" fontSize="sm" color="text" noOfLines={1}>
+            {label}
+            {subLabel && (
+              <Text as="span" color="dim" fontSize="xs" ml={1}>
+                {subLabel}
+              </Text>
+            )}
+          </Text>
+        </Box>
+        {trailing}
+      </HStack>
+    </MenuItem>
+  );
+  if (disabled && disabledHint) {
+    return (
+      <Tooltip label={disabledHint} hasArrow placement="left">
+        <Box>{row}</Box>
+      </Tooltip>
+    );
+  }
+  return row;
 }
