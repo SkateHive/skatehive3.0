@@ -16,6 +16,7 @@ import {
 import { Discussion } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
 import { extractImageUrls } from "@/lib/utils/extractImageUrls";
+import { filterAutoComments } from "@/lib/utils/postUtils";
 import NextLink from "next/link";
 
 interface MoreFromAuthorProps {
@@ -46,7 +47,7 @@ export default function MoreFromAuthor({ author, limit = 6 }: MoreFromAuthorProp
       });
 
       if (result && result.length > 0) {
-        setPosts(result);
+        setPosts(filterAutoComments(result) as Discussion[]);
       }
     } catch (error) {
       console.error("Error loading author posts:", error);

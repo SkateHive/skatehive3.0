@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { findPosts } from "@/lib/hive/client-functions";
+import { filterAutoComments } from "@/lib/utils/postUtils";
 import { useProfileDebug } from "@/lib/utils/profileDebug";
 
 export default function useProfilePosts(username: string, enabled: boolean = true) {
@@ -21,13 +22,20 @@ export default function useProfilePosts(username: string, enabled: boolean = tru
         isFetching.current = true;
         debug.fetch("fetching posts", { username, hasFetchedInitial: hasFetchedInitial.current });
         try {
-            const newPosts = await findPosts("author_before_date", params.current);
-            if (newPosts && newPosts.length > 0) {
-                setPosts((prevPosts) => [...prevPosts, ...newPosts]);
+            const rawPosts = await findPosts("author_before_date", params.current);
+            if (rawPosts && rawPosts.length > 0) {
+                // Pagination cursor needs the last RAW item (admin-downvoted
+                // posts must still advance the cursor or we'd loop forever
+                // on a flagged tail). Filter only before storing for render.
+                const last = rawPosts[rawPosts.length - 1];
+                const newPosts = filterAutoComments(rawPosts);
+                if (newPosts.length > 0) {
+                    setPosts((prevPosts) => [...prevPosts, ...newPosts]);
+                }
                 params.current = [
                     username,
-                    newPosts[newPosts.length - 1].permlink,
-                    newPosts[newPosts.length - 1].created,
+                    last.permlink,
+                    last.created,
                     20, // Bridge API max limit
                 ];
             }

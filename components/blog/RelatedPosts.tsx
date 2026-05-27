@@ -20,6 +20,7 @@ import NextLink from "next/link";
 import { trackInternalLinkClick } from "@/lib/analytics/events";
 import { usePathname } from "next/navigation";
 import { HIVE_CONFIG } from "@/config/app.config";
+import { filterAutoComments } from "@/lib/utils/postUtils";
 
 // Parse the tag list out of a Hive post's json_metadata, which can arrive
 // as an object, JSON string, or double-encoded JSON string.
@@ -94,6 +95,11 @@ export default function RelatedPosts({
         return;
       }
 
+      // Drop posts flagged by admins or muted/grayed by Bridge mods
+      // before we score them, so admin-downvoted content can't show up
+      // as "related" to anything.
+      const qualityFiltered = filterAutoComments(skatehivePosts) as Discussion[];
+
       // Generic tags shouldn't drive "relatedness" — every Skatehive post
       // has them, so they'd score equal weight on everything.
       const GENERIC_TAGS = new Set([
@@ -110,7 +116,7 @@ export default function RelatedPosts({
 
       // Score each Skatehive post by how many of the current post's
       // topic tags it shares; trending order is the tiebreaker.
-      const ranked = skatehivePosts
+      const ranked = qualityFiltered
         .filter(
           (p) =>
             !(p.author === currentAuthor && p.permlink === currentPermlink),

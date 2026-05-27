@@ -76,12 +76,20 @@ export function countDownvotes(activeVotes: any[]): number {
 }
 
 /**
- * Filter discussions/posts based on reputation, downvote criteria, and specific authors
+ * Filter discussions/posts based on reputation, downvote criteria, and specific authors.
+ *
  * Filters out:
  * - Posts from accounts with reputation less than 0
  * - Posts with 2 or more downvotes
  * - Posts from hiveBuzz account
- * - Posts downvoted by admins (when NEXT_PUBLIC_ADMIN_USERS is set)
+ * - Posts downvoted by admins (NEXT_PUBLIC_ADMIN_USERS env var)
+ * - Posts marked `stats.gray` or `stats.hide` by Hive's Bridge API
+ * - Posts with `stats.flag_weight > 0` (any community-mod flag contributes)
+ *
+ * The Bridge signals (`gray`, `hide`, `flag_weight`) are first-class: the
+ * Bridge API already does the math for community moderation, so we
+ * respect those flags directly even when no admin from our local list
+ * has voted yet.
  */
 export function filterAutoComments(discussions: any[]): any[] {
     // Import getReputation from client-functions to avoid duplication
@@ -102,6 +110,14 @@ export function filterAutoComments(discussions: any[]): any[] {
             )
             : false;
 
+        // Bridge API moderation signals — respect what the community
+        // mods have already decided via Hive's native flagging system.
+        const stats = discussion.stats || {};
+        const isBridgeFlagged =
+            stats.gray === true ||
+            stats.hide === true ||
+            (typeof stats.flag_weight === "number" && stats.flag_weight > 0);
+
         // Get author reputation and convert to readable format
         const rawReputation = discussion.author_reputation || 0;
 
@@ -117,11 +133,6 @@ export function filterAutoComments(discussions: any[]): any[] {
             authorReputation = getReputation(rawReputation);
         }
 
-        // Filter conditions:
-        // 1. Filter out posts with 2 or more downvotes (community disapproval)
-        // 2. Filter out posts from accounts with reputation less than 0
-        // 3. Filter out hiveBuzz comments
-        // 4. Filter out posts with admin downvotes
         const hasAcceptableDownvotes = downvoteCount < 2;
         const hasAcceptableReputation = authorReputation >= 0;
         const isNotHiveBuzz = discussion.author.toLowerCase() !== 'hivebuzz';
@@ -130,7 +141,8 @@ export function filterAutoComments(discussions: any[]): any[] {
             hasAcceptableDownvotes &&
             hasAcceptableReputation &&
             isNotHiveBuzz &&
-            !hasAdminDownvote;
+            !hasAdminDownvote &&
+            !isBridgeFlagged;
 
         return shouldShow;
     });

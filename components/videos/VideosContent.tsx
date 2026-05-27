@@ -29,7 +29,7 @@ import {
 import { Discussion } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
 import { extractImageUrls } from "@/lib/utils/extractImageUrls";
-import { parsePayout } from "@/lib/utils/postUtils";
+import { parsePayout, filterAutoComments } from "@/lib/utils/postUtils";
 import { getPostDate } from "@/lib/utils/GetPostDate";
 import NextLink from "next/link";
 import {
@@ -619,8 +619,11 @@ export default function VideosContent() {
           setHasMore(false);
           break;
         }
+        // Filter admin-downvoted / community-flagged BEFORE video check
+        // so the quota math (POSTS_PER_PAGE) reflects what users see.
+        const cleaned = filterAutoComments(fresh) as Discussion[];
         collected.push(
-          ...fresh.filter((p: Discussion) => hasVideoContent(p.body)),
+          ...cleaned.filter((p: Discussion) => hasVideoContent(p.body)),
         );
         const last = result[result.length - 1];
         cursorAuthor = last.author;
