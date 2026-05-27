@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import VideoRenderer from "@/components/layout/VideoRenderer";
 import { APP_CONFIG } from "@/config/app.config";
 import { useStopFlipbookEvents } from "@/hooks/useStopFlipbookEvents";
@@ -93,6 +93,181 @@ function YouTubeLite({ id }: { id: string }) {
 }
 
 /**
+ * Parse an Odysee embed URL into the `name#claim_id` form the resolve API
+ * accepts. The embed URL looks like:
+ *   https://odysee.com/$/embed/@channel:N/video-name:CLAIM_ID?query
+ *   https://odysee.com/$/embed/video-name:CLAIM_ID          (no channel)
+ * We only care about the *last* path segment (the video itself, not the
+ * channel), URI-decoded, with the colon swapped for a hash.
+ */
+function parseOdyseeRef(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const after = u.pathname.replace(/^\/\$\/embed\//, "");
+    const segments = after.split("/").filter(Boolean);
+    const last = segments[segments.length - 1];
+    if (!last || !last.includes(":")) return null;
+    const decoded = decodeURIComponent(last);
+    const colon = decoded.lastIndexOf(":");
+    return `${decoded.slice(0, colon)}#${decoded.slice(colon + 1)}`;
+  } catch {
+    return null;
+  }
+}
+
+// Per-page-load cache of resolved Odysee thumbnails. The resolve API
+// returns the same answer for the lifetime of a claim, so one fetch per
+// unique video is enough — a magazine page with the same Odysee link
+// twice only hits the API once.
+const odyseeThumbnailCache = new Map<string, Promise<string | null>>();
+
+function fetchOdyseeThumbnail(url: string): Promise<string | null> {
+  const ref = parseOdyseeRef(url);
+  if (!ref) return Promise.resolve(null);
+  const cached = odyseeThumbnailCache.get(ref);
+  if (cached) return cached;
+  const promise = fetch("https://api.na-backend.odysee.com/api/v1/proxy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      method: "resolve",
+      params: { urls: [ref] },
+    }),
+  })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data) => {
+      const results = data?.result;
+      if (!results) return null;
+      const entry = Object.values(results)[0] as
+        | { value?: { thumbnail?: { url?: string } } }
+        | undefined;
+      return entry?.value?.thumbnail?.url ?? null;
+    })
+    .catch(() => null);
+  odyseeThumbnailCache.set(ref, promise);
+  return promise;
+}
+
+function OdyseeLite({ url }: { url: string }) {
+  const [active, setActive] = useState(false);
+  const [thumbnail, setThumbnail] = useState<string | null>(null);
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
+  const buttonRef = useStopFlipbookEvents<HTMLButtonElement>();
+  const iframeWrapperRef = useStopFlipbookEvents<HTMLDivElement>();
+
+  useEffect(() => {
+    let cancelled = false;
+    setThumbnail(null);
+    setThumbnailFailed(false);
+    fetchOdyseeThumbnail(url).then((thumb) => {
+      if (!cancelled) setThumbnail(thumb);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  if (active) {
+    return (
+      <div ref={iframeWrapperRef}>
+        <iframe
+          src={url}
+          style={{ width: "100%", aspectRatio: "16 / 9", border: 0 }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  // odycdn's image proxy serves a sized/optimized version. Passing the raw
+  // thumbnail URL works too, but the proxy is what Odysee itself uses in
+  // og:image — same path the native iframe ends up loading.
+  const posterSrc =
+    thumbnail && !thumbnailFailed
+      ? `https://thumbnails.odycdn.com/card/s:1280:720/quality:85/plain/${thumbnail}`
+      : null;
+
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      onClick={() => setActive(true)}
+      aria-label="Play Odysee video"
+      style={{
+        position: "relative",
+        width: "100%",
+        aspectRatio: "16 / 9",
+        border: 0,
+        padding: 0,
+        background: "#000",
+        cursor: "pointer",
+        overflow: "hidden",
+        display: "block",
+      }}
+    >
+      {posterSrc && (
+        <img
+          src={posterSrc}
+          alt=""
+          loading="lazy"
+          onError={() => setThumbnailFailed(true)}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
+        />
+      )}
+      {/* Odysee-red play badge */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none",
+        }}
+      >
+        <svg
+          width="76"
+          height="76"
+          viewBox="0 0 76 76"
+          style={{ filter: "drop-shadow(0 2px 12px rgba(0,0,0,0.55))" }}
+        >
+          <circle cx="38" cy="38" r="36" fill="rgba(229, 80, 57, 0.92)" />
+          <path d="M30 24 L54 38 L30 52 Z" fill="#fff" />
+        </svg>
+      </span>
+      {/* Provenance ribbon — visible affordance that this is Odysee content */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          padding: "3px 8px",
+          borderRadius: 4,
+          background: "rgba(0,0,0,0.55)",
+          color: "#fff",
+          fontFamily: "'Inter', system-ui, sans-serif",
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+        }}
+      >
+        Odysee
+      </span>
+    </button>
+  );
+}
+
+/**
  * Fallback IPFS gateways. When the primary `APP_CONFIG.IPFS_GATEWAY`
  * times out or 5xxs, VideoRenderer races these in parallel before giving up.
  * Order is most-likely-to-work first (used as tie-breaker if the race times out).
@@ -135,16 +310,7 @@ export function VideoEmbed({ type, id, index }: VideoEmbedProps) {
     }
 
     case "ODYSEE":
-      return (
-        <iframe
-          key={`odysee-${index}`}
-          src={id}
-          style={{ width: "100%", aspectRatio: "16 / 9", border: 0 }}
-          allowFullScreen
-          loading="lazy"
-          id={`odysee-iframe-${index}`}
-        />
-      );
+      return <OdyseeLite key={`odysee-${id}-${index}`} url={id} />;
 
     case "YOUTUBE":
       return <YouTubeLite key={`youtube-${id}-${index}`} id={id} />;

@@ -1,34 +1,29 @@
 /* Markdown body global styles for consistent rendering across the app */
 
-/* ─── Post page: warm reading typography ────────────────────────────
+/* ─── Post prose: warm reading typography ───────────────────────────
    Dark themes whose body font is a pixel/mono face (hacker, hackerPlus,
    hackerRed, cyberpunk, gruvbox-nogg) are great for the rest of the app
-   but uncomfortable for long-form reading. On the post page (`.post-page`
-   wrapper around `<PostDetails>`, related posts, sidebar) we swap them
-   for an editorial serif stack. Light-bg themes (gruvbox-nid, paper,
-   bluesky, etc.) and themes whose body font is already a humanist sans
-   (forest/Verdana, blackwhite/Helvetica, etc.) are left alone.
+   but uncomfortable for long-form reading. Inside the rendered article
+   body (`.post-prose`) we swap them for an editorial serif stack. We
+   intentionally do NOT swap on `.post-page` itself — the surrounding UI
+   (header, breadcrumbs, author bio, related posts, comments sidebar)
+   should stay on the theme font so the post page still looks like part
+   of the same app. Light-bg themes (gruvbox-nid, paper, bluesky, etc.)
+   and themes whose body font is already a humanist sans (forest/Verdana,
+   blackwhite/Helvetica, etc.) are left alone.
 
    `data-skatehive-theme` is written by themeProvider on every theme
-   change (Chakra owns `data-theme` for color mode). */
-html[data-skatehive-theme="hacker"] .post-page,
-html[data-skatehive-theme="hackerPlus"] .post-page,
-html[data-skatehive-theme="hackerRed"] .post-page,
-html[data-skatehive-theme="cyberpunk"] .post-page,
-html[data-skatehive-theme="gruvbox-nogg"] .post-page {
-  font-family: "Iowan Old Style", "Charter", "Palatino", "Palatino Linotype",
-    "Georgia", "Cambria", serif;
-}
-
-/* The post body uses `--pp-font` (driven by usePostProseTweaks). Override
-   that variable on the affected themes so the prose, headings, and any
-   element inheriting `font-family: var(--pp-font)` pick up the warm stack
-   without the user having to change their tweaks. */
+   change (Chakra owns `data-theme` for color mode). The variables
+   `--pp-font` / `--pp-heading-font` are consumed by `.post-prose` rules
+   below (driven through usePostProseTweaks) so overriding them here
+   reaches every element inside the prose block. */
 html[data-skatehive-theme="hacker"] .post-page .post-prose,
 html[data-skatehive-theme="hackerPlus"] .post-page .post-prose,
 html[data-skatehive-theme="hackerRed"] .post-page .post-prose,
 html[data-skatehive-theme="cyberpunk"] .post-page .post-prose,
 html[data-skatehive-theme="gruvbox-nogg"] .post-page .post-prose {
+  font-family: "Iowan Old Style", "Charter", "Palatino", "Palatino Linotype",
+    "Georgia", "Cambria", serif;
   --pp-font: "Iowan Old Style", "Charter", "Palatino", "Palatino Linotype",
     "Georgia", "Cambria", serif;
   --pp-heading-font: "Iowan Old Style", "Charter", "Palatino",
