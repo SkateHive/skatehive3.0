@@ -42,6 +42,12 @@ type RendererProps = {
    *  native Skatehive content. Same chip styling as the third-party
    *  click-to-play wrappers in VideoEmbed. */
   provenance?: string;
+  /** Set to false to suppress the LogoMatrix loader overlay shown while
+   *  the video is buffering. Useful when the caller has already provided
+   *  a strong loading affordance — e.g. 3Speak always supplies a poster,
+   *  so the matrix on top of it is visual noise. Default: true (kept on
+   *  for IPFS, where older clips may have no poster at all). */
+  showLoadingMatrix?: boolean;
   [key: string]: any;
 };
 
@@ -355,7 +361,7 @@ function isSlowConnection(): boolean {
   return et === "slow-2g" || et === "2g" || et === "3g";
 }
 
-const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutoplay = false, posterOverride, aspectRatioOverride, provenance, ...props }: RendererProps) => {
+const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutoplay = false, posterOverride, aspectRatioOverride, provenance, showLoadingMatrix = true, ...props }: RendererProps) => {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isHorizontal, setIsHorizontal] = useState(false);
@@ -788,7 +794,7 @@ const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutop
           onClick={(e) => e.stopPropagation()}
           style={VIDEO_STYLE}
         />
-        {!isVideoLoaded && !hasError && (
+        {!isVideoLoaded && !hasError && showLoadingMatrix && (
           <Box
             position="absolute"
             top={0}

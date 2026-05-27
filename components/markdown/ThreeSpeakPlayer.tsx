@@ -376,6 +376,10 @@ function ThreeSpeakActivePlayer({ videoData }: { videoData: VideoData }) {
       posterOverride={videoData.thumbnail}
       aspectRatioOverride={videoData.aspectRatio}
       provenance="3Speak"
+      // 3Speak always supplies a poster, so the LogoMatrix on top of it
+      // is just noise. IPFS keeps the default loader for older clips
+      // that have no thumbnail wired up.
+      showLoadingMatrix={false}
     />
   );
 }
