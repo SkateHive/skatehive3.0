@@ -85,8 +85,7 @@ import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { KeyTypes } from "@aioha/aioha";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
-
-const CAST_MAX_CHARS = 1024;
+import { buildSnapCastText, buildSnapCastEmbeds } from "@/lib/crosspost/snapCast";
 
 // Channels enabled for Farcaster cross-posting. Mirrors the server-side
 // whitelist in /api/farcaster/cast/route.ts — keep them in sync.
@@ -95,20 +94,6 @@ const FARCASTER_CHANNELS = [
   { id: "gnars", label: "/gnars" },
   { id: "higher", label: "/higher" },
 ] as const;
-
-function buildSnapCastText(body: string, url: string | null): string {
-    const clean = body.trim();
-    if (!url) {
-        return clean.length > CAST_MAX_CHARS
-            ? clean.slice(0, CAST_MAX_CHARS - 1).trim() + "…"
-            : clean;
-    }
-    const urlLine = `\n\n${url}`;
-    const budget = CAST_MAX_CHARS - urlLine.length;
-    const trimmed =
-        clean.length > budget ? clean.slice(0, Math.max(0, budget - 1)).trim() + "…" : clean;
-    return trimmed + urlLine;
-}
 
 // Check for demo mode via localStorage
 const SHOW_ERROR_DEMO =
@@ -1050,14 +1035,11 @@ const SnapComposer = React.memo(function SnapComposer({
             //    link cards in Warpcast). videoUrl goes SECOND as a hint
             //    for clients that DO support inline video players.
             //  - text only      → embed snapUrl alone (frame card).
-            let embeds: { url: string }[];
-            if (compressedImages.length > 0) {
-              embeds = compressedImages.slice(0, 2).map((img) => ({ url: img.url }));
-            } else if (videoUrl) {
-              embeds = [{ url: snapUrl }, { url: videoUrl }];
-            } else {
-              embeds = [{ url: snapUrl }];
-            }
+            const embeds = buildSnapCastEmbeds({
+              snapUrl,
+              imageUrls: compressedImages.map((img) => img.url),
+              videoUrl: videoUrl || null,
+            });
             fetch("/api/farcaster/cast", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
