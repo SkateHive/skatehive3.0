@@ -1,24 +1,13 @@
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ThreeSpeakApi } from "@mantequilla-soft/3speak-player";
-import { FiMaximize, FiMinimize, FiVolume2, FiVolumeX } from "react-icons/fi";
-import { LuPause, LuPlay } from "react-icons/lu";
+import VideoRenderer from "@/components/layout/VideoRenderer";
 import { useStopFlipbookEvents } from "@/hooks/useStopFlipbookEvents";
 
 interface ThreeSpeakPlayerProps {
   videoId: string; // "author/permlink"
 }
-
-// Skatehive's primary brand color — used as the accent on every interactive
-// surface in the player (active icons, progress fill, scrub thumb).
-const PRIMARY = "limegreen";
 
 // Default aspect for the brief skeleton state shown before metadata resolves.
 // Most 3Speak content is landscape, so this minimizes layout-shift on the
@@ -48,6 +37,12 @@ type VideoData = {
    * — no resize-jump when the user clicks play.
    */
   aspectRatio: string;
+  /** Primary HLS playlist URL. Passed to VideoRenderer as src once the
+   *  user clicks play; VideoRenderer's HLS effect handles the rest. */
+  hlsUrl: string | null;
+  /** Backup HLS playlists from the 3Speak metadata response. VideoRenderer's
+   *  fallback/retry/watchdog cycle through these on stall or error. */
+  hlsFallbacks: string[];
 };
 
 // Shared API client + result cache. A magazine page with many 3Speak
@@ -98,10 +93,18 @@ function fetchVideoData(videoId: string): Promise<VideoData | null> {
   const promise = (async (): Promise<VideoData | null> => {
     let thumbnail: string | null = null;
     let short = false;
+    let hlsUrl: string | null = null;
+    let hlsFallbacks: string[] = [];
     try {
       const meta = await threeSpeakApi.fetchVideoMetadata(author, permlink);
       thumbnail = meta?.thumbnail ?? null;
       short = !!meta?.short;
+      hlsUrl = meta?.videoUrl ?? null;
+      hlsFallbacks = [
+        meta?.videoUrlFallback1,
+        meta?.videoUrlFallback2,
+        meta?.videoUrlFallback3,
+      ].filter((u): u is string => !!u);
     } catch {
       return null;
     }
@@ -110,7 +113,7 @@ function fetchVideoData(videoId: string): Promise<VideoData | null> {
       const dims = await measureImage(thumbnail);
       if (dims) aspectRatio = `${dims.w} / ${dims.h}`;
     }
-    return { thumbnail, short, aspectRatio };
+    return { thumbnail, short, aspectRatio, hlsUrl, hlsFallbacks };
   })();
   videoDataCache.set(key, promise);
   return promise;
@@ -130,13 +133,6 @@ function thumbCandidates(videoId: string): string[] {
     `https://img.3speakcontent.co/${author}/${permlink}/thumbnail.jpg`,
     `https://img.3speakcontent.co/${author}/${permlink}/thumbnail.webp`,
   ];
-}
-
-function formatTime(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 /**
@@ -179,10 +175,7 @@ export function ThreeSpeakPlayer({ videoId }: ThreeSpeakPlayerProps) {
   return (
     <div ref={wrapperRef}>
       {active ? (
-        <ThreeSpeakActivePlayer
-          videoId={videoId}
-          initialAspectRatio={videoData.aspectRatio}
-        />
+        <ThreeSpeakActivePlayer videoData={videoData} />
       ) : (
         <ThreeSpeakPoster
           videoId={videoId}
@@ -196,10 +189,9 @@ export function ThreeSpeakPlayer({ videoId }: ThreeSpeakPlayerProps) {
 }
 
 /**
- * Shimmer placeholder used in two places: while we're fetching metadata,
- * and as an overlay on top of the empty <video> element while the SDK
- * loads + the first HLS segment downloads. Same animation in both spots
- * so a click-through transition reads as "same skeleton, just briefly".
+ * Shimmer placeholder used while we're fetching metadata. Same animation
+ * name as the skeleton in VideoEmbed.tsx so any future shared use stays
+ * consistent. Mostly visible for a fraction of a second on the happy path.
  */
 function ThreeSpeakSkeleton({
   aspectRatio,
@@ -296,9 +288,9 @@ function ThreeSpeakPoster({
           }}
         />
       )}
-      {/* 3Speak-orange play badge on the poster (matches their brand and
-          telegraphs the source). Once playback starts, our control bar uses
-          Skatehive limegreen — provenance on the cover, our app inside. */}
+      {/* 3Speak-orange play badge on the poster — provenance affordance.
+          Once playback starts, VideoRenderer's controls take over in
+          Skatehive limegreen and a "3Speak" ribbon marks the source. */}
       <span
         aria-hidden
         style={{
@@ -344,157 +336,26 @@ function ThreeSpeakPoster({
   );
 }
 
-function ThreeSpeakActivePlayer({
-  videoId,
-  initialAspectRatio,
-}: {
-  videoId: string;
-  initialAspectRatio: string;
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  // Player ref is `any` because the SDK is dynamic-imported and its types
-  // aren't reachable to the static type system inside this effect. The
-  // surface we call (togglePlay/setMuted/seek/toggleFullscreen) is stable.
-  const playerRef = useRef<any>(null);
-
-  // Pre-seeded from the API's `short` flag so the container is the right
-  // shape on the first paint. The SDK's `resize` event later refines this
-  // to the exact width/height the video reports — usually a no-op since
-  // the API flag already gave us the right orientation.
-  const [aspectRatio, setAspectRatio] = useState(initialAspectRatio);
-  const [fatalError, setFatalError] = useState(false);
-  // false from mount until the SDK fires `ready` (metadata + first frame
-  // available). Drives the shimmer skeleton overlay that fills the gap
-  // between "user clicked play" and "video actually renders" — usually
-  // 0.5–2s while hls.js loads and the first HLS segment downloads.
-  const [isReady, setIsReady] = useState(false);
-
-  // Control-bar state
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [controlsVisible, setControlsVisible] = useState(true);
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    let player: any = null;
-
-    // Lazy-load the SDK only when the user clicks play. Cuts ~60KB
-    // (hls.js) from the initial bundle for every page that just has
-    // a 3Speak post visible but unplayed.
-    import("@mantequilla-soft/3speak-player").then(({ Player }) => {
-      if (cancelled) return;
-      const video = videoRef.current;
-      if (!video) return;
-
-      const p = new Player({ muted: false, autopause: true });
-      player = p;
-      playerRef.current = p;
-
-      p.on(
-        "resize",
-        (info: { width: number; height: number; isVertical: boolean }) => {
-          if (cancelled || !info.width || !info.height) return;
-          setAspectRatio(`${info.width} / ${info.height}`);
-        }
-      );
-      p.on("ready", () => {
-        if (!cancelled) setIsReady(true);
-      });
-      p.on("error", (err: { fatal: boolean }) => {
-        if (!cancelled && err.fatal) setFatalError(true);
-      });
-      p.on("play", () => {
-        if (cancelled) return;
-        setIsPlaying(true);
-        // Safety net — if the SDK never fires `ready` (some HLS sources
-        // start playing before reporting it), treat first play as ready.
-        setIsReady(true);
-      });
-      p.on("pause", () => !cancelled && setIsPlaying(false));
-      p.on(
-        "timeupdate",
-        (s: { currentTime: number; duration: number }) => {
-          if (cancelled) return;
-          setCurrentTime(s.currentTime);
-          if (Number.isFinite(s.duration)) setDuration(s.duration);
-        }
-      );
-      p.on("fullscreen", (a: boolean) => !cancelled && setIsFullscreen(a));
-
-      p.attach(video);
-      p.load(videoId);
-      // Inside the user's click gesture chain (poster activation just
-      // flipped `active`), so browsers allow unmuted autoplay here.
-      void p.play();
-    });
-
-    return () => {
-      cancelled = true;
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      if (player) player.destroy();
-      playerRef.current = null;
-    };
-  }, [videoId]);
-
-  // Hide the control bar after a short idle period while playing, show
-  // it again on any mouse activity. Always-visible when paused.
-  const scheduleHide = useCallback(() => {
-    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => setControlsVisible(false), 2000);
-  }, []);
-
-  const handleActivity = useCallback(() => {
-    setControlsVisible(true);
-    if (isPlaying) scheduleHide();
-  }, [isPlaying, scheduleHide]);
-
-  useEffect(() => {
-    if (!isPlaying) {
-      setControlsVisible(true);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    } else {
-      scheduleHide();
-    }
-  }, [isPlaying, scheduleHide]);
-
-  const handlePlayPause = useCallback(() => {
-    playerRef.current?.togglePlay();
-  }, []);
-
-  const handleMuteToggle = useCallback(() => {
-    const p = playerRef.current;
-    if (!p) return;
-    const next = !isMuted;
-    p.setMuted(next);
-    setIsMuted(next);
-  }, [isMuted]);
-
-  const handleFullscreenToggle = useCallback(() => {
-    playerRef.current?.toggleFullscreen();
-  }, []);
-
-  const handleSeek = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const p = playerRef.current;
-      if (!p || !duration) return;
-      const newTime = (parseFloat(e.target.value) / 100) * duration;
-      if (Number.isFinite(newTime)) p.seek(newTime);
-      setCurrentTime(newTime);
-    },
-    [duration]
-  );
-
-  if (fatalError) {
+/**
+ * Active 3Speak player — a thin wrapper around our generic VideoRenderer.
+ *
+ * The 3Speak metadata API gave us:
+ *   - The primary HLS playlist + up to 3 CDN fallbacks
+ *   - The thumbnail (poster) and exact aspect ratio
+ *
+ * VideoRenderer's HLS effect lazy-loads hls.js (or uses Safari's native
+ * HLS) and its watchdog/retry/gateway-race cycles through the playlist
+ * fallbacks the same way it does for IPFS gateways. The provenance ribbon
+ * marks the content as 3Speak; controls stay Skatehive limegreen so the
+ * experience reads as "our player, their source".
+ */
+function ThreeSpeakActivePlayer({ videoData }: { videoData: VideoData }) {
+  if (!videoData.hlsUrl) {
     return (
       <div
         style={{
           width: "100%",
-          aspectRatio,
+          aspectRatio: videoData.aspectRatio,
           background: "#111",
           display: "flex",
           alignItems: "center",
@@ -502,181 +363,19 @@ function ThreeSpeakActivePlayer({
           color: "#888",
           fontFamily: "monospace",
           fontSize: "0.875rem",
-          borderRadius: "8px",
         }}
       >
         video unavailable
       </div>
     );
   }
-
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-
   return (
-    <div
-      ref={containerRef}
-      onMouseMove={handleActivity}
-      onMouseEnter={handleActivity}
-      onMouseLeave={() => isPlaying && setControlsVisible(false)}
-      style={{
-        position: "relative",
-        width: "100%",
-        aspectRatio,
-        background: "#000",
-        overflow: "hidden",
-      }}
-    >
-      <video
-        ref={videoRef}
-        playsInline
-        onClick={handlePlayPause}
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "block",
-          objectFit: "contain",
-          cursor: "pointer",
-        }}
-      />
-
-      {/* Shimmer overlay while the SDK loads (lazy hls.js import + first
-          HLS segment download). Same animation as the pre-metadata skeleton
-          on the parent, so the click-through feels like a continuous state. */}
-      {!isReady && !fatalError && (
-        <ThreeSpeakSkeleton aspectRatio={aspectRatio} overlay />
-      )}
-
-      {/* Bottom control bar — fades in/out with controlsVisible */}
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          padding: "32px 12px 12px",
-          background:
-            "linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0) 100%)",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          color: "#fff",
-          fontFamily: "'Inter', system-ui, sans-serif",
-          fontSize: 12,
-          opacity: controlsVisible ? 1 : 0,
-          transition: "opacity 0.2s ease",
-          pointerEvents: controlsVisible ? "auto" : "none",
-        }}
-      >
-        <IconButton
-          aria-label={isPlaying ? "Pause" : "Play"}
-          onClick={handlePlayPause}
-        >
-          {isPlaying ? <LuPause size={20} /> : <LuPlay size={20} />}
-        </IconButton>
-
-        <span
-          style={{
-            fontVariantNumeric: "tabular-nums",
-            whiteSpace: "nowrap",
-            opacity: 0.92,
-          }}
-        >
-          {formatTime(currentTime)} / {formatTime(duration)}
-        </span>
-
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={0.1}
-          value={Number.isFinite(progress) ? progress : 0}
-          onChange={handleSeek}
-          aria-label="Seek"
-          style={{
-            flex: 1,
-            height: 4,
-            WebkitAppearance: "none",
-            appearance: "none",
-            background: `linear-gradient(to right, ${PRIMARY} 0%, ${PRIMARY} ${progress}%, rgba(255,255,255,0.25) ${progress}%, rgba(255,255,255,0.25) 100%)`,
-            borderRadius: 2,
-            outline: "none",
-            cursor: "pointer",
-          }}
-        />
-
-        <IconButton
-          aria-label={isMuted ? "Unmute" : "Mute"}
-          onClick={handleMuteToggle}
-        >
-          {isMuted ? <FiVolumeX size={18} /> : <FiVolume2 size={18} />}
-        </IconButton>
-
-        <IconButton
-          aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-          onClick={handleFullscreenToggle}
-        >
-          {isFullscreen ? <FiMinimize size={18} /> : <FiMaximize size={18} />}
-        </IconButton>
-      </div>
-
-      <style jsx>{`
-        input[type="range"]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          background: ${PRIMARY};
-          border: 2px solid #000;
-          cursor: pointer;
-        }
-        input[type="range"]::-moz-range-thumb {
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          background: ${PRIMARY};
-          border: 2px solid #000;
-          cursor: pointer;
-        }
-      `}</style>
-    </div>
-  );
-}
-
-/**
- * Small icon-button wrapper. Default white, limegreen on hover/focus — matches
- * the rest of the player's accent. Avoids pulling in a UI lib for what's
- * essentially a styled <button>.
- */
-function IconButton({
-  children,
-  onClick,
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.(e);
-      }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        background: "transparent",
-        border: 0,
-        padding: 4,
-        color: hover ? PRIMARY : "#fff",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        transition: "color 0.15s ease",
-      }}
-      {...rest}
-    >
-      {children}
-    </button>
+    <VideoRenderer
+      src={videoData.hlsUrl}
+      fallbackSrcs={videoData.hlsFallbacks}
+      posterOverride={videoData.thumbnail}
+      aspectRatioOverride={videoData.aspectRatio}
+      provenance="3Speak"
+    />
   );
 }

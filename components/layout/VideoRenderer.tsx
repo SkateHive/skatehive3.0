@@ -38,8 +38,22 @@ type RendererProps = {
    *  measures the poster image to derive aspect. Useful when the caller
    *  knows the aspect from external metadata. */
   aspectRatioOverride?: string;
+  /** Top-right provenance ribbon ("3Speak", "Skatehive", etc). Omit for
+   *  native Skatehive content. Same chip styling as the third-party
+   *  click-to-play wrappers in VideoEmbed. */
+  provenance?: string;
   [key: string]: any;
 };
+
+// HLS detection — looks at the URL path, ignoring query string/hash.
+function isHlsSource(url: string): boolean {
+  try {
+    const path = new URL(url, "http://x/").pathname;
+    return /\.m3u8$/i.test(path);
+  } catch {
+    return /\.m3u8(?:[?#]|$)/i.test(url);
+  }
+}
 
 // Define interface for VideoControls props
 interface VideoControlsProps {
@@ -341,7 +355,7 @@ function isSlowConnection(): boolean {
   return et === "slow-2g" || et === "2g" || et === "3g";
 }
 
-const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutoplay = false, posterOverride, aspectRatioOverride, ...props }: RendererProps) => {
+const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutoplay = false, posterOverride, aspectRatioOverride, provenance, ...props }: RendererProps) => {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isHorizontal, setIsHorizontal] = useState(false);
@@ -379,6 +393,53 @@ const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutop
     retriedRef.current.clear();
     setHasError(false);
   }, [src]);
+
+  // HLS lifecycle. MP4 sources flow through the JSX `src=` attribute as
+  // before — this effect is a no-op for them. HLS sources need help:
+  //   - Safari/iOS plays .m3u8 natively → just set src via the ref.
+  //   - Chrome/Firefox/Edge need hls.js → lazy-loaded so we don't pay the
+  //     cost until an HLS source actually mounts.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !currentSrc) return;
+    if (!isHlsSource(currentSrc)) return;
+
+    // Native HLS path (Safari, iOS). JSX deliberately doesn't set src for
+    // HLS sources to avoid racing with hls.js, so set it imperatively.
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = currentSrc;
+      return;
+    }
+
+    // hls.js path
+    let cancelled = false;
+    let hls: { destroy: () => void } | null = null;
+
+    import("hls.js").then(({ default: Hls }) => {
+      if (cancelled || !videoRef.current) return;
+      if (!Hls.isSupported()) {
+        // Browser supports neither hls.js (no MSE) nor native HLS — last
+        // resort: hand it the URL and hope. Will fail loudly via onError.
+        videoRef.current.src = currentSrc;
+        return;
+      }
+      const instance = new Hls();
+      hls = instance;
+      instance.loadSource(currentSrc);
+      instance.attachMedia(videoRef.current);
+      instance.on(Hls.Events.ERROR, (_event, data) => {
+        if (data?.fatal) handleVideoError();
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      if (hls) hls.destroy();
+    };
+    // handleVideoError is intentionally NOT in deps — it's stable enough
+    // for this lifecycle and including it would re-run hls.js setup on
+    // every render. eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSrc]);
 
   // Resolve poster + aspect from IPFS metadata (cached per-src). Skipped
   // when a caller passes posterOverride OR aspectRatioOverride — they've
@@ -704,7 +765,10 @@ const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutop
         <video
           {...props}
           ref={setRefs}
-          src={currentSrc}
+          // For HLS sources, leave `src` undefined and let the hls.js
+          // effect own it. Setting it here would race with hls.js's
+          // MediaSource attachment on Chrome/Firefox/Edge.
+          src={currentSrc && isHlsSource(currentSrc) ? undefined : currentSrc}
           poster={poster ?? undefined}
           muted={true} // Always start muted for autoplay
           controls={false}
@@ -739,6 +803,29 @@ const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutop
           >
             <MemoizedLoadingComponent />
           </Box>
+        )}
+        {provenance && (
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+              padding: "3px 8px",
+              borderRadius: 4,
+              background: "rgba(0,0,0,0.55)",
+              color: "#fff",
+              fontFamily: "'Inter', system-ui, sans-serif",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              zIndex: 4,
+              pointerEvents: "none",
+            }}
+          >
+            {provenance}
+          </span>
         )}
         {hasError && (
           <Box

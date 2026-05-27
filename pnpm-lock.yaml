@@ -178,6 +178,9 @@ importers:
       heic2any:
         specifier: ^0.0.4
         version: 0.0.4
+      hls.js:
+        specifier: ^1.6.16
+        version: 1.6.16
       html-to-image:
         specifier: ^1.11.13
         version: 1.11.13
@@ -4616,8 +4619,8 @@ packages:
     resolution: {tarball: https://codeload.github.com/hive-keychain/hive-tx-js/tar.gz/009218bfabb2c5b498100aa7660f189508c53f3c}
     version: 4.3.1
 
-  hls.js@1.6.15:
-    resolution: {integrity: sha512-E3a5VwgXimGHwpRGV+WxRTKeSp2DW5DI5MWv34ulL3t5UNmyJWCQ1KmLEHbYzcfThfXG8amBL+fCYPneGHC4VA==}
+  hls.js@1.6.16:
+    resolution: {integrity: sha512-VSIRpLfRwlAAdGL4wiTucx2ScRipo0ed1FBatWkyt832jC4CReKstga6yIhYVwGu9LOBjuX9wzmRMeQdBJtzEA==}
 
   hmac-drbg@1.0.1:
     resolution: {integrity: sha512-Tti3gMqLdZfhOQY1Mzf/AanLiqh1WTiJgEj26ZuYQ9fbkLomzGchCws4FyrSd4VkpBfiNhaE1On+lOz894jvXg==}
@@ -8932,7 +8935,7 @@ snapshots:
 
   '@mantequilla-soft/3speak-player@0.3.2(react@18.3.1)':
     dependencies:
-      hls.js: 1.6.15
+      hls.js: 1.6.16
     optionalDependencies:
       react: 18.3.1
 
@@ -9348,7 +9351,7 @@ snapshots:
       cross-env: 7.0.3
       detect-gpu: 5.0.70
       glsl-noise: 0.0.0
-      hls.js: 1.6.15
+      hls.js: 1.6.16
       maath: 0.10.8(@types/three@0.183.1)(three@0.183.2)
       meshline: 3.3.1(three@0.183.2)
       react: 18.3.1
@@ -13635,7 +13638,7 @@ snapshots:
       crypto-js: 4.2.0
       secp256k1: 3.8.1
 
-  hls.js@1.6.15: {}
+  hls.js@1.6.16: {}
 
   hmac-drbg@1.0.1:
     dependencies:

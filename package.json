@@ -81,6 +81,7 @@
     "gsap": "^3.13.0",
     "heic-convert": "^2.1.0",
     "heic2any": "^0.0.4",
+    "hls.js": "^1.6.16",
     "html-to-image": "^1.11.13",
     "html-to-text": "^9.0.5",
     "isomorphic-dompurify": "2.16.0",
