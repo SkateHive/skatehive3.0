@@ -19,6 +19,7 @@ import { ArrowBackIcon, ExternalLinkIcon } from "@chakra-ui/icons";
 import { FaMapMarkedAlt } from "react-icons/fa";
 import type { SpotmapRow } from "@/lib/spotmap/supabase";
 import type { ParsedKmlDescription } from "@/lib/spotmap/parseKmlDescription";
+import { proxyGoogleImage } from "@/lib/spotmap/proxyImageUrl";
 import SpotImageCarousel, { type SpotImage } from "./SpotImageCarousel";
 
 interface KmlSpotClientProps {
@@ -48,10 +49,18 @@ function buildMapsUrl(lat: number, lng: number): string {
 export default function KmlSpotClient({ spot, parsed }: KmlSpotClientProps) {
   // Combine the thumbnail and any extra images from the description into
   // a single carousel set (deduped).
+  //
+  // Google's `mymaps.usercontent.google.com` URLs respond with
+  // `Cross-Origin-Resource-Policy: same-site`, which the browser enforces
+  // by refusing to render them via <img>. Route them through our
+  // same-origin proxy so they actually display in the carousel.
   const imageSet = new Set<string>();
   if (spot.thumbnail) imageSet.add(spot.thumbnail);
   for (const img of parsed.images) imageSet.add(img);
-  const images: SpotImage[] = Array.from(imageSet).map((url) => ({ url, caption: "" }));
+  const images: SpotImage[] = Array.from(imageSet).map((url) => ({
+    url: proxyGoogleImage(url),
+    caption: "",
+  }));
 
   const hasImages = images.length > 0;
 
