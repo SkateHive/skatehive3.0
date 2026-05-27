@@ -61,6 +61,7 @@ import {
   uploadImage,
 } from "@/lib/hive/client-functions";
 import HiveClient from "@/lib/hive/hiveclient";
+import { waitForHivePost } from "@/lib/hive/waitForPost";
 import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
 import { extractIPFSHash } from "@/lib/utils/ipfsMetadata";
 import {
@@ -1015,181 +1016,219 @@ const SnapComposer = React.memo(function SnapComposer({
           onNewComment(newComment);
           onClose();
 
-          // Fire-and-forget Farcaster cross-post. Same pattern as Instagram:
-          // don't block the UI; a warning toast surfaces if it fails.
-          if (wantsFarcaster && farcasterLinkage) {
-            // Use /post/{author}/{permlink}, not /user/{username}/snap/...
-            // The latter redirects non-bot UAs to the profile page, which
-            // makes Warpcast scrape profile metadata and launch the
-            // miniapp on the user's profile instead of the actual snap.
-            // The /post route returns proper snap-specific fc:frame
-            // metadata with the snap's image (or video thumbnail).
-            const snapUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${commentAuthor}/${permlink}`;
-            const castText = buildSnapCastText(commentBody, snapUrl);
-            // Embed selection (max 2 per Neynar):
-            //  - images present → embed up to 2 images directly (Warpcast
-            //    renders inline image previews — better than the frame).
-            //  - video present  → embed snapUrl FIRST so Warpcast renders
-            //    the SkateHive frame with the video thumbnail (raw IPFS
-            //    video URLs without an .mp4 extension render as broken
-            //    link cards in Warpcast). videoUrl goes SECOND as a hint
-            //    for clients that DO support inline video players.
-            //  - text only      → embed snapUrl alone (frame card).
-            const embeds = buildSnapCastEmbeds({
-              snapUrl,
-              imageUrls: compressedImages.map((img) => img.url),
-              videoUrl: videoUrl || null,
-            });
-            fetch("/api/farcaster/cast", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                text: castText,
-                embeds,
-                channel_id: farcasterChannel || undefined,
-              }),
-            })
-              .then(async (res) => {
-                const data = await res.json().catch(() => ({}));
-                if (res.ok) {
-                  toast({
-                    title: "Cross-posted to Farcaster",
-                    status: "success",
-                    duration: 3000,
-                    isClosable: true,
-                  });
-                } else if (data?.needsSigner) {
-                  toast({
-                    title: "Snap posted, but Farcaster needs signer approval",
-                    description:
-                      "Approve the Farcaster signer in Settings to enable cross-posting.",
-                    status: "warning",
-                    duration: 7000,
-                    isClosable: true,
-                  });
-                } else {
-                  toast({
-                    title: "Snap posted, but Farcaster cross-post failed",
-                    description: data?.error || "Try again later.",
-                    status: "warning",
-                    duration: 6000,
-                    isClosable: true,
-                  });
-                }
-              })
-              .catch((err) => {
-                toast({
-                  title: "Snap posted, but Farcaster cross-post failed",
-                  description: err?.message || "Network error.",
-                  status: "warning",
-                  duration: 6000,
-                  isClosable: true,
-                });
-              });
-          }
-
-          // Fire-and-forget Instagram cross-post. We deliberately don't await:
-          // Reels can take 30s+ to process and we don't want to block the UI.
-          // Toasts surface result/failure even after the composer modal closes.
-          // We re-check canBypassLimit (100+ HP) here even though the menu row
-          // is hidden for sub-100-HP users — instagramCrossPost defaults to
-          // true, so without this gate a low-HP user would get a 403 toast.
-          if (
+          // ── Cross-post orchestration ─────────────────────────────────
+          // Wait for the snap to be indexable on Hive BEFORE firing any
+          // downstream cross-posts. Otherwise Warpcast / scrapers can hit
+          // /post/{author}/{permlink} during the ~3s block confirmation
+          // window, get "Snap not found" metadata back, and cache that
+          // empty response — breaking the embed preview permanently.
+          // Show a single progress toast that walks through the phases
+          // (confirming → cross-posting → done) so the user can follow
+          // along instead of seeing the composer close into silence.
+          const willFarcaster = wantsFarcaster && !!farcasterLinkage;
+          const willInstagram =
             instagramCrossPost &&
             isMainFeedSnap &&
             canBypassLimit &&
-            (compressedImages[0]?.url || videoUrl)
-          ) {
-            // Use /post/{author}/{permlink} for the IG caption link. The
-            // alternative /user/{username}/snap/{permlink} route server-
-            // redirects to the profile page, so Instagram followers tapping
-            // through would land on the user's profile instead of the snap
-            // (which is what kept happening in production reports).
-            const igPermalinkUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${commentAuthor}/${permlink}`;
-            // For video snaps, send the locally-captured thumbnail as
-            // image_url so the IG route uses it as the Reel cover (the
-            // route maps image_url + video_url → cover_url + video_url).
-            // Without this, video-only snaps had no cover and Meta would
-            // extract its own frame, which is often a blank/intro frame.
-            const igImageUrl =
-              compressedImages[0]?.url || (videoUrl ? videoThumbnailUrl : null);
-            const igVideoUrl = videoUrl || null;
-            toast({
-              title: "Cross-posting to Instagram...",
-              status: "info",
-              duration: 4000,
-              isClosable: true,
-            });
-            // Keychain-only users have no userbase_refresh cookie, so the IG
-            // endpoint can't auth them via session. Sign a fresh challenge
-            // with the Hive posting key so the route can verify ownership
-            // of @commentAuthor via the alternate signature path.
-            const igRequest = (async () => {
-              const basePayload: Record<string, unknown> = {
-                hive_author: commentAuthor,
-                hive_permlink: permlink,
-                body: finalCommentBody,
-                tags: snapsTags,
-                image_url: igImageUrl,
-                video_url: igVideoUrl,
-                permalink_url: igPermalinkUrl,
-              };
-              if (!userbaseUser && user) {
-                const issuedAt = new Date().toISOString();
-                const message = [
-                  "Skatehive: cross-post snap to @skatehive on Instagram.",
-                  `Author: @${commentAuthor}`,
-                  `Permlink: ${permlink}`,
-                  `Issued at: ${issuedAt}`,
-                ].join("\n");
-                const signResult = await aioha.signMessage(message, KeyTypes.Posting);
-                if (!signResult?.success || !signResult.result || !signResult.publicKey) {
-                  throw new Error(
-                    signResult?.error ||
-                      "Keychain signature was rejected — Instagram cross-post cancelled."
-                  );
-                }
-                basePayload.hive_signature = signResult.result;
-                basePayload.hive_public_key = signResult.publicKey;
-                basePayload.signed_at = issuedAt;
-              }
-              return fetch("/api/instagram/post", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(basePayload),
-              });
-            })();
+            (!!compressedImages[0]?.url || !!videoUrl);
 
-            igRequest
-              .then(async (res) => {
+          if (willFarcaster || willInstagram) {
+            const progressId = "snap-share-progress";
+            toast({
+              id: progressId,
+              title: "Sharing snap…",
+              description: "Confirming on Hive…",
+              status: "loading",
+              duration: null,
+              isClosable: false,
+            });
+
+            const confirmed = await waitForHivePost(commentAuthor, permlink, {
+              timeoutMs: 5000,
+            });
+            if (!confirmed) {
+              console.warn(
+                `[snap-share] Hive confirm timed out for @${commentAuthor}/${permlink} — cross-posting anyway`
+              );
+            }
+
+            const targets: string[] = [];
+            if (willFarcaster) targets.push("Farcaster");
+            if (willInstagram) targets.push("Instagram");
+            toast.update(progressId, {
+              title: "Sharing snap…",
+              description: `Posting to ${targets.join(" + ")}…`,
+              status: "loading",
+              duration: null,
+              isClosable: false,
+            });
+
+            // Snap URL is shared between Farcaster + Instagram. Use the
+            // /post route — /user/{username}/snap/... redirects to the
+            // profile page for non-bot UAs, which breaks both embeds.
+            const snapUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${commentAuthor}/${permlink}`;
+
+            // Farcaster (awaited so the progress toast closes when done)
+            const farcasterTask: Promise<void> = (async () => {
+              if (!willFarcaster) return;
+              const castText = buildSnapCastText(commentBody, snapUrl);
+              // Embed selection:
+              //   - images → embed up to 2 image URLs directly (Warpcast
+              //     renders inline image previews — best UX).
+              //   - video  → snapUrl FIRST (frame renders the SkateHive
+              //     thumbnail), videoUrl SECOND for clients with inline
+              //     video support.
+              //   - text   → snapUrl alone (frame card).
+              const embeds = buildSnapCastEmbeds({
+                snapUrl,
+                imageUrls: compressedImages.map((img) => img.url),
+                videoUrl: videoUrl || null,
+              });
+              try {
+                const res = await fetch("/api/farcaster/cast", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    text: castText,
+                    embeds,
+                    channel_id: farcasterChannel || undefined,
+                  }),
+                });
                 const data = await res.json().catch(() => ({}));
-                if (res.ok) {
-                  toast({
-                    title: "Posted to @skatehive on Instagram",
-                    description: data?.ig_permalink || undefined,
-                    status: "success",
-                    duration: 4000,
-                    isClosable: true,
-                  });
-                } else {
-                  toast({
-                    title: "Instagram cross-post failed",
-                    description: data?.error || "Try again later.",
-                    status: "warning",
-                    duration: 6000,
-                    isClosable: true,
-                  });
+                if (!res.ok) {
+                  if (data?.needsSigner) {
+                    toast({
+                      title: "Farcaster needs signer approval",
+                      description:
+                        "Approve the Farcaster signer in Settings → App Account.",
+                      status: "warning",
+                      duration: 7000,
+                      isClosable: true,
+                    });
+                  } else {
+                    toast({
+                      title: "Farcaster cross-post failed",
+                      description: data?.error || "Try again later.",
+                      status: "warning",
+                      duration: 6000,
+                      isClosable: true,
+                    });
+                  }
                 }
-              })
-              .catch((err) => {
+              } catch (err: any) {
                 toast({
-                  title: "Instagram cross-post failed",
+                  title: "Farcaster cross-post failed",
                   description: err?.message || "Network error.",
                   status: "warning",
                   duration: 6000,
                   isClosable: true,
                 });
-              });
+              }
+            })();
+
+            // Instagram (fire-and-forget — Reels can take 30+ s). Its own
+            // success/failure toast appears later, after the progress
+            // toast has already closed.
+            if (willInstagram) {
+              const igPermalinkUrl = snapUrl;
+              const igImageUrl =
+                compressedImages[0]?.url ||
+                (videoUrl ? videoThumbnailUrl : null);
+              const igVideoUrl = videoUrl || null;
+
+              const igRequest = (async () => {
+                const basePayload: Record<string, unknown> = {
+                  hive_author: commentAuthor,
+                  hive_permlink: permlink,
+                  body: finalCommentBody,
+                  tags: snapsTags,
+                  image_url: igImageUrl,
+                  video_url: igVideoUrl,
+                  permalink_url: igPermalinkUrl,
+                };
+                // Keychain-only users have no userbase_refresh cookie, so
+                // the IG endpoint can't auth them via session. Sign a
+                // fresh challenge with the posting key so the route can
+                // verify ownership via the alternate signature path.
+                if (!userbaseUser && user) {
+                  const issuedAt = new Date().toISOString();
+                  const message = [
+                    "Skatehive: cross-post snap to @skatehive on Instagram.",
+                    `Author: @${commentAuthor}`,
+                    `Permlink: ${permlink}`,
+                    `Issued at: ${issuedAt}`,
+                  ].join("\n");
+                  const signResult = await aioha.signMessage(
+                    message,
+                    KeyTypes.Posting
+                  );
+                  if (
+                    !signResult?.success ||
+                    !signResult.result ||
+                    !signResult.publicKey
+                  ) {
+                    throw new Error(
+                      signResult?.error ||
+                        "Keychain signature was rejected — Instagram cross-post cancelled."
+                    );
+                  }
+                  basePayload.hive_signature = signResult.result;
+                  basePayload.hive_public_key = signResult.publicKey;
+                  basePayload.signed_at = issuedAt;
+                }
+                return fetch("/api/instagram/post", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(basePayload),
+                });
+              })();
+
+              igRequest
+                .then(async (res) => {
+                  const data = await res.json().catch(() => ({}));
+                  if (res.ok) {
+                    toast({
+                      title: "Posted to @skatehive on Instagram",
+                      description: data?.ig_permalink || undefined,
+                      status: "success",
+                      duration: 4000,
+                      isClosable: true,
+                    });
+                  } else {
+                    toast({
+                      title: "Instagram cross-post failed",
+                      description: data?.error || "Try again later.",
+                      status: "warning",
+                      duration: 6000,
+                      isClosable: true,
+                    });
+                  }
+                })
+                .catch((err) => {
+                  toast({
+                    title: "Instagram cross-post failed",
+                    description: err?.message || "Network error.",
+                    status: "warning",
+                    duration: 6000,
+                    isClosable: true,
+                  });
+                });
+            }
+
+            // Wait for Farcaster only — IG keeps running in the
+            // background and surfaces its own toast on completion.
+            await farcasterTask;
+
+            // Close progress toast and show the final "shared" badge.
+            toast.close(progressId);
+            toast({
+              title: willInstagram
+                ? "Snap shared 🛹 (Instagram is still processing…)"
+                : "Snap shared 🛹",
+              status: "success",
+              duration: 3000,
+              isClosable: true,
+            });
           }
         }
       } catch (error: any) {
