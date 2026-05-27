@@ -173,12 +173,26 @@ export function filterAutoComments(discussions: any[]): any[] {
         const hasAcceptableReputation = authorReputation >= 0;
         const isNotHiveBuzz = discussion.author.toLowerCase() !== "hivebuzz";
 
+        // Author-deleted placeholder posts. Hive forbids on-chain deletion
+        // after 7 days (payout), so apps use a convention: edit the post
+        // to set title="REMOVED" / body="deleted". These should never
+        // appear in feeds. Check both fields and the common variants.
+        const titleTrim = (discussion.title || "").trim();
+        const bodyTrim = (discussion.body || "").trim();
+        const isAuthorDeleted =
+            titleTrim === "REMOVED" ||
+            titleTrim.toLowerCase() === "removed" ||
+            bodyTrim.toLowerCase() === "deleted" ||
+            // Some clients leave both empty
+            (titleTrim === "" && bodyTrim === "");
+
         return (
             hasAcceptableDownvotes &&
             hasAcceptableReputation &&
             isNotHiveBuzz &&
             !hasAdminMod &&
-            !isBridgeHidden
+            !isBridgeHidden &&
+            !isAuthorDeleted
         );
     });
 }
