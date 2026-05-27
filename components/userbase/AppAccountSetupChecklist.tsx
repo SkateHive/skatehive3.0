@@ -4,24 +4,18 @@
  * App Account setup checklist — top-of-page status panel for the
  * Settings → App Account tab.
  *
- * Surfaces every linkable / authorizable thing in one place so the user
- * can finish setup without hunting through different parts of the app:
- *   - Hive (linked? posting key stored?)
- *   - Farcaster (linked? signer approved?)
- *   - EVM wallet (any linked?)
- *   - Instagram handle (set?)
- *
- * Each row is a status badge + optional inline action. The Farcaster
- * "Authorize signer" action opens a modal with a QR code from Neynar
- * that the user scans in the Farcaster app to grant posting access.
+ * Surfaces every linkable / authorizable thing in one place, AND lets the
+ * user manage each item inline (unlink Hive / Farcaster, list & unlink
+ * individual EVM wallets, edit IG handle, etc) so there is no separate
+ * "Linked identities" listing to keep in sync.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import NextLink from "next/link";
 import {
   Box,
   Button,
   Center,
+  Collapse,
   HStack,
   Heading,
   Icon,
@@ -41,7 +35,7 @@ import {
   useDisclosure,
   useToast,
 } from "@chakra-ui/react";
-import { CheckCircleIcon, WarningIcon } from "@chakra-ui/icons";
+import { CheckCircleIcon, WarningIcon, ChevronDownIcon, ChevronUpIcon } from "@chakra-ui/icons";
 import { SiFarcaster } from "react-icons/si";
 import { FaInstagram, FaWallet, FaKey } from "react-icons/fa";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
@@ -67,13 +61,8 @@ interface PostingKeyStatus {
 // ---------------------------------------------------------------------------
 // Hooks / data loading
 
-/**
- * Pulls everything the checklist needs in one place: identities + stored
- * posting key status. Returns a `refresh` to re-fetch after the user
- * completes a setup step.
- */
 function useChecklistData() {
-  const { user } = useUserbaseAuth();
+  const { user, bumpIdentitiesVersion } = useUserbaseAuth();
   const [identities, setIdentities] = useState<IdentityRow[]>([]);
   const [postingKey, setPostingKey] = useState<PostingKeyStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,11 +92,26 @@ function useChecklistData() {
     refresh();
   }, [refresh]);
 
-  return { identities, postingKey, isLoading, refresh };
+  const unlinkIdentity = useCallback(
+    async (id: string) => {
+      const res = await fetch("/api/userbase/identities", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to unlink");
+      await refresh();
+      bumpIdentitiesVersion();
+    },
+    [refresh, bumpIdentitiesVersion]
+  );
+
+  return { identities, postingKey, isLoading, refresh, unlinkIdentity };
 }
 
 // ---------------------------------------------------------------------------
-// Atomic row component — shared visual language for every checklist item
+// Atomic row component
 
 type RowStatus = "ok" | "missing" | "pending" | "loading";
 
@@ -119,6 +123,9 @@ function ChecklistRow({
   actionLabel,
   onAction,
   isActionLoading,
+  manageOpen,
+  onToggleManage,
+  manageContent,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -127,6 +134,9 @@ function ChecklistRow({
   actionLabel?: string;
   onAction?: () => void;
   isActionLoading?: boolean;
+  manageOpen?: boolean;
+  onToggleManage?: () => void;
+  manageContent?: React.ReactNode;
 }) {
   const statusIcon =
     status === "ok" ? (
@@ -140,46 +150,68 @@ function ChecklistRow({
     );
 
   return (
-    <HStack
-      justify="space-between"
-      align="center"
-      p={3}
-      borderTop="1px solid"
-      borderColor="border"
-      gap={3}
-      _first={{ borderTop: "none" }}
-    >
-      <HStack spacing={3} flex="1" minW={0}>
-        <Box flexShrink={0}>{statusIcon}</Box>
-        <Box flexShrink={0} color="dim" w="20px" textAlign="center">
-          {icon}
-        </Box>
-        <Box minW={0} flex="1">
-          <Text fontFamily="mono" fontSize="sm" color="text" noOfLines={1}>
-            {title}
-          </Text>
-          {detail && (
-            <Text fontFamily="mono" fontSize="xs" color="dim" noOfLines={1}>
-              {detail}
+    <Box borderTop="1px solid" borderColor="border" _first={{ borderTop: "none" }}>
+      <HStack justify="space-between" align="center" p={3} gap={3}>
+        <HStack spacing={3} flex="1" minW={0}>
+          <Box flexShrink={0}>{statusIcon}</Box>
+          <Box flexShrink={0} color="dim" w="20px" textAlign="center">
+            {icon}
+          </Box>
+          <Box minW={0} flex="1">
+            <Text fontFamily="mono" fontSize="sm" color="text" noOfLines={1}>
+              {title}
             </Text>
+            {detail && (
+              <Text fontFamily="mono" fontSize="xs" color="dim" noOfLines={1}>
+                {detail}
+              </Text>
+            )}
+          </Box>
+        </HStack>
+        <HStack spacing={1}>
+          {actionLabel && onAction && (
+            <Button
+              size="xs"
+              variant={status === "ok" ? "ghost" : "outline"}
+              fontFamily="mono"
+              fontSize="2xs"
+              color={status === "ok" ? "dim" : "primary"}
+              borderColor="primary"
+              onClick={onAction}
+              isLoading={!!isActionLoading}
+            >
+              {actionLabel}
+            </Button>
           )}
-        </Box>
+          {onToggleManage && manageContent && (
+            <Button
+              size="xs"
+              variant="ghost"
+              fontFamily="mono"
+              fontSize="2xs"
+              color="dim"
+              rightIcon={manageOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
+              onClick={onToggleManage}
+            >
+              Manage
+            </Button>
+          )}
+        </HStack>
       </HStack>
-      {actionLabel && onAction && (
-        <Button
-          size="xs"
-          variant={status === "ok" ? "ghost" : "outline"}
-          fontFamily="mono"
-          fontSize="2xs"
-          color={status === "ok" ? "dim" : "primary"}
-          borderColor="primary"
-          onClick={onAction}
-          isLoading={!!isActionLoading}
-        >
-          {actionLabel}
-        </Button>
+      {manageContent && (
+        <Collapse in={!!manageOpen} animateOpacity>
+          <Box
+            px={3}
+            py={3}
+            bg="muted"
+            borderTop="1px dashed"
+            borderColor="border"
+          >
+            {manageContent}
+          </Box>
+        </Collapse>
       )}
-    </HStack>
+    </Box>
   );
 }
 
@@ -199,7 +231,6 @@ function SignerApprovalModal({
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const fired = useRef(false);
 
-  // Kick off signer creation when the modal first opens
   useEffect(() => {
     if (isOpen && !fired.current) {
       fired.current = true;
@@ -210,7 +241,6 @@ function SignerApprovalModal({
     }
   }, [isOpen, signer]);
 
-  // Notify parent + close once Neynar reports approval
   useEffect(() => {
     if (signer.isApproved && isOpen) {
       onApproved();
@@ -218,8 +248,6 @@ function SignerApprovalModal({
     }
   }, [signer.isApproved, isOpen, onApproved, onClose]);
 
-  // Render the approval URL as a QR. Dynamic import keeps qrcode out of the
-  // initial bundle since most users will never open this modal.
   useEffect(() => {
     if (!signer.approvalUrl) {
       setQrDataUrl(null);
@@ -397,12 +425,63 @@ function IgHandleInlineEditor({
 }
 
 // ---------------------------------------------------------------------------
+// Inline unlink button (used inside the Manage panels)
+
+function UnlinkButton({
+  onUnlink,
+  label = "Unlink",
+}: {
+  onUnlink: () => Promise<void>;
+  label?: string;
+}) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      size="xs"
+      variant="outline"
+      fontFamily="mono"
+      fontSize="2xs"
+      borderColor="error"
+      color="error"
+      isLoading={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await onUnlink();
+        } catch (err: any) {
+          toast({
+            title: "Unlink failed",
+            description: err?.message,
+            status: "error",
+            duration: 3000,
+          });
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {label}
+    </Button>
+  );
+}
+
+function shortAddress(addr: string | null) {
+  if (!addr) return "";
+  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 
+type ManageKey = "hive" | "farcaster" | "evm" | null;
+
 export default function AppAccountSetupChecklist() {
-  const { identities, postingKey, isLoading, refresh } = useChecklistData();
+  const { identities, postingKey, isLoading, refresh, unlinkIdentity } =
+    useChecklistData();
   const signerDisclosure = useDisclosure();
   const [igEditing, setIgEditing] = useState(false);
+  const [manageOpen, setManageOpen] = useState<ManageKey>(null);
 
   const byType = useMemo(() => {
     const out: Record<string, IdentityRow[]> = {};
@@ -414,10 +493,10 @@ export default function AppAccountSetupChecklist() {
 
   const hive = byType.hive?.[0];
   const farcaster = byType.farcaster?.[0];
-  const evmCount = byType.evm?.length || 0;
+  const evmWallets = byType.evm || [];
+  const evmCount = evmWallets.length;
   const instagram = byType.instagram?.[0];
-  const signerApproved =
-    farcaster?.metadata?.signer_status === "approved";
+  const signerApproved = farcaster?.metadata?.signer_status === "approved";
 
   const completed = [
     !!hive,
@@ -428,6 +507,9 @@ export default function AppAccountSetupChecklist() {
     !!instagram?.handle,
   ].filter(Boolean).length;
   const total = 6;
+
+  const toggle = (key: Exclude<ManageKey, null>) =>
+    setManageOpen((prev) => (prev === key ? null : key));
 
   return (
     <Box border="1px solid" borderColor="muted" bg="background">
@@ -442,19 +524,45 @@ export default function AppAccountSetupChecklist() {
           </Text>
         </HStack>
         <Text fontFamily="mono" fontSize="xs" color="dim" mt={1}>
-          Each step unlocks a SkateHive capability. Finish what you actually need — none of them are required to use the app.
+          Each step unlocks a SkateHive capability. Finish what you actually
+          need — none of them are required to use the app.
         </Text>
       </Box>
 
       <Box>
+        {/* Hive account */}
         <ChecklistRow
           icon={<Image src="/logos/SKATE_HIVE_CIRCLE.svg" alt="" boxSize="16px" />}
           title="Hive account linked"
-          detail={hive ? `@${hive.handle}` : "Lets you post snaps that appear under your Hive name"}
+          detail={
+            hive
+              ? `@${hive.handle}`
+              : "Lets you post snaps that appear under your Hive name"
+          }
           status={hive ? "ok" : "missing"}
           actionLabel={hive ? undefined : "Link Hive"}
           onAction={hive ? undefined : () => scrollToLinker()}
+          manageOpen={manageOpen === "hive"}
+          onToggleManage={hive ? () => toggle("hive") : undefined}
+          manageContent={
+            hive ? (
+              <HStack justify="space-between">
+                <VStack align="start" spacing={0}>
+                  <Text fontFamily="mono" fontSize="xs" color="text">
+                    @{hive.handle}
+                  </Text>
+                  <Text fontFamily="mono" fontSize="2xs" color="dim">
+                    Sign-in via Hive Keychain. Unlinking removes the binding
+                    but does not affect your Hive account on-chain.
+                  </Text>
+                </VStack>
+                <UnlinkButton onUnlink={() => unlinkIdentity(hive.id)} />
+              </HStack>
+            ) : undefined
+          }
         />
+
+        {/* Posting key */}
         <ChecklistRow
           icon={<Icon as={FaKey} />}
           title="Hive posting key stored"
@@ -467,6 +575,8 @@ export default function AppAccountSetupChecklist() {
           actionLabel={postingKey?.stored ? "Manage" : "Add key"}
           onAction={() => scrollTo("posting-key-panel")}
         />
+
+        {/* Farcaster account */}
         <ChecklistRow
           icon={<Icon as={SiFarcaster} color="primary" />}
           title="Farcaster account linked"
@@ -480,7 +590,28 @@ export default function AppAccountSetupChecklist() {
           status={farcaster ? "ok" : "missing"}
           actionLabel={farcaster ? undefined : "Link Farcaster"}
           onAction={farcaster ? undefined : () => scrollToLinker()}
+          manageOpen={manageOpen === "farcaster"}
+          onToggleManage={farcaster ? () => toggle("farcaster") : undefined}
+          manageContent={
+            farcaster ? (
+              <HStack justify="space-between">
+                <VStack align="start" spacing={0}>
+                  <Text fontFamily="mono" fontSize="xs" color="text">
+                    @{farcaster.handle}
+                    {farcaster.external_id ? ` · fid ${farcaster.external_id}` : ""}
+                  </Text>
+                  <Text fontFamily="mono" fontSize="2xs" color="dim">
+                    Unlinking removes cross-post access. You can re-link any
+                    time from a Farcaster session.
+                  </Text>
+                </VStack>
+                <UnlinkButton onUnlink={() => unlinkIdentity(farcaster.id)} />
+              </HStack>
+            ) : undefined
+          }
         />
+
+        {/* Farcaster signer */}
         <ChecklistRow
           icon={<Icon as={SiFarcaster} color="primary" />}
           title="Farcaster signer authorized"
@@ -491,14 +622,14 @@ export default function AppAccountSetupChecklist() {
               ? "Approved — Farcaster cross-post is ready"
               : "One-time scan in the Farcaster app to grant posting access"
           }
-          status={signerApproved ? "ok" : !farcaster ? "missing" : "missing"}
-          actionLabel={
-            farcaster && !signerApproved ? "Authorize" : undefined
-          }
+          status={signerApproved ? "ok" : "missing"}
+          actionLabel={farcaster && !signerApproved ? "Authorize" : undefined}
           onAction={
             farcaster && !signerApproved ? signerDisclosure.onOpen : undefined
           }
         />
+
+        {/* EVM wallets */}
         <ChecklistRow
           icon={<Icon as={FaWallet} />}
           title="EVM wallet linked"
@@ -508,9 +639,37 @@ export default function AppAccountSetupChecklist() {
               : "Optional: enables NFT / on-chain features"
           }
           status={evmCount ? "ok" : "missing"}
-          actionLabel={evmCount ? undefined : "Link wallet"}
-          onAction={evmCount ? undefined : () => scrollToLinker()}
+          actionLabel={evmCount ? "Add another" : "Link wallet"}
+          onAction={() => scrollToLinker()}
+          manageOpen={manageOpen === "evm"}
+          onToggleManage={evmCount ? () => toggle("evm") : undefined}
+          manageContent={
+            evmCount ? (
+              <VStack align="stretch" spacing={2}>
+                {evmWallets.map((wallet) => (
+                  <HStack key={wallet.id} justify="space-between">
+                    <VStack align="start" spacing={0}>
+                      <Text fontFamily="mono" fontSize="xs" color="text">
+                        {shortAddress(wallet.address)}
+                        {wallet.is_primary && (
+                          <Text as="span" color="primary" ml={2} fontSize="2xs">
+                            primary
+                          </Text>
+                        )}
+                      </Text>
+                      <Text fontFamily="mono" fontSize="2xs" color="dim">
+                        {wallet.address}
+                      </Text>
+                    </VStack>
+                    <UnlinkButton onUnlink={() => unlinkIdentity(wallet.id)} />
+                  </HStack>
+                ))}
+              </VStack>
+            ) : undefined
+          }
         />
+
+        {/* Instagram handle */}
         {igEditing ? (
           <Box p={3} borderTop="1px solid" borderColor="border">
             <HStack justify="space-between" align="start" mb={2}>
