@@ -21,7 +21,7 @@ const SidebarLogo = ({ prioritizeAuctionImage = false }: SidebarLogoProps) => {
   // TODO(2026-06-03): revert to <SkateHiveLogo /> below
   const skateHiveLogoContent = (
     <Image
-      src="https://images.hive.blog/u/marcjohnson/avatar/large"
+      src="/images/marcjohnson.jpeg"
       alt="marcjohnson"
       style={{
         width: "100%",
