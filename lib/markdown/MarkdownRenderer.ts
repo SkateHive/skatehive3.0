@@ -173,9 +173,15 @@ export function processMediaContent(content: string): string {
         /<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})[^"']*["'][^>]*><\/iframe>/gim,
         (_match, videoId) => `[[YOUTUBE:${videoId}]]`
     );
-    // YouTube direct links
+    // YouTube Shorts direct links — captured separately and tagged with an
+    // "s:" prefix so the dispatcher can render at 9/16 instead of 16/9.
     processedContent = processedContent.replace(
-        /^https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^\s]*&)?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})[\S]*/gim,
+        /^https?:\/\/(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})[\S]*/gim,
+        (_match, videoId) => `[[YOUTUBE:s:${videoId}]]`
+    );
+    // YouTube direct links (regular videos — must run AFTER the Shorts rule)
+    processedContent = processedContent.replace(
+        /^https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^\s]*&)?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})[\S]*/gim,
         (_match, videoId) => `[[YOUTUBE:${videoId}]]`
     );
     // Vimeo iframe embeds

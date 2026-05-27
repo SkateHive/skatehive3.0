@@ -18,6 +18,7 @@ import { FiMaximize, FiMinimize, FiVolume2, FiVolumeX } from "react-icons/fi";
 import { LuPause, LuPlay, LuRotateCw } from "react-icons/lu";
 import { useInView } from "react-intersection-observer";
 import LogoMatrix from "../graphics/LogoMatrix";
+import { getVideoThumbnail } from "@/lib/utils/ipfsMetadata";
 
 type RendererProps = {
   src?: string;
@@ -27,6 +28,16 @@ type RendererProps = {
   loop?: boolean;
   skipThumbnailLoad?: boolean;
   disableAutoplay?: boolean;
+  /** Override the auto-fetched poster URL. When omitted, VideoRenderer
+   *  resolves the thumbnail from the video's IPFS metadata (Pinata
+   *  keyvalues.thumbnailUrl). Set explicitly when the caller has already
+   *  resolved a poster from a different source (e.g. 3Speak's resolve API).
+   */
+  posterOverride?: string | null;
+  /** Override the container aspect ratio. When omitted, VideoRenderer
+   *  measures the poster image to derive aspect. Useful when the caller
+   *  knows the aspect from external metadata. */
+  aspectRatioOverride?: string;
   [key: string]: any;
 };
 
@@ -259,6 +270,66 @@ async function findFastestIpfsUrl(
   }
 }
 
+// Probe a thumbnail's intrinsic dimensions so we can size the container to
+// the real video shape *before* the video itself loads. Same trick the
+// 3Speak/Odysee posters use — the thumbnail mirrors video aspect.
+function measureImage(
+  url: string
+): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(null);
+      return;
+    }
+    const img = new Image();
+    let done = false;
+    const finish = (r: { w: number; h: number } | null) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      img.onload = null;
+      img.onerror = null;
+      resolve(r);
+    };
+    const timer = setTimeout(() => finish(null), 4000);
+    img.onload = () =>
+      finish(
+        img.naturalWidth && img.naturalHeight
+          ? { w: img.naturalWidth, h: img.naturalHeight }
+          : null
+      );
+    img.onerror = () => finish(null);
+    img.src = url;
+  });
+}
+
+// Per-page-load cache for resolved poster + aspect. Skatehive videos that
+// appear twice on the same page (snap feed + magazine) only hit the IPFS
+// metadata endpoint once.
+type PosterData = { poster: string | null; aspectRatio: string };
+const posterDataCache = new Map<string, Promise<PosterData>>();
+
+function fetchPosterData(src: string): Promise<PosterData> {
+  const cached = posterDataCache.get(src);
+  if (cached) return cached;
+  const promise = (async (): Promise<PosterData> => {
+    let poster: string | null = null;
+    try {
+      poster = await getVideoThumbnail(src);
+    } catch {
+      // metadata lookup failed — keep poster null
+    }
+    let aspectRatio = "16 / 9";
+    if (poster) {
+      const dims = await measureImage(poster);
+      if (dims) aspectRatio = `${dims.w} / ${dims.h}`;
+    }
+    return { poster, aspectRatio };
+  })();
+  posterDataCache.set(src, promise);
+  return promise;
+}
+
 // Chromium-only Network Information API. Returns false on Safari/Firefox where
 // the API is absent — those users keep default behavior (no regression).
 function isSlowConnection(): boolean {
@@ -270,7 +341,7 @@ function isSlowConnection(): boolean {
   return et === "slow-2g" || et === "2g" || et === "3g";
 }
 
-const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutoplay = false, ...props }: RendererProps) => {
+const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutoplay = false, posterOverride, aspectRatioOverride, ...props }: RendererProps) => {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isHorizontal, setIsHorizontal] = useState(false);
@@ -308,6 +379,32 @@ const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutop
     retriedRef.current.clear();
     setHasError(false);
   }, [src]);
+
+  // Resolve poster + aspect from IPFS metadata (cached per-src). Skipped
+  // when a caller passes posterOverride OR aspectRatioOverride — they've
+  // already done their own resolution (e.g. 3Speak's resolve API).
+  const [poster, setPoster] = useState<string | null>(posterOverride ?? null);
+  const [aspectRatio, setAspectRatio] = useState<string>(
+    aspectRatioOverride ?? "16 / 9"
+  );
+  useEffect(() => {
+    if (posterOverride !== undefined || aspectRatioOverride !== undefined) {
+      // Caller is driving these — keep their values in sync.
+      if (posterOverride !== undefined) setPoster(posterOverride);
+      if (aspectRatioOverride !== undefined) setAspectRatio(aspectRatioOverride);
+      return;
+    }
+    if (!src) return;
+    let cancelled = false;
+    fetchPosterData(src).then((d) => {
+      if (cancelled) return;
+      setPoster(d.poster);
+      setAspectRatio(d.aspectRatio);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [src, posterOverride, aspectRatioOverride]);
 
   // Hide progress bar on mobile (show only audio controls)
   const showProgressBar = useBreakpointValue({ base: false, md: true }) ?? true;
@@ -594,11 +691,21 @@ const VideoRenderer = ({ src, fallbackSrcs = [], skipThumbnailLoad, disableAutop
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <picture style={{ position: "relative", width: "100%", height: "100%" }}>
+      <picture
+        style={{
+          position: "relative",
+          width: "100%",
+          // Hold the right shape before the video has any frames — kills the
+          // letterbox-jump that used to happen when the browser learned the
+          // real dimensions from loadedmetadata.
+          aspectRatio,
+        }}
+      >
         <video
           {...props}
           ref={setRefs}
           src={currentSrc}
+          poster={poster ?? undefined}
           muted={true} // Always start muted for autoplay
           controls={false}
           playsInline={true}

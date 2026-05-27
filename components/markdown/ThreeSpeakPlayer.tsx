@@ -296,7 +296,9 @@ function ThreeSpeakPoster({
           }}
         />
       )}
-      {/* Skatehive-primary play badge */}
+      {/* 3Speak-orange play badge on the poster (matches their brand and
+          telegraphs the source). Once playback starts, our control bar uses
+          Skatehive limegreen — provenance on the cover, our app inside. */}
       <span
         aria-hidden
         style={{
@@ -314,8 +316,8 @@ function ThreeSpeakPoster({
           viewBox="0 0 76 76"
           style={{ filter: "drop-shadow(0 2px 12px rgba(0,0,0,0.55))" }}
         >
-          <circle cx="38" cy="38" r="36" fill={PRIMARY} fillOpacity="0.92" />
-          <path d="M30 24 L54 38 L30 52 Z" fill="#000" />
+          <circle cx="38" cy="38" r="36" fill="rgba(255, 88, 0, 0.92)" />
+          <path d="M30 24 L54 38 L30 52 Z" fill="#fff" />
         </svg>
       </span>
       {/* Provenance ribbon — visible affordance that this is 3Speak content */}
