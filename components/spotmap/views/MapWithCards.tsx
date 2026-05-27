@@ -17,6 +17,7 @@ import {
   Spinner,
   Text,
   useBreakpointValue,
+  useToast,
 } from "@chakra-ui/react";
 import type { DivIcon, LatLngBounds, Map as LeafletMap } from "leaflet";
 import { useGeoSpots, type GeoSpot } from "@/hooks/useGeoSpots";
@@ -140,6 +141,7 @@ interface MapWithCardsProps {
 export default function MapWithCards({ useGeolocation = false }: MapWithCardsProps) {
   const { geoSpots, isLoading, error } = useGeoSpots();
   const isMobile = useBreakpointValue({ base: true, lg: false });
+  const toast = useToast();
   const [icon, setIcon] = useState<DivIcon | null>(null);
   const [highlightedIcon, setHighlightedIcon] = useState<DivIcon | null>(null);
   const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
@@ -147,6 +149,39 @@ export default function MapWithCards({ useGeolocation = false }: MapWithCardsPro
   const [bounds, setBounds] = useState<LatLngBounds | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+
+  // Maps GeolocationPositionError.code values to a user-friendly message
+  // and (where it helps) actionable advice. iOS Safari is the common
+  // offender — it silently returns PERMISSION_DENIED when Location
+  // Services are off for Safari at the OS level, which leaves users
+  // wondering why the button "does nothing".
+  const handleGeolocationError = useCallback(
+    (err: GeolocationPositionError) => {
+      setLocating(false);
+      let title = "Couldn't get your location";
+      let description = err.message || "Try again in a moment.";
+      if (err.code === err.PERMISSION_DENIED) {
+        title = "Location permission denied";
+        description =
+          "Allow location for this site in your browser settings. On iOS Safari, also check Settings → Privacy → Location Services → Safari.";
+      } else if (err.code === err.POSITION_UNAVAILABLE) {
+        title = "Location unavailable";
+        description = "Your device couldn't determine your location. Try moving somewhere with a clearer signal.";
+      } else if (err.code === err.TIMEOUT) {
+        title = "Location request timed out";
+        description = "Your device took too long to respond. Try again.";
+      }
+      toast({
+        title,
+        description,
+        status: "warning",
+        duration: 6000,
+        isClosable: true,
+        position: "top",
+      });
+    },
+    [toast]
+  );
 
   const mapRef = useRef<LeafletMap | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
@@ -184,7 +219,9 @@ export default function MapWithCards({ useGeolocation = false }: MapWithCardsPro
     };
   }, []);
 
-  // Optional auto-locate
+  // Optional auto-locate (no toast on the auto-run — only show errors for
+  // user-initiated locates so an unsupported device doesn't yell at the
+  // user on page load).
   useEffect(() => {
     if (!useGeolocation || typeof window === "undefined") return;
     if (!navigator.geolocation) return;
@@ -196,12 +233,22 @@ export default function MapWithCards({ useGeolocation = false }: MapWithCardsPro
         setLocating(false);
       },
       () => setLocating(false),
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
     );
   }, [useGeolocation]);
 
   const requestLocate = useCallback(() => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      toast({
+        title: "Location not supported",
+        description: "Your browser doesn't expose geolocation.",
+        status: "warning",
+        duration: 5000,
+        isClosable: true,
+        position: "top",
+      });
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -214,10 +261,12 @@ export default function MapWithCards({ useGeolocation = false }: MapWithCardsPro
         }
         setLocating(false);
       },
-      () => setLocating(false),
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+      handleGeolocationError,
+      // Safari often takes >8s to respond on first prompt — bump the timeout
+      // so legitimate locates aren't reported as failures.
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
     );
-  }, []);
+  }, [handleGeolocationError, toast]);
 
   // Filter spots to the current viewport. On the very first render bounds is
   // null and we show everything (otherwise the list would be empty until the
@@ -360,28 +409,31 @@ export default function MapWithCards({ useGeolocation = false }: MapWithCardsPro
         },
       }}
     >
-      {/* Header row */}
-      <Flex align="baseline" justify="space-between" mb={3}>
-        <HStack spacing={3} align="baseline">
+      {/* Header row — on mobile the bottom-sheet renders an equivalent
+          label in its drag handle, so don't show it twice. */}
+      {!isMobile && (
+        <Flex align="baseline" justify="space-between" mb={3}>
+          <HStack spacing={3} align="baseline">
+            <Text
+              as="h2"
+              fontSize="sm"
+              color="primary"
+              textTransform="uppercase"
+              letterSpacing="wide"
+              fontWeight="800"
+            >
+              {bounds ? "Spots in this view" : "All spots"}
+            </Text>
+          </HStack>
           <Text
-            as="h2"
-            fontSize="sm"
-            color="primary"
-            textTransform="uppercase"
-            letterSpacing="wide"
-            fontWeight="800"
+            fontSize="xs"
+            color="gray.500"
+            fontFamily="ui-monospace, monospace"
           >
-            {bounds ? "Spots in this view" : "All spots"}
+            {visibleSpots.length} / {geoSpots.length}
           </Text>
-        </HStack>
-        <Text
-          fontSize="xs"
-          color="gray.500"
-          fontFamily="ui-monospace, monospace"
-        >
-          {visibleSpots.length} / {geoSpots.length}
-        </Text>
-      </Flex>
+        </Flex>
+      )}
 
       {isLoading && geoSpots.length === 0 ? (
         <Flex justify="center" py={10}>
@@ -435,12 +487,26 @@ export default function MapWithCards({ useGeolocation = false }: MapWithCardsPro
   // holding the list. The sheet starts at "peek" so the map is dominant;
   // the user drags up to "mid" or "full" to browse cards.
   if (isMobile) {
+    // The sheet's header doubles as the drag target — surface the spot
+    // count here so the user has a clear thing to tap/grab even at peek.
+    const sheetLabel = (
+      <>
+        <Box as="span" color="primary">
+          SPOTS IN THIS VIEW
+        </Box>
+        <Box as="span" color="gray.500" ml={1.5}>
+          · {visibleSpots.length} / {geoSpots.length}
+        </Box>
+      </>
+    );
     return (
       <Box position="relative" h="calc(100vh - 150px)" overflow="hidden">
         <Box position="absolute" inset={0}>
           {mapPane}
         </Box>
-        <MobileMapSheet initialDetent="peek">{cardList}</MobileMapSheet>
+        <MobileMapSheet initialDetent="peek" label={sheetLabel}>
+          {cardList}
+        </MobileMapSheet>
       </Box>
     );
   }
