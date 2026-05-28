@@ -138,7 +138,6 @@ export default function RightSideBar() {
         p={4}
         borderWidth="1px"
         borderColor="whiteAlpha.200"
-        borderRadius="lg"
         bg="rgba(20,20,20,0.45)"
       >
       <SpotNearYou />

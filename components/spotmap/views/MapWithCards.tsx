@@ -67,6 +67,15 @@ const SpotMarker = memo(function SpotMarker({
   highlighted,
   onHover,
 }: SpotMarkerProps) {
+  // Tracks whether THIS marker's popup is currently open. We can't change
+  // the icon prop while it's open: react-leaflet's setIcon, combined with
+  // MarkerClusterGroup, removes and re-adds the marker, which destroys
+  // the open popup mid-click and makes the buttons unreachable. By
+  // freezing the icon to the highlighted variant while the popup is open
+  // we sidestep the swap entirely.
+  const [popupOpen, setPopupOpen] = useState(false);
+  const isActive = highlighted || popupOpen;
+
   // Every spot row now has a (hive_author, hive_permlink). For Hive spots
   // that's the real identity; for KML spots it's the synthetic
   // "skatehive-map" author and the row uuid.
@@ -81,12 +90,23 @@ const SpotMarker = memo(function SpotMarker({
     <Marker
       // @ts-ignore — react-leaflet types resolve only after dynamic import
       position={[spot.lat, spot.lng]}
-      icon={highlighted ? highlightedIcon : icon}
+      icon={isActive ? highlightedIcon : icon}
       eventHandlers={{
         mouseover: () => onHover(spot.id),
-        mouseout: () => onHover(null),
+        // Don't drop the hover-highlight while the popup is open — the
+        // user is moving toward the popup buttons, the marker should
+        // stay "active" so the card on the left rail stays highlighted
+        // and the icon doesn't shrink (which would close the popup).
+        mouseout: () => {
+          if (!popupOpen) onHover(null);
+        },
+        popupopen: () => setPopupOpen(true),
+        popupclose: () => {
+          setPopupOpen(false);
+          onHover(null);
+        },
       }}
-      zIndexOffset={highlighted ? 1000 : 0}
+      zIndexOffset={isActive ? 1000 : 0}
     >
       <Popup
         // @ts-ignore
