@@ -5,6 +5,7 @@ import { buildCreateClaimedAccountOperation, getSponsorClaimedAccounts } from '@
 import { storeEncryptedKey } from '@/lib/userbase/keyManagement';
 import { sendSponsorshipEmail } from '@/lib/email/sendSponsorshipEmail';
 import { SPONSORSHIP_CONFIG } from '@/config/app.config';
+import { checkHiveAccountExists, validateHiveUsernameFormat } from '@/lib/utils/hiveAccountUtils';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -52,6 +53,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const normalizedHiveUsername = String(hive_username).trim().toLowerCase();
+    const usernameValidation = validateHiveUsernameFormat(normalizedHiveUsername);
+    if (!usernameValidation.isValid) {
+      return NextResponse.json(
+        { error: usernameValidation.error || 'Invalid Hive username format' },
+        { status: 400 }
+      );
+    }
+
+    if (await checkHiveAccountExists(normalizedHiveUsername)) {
+      return NextResponse.json(
+        { error: 'This Hive username is already taken' },
+        { status: 400 }
+      );
+    }
+
     // 1. Verify the platform account still has ACC tokens
     const available = await getSponsorClaimedAccounts(platformAccount);
     if (available <= 0) {
@@ -62,10 +79,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Generate keys for the new account
-    const keys = generateHiveKeys(hive_username);
+    const keys = generateHiveKeys(normalizedHiveUsername);
 
     // 3. Build create_claimed_account operation
-    const operation = buildCreateClaimedAccountOperation(platformAccount, hive_username, keys);
+    const operation = buildCreateClaimedAccountOperation(platformAccount, normalizedHiveUsername, keys);
 
     // 4. Broadcast with platform active key
     const { Client, PrivateKey } = await import('@hiveio/dhive');
@@ -91,7 +108,7 @@ export async function POST(request: NextRequest) {
       .insert({
         lite_user_id,
         sponsor_user_id: sponsor_user_id || null,
-        hive_username,
+        hive_username: normalizedHiveUsername,
         cost_type: 'account_token',
         cost_amount: 0,
         status: 'processing',
@@ -109,7 +126,7 @@ export async function POST(request: NextRequest) {
     await storeEncryptedKey(
       supabase,
       lite_user_id,
-      hive_username,
+      normalizedHiveUsername,
       keys.posting,
       'sponsored'
     );
@@ -118,7 +135,7 @@ export async function POST(request: NextRequest) {
     await supabase.from('userbase_identities').insert({
       user_id: lite_user_id,
       type: 'hive',
-      handle: hive_username,
+      handle: normalizedHiveUsername,
       is_primary: true,
       verified_at: new Date().toISOString(),
       metadata: {
@@ -141,7 +158,7 @@ export async function POST(request: NextRequest) {
       if (userData) {
         const profileMetadata = {
           profile: {
-            name: userData.handle || userData.display_name || hive_username,
+            name: userData.handle || userData.display_name || normalizedHiveUsername,
             profile_image: userData.avatar_url || '',
             about: 'Skatehive member • Sponsored account',
             website: 'https://skatehive.app',
@@ -150,7 +167,7 @@ export async function POST(request: NextRequest) {
         const accountUpdateOp: ['account_update2', any] = [
           'account_update2',
           {
-            account: hive_username,
+            account: normalizedHiveUsername,
             posting_json_metadata: JSON.stringify(profileMetadata),
             extensions: [],
           },
@@ -176,7 +193,7 @@ export async function POST(request: NextRequest) {
     if (authMethod?.identifier) {
       emailSent = await sendSponsorshipEmail(
         authMethod.identifier,
-        hive_username,
+        normalizedHiveUsername,
         platformAccount,
         keys
       );
@@ -195,7 +212,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      hive_username,
+      hive_username: normalizedHiveUsername,
       tx_id: txId,
       email_sent: emailSent,
     });
