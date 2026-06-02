@@ -4,7 +4,7 @@
 
 ## Overview
 
-Health check endpoint for Instagram download servers. Tests availability of all three fallback servers (Mac Mini M4, Raspberry Pi, Render) and returns their status. Used by frontend to display service availability.
+Health check endpoint for Instagram download servers. Tests availability of all fallback servers (Mac Mini M4, Raspberry Pi) and returns their status. Used by frontend to display service availability.
 
 **Status**: ✅ Active (Production)  
 **Method**: `GET`  
@@ -30,11 +30,6 @@ Checks health of all Instagram download servers.
       "server": "https://vladsberry.tail83ea3e.ts.net",
       "healthy": true,
       "status": 200
-    },
-    {
-      "server": "https://skate-insta.onrender.com",
-      "healthy": false,
-      "error": "Server timeout"
     }
   ],
   "healthyServers": [
@@ -59,11 +54,10 @@ Checks health of all Instagram download servers.
 
 ## Server List
 
-Three fallback servers (in priority order):
+Two fallback servers (in priority order):
 
 1. **Mac Mini M4** (Primary): `https://minivlad.tail83ea3e.ts.net`
 2. **Raspberry Pi** (Secondary): `https://vladsberry.tail83ea3e.ts.net`
-3. **Render** (Fallback): `https://skate-insta.onrender.com`
 
 ## Health Check Logic
 
@@ -79,7 +73,7 @@ Returns healthy if:
 ## Timeout
 
 - **Per Server**: 10 seconds
-- **Total Request**: ~30 seconds (3 servers × 10s, checked in parallel)
+- **Total Request**: ~20 seconds (2 servers × 10s, checked in parallel)
 
 ## Usage Examples
 
@@ -163,6 +157,5 @@ await redis.setex(cacheKey, 60, JSON.stringify(health));
 
 - Mac Mini M4 is behind Tailscale VPN
 - Raspberry Pi is also behind Tailscale
-- Render server is publicly accessible
 - Health checks run in parallel for speed
 - Used by dashboard to show service status

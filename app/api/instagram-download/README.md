@@ -4,7 +4,7 @@
 
 ## Overview
 
-Downloads Instagram videos/reels/posts and uploads them to IPFS via multiple server fallback chain. Automatically tries Mac Mini M4, Raspberry Pi, and Render servers in sequence until successful.
+Downloads Instagram videos/reels/posts and uploads them to IPFS via multiple server fallback chain. Automatically tries Mac Mini M4 and Raspberry Pi servers in sequence until successful.
 
 ## Endpoint
 
@@ -38,12 +38,10 @@ Download Instagram content and pin to IPFS.
 ### Production (Vercel)
 1. **Mac Mini M4** (Primary): `https://minivlad.tail83ea3e.ts.net/instagram/download`
 2. **Raspberry Pi** (Secondary): `https://vladsberry.tail83ea3e.ts.net/instagram/download`
-3. **Render** (Fallback): `https://skate-insta.onrender.com/download`
 
 ### Development (Local)
 1. **Localhost** (Primary): `http://localhost:6666/download`
 2. **Raspberry Pi** (Secondary): `https://vladsberry.tail83ea3e.ts.net/instagram/download`
-3. **Render** (Fallback): `https://skate-insta.onrender.com/download`
 
 **Timeout per server:** 2 minutes (120 seconds)
 
@@ -96,8 +94,7 @@ Download Instagram content and pin to IPFS.
   "details": "Last error: Server https://... timed out",
   "attemptedServers": [
     "https://minivlad.tail83ea3e.ts.net/instagram/download",
-    "https://vladsberry.tail83ea3e.ts.net/instagram/download",
-    "https://skate-insta.onrender.com/download"
+    "https://vladsberry.tail83ea3e.ts.net/instagram/download"
   ]
 }
 ```
@@ -149,8 +146,7 @@ curl -X POST https://skatehive.app/api/instagram-download \
 1. **Validate URL:** Checks Instagram URL format
 2. **Try Primary Server:** Attempts Mac Mini M4 (production) or localhost (dev)
 3. **Fallback to Secondary:** If primary fails, tries Raspberry Pi
-4. **Fallback to Tertiary:** If secondary fails, tries Render
-5. **Return Result:** Returns first successful response or aggregated error
+4. **Return Result:** Returns first successful response or aggregated error
 
 Each server attempt:
 - Posts Instagram URL to server's `/download` endpoint
@@ -219,5 +215,5 @@ Each server in the chain must:
 ---
 
 **Status:** ✅ Active  
-**Dependencies:** Mac Mini M4, Raspberry Pi, Render servers  
+**Dependencies:** Mac Mini M4, Raspberry Pi servers  
 **Last Validated:** December 5, 2025
