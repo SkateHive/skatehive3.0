@@ -17,12 +17,8 @@ const SidebarLogo = ({ prioritizeAuctionImage = false }: SidebarLogoProps) => {
   const router = useRouter();
   const [pixelColor] = useToken("colors", ["primary"]);
 
-  // TEMP: marcjohnson pfp swap
-  // TODO(2026-06-03): revert to <SkateHiveLogo /> below
   const skateHiveLogoContent = (
-    <Image
-      src="/images/marcjohnson.jpeg"
-      alt="marcjohnson"
+    <SkateHiveLogo
       style={{
         width: "100%",
         height: "100%",
@@ -32,17 +28,6 @@ const SidebarLogo = ({ prioritizeAuctionImage = false }: SidebarLogoProps) => {
       onClick={() => router.push(`/auction`)}
     />
   );
-  // const skateHiveLogoContent = (
-  //   <SkateHiveLogo
-  //     style={{
-  //       width: "100%",
-  //       height: "100%",
-  //       objectFit: "cover",
-  //       cursor: "pointer",
-  //     }}
-  //     onClick={() => router.push(`/auction`)}
-  //   />
-  // );
 
   const auctionImageContent = (
     <Image
