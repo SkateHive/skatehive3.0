@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { EXTERNAL_SERVICES } from '@/config/app.config';
+import { TRANSCODE_SERVERS } from '@/config/transcode.config';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,31 +73,16 @@ const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     healthUrl: `${signerUrl.replace(/\/$/, '')}/healthz`,
     headers: { 'x-signer-token': signerToken },
   },
-  // Video Transcoding  
-  {
-    id: 'transcode-macmini',
-    name: 'Mac Mini M4 (Secondary)',
+  // Video Transcoding — derived from the canonical transcode registry so this
+  // health check stays in sync with the upload chain and with api.skatehive.app.
+  ...TRANSCODE_SERVERS.map((server) => ({
+    id: `transcode-${server.key}`,
+    name: server.name,
     category: 'Video Transcoding',
-    description: 'Mac Mini M4 (Secondary) — Tailscale Funnel, browser uploads unreliable',
-    healthUrl: 'https://minivlad.tail83ea3e.ts.net/video/healthz',
-    priority: 2,
-  },
-  {
-    id: 'transcode-oracle',
-    name: 'Oracle (Primary)',
-    category: 'Video Transcoding',
-    description: 'Oracle (Primary) — public IP, all browser uploads go here',
-    healthUrl: 'https://transcode.skatehive.app/healthz',
-    priority: 1,
-  },
-  {
-    id: 'transcode-pi',
-    name: 'Raspberry Pi (Tertiary)',
-    category: 'Video Transcoding',
-    description: 'Raspberry Pi (Tertiary) video transcoding node',
-    healthUrl: 'https://vladsberry.tail83ea3e.ts.net/video/healthz',
-    priority: 3,
-  },
+    description: `${server.name} — ${server.note}`,
+    healthUrl: server.healthUrl,
+    priority: server.priority,
+  })),
 ];
 
 const healthCache: Record<string, ServiceHealth> = {};
