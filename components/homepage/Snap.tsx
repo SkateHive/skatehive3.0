@@ -31,7 +31,15 @@ import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
 import ShareMenuButtons from "./ShareMenuButtons";
 import useHivePower from "@/hooks/useHivePower";
 import { useVoteWeightContext } from "@/contexts/VoteWeightContext";
-import { separateContent, fetchFilteredReplies } from "@/lib/utils/snapUtils";
+import {
+  separateContent,
+  fetchFilteredReplies,
+  parseMediaContent,
+} from "@/lib/utils/snapUtils";
+import { extractImageUrls } from "@/lib/utils/extractImageUrls";
+import useIsAdmin from "@/hooks/useIsAdmin";
+import { KeyTypes } from "@aioha/aioha";
+import { FaInstagram } from "react-icons/fa";
 import { SlPencil } from "react-icons/sl";
 import { usePostEdit } from "@/hooks/usePostEdit";
 import { usePostDelete } from "@/hooks/usePostDelete";
@@ -73,8 +81,10 @@ const Snap = React.memo(function Snap({
   onCommentAdded,
   onDelete,
 }: SnapProps) {
-  const { user: walletUser } = useAioha();
+  const { user: walletUser, aioha } = useAioha();
   const { handle: effectiveUser } = useEffectiveHiveUser();
+  const isModerator = useIsAdmin();
+  const [isForcingIg, setIsForcingIg] = useState(false);
   const { vote, canVote } = useHiveVote();
   const toast = useToast();
   const {
@@ -198,6 +208,15 @@ const Snap = React.memo(function Snap({
     [discussion.body]
   );
 
+  // Media derived for the moderator "Force post to Instagram" action.
+  // Prefer a direct video (→ Reel), else the first image (→ photo post).
+  const igMedia = useMemo(() => {
+    const video =
+      parseMediaContent(media).find((m) => m.type === "video")?.src || null;
+    const image = extractImageUrls(discussion.body)[0] || null;
+    return { video, image, has: Boolean(video || image) };
+  }, [media, discussion.body]);
+
   const hasSoftVote =
     !!softVote && softVote.status !== "failed" && softVote.weight > 0;
 
@@ -275,6 +294,97 @@ const Snap = React.memo(function Snap({
       setConversation(discussion);
     }
   }, [setConversation, discussion]);
+
+  // Moderator-only: force this snap onto the shared @skatehive Instagram,
+  // bypassing the author's self-serve HP/criteria gate. Server re-verifies the
+  // moderator allowlist — the menu visibility here is just UX.
+  const handleForceInstagram = useCallback(async () => {
+    if (!igMedia.has) return;
+    setIsForcingIg(true);
+    toast({
+      title: "Force-posting to Instagram…",
+      description: igMedia.video ? "Publishing a Reel can take a moment." : undefined,
+      status: "info",
+      duration: 6000,
+      isClosable: true,
+    });
+
+    try {
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "https://skatehive.app";
+      const tags = Array.isArray((discussion as any).json_metadata?.tags)
+        ? (discussion as any).json_metadata.tags
+        : [];
+
+      const payload: Record<string, unknown> = {
+        hive_author: discussion.author,
+        hive_permlink: discussion.permlink,
+        title: (discussion as any).title || "",
+        body: discussion.body,
+        tags,
+        image_url: igMedia.image,
+        video_url: igMedia.video,
+        permalink_url: `${origin}/post/${discussion.author}/${discussion.permlink}`,
+      };
+
+      // Keychain-only moderators have no userbase session cookie — sign a
+      // force-cross-post challenge with the posting key so the server can
+      // verify ownership + allowlist via the signature path.
+      if (walletUser && aioha) {
+        const issuedAt = new Date().toISOString();
+        const message = [
+          "Skatehive: FORCE cross-post snap to @skatehive on Instagram.",
+          `Moderator: @${walletUser}`,
+          `Target: @${discussion.author}/${discussion.permlink}`,
+          `Issued at: ${issuedAt}`,
+        ].join("\n");
+        const signResult = await aioha.signMessage(message, KeyTypes.Posting);
+        payload.requester = walletUser;
+        payload.hive_signature = signResult.result;
+        payload.hive_public_key = signResult.publicKey;
+        payload.signed_at = issuedAt;
+      } else {
+        payload.requester = effectiveUser;
+      }
+
+      const res = await fetch("/api/instagram/force-post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data?.success) {
+        toast({
+          title: data.deduped
+            ? "Already on Instagram"
+            : "Posted to @skatehive on Instagram",
+          description: data.ig_permalink || undefined,
+          status: "success",
+          duration: 8000,
+          isClosable: true,
+        });
+      } else {
+        toast({
+          title: "Instagram force-post failed",
+          description: data?.error || `HTTP ${res.status}`,
+          status: "error",
+          duration: 9000,
+          isClosable: true,
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Instagram force-post failed",
+        description: err?.message || "Network or signing error.",
+        status: "error",
+        duration: 9000,
+        isClosable: true,
+      });
+    } finally {
+      setIsForcingIg(false);
+    }
+  }, [igMedia, discussion, walletUser, aioha, effectiveUser, toast]);
 
   function handleInlineNewReply(newComment: Partial<Discussion>) {
     const newReply = newComment as Discussion;
@@ -399,6 +509,21 @@ const Snap = React.memo(function Snap({
                 >
                   <DeleteIcon style={{ marginRight: "8px" }} />
                   Delete
+                </MenuItem>
+              )}
+              {isModerator && (
+                <MenuItem
+                  onClick={handleForceInstagram}
+                  bg={"background"}
+                  color={"primary"}
+                  isDisabled={!igMedia.has || isForcingIg}
+                >
+                  <FaInstagram style={{ marginRight: "8px" }} />
+                  {isForcingIg
+                    ? "Posting to Instagram…"
+                    : igMedia.has
+                      ? "Force post to Instagram"
+                      : "Force post to Instagram (no media)"}
                 </MenuItem>
               )}
               <ShareMenuButtons comment={discussion} />
