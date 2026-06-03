@@ -4,16 +4,9 @@ import { APP_CONFIG } from '@/config/app.config';
 
 // Environment-aware Instagram server configuration
 const getInstagramServers = () => {
-  const isDevelopment = process.env.NODE_ENV === 'development';
   const isVercel = process.env.VERCEL === '1';
 
-  if (isDevelopment) {
-    // Local development - try localhost first, then public Pi, then fallback
-    return [
-      'http://localhost:6666/download',
-      'https://vladsberry.tail83ea3e.ts.net/instagram/download'
-    ];
-  } else if (isVercel) {
+  if (isVercel) {
     // Vercel production - prioritize Mac Mini M4, then Pi
     return [
       'https://minivlad.tail83ea3e.ts.net/instagram/download',         // Mac Mini M4 (primary)
