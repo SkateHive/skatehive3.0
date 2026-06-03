@@ -1,6 +1,11 @@
 import { Metadata } from "next";
 import HomePageClient from "./HomePageClient";
 import { APP_CONFIG } from "@/config/app.config";
+import { getInitialFeaturedSpot } from "@/lib/spotmap/featured";
+
+// Revalidate the SSR'd featured spot every 5 minutes so the first paint
+// stays fresh without making the homepage fully dynamic.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Skatehive - The Infinity Skateboard Magazine",
@@ -103,8 +108,12 @@ const navJsonLd = {
   ],
 };
 
-export default function Home() {
-  
+export default async function Home() {
+  // Server-side initial spot for the "Discover a spot" sidebar widget
+  // so the user doesn't see a skeleton on first paint. The client widget
+  // re-fetches with geolocation as soon as it mounts and replaces this.
+  const initialFeaturedSpot = await getInitialFeaturedSpot();
+
   return (
     <>
       <script
@@ -119,7 +128,7 @@ export default function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(navJsonLd) }}
       />
-      <HomePageClient />
+      <HomePageClient initialFeaturedSpot={initialFeaturedSpot} />
     </>
   );
 }

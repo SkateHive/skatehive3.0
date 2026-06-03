@@ -10,8 +10,18 @@ import Conversation from "@/components/homepage/Conversation";
 import SnapReplyModal from "@/components/homepage/SnapReplyModal";
 import { useSnaps } from "@/hooks/useSnaps";
 import { HIVE_CONFIG } from "@/config/app.config";
+import type { FeaturedSpot } from "@/lib/spotmap/featured";
 
-export default function HomePageClient() {
+interface HomePageClientProps {
+  /**
+   * Optional SSR-rendered spot for the "Discover a spot" widget. Lets
+   * the right sidebar render the widget with real content on first
+   * paint instead of a loading skeleton.
+   */
+  initialFeaturedSpot?: FeaturedSpot | null;
+}
+
+export default function HomePageClient({ initialFeaturedSpot }: HomePageClientProps = {}) {
   const thread_author = HIVE_CONFIG.THREADS.AUTHOR;
   const thread_permlink = HIVE_CONFIG.THREADS.PERMLINK;
 
@@ -82,7 +92,7 @@ export default function HomePageClient() {
       </Box>
 
       <Box display={{ base: "none", md: "block", lg: "block" }}>
-        <RightSidebar />
+        <RightSidebar initialFeaturedSpot={initialFeaturedSpot} />
       </Box>
       {isOpen && (
         <SnapReplyModal

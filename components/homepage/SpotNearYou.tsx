@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "@/contexts/LocaleContext";
+import type { FeaturedSpot } from "@/lib/spotmap/featured";
 
 // Rolling "already seen" buffer kept in localStorage so the rotation feels
 // fresh across page navigations and refreshes. We cap it small — once the
@@ -12,25 +13,21 @@ import { useTranslations } from "@/contexts/LocaleContext";
 const SEEN_STORAGE_KEY = "spotmap_seen_ids";
 const SEEN_BUFFER_SIZE = 10;
 
-interface FeaturedSpot {
-  id: string;
-  source: "hive" | "google_my_maps";
-  name: string;
-  lat: number;
-  lng: number;
-  thumbnail: string | null;
-  hive_author: string | null;
-  hive_permlink: string | null;
-  hive_created: string | null;
-  distance_km?: number;
-}
-
 interface FeaturedResponse {
   success: boolean;
   spot?: FeaturedSpot;
   isNearby?: boolean;
   pool_size?: number;
   error?: string;
+}
+
+interface SpotNearYouProps {
+  /**
+   * Spot rendered immediately on first paint (from SSR). The client
+   * still upgrades the selection with geolocation as soon as it mounts;
+   * this just removes the skeleton flash for cold visits.
+   */
+  initialSpot?: FeaturedSpot | null;
 }
 
 function readSeen(): string[] {
@@ -63,12 +60,13 @@ function formatDistance(km: number): string {
   return `${Math.round(km)} km`;
 }
 
-export default function SpotNearYou() {
+export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {}) {
   const router = useRouter();
   const t = useTranslations("spotWidget");
-  const [spot, setSpot] = useState<FeaturedSpot | null>(null);
+  const [spot, setSpot] = useState<FeaturedSpot | null>(initialSpot);
   const [isNearby, setIsNearby] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  // No spinner if we got an SSR'd spot — the user already sees content.
+  const [isLoading, setIsLoading] = useState(!initialSpot);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geoTried, setGeoTried] = useState(false);
   // Seen buffer lives in a ref because every fetch reads it but we never
@@ -77,8 +75,18 @@ export default function SpotNearYou() {
   const seenRef = useRef<string[]>([]);
 
   useEffect(() => {
-    seenRef.current = readSeen();
-  }, []);
+    const stored = readSeen();
+    // Seed the "seen" list with the SSR'd spot so the very first client
+    // fetch excludes it — otherwise the widget would often re-pick the
+    // same row and the rotation wouldn't feel like a rotation.
+    if (initialSpot && !stored.includes(initialSpot.id)) {
+      const next = [...stored, initialSpot.id].slice(-SEEN_BUFFER_SIZE);
+      seenRef.current = next;
+      writeSeen(next);
+    } else {
+      seenRef.current = stored;
+    }
+  }, [initialSpot]);
 
   // Ask for geolocation up front. Errors are silent — random spot is a
   // fine fallback and the homepage isn't the place to nag for permission.
