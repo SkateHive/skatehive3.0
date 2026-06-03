@@ -1206,6 +1206,8 @@ export const ptBR = {
     viewMore: 'ver mais',
     viewAllSpots: 'ver todos os picos',
     noName: 'Pico sem nome',
+    another: 'outro',
+    nearYou: 'perto de você',
   },
   errorToast: {
     reportBug: 'Reportar bug',

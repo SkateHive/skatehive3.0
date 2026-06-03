@@ -1188,6 +1188,8 @@ export const en = {
     viewMore: 'view more',
     viewAllSpots: 'view all spots',
     noName: 'Unnamed spot',
+    another: 'another',
+    nearYou: 'near you',
   },
   errorToast: {
     reportBug: 'Report bug',

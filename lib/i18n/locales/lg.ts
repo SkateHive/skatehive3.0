@@ -1204,6 +1204,8 @@ export const lg = {
     viewMore: 'laba nnyini',
     viewAllSpots: 'laba ebifo byonna',
     noName: 'Ekifo tekiinaama',
+    another: 'ekirala',
+    nearYou: 'ekiri kumpi',
   },
   errorToast: {
     reportBug: 'Babaza bug',

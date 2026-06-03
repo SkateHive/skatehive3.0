@@ -1205,6 +1205,8 @@ export const es = {
     viewMore: 'ver más',
     viewAllSpots: 'ver todos los spots',
     noName: 'Spot sin nombre',
+    another: 'otro',
+    nearYou: 'cerca de ti',
   },
   errorToast: {
     reportBug: 'Reportar bug',
