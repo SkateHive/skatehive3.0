@@ -1207,6 +1207,7 @@ export const es = {
     noName: 'Spot sin nombre',
     another: 'otro',
     nearYou: 'cerca de ti',
+    useMyLocation: 'usar mi ubicación',
   },
   errorToast: {
     reportBug: 'Reportar bug',

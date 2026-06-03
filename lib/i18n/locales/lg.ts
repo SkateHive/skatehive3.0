@@ -1206,6 +1206,7 @@ export const lg = {
     noName: 'Ekifo tekiinaama',
     another: 'ekirala',
     nearYou: 'ekiri kumpi',
+    useMyLocation: 'kozesa we ndi',
   },
   errorToast: {
     reportBug: 'Babaza bug',

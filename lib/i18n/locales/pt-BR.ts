@@ -1208,6 +1208,7 @@ export const ptBR = {
     noName: 'Pico sem nome',
     another: 'outro',
     nearYou: 'perto de você',
+    useMyLocation: 'usar minha localização',
   },
   errorToast: {
     reportBug: 'Reportar bug',

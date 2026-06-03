@@ -90,7 +90,9 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
 
   // Ask for geolocation up front. Errors are silent — random spot is a
   // fine fallback and the homepage isn't the place to nag for permission.
-  useEffect(() => {
+  // The user can opt in later via the small "use my location" link below
+  // the buttons if geo failed or wasn't asked.
+  const requestGeo = useCallback(() => {
     if (typeof window === "undefined" || !navigator.geolocation) {
       setGeoTried(true);
       return;
@@ -104,6 +106,15 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
       { timeout: 5000, maximumAge: 30 * 60_000 }
     );
   }, []);
+
+  useEffect(() => {
+    requestGeo();
+  }, [requestGeo]);
+
+  // Show the opt-in link once we've tried (or know we can't) and don't
+  // have coords. If the user previously denied at the OS/browser level
+  // the click won't re-prompt — but that's fine, the link is subtle.
+  const showLocationHint = geoTried && !userCoords;
 
   const fetchFeatured = useCallback(
     async (opts: { excludeCurrent?: boolean } = {}) => {
@@ -278,6 +289,26 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
           {t("viewAllSpots")}
         </Button>
       </HStack>
+
+      {showLocationHint && (
+        <Text
+          as="button"
+          type="button"
+          mt={2}
+          fontSize="11px"
+          color="gray.500"
+          fontFamily="ui-monospace, monospace"
+          letterSpacing="0.01em"
+          textAlign="center"
+          width="100%"
+          cursor="pointer"
+          bg="transparent"
+          _hover={{ color: "primary" }}
+          onClick={requestGeo}
+        >
+          📍 {t("useMyLocation")}
+        </Text>
+      )}
     </Box>
   );
 }

@@ -1190,6 +1190,7 @@ export const en = {
     noName: 'Unnamed spot',
     another: 'another',
     nearYou: 'near you',
+    useMyLocation: 'use my location',
   },
   errorToast: {
     reportBug: 'Report bug',
