@@ -34,11 +34,11 @@ import { useVoteWeightContext } from "@/contexts/VoteWeightContext";
 import { separateContent, fetchFilteredReplies } from "@/lib/utils/snapUtils";
 import { extractImageUrls } from "@/lib/utils/extractImageUrls";
 import useIsAdmin from "@/hooks/useIsAdmin";
-import { KeyTypes } from "@aioha/aioha";
 import { FaInstagram } from "react-icons/fa";
 import { SlPencil } from "react-icons/sl";
 import { usePostEdit } from "@/hooks/usePostEdit";
 import { usePostDelete } from "@/hooks/usePostDelete";
+import InstagramPreviewModal from "@/components/homepage/InstagramPreviewModal";
 import {
   parsePayout,
   calculatePayoutDays,
@@ -80,7 +80,10 @@ const Snap = React.memo(function Snap({
   const { user: walletUser, aioha } = useAioha();
   const { handle: effectiveUser } = useEffectiveHiveUser();
   const isModerator = useIsAdmin();
-  const [isForcingIg, setIsForcingIg] = useState(false);
+  // Moderator-only preview dialog for the Instagram force-post action.
+  // Opens BEFORE we publish so the moderator can see the rendered caption
+  // + media + dedupe status, then confirm explicitly.
+  const [isIgPreviewOpen, setIsIgPreviewOpen] = useState(false);
   const { vote, canVote } = useHiveVote();
   const toast = useToast();
   const {
@@ -310,96 +313,15 @@ const Snap = React.memo(function Snap({
     }
   }, [setConversation, discussion]);
 
-  // Moderator-only: force this snap onto the shared @skatehive Instagram,
-  // bypassing the author's self-serve HP/criteria gate. Server re-verifies the
-  // moderator allowlist — the menu visibility here is just UX.
-  const handleForceInstagram = useCallback(async () => {
+  // Moderator-only: open the Instagram force-post preview dialog. The
+  // actual POST to /api/instagram/force-post happens inside the modal
+  // on Confirm — including the Keychain signature, which must be signed
+  // at confirm-time (5-min replay window) rather than now. Server still
+  // re-verifies the moderator allowlist; this open is just UX.
+  const handleOpenIgPreview = useCallback(() => {
     if (!igMedia.has) return;
-    setIsForcingIg(true);
-    toast({
-      title: "Force-posting to Instagram…",
-      description: igMedia.video ? "Publishing a Reel can take a moment." : undefined,
-      status: "info",
-      duration: 6000,
-      isClosable: true,
-    });
-
-    try {
-      const origin =
-        typeof window !== "undefined" ? window.location.origin : "https://skatehive.app";
-      const tags = Array.isArray((discussion as any).json_metadata?.tags)
-        ? (discussion as any).json_metadata.tags
-        : [];
-
-      const payload: Record<string, unknown> = {
-        hive_author: discussion.author,
-        hive_permlink: discussion.permlink,
-        title: (discussion as any).title || "",
-        body: discussion.body,
-        tags,
-        image_url: igMedia.image,
-        video_url: igMedia.video,
-        permalink_url: `${origin}/post/${discussion.author}/${discussion.permlink}`,
-      };
-
-      // Keychain-only moderators have no userbase session cookie — sign a
-      // force-cross-post challenge with the posting key so the server can
-      // verify ownership + allowlist via the signature path.
-      if (walletUser && aioha) {
-        const issuedAt = new Date().toISOString();
-        const message = [
-          "Skatehive: FORCE cross-post snap to @skatehive on Instagram.",
-          `Moderator: @${walletUser}`,
-          `Target: @${discussion.author}/${discussion.permlink}`,
-          `Issued at: ${issuedAt}`,
-        ].join("\n");
-        const signResult = await aioha.signMessage(message, KeyTypes.Posting);
-        payload.requester = walletUser;
-        payload.hive_signature = signResult.result;
-        payload.hive_public_key = signResult.publicKey;
-        payload.signed_at = issuedAt;
-      } else {
-        payload.requester = effectiveUser;
-      }
-
-      const res = await fetch("/api/instagram/force-post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok && data?.success) {
-        toast({
-          title: data.deduped
-            ? "Already on Instagram"
-            : "Posted to @skatehive on Instagram",
-          description: data.ig_permalink || undefined,
-          status: "success",
-          duration: 8000,
-          isClosable: true,
-        });
-      } else {
-        toast({
-          title: "Instagram force-post failed",
-          description: data?.error || `HTTP ${res.status}`,
-          status: "error",
-          duration: 9000,
-          isClosable: true,
-        });
-      }
-    } catch (err: any) {
-      toast({
-        title: "Instagram force-post failed",
-        description: err?.message || "Network or signing error.",
-        status: "error",
-        duration: 9000,
-        isClosable: true,
-      });
-    } finally {
-      setIsForcingIg(false);
-    }
-  }, [igMedia, discussion, walletUser, aioha, effectiveUser, toast]);
+    setIsIgPreviewOpen(true);
+  }, [igMedia.has]);
 
   function handleInlineNewReply(newComment: Partial<Discussion>) {
     const newReply = newComment as Discussion;
@@ -528,17 +450,15 @@ const Snap = React.memo(function Snap({
               )}
               {isModerator && (
                 <MenuItem
-                  onClick={handleForceInstagram}
+                  onClick={handleOpenIgPreview}
                   bg={"background"}
                   color={"primary"}
-                  isDisabled={!igMedia.has || isForcingIg}
+                  isDisabled={!igMedia.has}
                 >
                   <FaInstagram style={{ marginRight: "8px" }} />
-                  {isForcingIg
-                    ? "Posting to Instagram…"
-                    : igMedia.has
-                      ? "Force post to Instagram"
-                      : "Force post to Instagram (no media)"}
+                  {igMedia.has
+                    ? "Force post to Instagram…"
+                    : "Force post to Instagram (no media)"}
                 </MenuItem>
               )}
               <ShareMenuButtons comment={discussion} />
@@ -805,6 +725,19 @@ const Snap = React.memo(function Snap({
             liteUserHandle={softPost.user.handle}
             liteUserDisplayName={softPost.user.handle || softPost.user.display_name || 'User'}
             sponsorHiveUsername={viewerHiveUsername}
+          />
+        )}
+
+        {/* Instagram force-post preview (moderator only). Lazy: only
+            mounted while open so we don't preflight a fetch for every
+            snap that has a 3-dots menu rendered on screen. */}
+        {isModerator && isIgPreviewOpen && (
+          <InstagramPreviewModal
+            isOpen={isIgPreviewOpen}
+            onClose={() => setIsIgPreviewOpen(false)}
+            discussion={discussion}
+            igMedia={igMedia}
+            moderatorHandle={walletUser || effectiveUser}
           />
         )}
       </Box>

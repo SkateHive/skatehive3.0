@@ -35,6 +35,11 @@ import {
  *   - permalink_url              : skatehive.app URL (required)
  *   - requester?, hive_signature?, hive_public_key?, signed_at? : Keychain
  *       moderator auth (only needed when there's no userbase session cookie)
+ *   - preview?: boolean          : if true, skip dedupe/DB/Meta and just
+ *       return the rendered caption + media for client-side preview UI.
+ *       Cookie auth still required, but no Hive signature is requested
+ *       (the moderator only signs at actual-post confirm time, so a
+ *       leaked signature can't be replayed after the 5-min window).
  */
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -106,10 +111,17 @@ export async function POST(request: NextRequest) {
 
   const hiveAuthor = typeof body?.hive_author === "string" ? body.hive_author.trim() : "";
   const hivePermlink = typeof body?.hive_permlink === "string" ? body.hive_permlink.trim() : "";
+  const isPreview = body?.preview === true;
 
   // --- Resolve + authorize the MODERATOR (the requester), independent of the
   // snap's author. Prefer the userbase session cookie; fall back to a fresh
-  // Hive posting-key signature for Keychain-only moderators. ---
+  // Hive posting-key signature for Keychain-only moderators.
+  //
+  // Preview path: signature auth isn't required (the signed force-post
+  // message is bound to issued_at + 5-min replay window — we only want it
+  // at confirm time, not when the preview modal opens). For Keychain-only
+  // moderators in preview mode we accept just the `requester` handle and
+  // re-verify allowlist below. ---
   let moderatorHandle: string | null = null;
   let moderatorUserId: string | null = null;
 
@@ -117,6 +129,13 @@ export async function POST(request: NextRequest) {
   if (sessionUserId) {
     moderatorUserId = sessionUserId;
     moderatorHandle = await linkedHiveHandle(sessionUserId);
+  } else if (isPreview) {
+    const requester = typeof body?.requester === "string" ? body.requester.trim() : "";
+    if (!requester) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    moderatorHandle = requester;
+    moderatorUserId = await userIdForHiveHandle(requester);
   } else {
     const requester = typeof body?.requester === "string" ? body.requester.trim() : "";
     const sig = typeof body?.hive_signature === "string" ? body.hive_signature : "";
@@ -232,6 +251,42 @@ export async function POST(request: NextRequest) {
   });
 
   const mediaType: "IMAGE" | "REELS" = videoUrl ? "REELS" : "IMAGE";
+
+  // --- Preview path: return everything the client needs to render the
+  // dialog (caption text built server-side so the user sees EXACTLY what
+  // Meta will receive, plus the resolved IG handle and media URLs). No
+  // Meta calls, no row inserts, no dedupe. ---
+  if (isPreview) {
+    // Surface a non-blocking "already published" warning so the preview
+    // can show "this snap is already on @skatehive". We don't 200 here
+    // because the moderator may want to see what the second attempt's
+    // caption would look like.
+    const { data: dedupeRows } = await supabase
+      .from("userbase_instagram_posts")
+      .select("status, ig_permalink")
+      .eq("hive_author", hiveAuthor)
+      .eq("hive_permlink", hivePermlink)
+      .limit(1);
+    const dedupe = dedupeRows?.[0]
+      ? {
+          status: dedupeRows[0].status as string,
+          ig_permalink: (dedupeRows[0].ig_permalink as string | null) ?? null,
+        }
+      : null;
+
+    return NextResponse.json({
+      success: true,
+      preview: true,
+      caption,
+      image_url: imageUrl || null,
+      video_url: videoUrl || null,
+      media_type: mediaType,
+      ig_handle: igHandle ?? null,
+      target_account: "@skatehive",
+      moderator: moderatorHandle,
+      dedupe,
+    });
+  }
 
   // user_id records WHO triggered the cross-post — here, the moderator.
   // hive_author keeps the original author for attribution + dedupe.
