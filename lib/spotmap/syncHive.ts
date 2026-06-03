@@ -1,6 +1,7 @@
 import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
 import { parseSpotBody } from "@/lib/utils/parseSpotBody";
 import { getSpotmapSupabase, type SpotmapUpsertInput } from "./supabase";
+import { pickSpotThumbnail } from "./getThumbnail";
 
 interface HiveSpotRecord {
   author: string;
@@ -150,7 +151,15 @@ export async function syncHiveSpots(): Promise<HiveSyncResult> {
         lat: parsed.lat,
         lng: parsed.lng,
         address: parsed.address,
-        thumbnail: parsed.images[0]?.url ?? null,
+        // Falls back to json_metadata.image[0] / .thumbnail[0] / a YouTube
+        // hqdefault if the body has no markdown image — keeps the widget
+        // and map popups from showing a "no photo" placeholder for spots
+        // posted from non-composer clients (3Speak, peakd, etc.).
+        thumbnail: pickSpotThumbnail({
+          firstMarkdownImage: parsed.images[0]?.url ?? null,
+          body: record.body,
+          json_metadata: record.post_json_metadata ?? record.json_metadata,
+        }),
         images: parsed.images,
         hive_author: record.author,
         hive_permlink: record.permlink,
