@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import HiveClient from "@/lib/hive/hiveclient";
+import { getPostContent } from "@/lib/hive/server-content";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
@@ -33,35 +33,24 @@ async function getKmlSpot(permlink: string): Promise<SpotmapRow | null> {
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
 const FALLBACK_IMAGE = `${APP_CONFIG.BASE_URL}/ogimage.png`;
 
-// ISR: cache HTML for 5 min. Spot body is fetched from Hive RPC and
-// changes rarely after publish; making this static cuts ~48 serverless
-// invocations/hour (was the third-highest cache-MISS route).
-// `generateStaticParams` returning [] is required to opt into ISR on
-// dynamic segments in Next 15 — `revalidate` alone is ignored.
-export const revalidate = 300;
+// ISR: cache HTML for a day. A spot's body is immutable after publish;
+// making this static cuts serverless invocations (was a top cache-MISS
+// route). `generateStaticParams` returning [] is required to opt into ISR
+// on dynamic segments in Next 15 — `revalidate` alone is ignored.
+//
+// Must be a literal — Next statically parses this segment config and rejects
+// imported constants. CONTENT tier = 1 day; see config/revalidate.ts.
+export const revalidate = 86400;
 export const dynamicParams = true;
 
 export async function generateStaticParams() {
   return [];
 }
 
+// Cached + request-deduplicated: generateMetadata and the page body below
+// share one Hive RPC instead of two.
 async function getSpot(author: string, permlink: string): Promise<Discussion | null> {
-  // Basic sanity check on the permlink shape — Hive permlinks are kebab-case slugs.
-  if (typeof permlink !== "string" || permlink.length < 2 || /^\d+$/.test(permlink)) {
-    return null;
-  }
-  try {
-    const cleanAuthor = author.startsWith("@") ? author.slice(1) : author;
-    const post = (await HiveClient.database.call("get_content", [
-      cleanAuthor,
-      permlink,
-    ])) as Discussion;
-    if (!post || !post.author) return null;
-    return post;
-  } catch (error) {
-    console.error("Failed to fetch spot content:", error);
-    return null;
-  }
+  return (await getPostContent(author, permlink)) as Discussion | null;
 }
 
 export async function generateMetadata({
