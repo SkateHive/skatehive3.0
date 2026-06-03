@@ -31,11 +31,7 @@ import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
 import ShareMenuButtons from "./ShareMenuButtons";
 import useHivePower from "@/hooks/useHivePower";
 import { useVoteWeightContext } from "@/contexts/VoteWeightContext";
-import {
-  separateContent,
-  fetchFilteredReplies,
-  parseMediaContent,
-} from "@/lib/utils/snapUtils";
+import { separateContent, fetchFilteredReplies } from "@/lib/utils/snapUtils";
 import { extractImageUrls } from "@/lib/utils/extractImageUrls";
 import useIsAdmin from "@/hooks/useIsAdmin";
 import { KeyTypes } from "@aioha/aioha";
@@ -209,13 +205,32 @@ const Snap = React.memo(function Snap({
   );
 
   // Media derived for the moderator "Force post to Instagram" action.
-  // Prefer a direct video (→ Reel), else the first image (→ photo post).
+  // Snap videos are embedded as an <iframe> IPFS player (often multi-line) or
+  // as a markdown/raw video URL; images use ![](...) markdown. Scan the full
+  // body so multi-line iframes aren't missed. Prefer video (→ Reel).
   const igMedia = useMemo(() => {
-    const video =
-      parseMediaContent(media).find((m) => m.type === "video")?.src || null;
-    const image = extractImageUrls(discussion.body)[0] || null;
+    const body = discussion.body || "";
+    const isVideoFile = (u: string) => /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(u);
+    const isIpfs = (u: string) =>
+      /\/ipfs\/[a-z0-9]{40,}/i.test(u) || /\bipfs\./i.test(u);
+
+    let video: string | null = null;
+    // 1. iframe player (the skatehive video embed) — IPFS or a video file
+    const iframeSrc = body.match(/<iframe[\s\S]*?\bsrc=["']([^"']+)["']/i)?.[1];
+    if (iframeSrc && (isIpfs(iframeSrc) || isVideoFile(iframeSrc))) {
+      video = iframeSrc;
+    }
+    // 2. markdown / raw video URL fallback
+    if (!video) {
+      video =
+        body.match(/!\[[^\]]*\]\((https?:\/\/[^)\s]+\.(?:mp4|webm|mov|m4v)[^)\s]*)\)/i)?.[1] ||
+        body.match(/https?:\/\/[^\s"'<>)]+\.(?:mp4|webm|mov|m4v)/i)?.[0] ||
+        null;
+    }
+
+    const image = extractImageUrls(body)[0] || null;
     return { video, image, has: Boolean(video || image) };
-  }, [media, discussion.body]);
+  }, [discussion.body]);
 
   const hasSoftVote =
     !!softVote && softVote.status !== "failed" && softVote.weight > 0;
