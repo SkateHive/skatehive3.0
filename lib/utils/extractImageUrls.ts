@@ -50,6 +50,7 @@ export function extractImageUrls(markdown: string): string[] {
 export interface LinkWithDomain {
     url: string
     domain: string
+    thumbnail?: string
 }
 
 export function extractCustomLinks(inputText: string): LinkWithDomain[] {
@@ -84,7 +85,9 @@ export function extractYoutubeLinks(content: string): LinkWithDomain[] {
         if (!videoID) continue;
         // Use the nocookie domain with controls disabled to help prevent logging requests
         const embedUrl = `https://www.youtube-nocookie.com/embed/${videoID}?controls=0`;
-        links.push({ url: embedUrl, domain: "youtube.com" });
+        // mqdefault is a native 320x180 16:9 frame (no black bars) that always exists
+        const thumbnail = `https://img.youtube.com/vi/${videoID}/mqdefault.jpg`;
+        links.push({ url: embedUrl, domain: "youtube.com", thumbnail });
     }
     return links;
 }
