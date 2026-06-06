@@ -29,7 +29,7 @@ import {
 import { Discussion } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
 import { extractImageUrls } from "@/lib/utils/extractImageUrls";
-import { parsePayout } from "@/lib/utils/postUtils";
+import { parsePayout, filterAutoComments } from "@/lib/utils/postUtils";
 import { getPostDate } from "@/lib/utils/GetPostDate";
 import NextLink from "next/link";
 import {
@@ -52,6 +52,10 @@ import type { IconType } from "react-icons";
 
 const VideoRenderer = dynamic(
   () => import("@/components/layout/VideoRenderer"),
+  { ssr: false },
+);
+const ThreeSpeakPlayer = dynamic(
+  () => import("@/components/markdown/ThreeSpeakPlayer").then((m) => m.ThreeSpeakPlayer),
   { ssr: false },
 );
 const HiveMarkdown = dynamic(() => import("@/components/shared/HiveMarkdown"), {
@@ -513,6 +517,12 @@ function MainPlayer({ videoInfo }: { videoInfo: VideoInfo }) {
   ) {
     return <VideoRenderer src={videoInfo.embedUrl} disableAutoplay={false} />;
   }
+  if (videoInfo.platform === "3speak") {
+    const videoId = videoInfo.embedUrl.match(/[?&]v=([^&]+)/)?.[1];
+    if (videoId) {
+      return <ThreeSpeakPlayer videoId={videoId} />;
+    }
+  }
   return (
     <iframe
       src={videoInfo.embedUrl}
@@ -609,8 +619,11 @@ export default function VideosContent() {
           setHasMore(false);
           break;
         }
+        // Filter admin-downvoted / community-flagged BEFORE video check
+        // so the quota math (POSTS_PER_PAGE) reflects what users see.
+        const cleaned = filterAutoComments(fresh) as Discussion[];
         collected.push(
-          ...fresh.filter((p: Discussion) => hasVideoContent(p.body)),
+          ...cleaned.filter((p: Discussion) => hasVideoContent(p.body)),
         );
         const last = result[result.length - 1];
         cursorAuthor = last.author;

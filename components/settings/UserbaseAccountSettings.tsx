@@ -11,7 +11,8 @@ import {
 } from "@chakra-ui/react";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
-import UserbaseIdentitiesSection from "@/components/userbase/UserbaseIdentitiesSection";
+import AppAccountSetupChecklist from "@/components/userbase/AppAccountSetupChecklist";
+import UserbaseIdentityLinker from "@/components/layout/UserbaseIdentityLinker";
 import UserbasePostingKeyPanel from "@/components/userbase/UserbasePostingKeyPanel";
 import UserbaseMergePanel from "@/components/userbase/UserbaseMergePanel";
 import HiveSponsorshipInfo from "@/components/userbase/HiveSponsorshipInfo";
@@ -44,18 +45,29 @@ export default function UserbaseAccountSettings() {
         </Text>
       </Box>
 
-      <Box border="1px solid" borderColor="muted" p={4}>
-        <UserbaseIdentitiesSection
-          variant="settings"
-          showSignOut={false}
-        />
+      {/* Setup checklist — single source of truth for what's linked and
+          how to manage each item (unlink Hive/Farcaster inline, list +
+          unlink EVM wallets, edit IG handle, authorize Farcaster signer). */}
+      <AppAccountSetupChecklist />
+
+      {/* Linker for pending sessions: shows up only when the user has an
+          active Hive/EVM/Farcaster session in this browser that isn't yet
+          bound to their userbase account. The checklist's "Link X" actions
+          scroll the user down to this anchor. */}
+      <Box id="identity-linker-section">
+        <UserbaseIdentityLinker />
       </Box>
 
       <Box border="1px solid" borderColor="muted" p={4}>
         <HiveSponsorshipInfo />
       </Box>
 
-      <Box border="1px solid" borderColor="muted" p={4}>
+      <Box
+        id="posting-key-panel"
+        border="1px solid"
+        borderColor="muted"
+        p={4}
+      >
         <UserbasePostingKeyPanel />
       </Box>
 

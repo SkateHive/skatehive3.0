@@ -12,12 +12,10 @@ import {
   Badge,
 } from "@chakra-ui/react";
 import { FaSignOutAlt, FaCog } from "react-icons/fa";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import { useRouter } from "next/navigation";
 import { useAioha } from "@aioha/react-ui";
 import { checkFollow, changeFollow } from "@/lib/hive/client-functions";
-import ZoraProfileCoinDisplay from "./ZoraProfileCoinDisplay";
-import { ZoraProfileData } from "@/hooks/useZoraProfileCoin";
 import { useTranslations } from "@/contexts/LocaleContext";
 import HiveUpgradePromptModal from "@/components/shared/HiveUpgradePromptModal";
 interface MobileProfileHeaderProps {
@@ -31,11 +29,6 @@ interface MobileProfileHeaderProps {
   onFollowingChange: (following: boolean | null) => void;
   onLoadingChange: (loading: boolean) => void;
   onEditModalOpen: () => void;
-  showZoraProfile?: boolean;
-  onToggleProfile?: (show: boolean) => void;
-  cachedZoraData?: ZoraProfileData | null;
-  zoraLoading?: boolean;
-  zoraError?: string | null;
   /** If true, the viewer is a lite account without a Hive wallet connected */
   isLiteUser?: boolean;
 }
@@ -51,11 +44,6 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
   onFollowingChange,
   onLoadingChange,
   onEditModalOpen,
-  showZoraProfile = false,
-  onToggleProfile,
-  cachedZoraData,
-  zoraLoading = false,
-  zoraError = null,
   isLiteUser = false,
 }: MobileProfileHeaderProps) {
   const router = useRouter();
@@ -128,23 +116,23 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
 
   return (
     <Box display={{ base: "block", md: "none" }} position="relative" w="100%">
-      {/* Farcaster-style Profile Section - Overlapping the banner */}
-      <Box position="relative" p={4} mt={-12}>
-        {/* Avatar positioned to overlap banner */}
-        <Flex justify="space-between" align="flex-start" mb={3}>
+      {/* Profile Section — full padding from top since cover image is no longer rendered */}
+      <Box position="relative" px={4} pt={5} pb={4}>
+        <Flex justify="space-between" align="flex-start" mb={3} gap={3}>
           <Avatar
             src={profileData.profileImage}
             name={username}
             size="xl"
-            border="4px solid"
-            borderColor="white"
-            bg="white"
+            border="2px solid"
+            borderColor="border"
+            bg="muted"
             shadow="lg"
             loading="lazy"
             cursor={(canEdit ?? isOwner) ? "pointer" : "default"}
             _hover={(canEdit ?? isOwner) ? { opacity: 0.8 } : {}}
             transition="opacity 0.2s"
             onClick={(canEdit ?? isOwner) ? onEditModalOpen : undefined}
+            flexShrink={0}
           />
 
           {/* Top-right settings (only for owner) */}
@@ -275,16 +263,6 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
                 <Text color="whiteAlpha.700">VP</Text>
               </Flex>
             )}
-            {/* Zora Profile Coin Display integrated into stats */}
-            <Box>
-              <ZoraProfileCoinDisplay
-                walletAddress={profileData.ethereum_address}
-                size="xs"
-                cachedProfileData={cachedZoraData}
-                cachedLoading={zoraLoading}
-                cachedError={zoraError}
-              />
-            </Box>
           </Flex>
         </VStack>
         {/* Action Buttons - Only for Owners */}

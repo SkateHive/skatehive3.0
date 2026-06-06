@@ -7,7 +7,6 @@ import {
   Text,
   Heading,
   Badge,
-  Divider,
   Image,
 } from "@chakra-ui/react";
 import HTMLFlipBook from "react-pageflip";
@@ -24,6 +23,11 @@ import MatrixOverlay from "@/components/graphics/MatrixOverlay";
 import { useTheme } from "@/app/themeProvider";
 import SkateErrorBoundary from "./SkateErrorBoundary";
 import ContentErrorWatcher from "./ContentErrorWatcher";
+import { usePostProseTweaks } from "@/hooks/usePostProseTweaks";
+import {
+  buildProseStyleVars,
+  wrapDropCapFirstLetter,
+} from "@/lib/prose/proseStyle";
 
 function useMagazinePosts(
   query: string,
@@ -150,6 +154,14 @@ export default function Magazine(props: MagazineProps) {
   const flipBookRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  // Magazine shares the post page's reading tweaks. Default values are
+  // tuned for editorial typography on every theme (see
+  // DEFAULT_POST_PROSE_TWEAKS).
+  const { tweaks } = usePostProseTweaks();
+  const proseStyleVars = useMemo(
+    () => buildProseStyleVars(tweaks),
+    [tweaks],
+  );
 
   // Available query types for Bridge API
   const [currentQuery, setCurrentQuery] = useState(props.query || "created");
@@ -299,17 +311,15 @@ export default function Magazine(props: MagazineProps) {
           }}
           onFlip={() => {
             playSound();
-            // Pause all native videos
-            const videos = document.querySelectorAll(".flipbook video");
-            videos.forEach((video) => {
+            // Pause all native <video> elements (3speak SDK, IPFS videos)
+            document.querySelectorAll(".flipbook video").forEach((video) => {
               const vid = video as HTMLVideoElement;
-              if (!vid.paused) {
-                vid.pause();
-              }
+              if (!vid.paused) vid.pause();
             });
-            // Pause all iframe videos
-            const iframes = document.querySelectorAll(".flipbook iframe");
-            iframes.forEach((iframe) => {
+            // Pause iframes we still embed directly (YouTube after the user
+            // clicks the lite-poster, Vimeo, Odysee, skatehype). 3speak iframes
+            // no longer exist — handled by the native <video> branch above.
+            document.querySelectorAll(".flipbook iframe").forEach((iframe) => {
               const ifr = iframe as HTMLIFrameElement;
               if (ifr.src.includes("youtube.com/embed")) {
                 ifr.contentWindow?.postMessage(
@@ -320,10 +330,7 @@ export default function Magazine(props: MagazineProps) {
                   }),
                   "*"
                 );
-              } else if (
-                ifr.src.includes("skatehype.com/ifplay.php") ||
-                ifr.src.includes("3speak.tv")
-              ) {
+              } else if (ifr.src.includes("skatehype.com/ifplay.php")) {
                 const oldSrc = ifr.src;
                 ifr.src = "";
                 setTimeout(() => {
@@ -470,76 +477,59 @@ export default function Magazine(props: MagazineProps) {
                 display="flex"
                 flexDirection="column"
               >
-                <Flex align="center" mb={2} gap={2}>
+                <Flex align="center" gap={2} mb={3} className="magazine-meta">
                   <Image
                     src={`https://images.hive.blog/u/${post.author}/avatar/small`}
                     alt={post.author}
-                    boxSize="32px"
+                    boxSize="28px"
                     borderRadius="full"
-                    mr={2}
+                    flexShrink={0}
                   />
                   <Text
-                    fontSize="sm"
+                    as="span"
                     color={theme.colors.primary}
-                    style={{
-                      fontFamily: `'Joystix', 'VT323', 'Fira Mono', 'monospace'`,
-                      letterSpacing: "0.5px",
-                    }}
-                    fontWeight="bold"
+                    className="magazine-meta-handle"
                   >
                     @{post.author}
                   </Text>
-                  <Text
-                    fontSize="xs"
-                    color={theme.colors.accent}
-                    style={{
-                      fontFamily: `'Joystix', 'VT323', 'Fira Mono', 'monospace'`,
-                      letterSpacing: "0.5px",
-                    }}
-                    ml={2}
-                  >
+                  <Text as="span" className="magazine-meta-sep">
+                    ·
+                  </Text>
+                  <Text as="span" className="magazine-meta-date">
                     {new Date(post.created).toLocaleDateString()}
                   </Text>
+                  <Box flex={1} />
                   <Badge
-                    variant={"solid"}
                     bg={theme.colors.primary}
                     color={theme.colors.background}
-                    h={"24px"}
-                    minW={"48px"}
-                    px={2}
-                    borderRadius={8}
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    fontWeight="bold"
-                    style={{
-                      fontFamily: `'Joystix', 'VT323', 'Fira Mono', 'monospace'`,
-                      letterSpacing: "0.5px",
-                    }}
-                    ml={2}
+                    className="magazine-meta-payout"
                   >
                     ${Number(getPayoutValue(post as any)).toFixed(2)}
                   </Badge>
                 </Flex>
                 <Heading
-                  fontSize="lg"
+                  as="h2"
+                  className="magazine-title"
                   color={theme.colors.primary}
-                  style={{
-                    fontFamily: `'Joystix', 'VT323', 'Fira Mono', 'monospace'`,
-                    letterSpacing: "0.5px",
-                  }}
-                  mb={2}
                 >
                   {post.title}
                 </Heading>
-                <Divider mt={2} mb={2} />
+                <Box className="magazine-rule" />
                 <Box
                   flex="1 1 0%"
                   minHeight={0}
                   overflowY="auto"
                   overflowX="hidden"
                   width="100%"
-                  className="hide-scrollbar"
+                  className="hide-scrollbar post-prose"
+                  style={proseStyleVars}
+                  data-drop-cap={tweaks.dropCap ? "on" : "off"}
+                  data-image-frames={tweaks.imageFrames ? "on" : "off"}
+                  data-tight-rhythm={tweaks.tightRhythm ? "on" : "off"}
+                  data-blockquote={tweaks.blockquoteStyle}
+                  data-bg-pattern={tweaks.bgPattern}
+                  data-hr-style={tweaks.hrStyle}
+                  data-link-underline={tweaks.linkUnderline}
                 >
                   {!isInitialized ? (
                     <Box
@@ -564,7 +554,9 @@ export default function Magazine(props: MagazineProps) {
                       }
                     >
                       <SkateErrorBoundary>
-                        <EnhancedMarkdownRenderer content={post.body} />
+                        <EnhancedMarkdownRenderer
+                          content={wrapDropCapFirstLetter(post.body)}
+                        />
                       </SkateErrorBoundary>
                     </Suspense>
                   )}
@@ -578,12 +570,66 @@ export default function Magazine(props: MagazineProps) {
           </Box>
         </HTMLFlipBook>
         <style jsx global>{`
-          .magazine-content {
-            color: var(--chakra-colors-text, #fff);
+          /* ─── Post meta row (chrome — stays in pixel font) ─ */
+          .magazine-meta {
+            font-family: 'Joystix', 'VT323', 'Fira Mono', monospace;
+          }
+          .magazine-meta-handle {
+            font-size: 0.85rem;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+          }
+          .magazine-meta-sep {
+            color: rgba(255, 255, 255, 0.25);
+            margin: 0 2px;
+          }
+          .magazine-meta-date {
+            font-size: 0.72rem;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 0.5px;
+          }
+          .magazine-meta-payout {
+            font-size: 0.7rem !important;
+            font-weight: bold !important;
+            letter-spacing: 0.5px;
+            padding: 4px 8px !important;
+            border-radius: 6px !important;
+            min-width: 50px;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Joystix', 'VT323', 'Fira Mono', monospace !important;
+          }
+          /* ─── Post title (fixed area regardless of length) ─ */
+          .magazine-title {
+            font-family: 'Joystix', 'VT323', 'Fira Mono', monospace;
+            font-size: 1.35rem !important;
+            font-weight: 700 !important;
+            line-height: 1.2 !important;
+            letter-spacing: 0.5px;
+            margin: 0 0 0.6rem 0 !important;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 2.4em;
+            text-transform: uppercase;
+          }
+          .magazine-rule {
+            height: 1px;
+            background: var(--chakra-colors-primary, #adff2f);
+            opacity: 0.22;
+            margin: 0 0 1rem 0;
+          }
+          /* Magazine post body now shares typography with the post page
+             via .post-prose (see styles/markdown.css). The only flipbook-
+             specific tweak is a perf hint for the scrolling region. */
+          .post-prose {
             contain: layout style paint;
             will-change: transform;
           }
-          .magazine-content iframe {
+          .post-prose iframe {
             max-width: 100%;
             width: 100%;
             display: block;

@@ -391,6 +391,15 @@ export async function POST(request: NextRequest) {
     maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,
     path: "/",
   });
+  // Companion non-httpOnly flag so the client can detect "logged in"
+  // without calling /auth/session. Holds no sensitive data — just "1".
+  response.cookies.set("userbase_logged_in", "1", {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,
+    path: "/",
+  });
 
   return response;
 }

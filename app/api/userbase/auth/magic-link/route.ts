@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { APP_CONFIG, EMAIL_DEFAULTS } from '@/config/app.config';
 import { checkHiveAccountExists } from '@/lib/utils/hiveAccountUtils';
+import { buildMagicLinkEmail } from '@/lib/email/magicLinkTemplate';
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -442,13 +443,15 @@ export async function POST(request: NextRequest) {
       link.searchParams.set('redirect', redirectPath);
     }
 
+    const { subject, html, text } = buildMagicLinkEmail(link.toString());
+
     const transporter = createTransport();
     await transporter.sendMail({
       from: process.env.EMAIL_USER || EMAIL_DEFAULTS.FROM_ADDRESS,
       to: identifier,
-      subject: 'Your Skatehive login link',
-      text: `Click to sign in: ${link.toString()}`,
-      html: `<p>Click to sign in:</p><p><a href="${link.toString()}">${link.toString()}</a></p>`,
+      subject,
+      text,
+      html,
     });
 
     return NextResponse.json({
@@ -577,6 +580,15 @@ export async function GET(request: NextRequest) {
     );
     response.cookies.set('userbase_refresh', refreshToken, {
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,
+      path: '/',
+    });
+    // Companion non-httpOnly flag so the client can short-circuit
+    // /auth/session lookups for anonymous users. See bootstrap route.
+    response.cookies.set('userbase_logged_in', '1', {
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,

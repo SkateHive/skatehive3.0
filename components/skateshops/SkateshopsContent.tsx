@@ -19,6 +19,7 @@ import {
 import { Discussion } from "@hiveio/dhive";
 import HiveClient from "@/lib/hive/hiveclient";
 import { extractImageUrls } from "@/lib/utils/extractImageUrls";
+import { filterAutoComments } from "@/lib/utils/postUtils";
 import NextLink from "next/link";
 import { trackLandingPageVisit } from "@/lib/analytics/events";
 
@@ -52,7 +53,9 @@ export default function SkateshopsContent() {
 
       if (result && result.length > 0) {
         // Filter duplicates (first item in pagination is the last from previous page)
-        const newPosts = page > 0 ? result.slice(1) : result;
+        const dedup = page > 0 ? result.slice(1) : result;
+        // Drop admin-downvoted / community-flagged posts before render.
+        const newPosts = filterAutoComments(dedup) as Discussion[];
         setPosts((prev) => [...prev, ...newPosts]);
         setHasMore(result.length === POSTS_PER_PAGE);
       } else {

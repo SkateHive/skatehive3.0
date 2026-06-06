@@ -1,39 +1,33 @@
 import { Metadata } from "next";
 import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
-import HiveClient from "@/lib/hive/hiveclient";
+import { getRankedPostsByTag } from "@/lib/hive/server-content";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import TagPageClient from "./TagPageClient";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 
+// ISR: cache the tag listing HTML for an hour. The list of posts under a
+// tag gains items slowly and live engagement loads client-side, so a
+// short cache keeps it fresh without per-request SSR.
+// `generateStaticParams` returning [] is required to opt into ISR on
+// dynamic segments in Next 15 — `revalidate` alone is ignored.
+//
+// Must be a literal — Next statically parses this segment config and rejects
+// imported constants. LISTING tier = 1 hour; see config/revalidate.ts.
+export const revalidate = 3600;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  return [];
+}
+
 type Props = {
   params: Promise<{ tag: string }>;
 };
 
-type RankedPost = {
-  author?: string;
-  permlink?: string;
-  title?: string;
-  created?: string;
-};
-
-async function fetchPostsByTag(tag: string): Promise<RankedPost[]> {
-  try {
-    const posts: RankedPost[] = await HiveClient.call(
-      "bridge",
-      "get_ranked_posts",
-      {
-        sort: "created",
-        tag,
-        limit: 20,
-        observer: "",
-      },
-    );
-    return posts || [];
-  } catch {
-    return [];
-  }
-}
+// Cached + request-deduplicated: generateMetadata and the page body below
+// share one Hive RPC instead of two.
+const fetchPostsByTag = (tag: string) => getRankedPostsByTag(tag, 20);
 
 function formatTagTitle(tag: string): string {
   return tag

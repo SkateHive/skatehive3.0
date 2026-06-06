@@ -257,7 +257,9 @@ export default function NotificationItem({
   const fetchCommentContent = useCallback(async () => {
     const checkIfUserVoted = (post: Discussion | null) => {
       if (!post || !post.active_votes || !currentUser) return false;
-      return post.active_votes.some((vote) => vote.voter === currentUser);
+      return post.active_votes.some(
+        (vote) => vote.voter?.toLowerCase() === currentUser?.toLowerCase()
+      );
     };
 
     console.log(`\n[notifications] ========== NOTIFICATION ==========`);

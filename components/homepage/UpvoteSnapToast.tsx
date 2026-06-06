@@ -48,7 +48,7 @@ export default function UpvoteSnapToast({
         setSnapContainer(postDetails);
         if (effectiveUser && postDetails) {
           const userVote = postDetails.active_votes.some(
-            (v) => v.voter === effectiveUser
+            (v) => v.voter?.toLowerCase() === effectiveUser?.toLowerCase()
           );
           setHasVoted(userVote);
         } else {

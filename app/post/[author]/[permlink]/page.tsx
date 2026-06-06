@@ -1,18 +1,30 @@
 import PostPage from "@/components/blog/PostPage";
-import HiveClient from "@/lib/hive/hiveclient";
+import { getPostContent } from "@/lib/hive/server-content";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
 import { Metadata } from "next";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 
-async function getBaseUrl() {
-  const hdrs = await headers();
-  const host = hdrs.get("host");
-  const protocol = hdrs.get("x-forwarded-proto") || "http";
-  if (host) return `${protocol}://${host}`;
-  return APP_CONFIG.BASE_URL;
+// ISR: cache rendered HTML for a day. The body of a Hive post is
+// immutable after publish; votes/comments load client-side so staleness
+// doesn't hide engagement. Previously the route was forced dynamic by
+// `headers()` in generateMetadata, causing every request to hit a
+// serverless function (~70/hr).
+//
+// `generateStaticParams` returning [] is required to opt the route
+// into static/ISR mode in Next 15 — `revalidate` alone is ignored on
+// parameterized routes without it. We don't want to prerender any
+// posts at build time (impossibly many), so we return [] and let
+// every URL ISR on first visit.
+//
+// Must be a literal — Next statically parses this segment config and rejects
+// imported constants. CONTENT tier = 1 day; see config/revalidate.ts.
+export const revalidate = 86400;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  return [];
 }
 
 // Known profile tab slugs that bots/crawlers mistakenly request as
@@ -126,7 +138,7 @@ const VIDEO_CONTENT_TYPES = ["video/mp4", "video/webm", "video/quicktime", "vide
 async function probeIpfsContentType(url: string): Promise<string | null> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
+    const timeout = setTimeout(() => controller.abort(), 1500);
     const res = await fetch(url, {
       method: "HEAD",
       signal: controller.signal,
@@ -206,8 +218,11 @@ async function extractFirstVideoUrl(body: string): Promise<string | null> {
     }
   }
 
-  // Probe up to 3 candidates in parallel
-  const toProbe = ipfsCandidates.slice(0, 3);
+  // Probe only the first candidate. This is a best-effort SEO enrichment
+  // (VideoObject schema) that runs on every cold render, so we keep its
+  // worst-case wall-time bounded to a single short HEAD request rather than
+  // up to three.
+  const toProbe = ipfsCandidates.slice(0, 1);
   if (toProbe.length > 0) {
     const results = await Promise.all(toProbe.map(probeIpfsContentType));
     const found = results.find((r) => r !== null);
@@ -236,8 +251,16 @@ function validatePermlink(permlink: any, source: string) {
   }
 }
 
-async function getData(user: string, permlink: string) {
-  validatePermlink(permlink, "getData");
+// Handle profile-tab redirects, then fetch the post.
+//
+// The actual RPC goes through `getPostContent`, which is wrapped in
+// React `cache()` — so `generateMetadata()` and the page body below share
+// a SINGLE network round-trip per request instead of two. Returns null on
+// any miss (invalid permlink, node error, not found) so callers branch
+// without try/catch. `redirect()` still throws NEXT_REDIRECT, which the
+// framework handles.
+async function loadPost(user: string, permlink: string) {
+  validatePermlink(permlink, "loadPost");
 
   // Redirect profile-tab slugs to the correct /user route
   if (PROFILE_TAB_SLUGS.has(permlink.toLowerCase())) {
@@ -245,39 +268,7 @@ async function getData(user: string, permlink: string) {
     redirect(`/user/${cleanUser}/${permlink.toLowerCase()}`);
   }
 
-  // Reject obviously invalid permlinks (pure numbers, single chars, etc.)
-  // Real Hive permlinks are kebab-case strings of 3+ chars
-  if (/^\d+$/.test(permlink) || permlink.length < 2) {
-    throw new Error(`Invalid permlink: "${permlink}" is not a valid Hive post slug`);
-  }
-
-  try {
-    const cleanUser = user.startsWith("@") ? user.slice(1) : user;
-    const postContent = await HiveClient.database.call("get_content", [
-      cleanUser,
-      permlink,
-    ]);
-
-    if (!postContent || !postContent.author) {
-      throw new Error("Post not found");
-    }
-
-    return postContent;
-  } catch (error) {
-    console.error("Failed to fetch post content:", error);
-
-    // Log the detailed error information for debugging
-    if (error && typeof error === "object") {
-      const errorObj = error as any;
-      console.error("Error details:", {
-        message: errorObj.message,
-        jse_shortmsg: errorObj.jse_shortmsg,
-        jse_info: errorObj.jse_info,
-      });
-    }
-
-    throw new Error("Failed to fetch post content");
-  }
+  return getPostContent(user, permlink);
 }
 
 export async function generateMetadata({
@@ -303,7 +294,13 @@ export async function generateMetadata({
 
   try {
     const decodedAuthor = decodeURIComponent(author);
-    const post = await getData(decodedAuthor, permlink);
+    const post = await loadPost(decodedAuthor, permlink);
+    if (!post) {
+      return {
+        title: "Post | Skatehive",
+        description: "View this post on Skatehive.",
+      };
+    }
     const cleanedAuthor = cleanUsername(post.author);
     let title = post.title || "Skatehive Snap";
 
@@ -351,10 +348,12 @@ export async function generateMetadata({
       bannerImage = imageUrls[0];
     }
 
-    const dynamicBase = await getBaseUrl();
+    // Always point OG images to the canonical domain. Previously this
+    // used a `headers()`-derived host so preview deploys could serve
+    // their own OG, but that forced the entire route into dynamic SSR.
     const postUrl = `${DOMAIN_URL}/post/${cleanedAuthor}/${permlink}`;
-    const ogImage = `${dynamicBase}/api/og/post/${cleanedAuthor}/${permlink}`;
-    const frameOgImage = `${dynamicBase}/api/og/post/${cleanedAuthor}/${permlink}?format=frame`;
+    const ogImage = `${DOMAIN_URL}/api/og/post/${cleanedAuthor}/${permlink}`;
+    const frameOgImage = `${DOMAIN_URL}/api/og/post/${cleanedAuthor}/${permlink}?format=frame`;
 
     // Extract keywords from post tags
     const postTags: string[] = [];
@@ -424,6 +423,12 @@ export async function generateMetadata({
       },
     };
   } catch (error) {
+    // `redirect()` throws a NEXT_REDIRECT signal that the framework
+    // needs to handle. Swallowing it leaves the user on a broken page
+    // and floods prod logs with false-positive errors.
+    if ((error as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
     console.error("Error generating post metadata:", error);
     return {
       title: "Post | Skatehive",
@@ -475,7 +480,12 @@ export default async function PostPageRoute({
   let ssrDescription = "";
   let ssrAuthor = "";
   try {
-    const post = await getData(decodedAuthor, decodedPermlink);
+    const post = await loadPost(decodedAuthor, decodedPermlink);
+    if (!post) {
+      // No post found — skip JSON-LD; the PostPage client renders its own
+      // error state. The catch below swallows this (rethrowing only redirects).
+      throw new Error("post-not-found");
+    }
     const cleanedBody = cleanTextForDescription(post.body || "");
     const parsedMetadata = parseJsonMetadata(post.json_metadata);
     let bannerImage = FALLBACK_IMAGE;
@@ -620,7 +630,12 @@ export default async function PostPageRoute({
         };
       }
     }
-  } catch {
+  } catch (error) {
+    // Same as above — let NEXT_REDIRECT signals propagate so the
+    // framework can perform the redirect; only swallow real errors.
+    if ((error as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
     // Silently fail - page will still render without JSON-LD
   }
 

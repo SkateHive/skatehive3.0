@@ -75,32 +75,86 @@ export function countDownvotes(activeVotes: any[]): number {
     return downvotes.length;
 }
 
+function isNegativeVote(vote: any): boolean {
+    return (
+        (vote.weight || 0) < 0 ||
+        (vote.percent || 0) < 0 ||
+        (vote.rshares || 0) < 0
+    );
+}
+
 /**
- * Filter discussions/posts based on reputation, downvote criteria, and specific authors
- * Filters out:
+ * Filter discussions/posts based on reputation and moderation rules.
+ *
+ * Moderation hierarchy (Skatehive-specific):
+ * - **Primary admins** (NEXT_PUBLIC_PRIMARY_ADMIN_USERS) can hide a
+ *   post solo — one downvote from any primary admin = hidden.
+ * - **Regular admins** (NEXT_PUBLIC_ADMIN_USERS) need quorum — 2+
+ *   downvotes from this group are required to hide a post.
+ *   (Primary admins are excluded from this count, since they already
+ *   have solo authority.)
+ *
+ * Also filters out:
+ * - Posts with 2 or more total downvotes (broad community disapproval,
+ *   independent of who voted)
  * - Posts from accounts with reputation less than 0
- * - Posts with 2 or more downvotes
- * - Posts from hiveBuzz account
- * - Posts downvoted by admins (when NEXT_PUBLIC_ADMIN_USERS is set)
+ * - Posts from @hivebuzz (auto-comments)
+ * - Posts where Bridge has marked `stats.hide = true` (community mute —
+ *   explicit, rare, and worth honoring even though it's set by the
+ *   on-chain Skatehive moderator list rather than this env var)
+ *
+ * Bridge's `stats.gray` and `stats.flag_weight` are NOT respected here
+ * because they can be set by accounts outside our local admin list and
+ * would otherwise hide posts via authorities we haven't sanctioned.
  */
 export function filterAutoComments(discussions: any[]): any[] {
     // Import getReputation from client-functions to avoid duplication
     const { getReputation } = require('@/lib/hive/client-functions');
-    const adminUsers = process.env.NEXT_PUBLIC_ADMIN_USERS?.split(",")
-        .map((user) => user.trim().toLowerCase())
-        .filter(Boolean) || [];
+
+    const splitEnvList = (raw: string | undefined): string[] =>
+        raw?.split(",").map((u) => u.trim().toLowerCase()).filter(Boolean) || [];
+
+    const primaryAdmins = splitEnvList(process.env.NEXT_PUBLIC_PRIMARY_ADMIN_USERS);
+    const allAdmins = splitEnvList(process.env.NEXT_PUBLIC_ADMIN_USERS);
+    const primarySet = new Set(primaryAdmins);
+    // Regular admins are those in the full admin list but not in the
+    // primary list. Falls back to `allAdmins` itself when no primary
+    // set is configured (preserving the old "1 admin downvote = hide"
+    // behavior unless the env intentionally introduces a hierarchy).
+    const regularAdmins = primaryAdmins.length > 0
+        ? allAdmins.filter((u) => !primarySet.has(u))
+        : allAdmins;
+    const regularSet = new Set(regularAdmins);
 
     return discussions.filter((discussion: any) => {
         // Deduplicate votes first to ensure accurate counting
         const deduplicatedVotes = deduplicateVotes(discussion.active_votes || []);
         const downvoteCount = countDownvotes(deduplicatedVotes);
 
-        const hasAdminDownvote = adminUsers.length > 0
-            ? deduplicatedVotes.some((vote) =>
-                adminUsers.includes(String(vote.voter || "").toLowerCase()) &&
-                ((vote.weight || 0) < 0 || (vote.percent || 0) < 0 || (vote.rshares || 0) < 0)
-            )
-            : false;
+        const negativeAdminVotes = deduplicatedVotes.filter(
+            (v) => isNegativeVote(v) && typeof v.voter === "string",
+        );
+
+        // Solo-authority primary admin downvote.
+        const hasPrimaryAdminDownvote =
+            primarySet.size > 0 &&
+            negativeAdminVotes.some((v) =>
+                primarySet.has(String(v.voter).toLowerCase()),
+            );
+
+        // Quorum (2+) of regular admin downvotes.
+        const regularAdminDownvoteCount = regularSet.size > 0
+            ? negativeAdminVotes.filter((v) =>
+                regularSet.has(String(v.voter).toLowerCase()),
+            ).length
+            : 0;
+        const hasRegularAdminQuorum = regularAdminDownvoteCount >= 2;
+
+        const hasAdminMod = hasPrimaryAdminDownvote || hasRegularAdminQuorum;
+
+        // Bridge "hide" is a hard mute set by the on-chain Skatehive
+        // community moderators. Worth honoring even outside our env list.
+        const isBridgeHidden = discussion.stats?.hide === true;
 
         // Get author reputation and convert to readable format
         const rawReputation = discussion.author_reputation || 0;
@@ -110,29 +164,36 @@ export function filterAutoComments(discussions: any[]): any[] {
         // If the value is already between -100 and 100, it's already calculated
         let authorReputation: number;
         if (rawReputation > -100 && rawReputation < 100) {
-            // Already calculated reputation from Bridge API
             authorReputation = rawReputation;
         } else {
-            // Raw reputation that needs calculation
             authorReputation = getReputation(rawReputation);
         }
 
-        // Filter conditions:
-        // 1. Filter out posts with 2 or more downvotes (community disapproval)
-        // 2. Filter out posts from accounts with reputation less than 0
-        // 3. Filter out hiveBuzz comments
-        // 4. Filter out posts with admin downvotes
         const hasAcceptableDownvotes = downvoteCount < 2;
         const hasAcceptableReputation = authorReputation >= 0;
-        const isNotHiveBuzz = discussion.author.toLowerCase() !== 'hivebuzz';
+        const isNotHiveBuzz = discussion.author.toLowerCase() !== "hivebuzz";
 
-        const shouldShow =
+        // Author-deleted placeholder posts. Hive forbids on-chain deletion
+        // after 7 days (payout), so apps use a convention: edit the post
+        // to set title="REMOVED" / body="deleted". These should never
+        // appear in feeds. Check both fields and the common variants.
+        const titleTrim = (discussion.title || "").trim();
+        const bodyTrim = (discussion.body || "").trim();
+        const isAuthorDeleted =
+            titleTrim === "REMOVED" ||
+            titleTrim.toLowerCase() === "removed" ||
+            bodyTrim.toLowerCase() === "deleted" ||
+            // Some clients leave both empty
+            (titleTrim === "" && bodyTrim === "");
+
+        return (
             hasAcceptableDownvotes &&
             hasAcceptableReputation &&
             isNotHiveBuzz &&
-            !hasAdminDownvote;
-
-        return shouldShow;
+            !hasAdminMod &&
+            !isBridgeHidden &&
+            !isAuthorDeleted
+        );
     });
 }
 

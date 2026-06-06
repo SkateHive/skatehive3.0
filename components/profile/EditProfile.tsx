@@ -20,7 +20,7 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import countryList from "react-select-country-list";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAioha } from "@aioha/react-ui";
@@ -28,6 +28,7 @@ import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { KeychainSDK, KeychainKeyTypes, Broadcast } from "keychain-sdk";
 import { Operation } from "@hiveio/dhive";
 import { mergeHiveProfileMetadata } from "@/lib/hive/profile-metadata";
+import { sanitize as sanitizeIgHandle } from "@/lib/instagram/resolveIgHandle";
 import MergeAccountModal from "./MergeAccountModal";
 import fetchAccount from "@/lib/hive/fetchAccount";
 import {
@@ -59,6 +60,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
       coverImage: "",
       zineCover: "",
       svs_profile: "",
+      instagram: "",
     });
     const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
@@ -102,12 +104,39 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
           coverImage: profileData.coverImage || "",
           zineCover: profileData.zineCover || "",
           svs_profile: profileData.svs_profile || "",
+          instagram: profileData.instagram || "",
         });
         setProfileImageFile(null);
         setCoverImageFile(null);
         setError(null);
       }
     }, [isOpen, profileData]);
+
+    // The DB-stored Instagram handle takes precedence over the Hive metadata
+    // value (e.g. user updated via the cross-post dialog but hasn't pushed
+    // the change back to Hive yet). Fetch and patch when modal opens.
+    useEffect(() => {
+      if (!isOpen) return;
+      let cancelled = false;
+      (async () => {
+        try {
+          const res = await fetch("/api/userbase/profile/instagram", {
+            credentials: "include",
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (cancelled) return;
+          if (data?.handle) {
+            setFormData((prev) => ({ ...prev, instagram: data.handle }));
+          }
+        } catch {
+          // Silent — Hive metadata fallback is already populated.
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [isOpen]);
 
     const generatePreview = useCallback(async () => {
       if (!user || user !== username) return;
@@ -425,6 +454,9 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
               cover_image: finalCoverImage || "",
               profile_image: finalProfileImage || "",
               website: formData.website || "",
+              // Plain username (no @), sanitized. Other Hive frontends can
+              // surface this however they like; SkateHive reads it back.
+              instagram: sanitizeIgHandle(formData.instagram) || "",
               version: 2,
             },
             extensionsPatch: {
@@ -467,9 +499,33 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
           throw new Error("Profile update failed");
         }
 
+        // Mirror the Instagram handle into userbase_identities so the IG
+        // cross-post resolver can read it without a Hive RPC roundtrip.
+        // Failure here is non-fatal: the Hive metadata write already
+        // succeeded and the resolver will fall back to it.
+        const sanitizedIg = sanitizeIgHandle(formData.instagram);
+        try {
+          if (sanitizedIg) {
+            await fetch("/api/userbase/profile/instagram", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ handle: sanitizedIg, source: "edit_profile" }),
+            });
+          } else {
+            await fetch("/api/userbase/profile/instagram", {
+              method: "DELETE",
+              credentials: "include",
+            });
+          }
+        } catch {
+          // ignore — Hive write is the source of truth
+        }
+
         // Update parent component with new data
         const updatedData = {
           ...formData,
+          instagram: sanitizedIg || "",
           profileImage: finalProfileImage,
           coverImage: finalCoverImage,
           zineCover: finalZineCover,
@@ -793,6 +849,23 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
                       flex={1}
                     />
                   </Flex>
+                </FormControl>
+
+                <FormControl>
+                  <Flex gap={2} align="center">
+                    <FormLabel mb={0} minWidth="80px">
+                      Instagram
+                    </FormLabel>
+                    <Input
+                      value={formData.instagram}
+                      onChange={handleFormChange("instagram")}
+                      placeholder="yourighandle"
+                      flex={1}
+                    />
+                  </Flex>
+                  <Text fontSize="xs" color="gray.500" mt={1} ml="88px">
+                    Used to @-tag you in @skatehive Instagram cross-posts. No @ needed.
+                  </Text>
                 </FormControl>
 
                 <FormControl>

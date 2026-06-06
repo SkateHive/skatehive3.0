@@ -82,7 +82,7 @@ Access-Control-Allow-Headers: Content-Type
 
 When using `endpoint` parameter without `url`, requests proxy to:
 ```
-https://skatehive-transcoder.onrender.com
+https://transcode.skatehive.app
 ```
 
 ## Error Handling
@@ -136,9 +136,8 @@ https://skatehive-transcoder.onrender.com
 
 ## Related Services
 
-- Oracle Transcoder: `https://146-235-239-243.sslip.io`
-- Mac Mini M4 Transcoder: `https://minivlad.tail83ea3e.ts.net/video`
-- Render Fallback: `https://skatehive-transcoder.onrender.com`
+- Oracle Transcoder (Primary): `https://transcode.skatehive.app`
+- Mac Mini M4 Transcoder (Secondary): `https://minivlad.tail83ea3e.ts.net/video`
 
 ---
 

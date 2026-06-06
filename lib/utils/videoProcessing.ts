@@ -3,21 +3,26 @@
  *
  * Architecture note:
  *   Health checks always go through /api/video-proxy (same-origin, avoids CORS).
- *   Uploads for Tailscale hosts (Mac Mini, Pi) also go through the proxy because
+ *   Uploads for Tailscale hosts (Mac Mini) also go through the proxy because
  *   the browser may not be able to reach *.tail83ea3e.ts.net directly from all
  *   networks — the proxy path ensures the transfer goes browser → Vercel → host
  *   instead of browser → host, eliminating the false-positive-health / real-upload-fail
  *   race condition.
+ *
+ *   Server list and order come from the canonical transcode registry
+ *   (config/transcode.config.ts), the single source of truth shared with the
+ *   status health check and api.skatehive.app.
  */
 
 import { APP_CONFIG } from "@/config/app.config";
+import { TRANSCODE_SERVERS } from "@/config/transcode.config";
 
 export interface ProcessingResult {
   success: boolean;
   url?: string;
   hash?: string;
   error?: string;
-  /** Which server(s) failed */
+  /** Which server(s) failed. 'pi' is retained for the error-demo panel only. */
   failedServer?: "macmini" | "oracle" | "pi" | "all";
   /** HTTP status code if applicable */
   statusCode?: number;
@@ -31,6 +36,7 @@ export interface ProcessingResult {
     | "unknown";
 }
 
+/** Server type identifiers. 'pi' is retained for the error-demo panel only. */
 export type ServerKey = "macmini" | "oracle" | "pi";
 
 export interface ServerConfig {
@@ -56,35 +62,19 @@ interface FailureRecord {
 }
 
 /**
- * Single source of truth for server order and routing.
+ * Single source of truth for server order and routing — derived from the
+ * canonical transcode registry so uploads, the status health check, and the
+ * UI all agree on which servers exist and in what order.
  * All servers run the same SkateHive video-transcoder codebase.
  */
-export const SERVER_CONFIG: ServerConfig[] = [
-  {
-    key: "oracle",
-    name: "Oracle",
-    emoji: "🔮",
-    priority: "PRIMARY",
-    url: "https://transcode.skatehive.app",
-    useProxy: false, // Public endpoint — browser can POST directly
-  },
-  {
-    key: "macmini",
-    name: "Mac Mini M4",
-    emoji: "🍎",
-    priority: "SECONDARY",
-    url: "https://minivlad.tail83ea3e.ts.net/video",
-    useProxy: true, // Tailscale Funnel — route through Vercel to avoid browser CORS/firewall
-  },
-  {
-    key: "pi",
-    name: "Raspberry Pi",
-    emoji: "🫐",
-    priority: "TERTIARY",
-    url: "https://vladsberry.tail83ea3e.ts.net/video",
-    useProxy: true, // Tailscale Funnel — same reason as Mac Mini
-  },
-];
+export const SERVER_CONFIG: ServerConfig[] = TRANSCODE_SERVERS.map((s) => ({
+  key: s.key,
+  name: s.name,
+  emoji: s.emoji,
+  priority: s.label,
+  url: s.baseUrl,
+  useProxy: s.useProxy,
+}));
 
 export interface EnhancedProcessingOptions {
   userHP?: number;
@@ -202,6 +192,18 @@ export async function processVideoOnServer(
   const correlationId = `${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .slice(2, 8)}`;
+
+  // If every server's circuit is open, the user can't recover — they'd see
+  // "All servers failed" for the full TTL with no way to retry. Treat a
+  // fresh upload attempt as a user intent to try again: clear the breakers
+  // and re-evaluate via real health checks. If the servers are still down,
+  // the per-attempt failures will re-trip the circuits on this run.
+  if (SERVER_CONFIG.every((s) => isCircuitOpen(s.key))) {
+    console.log(
+      `⚡ [${correlationId}] All circuits open — resetting to give the upload a fresh attempt`
+    );
+    SERVER_CONFIG.forEach((s) => resetCircuit(s.key));
+  }
 
   const failures: FailureRecord[] = [];
 

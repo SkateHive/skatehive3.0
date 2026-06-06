@@ -1,5 +1,5 @@
 import { Box, Heading, OrderedList, ListItem, Text } from '@chakra-ui/react';
-import { PixDashboardData } from './PIXTabContent';
+import type { PixDashboardData } from './PIXTabContent';
 
 interface PixTransferGuideProps {
   pixDashboardData: PixDashboardData;

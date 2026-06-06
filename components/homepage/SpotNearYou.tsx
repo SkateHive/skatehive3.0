@@ -1,167 +1,170 @@
-"use client"
+"use client";
 
-import { Box, Text, Flex, Spinner, Button } from "@chakra-ui/react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
-import { Discussion } from "@hiveio/dhive"
-import { useMemo, useState, useEffect } from "react"
-import { useTranslations } from "@/contexts/LocaleContext"
+import { Badge, Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "@/contexts/LocaleContext";
+import type { FeaturedSpot } from "@/lib/spotmap/featured";
 
-function getSpotImage(spot: Discussion): string {
-  try {
-    const match = spot.body?.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/)
-    if (match?.[1]) return match[1]
-  } catch {}
-  return ""
+// Rolling "already seen" buffer kept in localStorage so the rotation feels
+// fresh across page navigations and refreshes. We cap it small — once the
+// user has cycled through 10 spots we let the oldest one drop out.
+const SEEN_STORAGE_KEY = "spotmap_seen_ids";
+const SEEN_BUFFER_SIZE = 10;
+
+interface FeaturedResponse {
+  success: boolean;
+  spot?: FeaturedSpot;
+  isNearby?: boolean;
+  pool_size?: number;
+  error?: string;
 }
 
-function getSpotTitle(spot: Discussion, fallback: string): string {
-  try {
-    const match = spot.body?.match(/Spot Name:\s*(.+)/i)
-    if (match?.[1]) return match[1].trim()
-  } catch {}
-  return spot.title || fallback
+interface SpotNearYouProps {
+  /**
+   * Spot rendered immediately on first paint (from SSR). The client
+   * still upgrades the selection with geolocation as soon as it mounts;
+   * this just removes the skeleton flash for cold visits.
+   */
+  initialSpot?: FeaturedSpot | null;
 }
 
-function isValidCoord(lat: number, lng: number): boolean {
-  return !isNaN(lat) && !isNaN(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180
+function readSeen(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(SEEN_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.slice(-SEEN_BUFFER_SIZE) : [];
+  } catch {
+    return [];
+  }
 }
 
-function parseSpotCoords(spot: Discussion): { lat: number; lng: number } | null {
-  const body = spot.body || ""
-
-  // 1. 🌐 lat, lng
+function writeSeen(ids: string[]) {
+  if (typeof window === "undefined") return;
   try {
-    const match = body.match(/🌐\s*([-\d.]+),\s*([-\d.]+)/)
-    if (match?.[1] && match?.[2]) {
-      const lat = parseFloat(match[1]), lng = parseFloat(match[2])
-      if (isValidCoord(lat, lng)) return { lat, lng }
-    }
-  } catch {}
-
-  // 2. Location: lat, lng (used by Brazilian spots)
-  try {
-    const locMatch = body.match(/Location:\s*([-\d.]+),\s*([-\d.]+)/i)
-    if (locMatch?.[1] && locMatch?.[2]) {
-      const lat = parseFloat(locMatch[1]), lng = parseFloat(locMatch[2])
-      if (isValidCoord(lat, lng)) return { lat, lng }
-    }
-  } catch {}
-
-  // 4. Google Maps data param: !3d<lat>!4d<lng> (most reliable in share URLs)
-  try {
-    const dataMatch = body.match(/[!?&]3d([-\d.]+)[!&]4d([-\d.]+)/)
-    if (dataMatch?.[1] && dataMatch?.[2]) {
-      const lat = parseFloat(dataMatch[1]), lng = parseFloat(dataMatch[2])
-      if (isValidCoord(lat, lng)) return { lat, lng }
-    }
-  } catch {}
-
-  // 5. Google Maps URL with @lat,lng (e.g. /maps/place/.../@lat,lng,zoom or /maps/@lat,lng)
-  try {
-    const atMatch = body.match(/google\.com\/maps[^\s]*@([-\d.]+),([-\d.]+)/)
-    if (atMatch?.[1] && atMatch?.[2]) {
-      const lat = parseFloat(atMatch[1]), lng = parseFloat(atMatch[2])
-      if (isValidCoord(lat, lng)) return { lat, lng }
-    }
-  } catch {}
-
-  // 6. Google Maps URL with ?q=lat,lng or &q=lat,lng (numeric query)
-  try {
-    const qMatch = body.match(/google\.com\/maps[^\s]*[?&]q=([-\d.]+),([-\d.]+)/)
-    if (qMatch?.[1] && qMatch?.[2]) {
-      const lat = parseFloat(qMatch[1]), lng = parseFloat(qMatch[2])
-      if (isValidCoord(lat, lng)) return { lat, lng }
-    }
-  } catch {}
-
-  // 7. Google Maps URL with ?ll=lat,lng
-  try {
-    const llMatch = body.match(/google\.com\/maps[^\s]*[?&]ll=([-\d.]+),([-\d.]+)/)
-    if (llMatch?.[1] && llMatch?.[2]) {
-      const lat = parseFloat(llMatch[1]), lng = parseFloat(llMatch[2])
-      if (isValidCoord(lat, lng)) return { lat, lng }
-    }
-  } catch {}
-
-  // 8. json_metadata: {location: {lat, lng}} or GeoJSON coordinates
-  try {
-    const meta = JSON.parse((spot as any).json_metadata || "{}")
-    const loc = meta?.location
-    if (loc) {
-      const lat = parseFloat(loc.lat ?? loc.latitude)
-      const lng = parseFloat(loc.lng ?? loc.longitude)
-      if (isValidCoord(lat, lng)) return { lat, lng }
-    }
-    const coords = meta?.coordinates
-    if (Array.isArray(coords) && coords.length >= 2) {
-      const lat = coords[1], lng = coords[0]
-      if (isValidCoord(lat, lng)) return { lat, lng }
-    }
-  } catch {}
-
-  return null
+    window.localStorage.setItem(
+      SEEN_STORAGE_KEY,
+      JSON.stringify(ids.slice(-SEEN_BUFFER_SIZE))
+    );
+  } catch {
+    // localStorage might be disabled (private browsing); silently ignore.
+  }
 }
 
-function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371
-  const dLat = ((lat2 - lat1) * Math.PI) / 180
-  const dLng = ((lng2 - lng1) * Math.PI) / 180
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+function formatDistance(km: number): string {
+  if (!Number.isFinite(km)) return "";
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
 }
 
-export default function SpotNearYou() {
-  const [spots, setSpots] = useState<Discussion[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
-  const t = useTranslations("spotWidget")
-  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
+export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {}) {
+  const router = useRouter();
+  const t = useTranslations("spotWidget");
+  const [spot, setSpot] = useState<FeaturedSpot | null>(initialSpot);
+  const [isNearby, setIsNearby] = useState(false);
+  // No spinner if we got an SSR'd spot — the user already sees content.
+  const [isLoading, setIsLoading] = useState(!initialSpot);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoTried, setGeoTried] = useState(false);
+  // Seen buffer lives in a ref because every fetch reads it but we never
+  // want to re-trigger effects when it changes; localStorage is the
+  // source of truth.
+  const seenRef = useRef<string[]>([]);
 
   useEffect(() => {
-    fetch("/api/skatespots?page=1&limit=500")
-      .then((r) => r.json())
-      .then((data) => { if (data.success) setSpots(data.data) })
-      .catch(() => {})
-      .finally(() => setIsLoading(false))
-  }, [])
+    const stored = readSeen();
+    // Seed the "seen" list with the SSR'd spot so the very first client
+    // fetch excludes it — otherwise the widget would often re-pick the
+    // same row and the rotation wouldn't feel like a rotation.
+    if (initialSpot && !stored.includes(initialSpot.id)) {
+      const next = [...stored, initialSpot.id].slice(-SEEN_BUFFER_SIZE);
+      seenRef.current = next;
+      writeSeen(next);
+    } else {
+      seenRef.current = stored;
+    }
+  }, [initialSpot]);
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !navigator.geolocation) return
+  // Ask for geolocation up front. Errors are silent — random spot is a
+  // fine fallback and the homepage isn't the place to nag for permission.
+  // The user can opt in later via the small "use my location" link below
+  // the buttons if geo failed or wasn't asked.
+  const requestGeo = useCallback(() => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setGeoTried(true);
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
-      (pos) => setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setUserCoords(null),
-      { timeout: 5000, maximumAge: 60000 }
-    )
-  }, [])
+      (pos) => {
+        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeoTried(true);
+      },
+      () => setGeoTried(true),
+      { timeout: 5000, maximumAge: 30 * 60_000 }
+    );
+  }, []);
 
-  const randomSpot = useMemo(() => {
-    if (!spots.length) return null
-    const index = Math.floor(Math.random() * spots.length)
-    return spots[index]
-  }, [spots])
+  useEffect(() => {
+    requestGeo();
+  }, [requestGeo]);
 
-  const nearestSpot = useMemo(() => {
-    if (!userCoords || !spots.length) return null
-    let closest: Discussion | null = null
-    let minDist = Infinity
-    for (const spot of spots) {
-      const coords = parseSpotCoords(spot)
-      if (!coords) continue
-      const dist = haversineDistance(userCoords.lat, userCoords.lng, coords.lat, coords.lng)
-      if (dist < minDist) {
-        minDist = dist
-        closest = spot
+  // Show the opt-in link once we've tried (or know we can't) and don't
+  // have coords. If the user previously denied at the OS/browser level
+  // the click won't re-prompt — but that's fine, the link is subtle.
+  const showLocationHint = geoTried && !userCoords;
+
+  const fetchFeatured = useCallback(
+    async (opts: { excludeCurrent?: boolean } = {}) => {
+      setIsLoading(true);
+      const params = new URLSearchParams();
+      if (userCoords) {
+        params.set("lat", userCoords.lat.toFixed(5));
+        params.set("lng", userCoords.lng.toFixed(5));
       }
-    }
-    return minDist <= 50 ? closest : null
-  }, [spots, userCoords])
+      const excludes = [...seenRef.current];
+      if (opts.excludeCurrent && spot?.id && !excludes.includes(spot.id)) {
+        excludes.push(spot.id);
+      }
+      if (excludes.length) {
+        params.set("exclude", excludes.slice(-SEEN_BUFFER_SIZE).join(","));
+      }
 
-  const displaySpot = nearestSpot ?? randomSpot
-  const image = displaySpot ? getSpotImage(displaySpot) : ""
-  const title = displaySpot ? getSpotTitle(displaySpot, t("noName")) : ""
+      try {
+        const res = await fetch(`/api/spotmap/featured?${params}`);
+        const data = (await res.json()) as FeaturedResponse;
+        if (data.success && data.spot) {
+          setSpot(data.spot);
+          setIsNearby(!!data.isNearby);
+          const next = [...seenRef.current, data.spot.id].slice(-SEEN_BUFFER_SIZE);
+          seenRef.current = next;
+          writeSeen(next);
+        }
+      } catch {
+        // Silent — widget just keeps its previous spot.
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [userCoords, spot?.id]
+  );
+
+  // First fetch happens once geo has settled (succeeded OR explicitly
+  // failed). We wait so the very first request includes coords when
+  // available, instead of doing two network round-trips.
+  useEffect(() => {
+    if (!geoTried) return;
+    fetchFeatured();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geoTried]);
+
+  const spotHref =
+    spot?.hive_author && spot?.hive_permlink
+      ? `/spot/${spot.hive_author}/${spot.hive_permlink}`
+      : null;
+  const showSkeleton = isLoading && !spot;
 
   return (
     <Box
@@ -176,34 +179,77 @@ export default function SpotNearYou() {
         <Text fontSize="sm" fontWeight="500" color="primary">
           {t("title")}
         </Text>
-        {displaySpot && (
+        {spotHref && (
           <Button
             size="xs"
             variant="outline"
             borderRadius="0"
             fontSize="11px"
-            onClick={() => router.push(`/post/${displaySpot.author}/${displaySpot.permlink}`)}
+            onClick={() => router.push(spotHref)}
           >
             {t("viewMore")}
           </Button>
         )}
       </Flex>
 
-      {isLoading ? (
-        <Flex justify="center" py={4}>
-          <Spinner size="sm" color="primary" />
-        </Flex>
-      ) : displaySpot ? (
-        <>
-          {image && (
-            <Box position="relative" width="100%" height="160px">
+      {showSkeleton ? (
+        <SpotSkeleton />
+      ) : spot && spotHref ? (
+        <Box
+          as="a"
+          href={spotHref}
+          display="block"
+          cursor="pointer"
+          _hover={{ opacity: 0.92 }}
+          transition="opacity 0.15s"
+          opacity={isLoading ? 0.6 : 1}
+        >
+          {spot.thumbnail ? (
+            <Box position="relative" width="100%" height="160px" bg="rgba(255,255,255,0.04)">
               <Image
-                src={image}
-                alt={title}
+                src={spot.thumbnail}
+                alt={spot.name}
                 fill
                 style={{ objectFit: "cover" }}
                 sizes="(max-width: 768px) 100vw, 300px"
+                unoptimized={spot.thumbnail.startsWith("https://ipfs.")}
               />
+              {isNearby && Number.isFinite(spot.distance_km) && (
+                <Badge
+                  position="absolute"
+                  top={1.5}
+                  left={1.5}
+                  bg="rgba(0,0,0,0.72)"
+                  color="primary"
+                  fontSize="10px"
+                  fontWeight="800"
+                  fontFamily="ui-monospace, monospace"
+                  textTransform="none"
+                  px={2}
+                  py={0.5}
+                  borderRadius="full"
+                  border="1px solid"
+                  borderColor="rgba(167,255,0,0.4)"
+                  backdropFilter="blur(4px)"
+                >
+                  📍 {formatDistance(spot.distance_km!)} · {t("nearYou")}
+                </Badge>
+              )}
+            </Box>
+          ) : (
+            <Box
+              width="100%"
+              height="100px"
+              bg="rgba(167,255,0,0.04)"
+              border="1px dashed"
+              borderColor="whiteAlpha.200"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              color="gray.500"
+              fontSize="xs"
+            >
+              📍
             </Box>
           )}
           <Text
@@ -214,22 +260,80 @@ export default function SpotNearYou() {
             mb={2}
             noOfLines={1}
           >
-            {title}
+            {spot.name || t("noName")}
           </Text>
-        </>
+        </Box>
       ) : null}
 
-      <Button
-        width="100%"
-        size="sm"
-        variant="outline"
-        borderRadius="0"
-        fontSize="13px"
-        mt={2}
-        onClick={() => router.push("/map")}
-      >
-        {t("viewAllSpots")}
-      </Button>
+      <HStack spacing={2} mt={2}>
+        <Button
+          flex={1}
+          size="sm"
+          variant="outline"
+          borderRadius="0"
+          fontSize="13px"
+          onClick={() => fetchFeatured({ excludeCurrent: true })}
+          isLoading={isLoading && !!spot}
+          isDisabled={showSkeleton}
+        >
+          {t("another")}
+        </Button>
+        <Button
+          flex={1}
+          size="sm"
+          variant="outline"
+          borderRadius="0"
+          fontSize="13px"
+          onClick={() => router.push("/map")}
+        >
+          {t("viewAllSpots")}
+        </Button>
+      </HStack>
+
+      {showLocationHint && (
+        <Text
+          as="button"
+          type="button"
+          mt={2}
+          fontSize="11px"
+          color="gray.500"
+          fontFamily="ui-monospace, monospace"
+          letterSpacing="0.01em"
+          textAlign="center"
+          width="100%"
+          cursor="pointer"
+          bg="transparent"
+          _hover={{ color: "primary" }}
+          onClick={requestGeo}
+        >
+          📍 {t("useMyLocation")}
+        </Text>
+      )}
     </Box>
-  )
+  );
+}
+
+// Skeleton shaped like the populated state — image block + title bar —
+// so the layout doesn't jump when the real content lands.
+function SpotSkeleton() {
+  return (
+    <Box>
+      <Box
+        width="100%"
+        height="160px"
+        bg="rgba(255,255,255,0.05)"
+        sx={{
+          animation: "spotShimmer 1.4s linear infinite",
+          background:
+            "linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 100%)",
+          backgroundSize: "200% 100%",
+          "@keyframes spotShimmer": {
+            "0%": { backgroundPosition: "200% 0" },
+            "100%": { backgroundPosition: "-200% 0" },
+          },
+        }}
+      />
+      <Box height="14px" width="65%" bg="rgba(255,255,255,0.06)" mt={2} mb={2} borderRadius="2px" />
+    </Box>
+  );
 }

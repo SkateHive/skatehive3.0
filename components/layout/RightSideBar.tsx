@@ -19,8 +19,14 @@ import { filterAutoComments } from "@/lib/utils/postUtils";
 import { CommunityTotalPayout } from "../shared";
 import { getHiveTagForQuery } from "@/lib/hive/tag-utils";
 import SpotNearYou from "@/components/homepage/SpotNearYou";
+import type { FeaturedSpot } from "@/lib/spotmap/featured";
 
-export default function RightSideBar() {
+interface RightSideBarProps {
+  /** SSR'd spot for the "Discover a spot" widget. See app/page.tsx. */
+  initialFeaturedSpot?: FeaturedSpot | null;
+}
+
+export default function RightSideBar({ initialFeaturedSpot }: RightSideBarProps = {}) {
   const [allPosts, setAllPosts] = useState<Discussion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -138,10 +144,9 @@ export default function RightSideBar() {
         p={4}
         borderWidth="1px"
         borderColor="whiteAlpha.200"
-        borderRadius="lg"
         bg="rgba(20,20,20,0.45)"
       >
-      <SpotNearYou />
+      <SpotNearYou initialSpot={initialFeaturedSpot ?? null} />
       </Box>
       <Divider my={2} borderColor="muted" />
       {allPosts.length > 0 ? (

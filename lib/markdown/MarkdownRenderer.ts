@@ -35,8 +35,6 @@ function getSanitizedHTML(html: string): string {
                     /^https:\/\/(www\.)?youtube-nocookie\.com\/embed\/[a-zA-Z0-9_-]{11}(\?.*)?$/,
                     /^https:\/\/youtu\.be\/[a-zA-Z0-9_-]{11}(\?.*)?$/,
                     /^https:\/\/player\.vimeo\.com\/video\/[0-9]+(\?.*)?$/,
-                    /^https:\/\/3speak\.tv\/embed\?v=[^"'<>\s]+$/,
-                    /^https:\/\/play\.3speak\.tv\/watch\?v=[^"'<>\s]+$/,
                     /^https:\/\/odysee\.com\/.+$/,
                     new RegExp(`^https:\\/\\/${APP_CONFIG.IPFS_GATEWAY.replace('.', '\\.') }\\/ipfs\\/.+$`),
                     /^https:\/\/gateway\.pinata\.cloud\/ipfs\/.+$/
@@ -175,9 +173,15 @@ export function processMediaContent(content: string): string {
         /<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})[^"']*["'][^>]*><\/iframe>/gim,
         (_match, videoId) => `[[YOUTUBE:${videoId}]]`
     );
-    // YouTube direct links
+    // YouTube Shorts direct links — captured separately and tagged with an
+    // "s:" prefix so the dispatcher can render at 9/16 instead of 16/9.
     processedContent = processedContent.replace(
-        /^https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^\s]*&)?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})[\S]*/gim,
+        /^https?:\/\/(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})[\S]*/gim,
+        (_match, videoId) => `[[YOUTUBE:s:${videoId}]]`
+    );
+    // YouTube direct links (regular videos — must run AFTER the Shorts rule)
+    processedContent = processedContent.replace(
+        /^https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^\s]*&)?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})[\S]*/gim,
         (_match, videoId) => `[[YOUTUBE:${videoId}]]`
     );
     // Vimeo iframe embeds
@@ -238,19 +242,8 @@ export function processMediaContent(content: string): string {
 }
 
 function expandEmbeds(html: string): string {
-    // 3Speak - Updated to new play.3speak.tv format (Jan 2026)
-    html = html.replace(/\[\[3SPEAK:([^[\]\s]+)\]\]/g, (_m, id) => `
-        <div class="embed-frame">
-            <iframe
-                src="https://play.3speak.tv/watch?v=${id}&mode=iframe&layout=desktop"
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade"
-                allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowfullscreen
-                sandbox="allow-scripts allow-same-origin allow-popups"
-            ></iframe>
-        </div>
-    `);
+    // 3Speak placeholders are kept as-is and handled by ThreeSpeakPlayer React component
+    // in HiveMarkdown.tsx and EnhancedMarkdownRenderer.tsx
 
     // Add other placeholder expansions if needed
     return html;

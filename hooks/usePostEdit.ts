@@ -3,12 +3,23 @@ import { useToast } from "@chakra-ui/react";
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
 import { Discussion, Operation } from "@hiveio/dhive";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 
 export type UpgradeAction = "follow" | "edit" | "delete" | "wallet" | "general";
 
 export const usePostEdit = (discussion: Discussion) => {
     const { aioha, user } = useAioha();
+    const { hiveIdentity: userbaseHiveIdentity } = useLinkedIdentities();
     const toast = useToast();
+
+    // The author we'll attempt the edit as. Prefer the active Keychain
+    // user, fall back to the userbase-linked Hive handle (which posts via
+    // the stored encrypted posting key at /api/userbase/hive/comment).
+    const linkedHiveHandle = userbaseHiveIdentity?.handle || null;
+    const effectiveAuthor = user || linkedHiveHandle;
+    // You can only edit your own post — author must match.
+    const canEditThisPost =
+        !!effectiveAuthor && effectiveAuthor === discussion.author;
 
     const [isEditing, setIsEditing] = useState(false);
     const [editedContent, setEditedContent] = useState(discussion.body);
@@ -18,8 +29,8 @@ export const usePostEdit = (discussion: Discussion) => {
     const [upgradeAction, setUpgradeAction] = useState<UpgradeAction>("edit");
 
     const handleEditClick = useCallback(() => {
-        // If no Hive user connected, show upgrade modal
-        if (!user) {
+        // No Hive identity at all — prompt to link/upgrade.
+        if (!canEditThisPost) {
             setUpgradeAction("edit");
             setShowUpgradeModal(true);
             return;
@@ -40,17 +51,17 @@ export const usePostEdit = (discussion: Discussion) => {
         }
         
         setIsEditing(true);
-    }, [discussion.body, discussion.json_metadata, user]);
+    }, [discussion.body, discussion.json_metadata, canEditThisPost]);
 
     const handleDeleteClick = useCallback(() => {
-        // If no Hive user connected, show upgrade modal
+        // Delete still requires Keychain (active-key-equivalent op). The
+        // userbase API doesn't currently expose a delete endpoint, so we
+        // keep the previous gate here intentionally.
         if (!user) {
             setUpgradeAction("delete");
             setShowUpgradeModal(true);
             return;
         }
-        // If user is connected, the actual delete logic is handled elsewhere
-        // This just provides the gate check
         return true;
     }, [user]);
 
@@ -65,7 +76,7 @@ export const usePostEdit = (discussion: Discussion) => {
     }, [discussion.body]);
 
     const handleSaveEdit = useCallback(async () => {
-        if (!user || (editedContent === discussion.body && !selectedThumbnail)) {
+        if (!canEditThisPost || (editedContent === discussion.body && !selectedThumbnail)) {
             setIsEditing(false);
             return;
         }
@@ -76,7 +87,7 @@ export const usePostEdit = (discussion: Discussion) => {
             // Check if no changes were made
             const contentChanged = editedContent.trim() !== discussion.body.trim();
             const thumbnailChanged = selectedThumbnail !== null;
-            
+
             if (!contentChanged && !thumbnailChanged) {
                 toast({
                     title: "No changes detected",
@@ -102,41 +113,64 @@ export const usePostEdit = (discussion: Discussion) => {
                 if (!parsedMetadata.image) {
                     parsedMetadata.image = [];
                 }
-                // Ensure the selected thumbnail is the first in the array
                 if (Array.isArray(parsedMetadata.image)) {
-                    // Remove the thumbnail if it already exists in the array
                     parsedMetadata.image = parsedMetadata.image.filter((img: string) => img !== selectedThumbnail);
-                    // Add it to the beginning
                     parsedMetadata.image.unshift(selectedThumbnail);
                 } else {
                     parsedMetadata.image = [selectedThumbnail];
                 }
             }
 
-            const operation: Operation = [
-                "comment",
-                {
-                    parent_author: discussion.parent_author || "",
-                    parent_permlink: discussion.parent_permlink || discussion.category || "",
-                    author: user,
-                    permlink: discussion.permlink,
-                    title: discussion.title || "",
-                    body: editedContent,
-                    json_metadata: JSON.stringify(parsedMetadata),
-                },
-            ];
+            const author = effectiveAuthor!;
+            const commentPayload = {
+                parent_author: discussion.parent_author || "",
+                parent_permlink: discussion.parent_permlink || discussion.category || "",
+                author,
+                permlink: discussion.permlink,
+                title: discussion.title || "",
+                body: editedContent,
+                json_metadata: JSON.stringify(parsedMetadata),
+            };
 
-            console.log("[EditPost] Broadcasting operation:", JSON.stringify(operation[1], null, 2));
+            let success = false;
+            let errorMessage = "Failed to update post";
 
-            // Use aioha to broadcast the edit
-            const result = await aioha.signAndBroadcastTx([operation], KeyTypes.Posting);
+            if (user) {
+                // Keychain path — broadcast via aioha.
+                const operation: Operation = ["comment", commentPayload];
+                const result = await aioha.signAndBroadcastTx(
+                    [operation],
+                    KeyTypes.Posting
+                );
+                if (result && result.success) {
+                    success = true;
+                } else {
+                    errorMessage =
+                        result?.error?.message || result?.message || errorMessage;
+                }
+            } else {
+                // Userbase path — server decrypts the stored posting key and
+                // broadcasts the same comment op. Re-publishing a comment with
+                // an existing author+permlink is a Hive-native edit.
+                const response = await fetch("/api/userbase/hive/comment", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        ...commentPayload,
+                        // `type` is used by the route for soft-post telemetry —
+                        // we send "edit" so it can skip soft-post insertion.
+                        type: "edit",
+                    }),
+                });
+                const data = await response.json().catch(() => ({}));
+                if (response.ok) {
+                    success = true;
+                } else {
+                    errorMessage = data?.error || errorMessage;
+                }
+            }
 
-            console.log("[EditPost] Broadcast result:", result);
-            console.log("[EditPost] result.success:", result?.success);
-            console.log("[EditPost] result.result:", result?.result);
-            console.log("[EditPost] result.error:", result?.error);
-
-            if (result && result.success) {
+            if (success) {
                 toast({
                     title: "Post updated on blockchain!",
                     description: "Changes may take a few seconds to appear after refresh.",
@@ -147,26 +181,9 @@ export const usePostEdit = (discussion: Discussion) => {
 
                 // Update the local discussion body and metadata
                 discussion.body = editedContent;
-                if (selectedThumbnail) {
-                    try {
-                        const updatedMetadata = JSON.parse(discussion.json_metadata || '{}');
-                        if (!updatedMetadata.image) {
-                            updatedMetadata.image = [];
-                        }
-                        if (Array.isArray(updatedMetadata.image)) {
-                            updatedMetadata.image = updatedMetadata.image.filter((img: string) => img !== selectedThumbnail);
-                            updatedMetadata.image.unshift(selectedThumbnail);
-                        } else {
-                            updatedMetadata.image = [selectedThumbnail];
-                        }
-                        discussion.json_metadata = JSON.stringify(updatedMetadata);
-                    } catch (e) {
-                        console.warn('Failed to update local metadata');
-                    }
-                }
+                discussion.json_metadata = JSON.stringify(parsedMetadata);
                 setIsEditing(false);
             } else {
-                const errorMessage = result?.error?.message || result?.message || "Failed to update post";
                 throw new Error(errorMessage);
             }
         } catch (error: any) {
@@ -181,7 +198,7 @@ export const usePostEdit = (discussion: Discussion) => {
         } finally {
             setIsSaving(false);
         }
-    }, [user, editedContent, discussion, aioha, toast, selectedThumbnail]);
+    }, [canEditThisPost, effectiveAuthor, user, editedContent, discussion, aioha, toast, selectedThumbnail]);
 
     return {
         isEditing,
@@ -198,7 +215,13 @@ export const usePostEdit = (discussion: Discussion) => {
         showUpgradeModal,
         upgradeAction,
         closeUpgradeModal,
-        isHiveConnected: !!user,
+        // True if the user can post via Hive at all (Keychain OR stored
+        // posting key). Callers use this to show/hide the edit affordance.
+        isHiveConnected: !!effectiveAuthor,
+        // True when the active identity matches the post's author. Use
+        // this for the actual "Edit" menu item — owning a post is per-post,
+        // while isHiveConnected is per-user.
+        canEditThisPost,
     };
 };
 

@@ -1,0 +1,139 @@
+/* Dark theme overrides for Leaflet popups, controls, and marker clusters.
+   Scoped via the `.skatehive-leaflet` wrapper so we don't clobber Leaflet's
+   defaults globally for any other page that might embed a map. */
+
+.skatehive-leaflet .leaflet-popup-content-wrapper {
+  background: #0a0a0a;
+  color: #e6e6e6;
+  border: 1px solid #a7ff00;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 0;
+}
+
+.skatehive-leaflet .leaflet-popup-content {
+  margin: 0;
+  width: 240px !important;
+  line-height: 1.4;
+}
+
+.skatehive-leaflet .leaflet-popup-tip {
+  background: #0a0a0a;
+  border: 1px solid #a7ff00;
+}
+
+.skatehive-leaflet .leaflet-popup-close-button {
+  color: #a7ff00 !important;
+  font-size: 20px;
+  padding: 4px 8px 0 0;
+}
+.skatehive-leaflet .leaflet-popup-close-button:hover {
+  color: #ffffff !important;
+}
+
+/* Zoom +/- and attribution controls */
+.skatehive-leaflet .leaflet-bar a,
+.skatehive-leaflet .leaflet-bar a:hover {
+  background: rgba(10, 10, 10, 0.85);
+  color: #a7ff00;
+  border-bottom: 1px solid rgba(167, 255, 0, 0.25);
+}
+.skatehive-leaflet .leaflet-bar a:hover {
+  background: rgba(167, 255, 0, 0.15);
+}
+.skatehive-leaflet .leaflet-bar {
+  border: 1px solid rgba(167, 255, 0, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Cluster bubble theme. Matches the spot pin color with a soft glow. */
+.skatehive-leaflet .marker-cluster {
+  background-color: transparent;
+}
+.skatehive-leaflet .marker-cluster div {
+  background-color: rgba(167, 255, 0, 0.85);
+  color: #0a0a0a;
+  font-weight: 800;
+  font-family: ui-monospace, monospace;
+  border: 2px solid #0a0a0a;
+  box-shadow: 0 0 12px rgba(167, 255, 0, 0.4);
+}
+.skatehive-leaflet .marker-cluster-small div,
+.skatehive-leaflet .marker-cluster-medium div,
+.skatehive-leaflet .marker-cluster-large div {
+  background-color: rgba(167, 255, 0, 0.85);
+}
+
+/* Popup content classes used by the inline markup */
+.spot-popup-image {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+  display: block;
+  background: #1a1a1a;
+}
+.spot-popup-image-hidden {
+  display: none;
+}
+.spot-popup-body {
+  padding: 10px 12px 12px;
+}
+.spot-popup-title {
+  color: #a7ff00;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.spot-popup-meta {
+  color: #9a9a9a;
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+.spot-popup-meta a {
+  color: #cfcfcf;
+}
+.spot-popup-meta a:hover {
+  color: #a7ff00;
+  text-decoration: underline;
+}
+.spot-popup-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.spot-popup-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  background: #a7ff00;
+  color: #0a0a0a;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  border: 1px solid #a7ff00;
+  white-space: nowrap;
+}
+.spot-popup-cta:hover {
+  background: #ffffff;
+  color: #0a0a0a;
+  border-color: #ffffff;
+}
+.spot-popup-cta-secondary {
+  background: transparent;
+  color: #a7ff00;
+  border-color: rgba(167, 255, 0, 0.55);
+}
+.spot-popup-cta-secondary:hover {
+  background: #a7ff00;
+  color: #0a0a0a;
+  border-color: #a7ff00;
+}

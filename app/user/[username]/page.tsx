@@ -1,40 +1,51 @@
 import { Metadata } from "next";
-import { headers } from "next/headers";
+import { cache } from "react";
 import ProfilePage from "@/components/profile/ProfilePage";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
 import HiveClient from "@/lib/hive/hiveclient";
 import { APP_CONFIG } from "@/config/app.config";
+import { REVALIDATE } from "@/config/revalidate";
 import { validateHiveUsernameFormat, cleanHiveUsername } from "@/lib/utils/hiveAccountUtils";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 
 // Constants
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
+// Absolute origin for server-side self-fetches (the userbase profile API).
+// Fixed (not header-derived) so this route can be statically cached.
+const SELF_ORIGIN = APP_CONFIG.ORIGIN || APP_CONFIG.BASE_URL;
 const FALLBACK_AVATAR = "https://images.ecency.com/webp/u/default/avatar/small";
 const FALLBACK_BANNER = `${APP_CONFIG.BASE_URL}/ogimage.png`;
+
+// ISR: a profile's header data changes slowly and the live feed/wallet
+// hydrate client-side, so an hour-stale shell is invisible. Previously
+// this route was forced fully dynamic by `headers()` + `cache: "no-store"`,
+// hitting a serverless function on every request (~1.2K/day).
+// `generateStaticParams` returning [] opts the dynamic segment into ISR.
+//
+// Must be a literal — Next statically parses this segment config and rejects
+// imported constants. LISTING tier = 1 hour; see config/revalidate.ts.
+export const revalidate = 3600;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  return [];
+}
 
 type Props = {
   params: Promise<{ username: string }>;
 };
 
-async function getBaseUrl() {
-  const hdrs = await headers();
-  const host = hdrs.get("host");
-  const protocol = hdrs.get("x-forwarded-proto") || "http";
-  if (host) {
-    return `${protocol}://${host}`;
-  }
-  return APP_CONFIG.ORIGIN || APP_CONFIG.BASE_URL;
-}
-
-async function getUserData(username: string, baseUrl: string) {
+// Cached + request-deduplicated: generateMetadata and the page body share
+// one set of Hive RPCs / profile fetches per request instead of two.
+const getUserData = cache(async (username: string) => {
   try {
     const normalized = cleanHiveUsername(username);
     const isHiveValid = validateHiveUsernameFormat(normalized).isValid;
 
     const fetchUserbaseProfile = async () => {
       const userbaseResponse = await fetch(
-        new URL(`/api/userbase/profile?handle=${encodeURIComponent(normalized)}`, baseUrl).toString(),
-        { cache: "no-store" }
+        new URL(`/api/userbase/profile?handle=${encodeURIComponent(normalized)}`, SELF_ORIGIN).toString(),
+        { next: { revalidate: REVALIDATE.LISTING } }
       ).catch(() => null);
       if (userbaseResponse?.ok) {
         const userbaseData = await userbaseResponse.json().catch(() => null);
@@ -117,8 +128,8 @@ async function getUserData(username: string, baseUrl: string) {
     // Fallback to userbase profile if Hive RPC fails
     try {
       return await fetch(
-        new URL(`/api/userbase/profile?handle=${encodeURIComponent(username)}`, baseUrl).toString(),
-        { cache: "no-store" }
+        new URL(`/api/userbase/profile?handle=${encodeURIComponent(username)}`, SELF_ORIGIN).toString(),
+        { next: { revalidate: REVALIDATE.LISTING } }
       )
         .then(async (resp) => {
           if (!resp.ok) return null;
@@ -144,15 +155,14 @@ async function getUserData(username: string, baseUrl: string) {
       return null;
     }
   }
-}
+});
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params;
   const username = cleanUsername(params.username);
 
   try {
-    const baseUrl = await getBaseUrl();
-    const userData = await getUserData(username, baseUrl);
+    const userData = await getUserData(username);
     if (!userData) {
       return {
         title: `${username} | Skatehive Profile`,
@@ -176,10 +186,11 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
           userData.followers
         } followers. Check out their skate videos, snaps, and posts.`;
 
-    // Generate dynamic OpenGraph image using our gamified API
-    // Use baseUrl (respects host header) so localhost works for testing
-    const ogImage = `${baseUrl}/api/og/profile/${username}`;
-    const frameImage = `${baseUrl}/api/og/profile/${username}?format=frame`;
+    // Generate dynamic OpenGraph image using our gamified API.
+    // Always point at the canonical domain so the route stays statically
+    // cacheable (a header-derived host would force dynamic SSR).
+    const ogImage = `${DOMAIN_URL}/api/og/profile/${username}`;
+    const frameImage = `${DOMAIN_URL}/api/og/profile/${username}?format=frame`;
 
     return {
       title: `${userData.name || username} | Skatehive Profile`,
@@ -255,8 +266,7 @@ export default async function UserProfilePage(props: Props) {
   let ssrFollowers = 0;
   let ssrFollowing = 0;
   try {
-    const baseUrl = await getBaseUrl();
-    const userData = await getUserData(username, baseUrl);
+    const userData = await getUserData(username);
     if (userData) {
       const profileUrl = `${DOMAIN_URL}/user/${username}`;
       ssrName = userData.name || username;

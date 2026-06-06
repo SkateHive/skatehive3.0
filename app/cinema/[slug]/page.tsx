@@ -38,10 +38,15 @@ for (const brand of brands) {
   brandSlugMap.set(brandSlug(brand), brand);
 }
 
+// ISR: pages render on-demand and are cached for a day. Brand index
+// pages are still prerendered at build (small set, frequent entry
+// points); video pages defer to first-visit because there are 600+ and
+// most see little traffic. Saves ~15s on every build.
+export const revalidate = 86400; // 1 day
+export const dynamicParams = true;
+
 export async function generateStaticParams() {
-  const videoParams = videos.map((v) => ({ slug: v.slug }));
-  const brandParams = brands.map((b) => ({ slug: brandSlug(b) }));
-  return [...videoParams, ...brandParams];
+  return brands.map((b) => ({ slug: brandSlug(b) }));
 }
 
 export async function generateMetadata({

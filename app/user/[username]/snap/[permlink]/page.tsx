@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
-import HiveClient from '@/lib/hive/hiveclient';
+import { getPostContent } from '@/lib/hive/server-content';
 import { Discussion } from '@hiveio/dhive';
 import { APP_CONFIG } from '@/config/app.config';
 
@@ -24,20 +24,11 @@ function isBot(userAgent: string): boolean {
     return BOT_UA_PATTERNS.some(bot => ua.includes(bot));
 }
 
-// Server-side function to fetch post data with caching
+// Fetch post data via the shared, request-deduplicated fetcher so
+// generateMetadata and the page body share one Hive RPC.
 async function fetchPostData(username: string, permlink: string): Promise<Discussion | null> {
-    try {
-        const postContent = await HiveClient.database.call('get_content', [username, permlink]);
-
-        if (postContent && postContent.permlink === permlink) {
-            return postContent as Discussion;
-        }
-
-        return null;
-    } catch (error) {
-        console.error('Error fetching post:', error);
-        return null;
-    }
+    const post = await getPostContent(username, permlink);
+    return post && post.permlink === permlink ? (post as Discussion) : null;
 }
 
 // Clean markdown for description

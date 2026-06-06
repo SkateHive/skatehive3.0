@@ -11,7 +11,6 @@ const ALLOWED_HOSTS = [
   "transcode.skatehive.app",
   "minivlad.tail83ea3e.ts.net",
   "vladsberry.tail83ea3e.ts.net",
-  "skatehive-transcoder.onrender.com",
 ];
 
 function isAllowedUrl(raw: string): boolean {

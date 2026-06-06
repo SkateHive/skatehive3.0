@@ -469,6 +469,14 @@ export const es = {
     helpSkateHiveDetailed: 'Ayuda a SkateHive votando la publicación principal del contenedor de snaps donde se almacenan todos los snaps.',
     container: 'Contenedor',
     upvoteNow: 'Votar Ahora',
+    needsPostingKey: 'Agrega tu clave de posting de Hive para votar.',
+    addPostingKey: 'Agregar clave de posting',
+  },
+  postingKeyDialog: {
+    title: 'Agrega tu clave de posting de Hive',
+    description: 'Guarda tu clave de posting de Hive para votar, comentar y publicar directamente con tu cuenta de Hive.',
+    descriptionWithHandle: 'Guarda tu clave de posting de Hive para votar, comentar y publicar directamente como @{handle}.',
+    close: 'Cerrar',
   },
   settings: {
     title: '⚙️ Configuración',
@@ -1197,5 +1205,12 @@ export const es = {
     viewMore: 'ver más',
     viewAllSpots: 'ver todos los spots',
     noName: 'Spot sin nombre',
+    another: 'otro',
+    nearYou: 'cerca de ti',
+    useMyLocation: 'usar mi ubicación',
+  },
+  errorToast: {
+    reportBug: 'Reportar bug',
+    screenshotHint: '⌘/Ctrl+Enter para adjuntar captura de pantalla',
   },
 };

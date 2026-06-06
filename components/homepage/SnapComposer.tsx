@@ -9,14 +9,39 @@ import {
   Textarea,
   HStack,
   Button,
+  ButtonGroup,
   Image,
   IconButton,
   Wrap,
   Progress,
   Input,
   Tooltip,
+  Text,
+  Icon,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  MenuOptionGroup,
+  MenuItemOption,
+  MenuDivider,
+  Checkbox,
+  Link as ChakraLink,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  FormControl,
+  FormLabel,
+  InputGroup,
+  InputLeftAddon,
   useToast,
 } from "@chakra-ui/react";
+import NextLink from "next/link";
+import { ChevronDownIcon } from "@chakra-ui/icons";
+import { SiFarcaster } from "react-icons/si";
 import { useAioha } from "@aioha/react-ui";
 import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
 import GiphySelector from "./GiphySelector";
@@ -39,11 +64,11 @@ import {
   uploadImage,
 } from "@/lib/hive/client-functions";
 import HiveClient from "@/lib/hive/hiveclient";
+import { waitForHivePost } from "@/lib/hive/waitForPost";
 import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
 import { extractIPFSHash } from "@/lib/utils/ipfsMetadata";
 import {
-  generateThumbnailWithCanvas,
-  uploadThumbnail,
+  generateThumbnail,
 } from "@/lib/utils/videoThumbnailUtils";
 import { generateVideoIframeMarkdown, uploadToIpfs } from "@/lib/markdown/composeUtils";
 import { FaVideo } from "react-icons/fa6";
@@ -61,6 +86,18 @@ import { useInstagramHealth } from "@/hooks/useInstagramHealth";
 import { TbGif } from "react-icons/tb";
 import MatrixOverlay from "@/components/graphics/MatrixOverlay";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
+import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
+import { KeyTypes } from "@aioha/aioha";
+import { useFarcasterSession } from "@/hooks/useFarcasterSession";
+import { buildSnapCastText, buildSnapCastEmbeds } from "@/lib/crosspost/snapCast";
+
+// Channels enabled for Farcaster cross-posting. Mirrors the server-side
+// whitelist in /api/farcaster/cast/route.ts — keep them in sync.
+const FARCASTER_CHANNELS = [
+  { id: "skateboard", label: "/skateboard" },
+  { id: "gnars", label: "/gnars" },
+  { id: "higher", label: "/higher" },
+] as const;
 
 // Check for demo mode via localStorage
 const SHOW_ERROR_DEMO =
@@ -88,8 +125,38 @@ const SnapComposer = React.memo(function SnapComposer({
 }: SnapComposerProps) {
   const { user, aioha } = useAioha();
   const { handle: effectiveUser, canUseAppFeatures } = useEffectiveHiveUser();
-  const { hiveIdentity: userbaseHiveIdentity } = useLinkedIdentities();
+  const { hiveIdentity: userbaseHiveIdentity, connections } = useLinkedIdentities();
+  const { user: userbaseUser } = useUserbaseAuth();
+  const { profile: farcasterProfile } = useFarcasterSession();
   const linkedHiveHandle = userbaseHiveIdentity?.handle || null;
+
+  // Farcaster cross-post eligibility: linked Farcaster identity on the
+  // userbase account. Signer approval gates the Farcaster/Both choices.
+  const farcasterIdentity = connections.farcaster.identities[0] || null;
+  const farcasterEligible = !!farcasterIdentity;
+  const farcasterSignerApproved =
+    (farcasterIdentity?.metadata as Record<string, unknown> | undefined)?.signer_status ===
+    "approved";
+  const farcasterLinkage = useMemo(() => {
+    const fidRaw = farcasterIdentity?.external_id;
+    const fid = fidRaw ? Number(fidRaw) : farcasterProfile?.fid;
+    const username = farcasterIdentity?.handle || farcasterProfile?.username || null;
+    if (!fid || !username) return null;
+    return { fid, username };
+  }, [farcasterIdentity, farcasterProfile]);
+  // Default: opt-in to every linked platform. DestinationMenu filters the
+  // rendered checkboxes by actual eligibility (e.g. won't surface
+  // Farcaster as checked if the signer isn't approved), and handleComment
+  // re-checks `farcasterLinkage` before firing the cast — so defaulting
+  // these to true is safe even when Farcaster isn't actually usable.
+  const [postToHive, setPostToHive] = useState(true);
+  const [postToFarcaster, setPostToFarcaster] = useState(true);
+  // Default Farcaster channel: /skateboard. Most cross-posts belong in
+  // the community channel — pick "no channel (your feed)" or one of the
+  // other allowed channels via the dropdown if you want different.
+  const [farcasterChannel, setFarcasterChannel] = useState<string | null>(
+    "skateboard"
+  );
   const toast = useToast();
   const t = useTranslations();
   const { prompt, SkateDialogComponent } = useSkateDialog();
@@ -99,6 +166,12 @@ const SnapComposer = React.memo(function SnapComposer({
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number[]>([]);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  // Thumbnail captured from the local video file (canvas → IPFS) so the
+  // snap's OG image / Farcaster frame can render a real preview instead
+  // of the SkateHive fallback. Generated in parallel with the transcode
+  // so it almost always finishes before the user posts.
+  const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null);
+  const ffmpegRef = useRef<any>(null);
   const [videoProcessingError, setVideoProcessingError] = useState<
     string | null
   >(null);
@@ -115,8 +188,31 @@ const SnapComposer = React.memo(function SnapComposer({
   const gifMakerWithSelectorRef = useRef<GIFMakerWithSelectorRef>(null);
   const [isProcessingGif, setIsProcessingGif] = useState(false);
 
-  // Instagram modal state
+  // Instagram modal state (for importing IG content into a snap)
   const [isInstagramModalOpen, setInstagramModalOpen] = useState(false);
+
+  // Instagram cross-post (outbound) state. Only meaningful for main-feed
+  // snaps (parent permlink === THREADS.PERMLINK) with attached media.
+  // Default is true so eligible users (100+ HP, main feed, media attached)
+  // get IG cross-posting auto-checked alongside SkateHive + Farcaster.
+  // The DestinationMenu disables the row when there's no media yet, so
+  // text-only drafts can't accidentally send to IG.
+  const [instagramCrossPost, setInstagramCrossPost] = useState(true);
+  const isMainFeedSnap = pp === HIVE_CONFIG.THREADS.PERMLINK;
+  const hasCrossPostMedia = compressedImages.length > 0 || !!videoUrl;
+
+  // Cached IG handle status. 'unknown' until first lookup; 'present' means
+  // the server already has a tag-able value (DB or Hive metadata); 'absent'
+  // means we should prompt the user when they enable cross-post.
+  const [igHandleStatus, setIgHandleStatus] = useState<
+    "unknown" | "present" | "absent"
+  >("unknown");
+  const [igHandleValue, setIgHandleValue] = useState<string | null>(null);
+  // Dialog state for the inline "what's your IG?" prompt that fires when the
+  // user flips the cross-post switch ON without a stored handle.
+  const [igPromptOpen, setIgPromptOpen] = useState(false);
+  const [igPromptInput, setIgPromptInput] = useState("");
+  const [igPromptSubmitting, setIgPromptSubmitting] = useState(false);
 
   // Error demo panel state
   const [showErrorDemo, setShowErrorDemo] = useState(SHOW_ERROR_DEMO);
@@ -144,6 +240,40 @@ const SnapComposer = React.memo(function SnapComposer({
     () => hivePower !== null && hivePower >= 100,
     [hivePower]
   );
+
+  // Lazy-load IG handle status once cross-post is potentially relevant.
+  // Single API call that checks DB + Hive metadata, so we know whether to
+  // prompt when the user flips the cross-post switch on.
+  React.useEffect(() => {
+    if (!isMainFeedSnap || !canBypassLimit || igHandleStatus !== "unknown") {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/userbase/profile/instagram", {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          if (!cancelled) setIgHandleStatus("absent");
+          return;
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        if (data?.handle) {
+          setIgHandleValue(data.handle);
+          setIgHandleStatus("present");
+        } else {
+          setIgHandleStatus("absent");
+        }
+      } catch {
+        if (!cancelled) setIgHandleStatus("absent");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isMainFeedSnap, canBypassLimit, igHandleStatus]);
 
   const buttonText = useMemo(
     () => submitLabel || (post ? "Reply" : "Post"),
@@ -215,6 +345,8 @@ const SnapComposer = React.memo(function SnapComposer({
       if (pendingVideoFile) {
         setPendingVideoFile(null);
       }
+      // Reset stale thumbnail from any prior video before we kick off a new one
+      setVideoThumbnailUrl(null);
 
       const duration = await getVideoDuration(file);
 
@@ -232,6 +364,17 @@ const SnapComposer = React.memo(function SnapComposer({
       // double-book upload state here or cancel/retry flows can get stuck.
       if (videoUploaderRef.current) {
         await videoUploaderRef.current.handleFile(file);
+        // Fire-and-forget thumbnail capture from the local file so the
+        // snap's OG image / Farcaster frame can show a real preview.
+        // Runs in parallel with the transcode and is best-effort: if it
+        // fails the snap still posts (just without a frame thumbnail).
+        generateThumbnail(file, ffmpegRef, effectiveUser || undefined)
+          .then((thumbUrl) => {
+            if (thumbUrl) setVideoThumbnailUrl(thumbUrl);
+          })
+          .catch((err) =>
+            console.warn("[SnapComposer] Video thumbnail generation failed:", err)
+          );
       }
     } catch (error) {
       console.error("Error checking video duration:", error);
@@ -249,6 +392,38 @@ const SnapComposer = React.memo(function SnapComposer({
       await videoUploaderRef.current.handleFile(result);
     }
     setPendingVideoFile(null);
+    // Trim modal already generated a thumbnail blob URL during preview.
+    // Upload it to IPFS in the background so it has a durable URL we
+    // can persist in json_metadata.thumbnail.
+    if (result.thumbnailUrl) {
+      (async () => {
+        try {
+          const blob = await fetch(result.thumbnailUrl!).then((r) => r.blob());
+          const { uploadThumbnail } = await import(
+            "@/lib/utils/videoThumbnailUtils"
+          );
+          const uploaded = await uploadThumbnail(blob, effectiveUser || undefined);
+          if (uploaded) setVideoThumbnailUrl(uploaded);
+        } catch (err) {
+          console.warn(
+            "[SnapComposer] Trimmed-video thumbnail upload failed, falling back:",
+            err
+          );
+          // Fall back to generating + uploading from the trimmed file
+          generateThumbnail(result.file, ffmpegRef, effectiveUser || undefined)
+            .then((thumbUrl) => {
+              if (thumbUrl) setVideoThumbnailUrl(thumbUrl);
+            })
+            .catch(() => {});
+        }
+      })();
+    } else {
+      generateThumbnail(result.file, ffmpegRef, effectiveUser || undefined)
+        .then((thumbUrl) => {
+          if (thumbUrl) setVideoThumbnailUrl(thumbUrl);
+        })
+        .catch(() => {});
+    }
   };
 
   // Handle trim modal close
@@ -591,6 +766,99 @@ const SnapComposer = React.memo(function SnapComposer({
       return;
     }
 
+    const wantsSkatehive = postToHive;
+    const wantsFarcaster = postToFarcaster;
+
+    if (!wantsSkatehive && !wantsFarcaster) {
+      toast({
+        title: "Pick at least one destination",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    // Farcaster-only: skip Hive entirely, publish a cast directly.
+    if (!wantsSkatehive && wantsFarcaster) {
+      if (!farcasterEligible || !farcasterLinkage) {
+        toast({
+          title: "Link your Farcaster account first.",
+          status: "error",
+          duration: 4000,
+          isClosable: true,
+        });
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const castText = buildSnapCastText(commentBody, APP_CONFIG.ORIGIN);
+        // No SkateHive snap exists in this branch, so we can't fall back
+        // to a snap URL — embed media directly: images first (up to 2),
+        // else video for the inline player, else nothing.
+        let embeds: { url: string }[] = [];
+        if (compressedImages.length > 0) {
+          embeds = compressedImages.slice(0, 2).map((img) => ({ url: img.url }));
+        } else if (videoUrl) {
+          embeds = [{ url: videoUrl }];
+        }
+        const res = await fetch("/api/farcaster/cast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: castText,
+            embeds: embeds.length > 0 ? embeds : undefined,
+            channel_id: farcasterChannel || undefined,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (data?.needsSigner) {
+            toast({
+              title: "Authorize Farcaster posting first",
+              description:
+                "Open Settings → Farcaster to approve the signer, then try again.",
+              status: "warning",
+              duration: 6000,
+              isClosable: true,
+            });
+          } else {
+            toast({
+              title: "Failed to post to Farcaster.",
+              description: data?.error || "Unknown error.",
+              status: "error",
+              duration: 5000,
+              isClosable: true,
+            });
+          }
+          return;
+        }
+        toast({
+          title: "Posted to Farcaster!",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+        postBodyRef.current!.value = "";
+        setCompressedImages([]);
+        setSelectedGif(null);
+        setVideoUrl(null);
+        setVideoThumbnailUrl(null);
+        onClose();
+      } catch (err: any) {
+        toast({
+          title: "Failed to post to Farcaster.",
+          description: err?.message || "Network error.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     if (!canUseAppFeatures) {
       toast({
         title: t('compose.loginRequired'),
@@ -639,10 +907,6 @@ const SnapComposer = React.memo(function SnapComposer({
 
         const validUrls = compressedImages.map((image) => image.url);
 
-        // Prepare metadata with proper thumbnail handling for video-only posts
-        const hasRegularImages = compressedImages.length > 0;
-        const hasVideoThumbnails = validUrls.length > compressedImages.length; // validUrls includes video thumbnails
-
         // Build metadata object
         const metadata: any = {
           app: "Skatehive App 3.0",
@@ -650,14 +914,25 @@ const SnapComposer = React.memo(function SnapComposer({
           images: validUrls,
         };
 
-        // For video-only posts (no regular images), add video thumbnails to thumbnail field for better Farcaster frame support
-        if (!hasRegularImages && hasVideoThumbnails) {
-          const videoThumbnails = validUrls.slice(compressedImages.length); // Get only the video thumbnails
-          metadata.thumbnail = videoThumbnails;
-          console.log(
-            "🎬 Video-only post detected, added thumbnails to metadata.thumbnail:",
-            videoThumbnails
-          );
+        // For video snaps, persist the locally-captured thumbnail (canvas
+        // frame uploaded to IPFS) in json_metadata.thumbnail. The
+        // /api/og/post/... route reads thumbnail[0] when building the
+        // Farcaster frame image, so this is what makes the cross-post
+        // embed show the video's first frame instead of a placeholder.
+        if (videoUrl && videoThumbnailUrl) {
+          metadata.thumbnail = [videoThumbnailUrl];
+        }
+
+        // Cross-post linkage: store the Farcaster fid + username on the Hive
+        // snap so the connection is durable and queryable later. The cast
+        // hash isn't known yet (cast is fired after Hive succeeds).
+        if (wantsFarcaster && farcasterLinkage) {
+          metadata.crosspost = {
+            farcaster: {
+              fid: farcasterLinkage.fid,
+              username: farcasterLinkage.username,
+            },
+          };
         }
 
         // Build the final comment body with images and video appended
@@ -732,6 +1007,7 @@ const SnapComposer = React.memo(function SnapComposer({
           setCompressedImages([]);
           setSelectedGif(null);
           setVideoUrl(null);
+          setVideoThumbnailUrl(null);
 
           setIsProcessingGif(false);
 
@@ -747,6 +1023,221 @@ const SnapComposer = React.memo(function SnapComposer({
 
           onNewComment(newComment);
           onClose();
+
+          // ── Cross-post orchestration ─────────────────────────────────
+          // Wait for the snap to be indexable on Hive BEFORE firing any
+          // downstream cross-posts. Otherwise Warpcast / scrapers can hit
+          // /post/{author}/{permlink} during the ~3s block confirmation
+          // window, get "Snap not found" metadata back, and cache that
+          // empty response — breaking the embed preview permanently.
+          // Show a single progress toast that walks through the phases
+          // (confirming → cross-posting → done) so the user can follow
+          // along instead of seeing the composer close into silence.
+          const willFarcaster = wantsFarcaster && !!farcasterLinkage;
+          const willInstagram =
+            instagramCrossPost &&
+            isMainFeedSnap &&
+            canBypassLimit &&
+            (!!compressedImages[0]?.url || !!videoUrl);
+
+          if (willFarcaster || willInstagram) {
+            const progressId = "snap-share-progress";
+            toast({
+              id: progressId,
+              title: "Sharing snap…",
+              description: "Confirming on Hive…",
+              status: "loading",
+              duration: null,
+              isClosable: false,
+            });
+
+            const confirmed = await waitForHivePost(commentAuthor, permlink, {
+              timeoutMs: 5000,
+            });
+            if (!confirmed) {
+              console.warn(
+                `[snap-share] Hive confirm timed out for @${commentAuthor}/${permlink} — cross-posting anyway`
+              );
+            }
+
+            const targets: string[] = [];
+            if (willFarcaster) targets.push("Farcaster");
+            if (willInstagram) targets.push("Instagram");
+            toast.update(progressId, {
+              title: "Sharing snap…",
+              description: `Posting to ${targets.join(" + ")}…`,
+              status: "loading",
+              duration: null,
+              isClosable: false,
+            });
+
+            // Snap URL is shared between Farcaster + Instagram. Use the
+            // /post route — /user/{username}/snap/... redirects to the
+            // profile page for non-bot UAs, which breaks both embeds.
+            const snapUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${commentAuthor}/${permlink}`;
+
+            // Farcaster (awaited so the progress toast closes when done)
+            const farcasterTask: Promise<void> = (async () => {
+              if (!willFarcaster) return;
+              const castText = buildSnapCastText(commentBody, snapUrl);
+              // Embed selection:
+              //   - images → embed up to 2 image URLs directly (Warpcast
+              //     renders inline image previews — best UX).
+              //   - video  → snapUrl FIRST (frame renders the SkateHive
+              //     thumbnail), videoUrl SECOND for clients with inline
+              //     video support.
+              //   - text   → snapUrl alone (frame card).
+              const embeds = buildSnapCastEmbeds({
+                snapUrl,
+                imageUrls: compressedImages.map((img) => img.url),
+                videoUrl: videoUrl || null,
+              });
+              try {
+                const res = await fetch("/api/farcaster/cast", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    text: castText,
+                    embeds,
+                    channel_id: farcasterChannel || undefined,
+                  }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  if (data?.needsSigner) {
+                    toast({
+                      title: "Farcaster needs signer approval",
+                      description:
+                        "Approve the Farcaster signer in Settings → App Account.",
+                      status: "warning",
+                      duration: 7000,
+                      isClosable: true,
+                    });
+                  } else {
+                    toast({
+                      title: "Farcaster cross-post failed",
+                      description: data?.error || "Try again later.",
+                      status: "warning",
+                      duration: 6000,
+                      isClosable: true,
+                    });
+                  }
+                }
+              } catch (err: any) {
+                toast({
+                  title: "Farcaster cross-post failed",
+                  description: err?.message || "Network error.",
+                  status: "warning",
+                  duration: 6000,
+                  isClosable: true,
+                });
+              }
+            })();
+
+            // Instagram (fire-and-forget — Reels can take 30+ s). Its own
+            // success/failure toast appears later, after the progress
+            // toast has already closed.
+            if (willInstagram) {
+              const igPermalinkUrl = snapUrl;
+              const igImageUrl =
+                compressedImages[0]?.url ||
+                (videoUrl ? videoThumbnailUrl : null);
+              const igVideoUrl = videoUrl || null;
+
+              const igRequest = (async () => {
+                const basePayload: Record<string, unknown> = {
+                  hive_author: commentAuthor,
+                  hive_permlink: permlink,
+                  body: finalCommentBody,
+                  tags: snapsTags,
+                  image_url: igImageUrl,
+                  video_url: igVideoUrl,
+                  permalink_url: igPermalinkUrl,
+                };
+                // Keychain-only users have no userbase_refresh cookie, so
+                // the IG endpoint can't auth them via session. Sign a
+                // fresh challenge with the posting key so the route can
+                // verify ownership via the alternate signature path.
+                if (!userbaseUser && user) {
+                  const issuedAt = new Date().toISOString();
+                  const message = [
+                    "Skatehive: cross-post snap to @skatehive on Instagram.",
+                    `Author: @${commentAuthor}`,
+                    `Permlink: ${permlink}`,
+                    `Issued at: ${issuedAt}`,
+                  ].join("\n");
+                  const signResult = await aioha.signMessage(
+                    message,
+                    KeyTypes.Posting
+                  );
+                  if (
+                    !signResult?.success ||
+                    !signResult.result ||
+                    !signResult.publicKey
+                  ) {
+                    throw new Error(
+                      signResult?.error ||
+                        "Keychain signature was rejected — Instagram cross-post cancelled."
+                    );
+                  }
+                  basePayload.hive_signature = signResult.result;
+                  basePayload.hive_public_key = signResult.publicKey;
+                  basePayload.signed_at = issuedAt;
+                }
+                return fetch("/api/instagram/post", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(basePayload),
+                });
+              })();
+
+              igRequest
+                .then(async (res) => {
+                  const data = await res.json().catch(() => ({}));
+                  if (res.ok) {
+                    toast({
+                      title: "Posted to @skatehive on Instagram",
+                      description: data?.ig_permalink || undefined,
+                      status: "success",
+                      duration: 4000,
+                      isClosable: true,
+                    });
+                  } else {
+                    toast({
+                      title: "Instagram cross-post failed",
+                      description: data?.error || "Try again later.",
+                      status: "warning",
+                      duration: 6000,
+                      isClosable: true,
+                    });
+                  }
+                })
+                .catch((err) => {
+                  toast({
+                    title: "Instagram cross-post failed",
+                    description: err?.message || "Network error.",
+                    status: "warning",
+                    duration: 6000,
+                    isClosable: true,
+                  });
+                });
+            }
+
+            // Wait for Farcaster only — IG keeps running in the
+            // background and surfaces its own toast on completion.
+            await farcasterTask;
+
+            // Close progress toast and show the final "shared" badge.
+            toast.close(progressId);
+            toast({
+              title: willInstagram
+                ? "Snap shared 🛹 (Instagram is still processing…)"
+                : "Snap shared 🛹",
+              status: "success",
+              duration: 3000,
+              isClosable: true,
+            });
+          }
         }
       } catch (error: any) {
         toast({
@@ -765,6 +1256,7 @@ const SnapComposer = React.memo(function SnapComposer({
   }, [
     compressedImages,
     videoUrl,
+    videoThumbnailUrl,
     pa,
     pp,
     extractHashtags,
@@ -778,6 +1270,14 @@ const SnapComposer = React.memo(function SnapComposer({
     t,
     canUseAppFeatures,
     linkedHiveHandle,
+    userbaseUser,
+    instagramCrossPost,
+    isMainFeedSnap,
+    postToHive,
+    postToFarcaster,
+    farcasterChannel,
+    farcasterEligible,
+    farcasterLinkage,
   ]);
 
   // Detect Ctrl+Enter or Command+Enter and submit - memoized
@@ -1116,7 +1616,10 @@ const SnapComposer = React.memo(function SnapComposer({
                     position="absolute"
                     top="8px"
                     right="8px"
-                    onClick={() => setVideoUrl(null)}
+                    onClick={() => {
+                      setVideoUrl(null);
+                      setVideoThumbnailUrl(null);
+                    }}
                     isDisabled={isLoading}
                     bg="blackAlpha.800"
                     color="white"
@@ -1349,32 +1852,60 @@ const SnapComposer = React.memo(function SnapComposer({
               </Tooltip>
             </HStack>
             <Box display={buttonSize === "sm" ? "inline-block" : undefined}>
-              <Button
-                id="snap-composer-submit-btn"
-                data-testid="snap-composer-submit"
-                bg="primary"
-                color="background"
-                _hover={{ bg: "muted", color: "text", border: "tb1" }}
-                isLoading={isLoading}
-                isDisabled={isLoading || isUploadingMedia}
-                onClick={handleComment}
-                borderRadius={"none"}
-                fontWeight="bold"
-                px={buttonSize === "sm" ? 1 : 8}
-                mt={2}
-                mb={1}
-                minWidth={buttonSize === "sm" ? undefined : "120px"}
-                width={buttonSize === "sm" ? undefined : "30%"}
-                maxWidth={buttonSize === "sm" ? undefined : undefined}
-                fontSize={buttonSize === "sm" ? "xs" : "lg"}
-                lineHeight={buttonSize === "sm" ? "1" : undefined}
-                flex={buttonSize === "sm" ? "none" : undefined}
-                alignSelf={buttonSize === "sm" ? "flex-start" : undefined}
-                display={buttonSize === "sm" ? "inline-flex" : undefined}
-                maxH={"2rem"}
-              >
-                {buttonText}
-              </Button>
+              <ButtonGroup isAttached>
+                <Button
+                  id="snap-composer-submit-btn"
+                  data-testid="snap-composer-submit"
+                  bg="primary"
+                  color="background"
+                  _hover={{ bg: "muted", color: "text", border: "tb1" }}
+                  isLoading={isLoading}
+                  isDisabled={isLoading || isUploadingMedia || (!postToHive && !postToFarcaster)}
+                  onClick={handleComment}
+                  borderRadius={"none"}
+                  fontWeight="bold"
+                  px={buttonSize === "sm" ? 1 : 8}
+                  mt={2}
+                  mb={1}
+                  minWidth={buttonSize === "sm" ? undefined : "120px"}
+                  width={buttonSize === "sm" ? undefined : undefined}
+                  fontSize={buttonSize === "sm" ? "xs" : "lg"}
+                  lineHeight={buttonSize === "sm" ? "1" : undefined}
+                  flex={buttonSize === "sm" ? "none" : undefined}
+                  alignSelf={buttonSize === "sm" ? "flex-start" : undefined}
+                  display={buttonSize === "sm" ? "inline-flex" : undefined}
+                  maxH={"2rem"}
+                >
+                  {buttonText}
+                </Button>
+                <DestinationMenu
+                  postToHive={postToHive}
+                  postToFarcaster={postToFarcaster}
+                  postToInstagram={instagramCrossPost}
+                  setPostToHive={setPostToHive}
+                  setPostToFarcaster={setPostToFarcaster}
+                  setPostToInstagram={(v: boolean) => {
+                    // If the user is enabling IG cross-post for the first time
+                    // and we don't have a stored handle, prompt them so the
+                    // caption can @-tag instead of falling back to plain text.
+                    if (v && igHandleStatus === "absent") {
+                      setIgPromptInput("");
+                      setIgPromptOpen(true);
+                      return;
+                    }
+                    setInstagramCrossPost(v);
+                  }}
+                  farcasterChannel={farcasterChannel}
+                  setFarcasterChannel={setFarcasterChannel}
+                  farcasterEligible={farcasterEligible}
+                  farcasterSignerApproved={farcasterSignerApproved}
+                  farcasterUsername={farcasterLinkage?.username || null}
+                  instagramEligible={isMainFeedSnap && canBypassLimit}
+                  instagramHasMedia={hasCrossPostMedia}
+                  isLoading={isLoading}
+                  buttonSize={buttonSize}
+                />
+              </ButtonGroup>
             </Box>
           </HStack>
           <Box width="100%">
@@ -1453,6 +1984,129 @@ const SnapComposer = React.memo(function SnapComposer({
         healthStatus={instagramHealth}
       />
 
+      {/* IG-handle prompt — opens when the user enables cross-post without
+          a stored handle. Three exits: save+enable, skip+enable, cancel. */}
+      <Modal
+        isOpen={igPromptOpen}
+        onClose={() => setIgPromptOpen(false)}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent bg="background" borderColor="primary" borderWidth="1px">
+          <ModalHeader fontFamily="mono" fontSize="md" color="text">
+            Tag your Instagram?
+          </ModalHeader>
+          <ModalBody>
+            <Text fontSize="sm" color="dim" mb={3}>
+              We&apos;ll @-mention this handle in @skatehive&apos;s Instagram
+              caption. Leave blank to post without a tag — the caption will
+              fall back to your Hive username as plain text.
+            </Text>
+            <FormControl>
+              <FormLabel fontSize="xs" color="dim" fontFamily="mono">
+                Instagram username
+              </FormLabel>
+              <InputGroup size="md">
+                <InputLeftAddon>@</InputLeftAddon>
+                <Input
+                  value={igPromptInput}
+                  onChange={(e) => setIgPromptInput(e.target.value)}
+                  placeholder="yourighandle"
+                  autoFocus
+                  isDisabled={igPromptSubmitting}
+                />
+              </InputGroup>
+            </FormControl>
+          </ModalBody>
+          <ModalFooter gap={2}>
+            <Button
+              variant="ghost"
+              onClick={() => setIgPromptOpen(false)}
+              isDisabled={igPromptSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                // Skip — enable cross-post anyway, caption uses plain Hive name.
+                // Flip status to 'present' so subsequent off→on toggles in
+                // this composer instance don't re-prompt.
+                setIgPromptOpen(false);
+                setIgHandleStatus("present");
+                setInstagramCrossPost(true);
+              }}
+              isDisabled={igPromptSubmitting}
+            >
+              Skip
+            </Button>
+            <Button
+              bg="primary"
+              color="background"
+              _hover={{ bg: "muted", color: "text" }}
+              isLoading={igPromptSubmitting}
+              onClick={async () => {
+                const trimmed = igPromptInput.trim().replace(/^@/, "");
+                if (!trimmed) {
+                  // Treat empty as Skip — be forgiving.
+                  setIgPromptOpen(false);
+                  setInstagramCrossPost(true);
+                  return;
+                }
+                setIgPromptSubmitting(true);
+                try {
+                  const res = await fetch("/api/userbase/profile/instagram", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      handle: trimmed,
+                      source: "crosspost_prompt",
+                    }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    toast({
+                      title: "Couldn't save Instagram handle",
+                      description: data?.error || "Try again.",
+                      status: "warning",
+                      duration: 5000,
+                      isClosable: true,
+                    });
+                    return;
+                  }
+                  const saved = data?.handle || trimmed;
+                  setIgHandleValue(saved);
+                  setIgHandleStatus("present");
+                  setIgPromptOpen(false);
+                  setInstagramCrossPost(true);
+                  toast({
+                    title: `Saved @${saved}`,
+                    description:
+                      "Update it any time in Edit Profile to sync to Hive.",
+                    status: "success",
+                    duration: 3000,
+                    isClosable: true,
+                  });
+                } catch (err: any) {
+                  toast({
+                    title: "Network error",
+                    description: err?.message || "Try again.",
+                    status: "error",
+                    duration: 4000,
+                    isClosable: true,
+                  });
+                } finally {
+                  setIgPromptSubmitting(false);
+                }
+              }}
+            >
+              Save &amp; enable
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
       {/* SkateDialog Component */}
       <SkateDialogComponent />
 
@@ -1463,3 +2117,249 @@ const SnapComposer = React.memo(function SnapComposer({
 });
 
 export default SnapComposer;
+
+function DestinationMenu({
+  postToHive,
+  postToFarcaster,
+  postToInstagram,
+  setPostToHive,
+  setPostToFarcaster,
+  setPostToInstagram,
+  farcasterChannel,
+  setFarcasterChannel,
+  farcasterEligible,
+  farcasterSignerApproved,
+  farcasterUsername,
+  instagramEligible,
+  instagramHasMedia,
+  isLoading,
+  buttonSize,
+}: {
+  postToHive: boolean;
+  postToFarcaster: boolean;
+  postToInstagram: boolean;
+  setPostToHive: (v: boolean) => void;
+  setPostToFarcaster: (v: boolean) => void;
+  setPostToInstagram: (v: boolean) => void;
+  farcasterChannel: string | null;
+  setFarcasterChannel: (v: string | null) => void;
+  farcasterEligible: boolean;
+  farcasterSignerApproved: boolean;
+  farcasterUsername: string | null;
+  /** Whether the Instagram cross-post option should appear at all
+   *  (main-feed snap + 100+ HP). Below the threshold the row is hidden
+   *  to match the server-side trusted-user check. */
+  instagramEligible: boolean;
+  /** Whether the snap currently has media (image or video) — IG can't
+   *  publish text-only, so without media the option is disabled with a
+   *  tooltip prompting the user to attach something. */
+  instagramHasMedia: boolean;
+  isLoading: boolean;
+  buttonSize: "sm" | "md" | "lg";
+}) {
+  const farcasterUsable = farcasterEligible && farcasterSignerApproved;
+
+  const farcasterTooltip = !farcasterEligible
+    ? "Link your Farcaster account in Settings to enable cross-posting"
+    : !farcasterSignerApproved
+    ? "Authorize Farcaster posting in Settings first"
+    : "";
+
+  return (
+    <Menu placement="top-end" closeOnSelect={false}>
+      <MenuButton
+        as={Button}
+        aria-label="Choose destinations"
+        bg="primary"
+        color="background"
+        borderRadius="none"
+        borderLeft="1px solid"
+        borderLeftColor="background"
+        _hover={{ bg: "muted", color: "text" }}
+        _active={{ bg: "muted" }}
+        isDisabled={isLoading}
+        mt={2}
+        mb={1}
+        maxH="2rem"
+        minW="36px"
+        px={2}
+      >
+        <ChevronDownIcon boxSize={5} />
+      </MenuButton>
+      <MenuList bg="background" borderColor="primary" minW="260px" py={1}>
+        <Box px={3} py={2}>
+          <Text fontFamily="mono" fontSize="2xs" color="dim" letterSpacing="wider" textTransform="uppercase">
+            Post to
+          </Text>
+        </Box>
+
+        <PlatformToggleRow
+          checked={postToHive}
+          onToggle={() => setPostToHive(!postToHive)}
+          icon={
+            <Image
+              src="/logos/SKATE_HIVE_CIRCLE.svg"
+              alt="SkateHive"
+              boxSize="16px"
+            />
+          }
+          label="SkateHive"
+        />
+
+        <PlatformToggleRow
+          checked={postToFarcaster}
+          onToggle={() => setPostToFarcaster(!postToFarcaster)}
+          disabled={!farcasterUsable}
+          disabledHint={farcasterTooltip}
+          icon={<Icon as={SiFarcaster} color="primary" boxSize={4} />}
+          label="Farcaster"
+          subLabel={farcasterUsername ? `@${farcasterUsername}` : undefined}
+          trailing={
+            !farcasterUsable ? (
+              <ChakraLink
+                as={NextLink}
+                href="/settings"
+                fontSize="2xs"
+                fontFamily="mono"
+                color="primary"
+                _hover={{ textDecoration: "underline" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {farcasterEligible ? "authorize" : "link"} →
+              </ChakraLink>
+            ) : null
+          }
+        />
+
+        {instagramEligible && (
+          <PlatformToggleRow
+            checked={postToInstagram}
+            onToggle={() => setPostToInstagram(!postToInstagram)}
+            disabled={!instagramHasMedia}
+            disabledHint="Add a photo or video to enable Instagram cross-post"
+            icon={<Icon as={FaInstagram} color="primary" boxSize={4} />}
+            label="Instagram"
+            subLabel="@skatehive"
+          />
+        )}
+
+        {/* Channel selector — only meaningful when Farcaster is checked.
+            We keep the MenuOptionGroup radio pattern here since this is a
+            true single-select (the checkbox-style toggle UI above is for
+            multi-select platform opt-in). */}
+        {postToFarcaster && farcasterUsable && (
+          <>
+            <MenuDivider borderColor="border" my={1} />
+            <MenuOptionGroup
+              type="radio"
+              value={farcasterChannel ?? "__none__"}
+              onChange={(value) => {
+                const v = Array.isArray(value) ? value[0] : value;
+                setFarcasterChannel(v === "__none__" ? null : v);
+              }}
+              title="Farcaster channel"
+              fontSize="2xs"
+              fontFamily="mono"
+              color="dim"
+              textTransform="uppercase"
+            >
+              <MenuItemOption value="__none__" bg="background" _hover={{ bg: "subtle" }}>
+                <Text fontFamily="mono" fontSize="sm" color="text">
+                  no channel
+                  <Text as="span" color="dim" fontSize="xs" ml={1}>
+                    (your feed)
+                  </Text>
+                </Text>
+              </MenuItemOption>
+              {FARCASTER_CHANNELS.map((ch) => (
+                <MenuItemOption
+                  key={ch.id}
+                  value={ch.id}
+                  bg="background"
+                  _hover={{ bg: "subtle" }}
+                >
+                  <Text fontFamily="mono" fontSize="sm" color="text">
+                    {ch.label}
+                  </Text>
+                </MenuItemOption>
+              ))}
+            </MenuOptionGroup>
+          </>
+        )}
+      </MenuList>
+    </Menu>
+  );
+}
+
+/**
+ * Single row in the "Post to" platform picker. Clicking anywhere on the
+ * row flips the checkbox — much more obvious than the previous tick-
+ * in-the-left-margin pattern, where users couldn't tell that the tick
+ * meant "will post here".
+ */
+function PlatformToggleRow({
+  checked,
+  onToggle,
+  icon,
+  label,
+  subLabel,
+  trailing,
+  disabled,
+  disabledHint,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  icon: React.ReactNode;
+  label: string;
+  subLabel?: string;
+  trailing?: React.ReactNode;
+  disabled?: boolean;
+  disabledHint?: string;
+}) {
+  const row = (
+    <MenuItem
+      closeOnSelect={false}
+      isDisabled={disabled}
+      bg="background"
+      _hover={{ bg: disabled ? "background" : "subtle" }}
+      onClick={() => {
+        if (!disabled) onToggle();
+      }}
+      px={3}
+      py={2}
+    >
+      <HStack spacing={3} w="full">
+        {/* pointerEvents="none" lets clicks fall through to the parent
+            MenuItem, so clicking the checkbox OR the row label toggles
+            once instead of double-firing. */}
+        <Checkbox
+          isChecked={checked}
+          isDisabled={disabled}
+          pointerEvents="none"
+          colorScheme="green"
+          size="md"
+        />
+        <Box flexShrink={0}>{icon}</Box>
+        <Box flex="1" minW={0}>
+          <Text fontFamily="mono" fontSize="sm" color="text" noOfLines={1}>
+            {label}
+            {subLabel && (
+              <Text as="span" color="dim" fontSize="xs" ml={1}>
+                {subLabel}
+              </Text>
+            )}
+          </Text>
+        </Box>
+        {trailing}
+      </HStack>
+    </MenuItem>
+  );
+  if (disabled && disabledHint) {
+    return (
+      <Tooltip label={disabledHint} hasArrow placement="left">
+        <Box>{row}</Box>
+      </Tooltip>
+    );
+  }
+  return row;
+}
