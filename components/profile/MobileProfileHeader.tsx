@@ -31,6 +31,8 @@ interface MobileProfileHeaderProps {
   onEditModalOpen: () => void;
   /** If true, the viewer is a lite account without a Hive wallet connected */
   isLiteUser?: boolean;
+  /** If true, follow actions can use the viewer DB-stored posting key */
+  useStoredPostingKey?: boolean;
 }
 
 const MobileProfileHeader = memo(function MobileProfileHeader({
@@ -45,6 +47,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
   onLoadingChange,
   onEditModalOpen,
   isLiteUser = false,
+  useStoredPostingKey = false,
 }: MobileProfileHeaderProps) {
   const router = useRouter();
   const { aioha } = useAioha();
@@ -70,8 +73,8 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
 
   // Memoized follow handler
   const handleFollowToggle = useCallback(async () => {
-    // If lite user without Hive wallet, show upgrade modal
-    if (isLiteUser && !user) {
+    // If lite user without a stored posting key, show upgrade modal
+    if (isLiteUser && !useStoredPostingKey) {
       setShowUpgradeModal(true);
       return;
     }
@@ -86,8 +89,21 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
     onLoadingChange(true);
 
     try {
-      await changeFollow(user, username);
-      // Keep optimistic state
+      if (useStoredPostingKey) {
+        const response = await fetch("/api/userbase/hive/follow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ following: username }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to update follow status");
+        }
+        onFollowingChange(Boolean(data?.isFollowing));
+      } else {
+        await changeFollow(user, username);
+        // Keep optimistic state
+      }
       onLoadingChange(false);
     } catch (error) {
       console.error("Follow action failed:", error);
@@ -103,6 +119,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
     onFollowingChange,
     onLoadingChange,
     isLiteUser,
+    useStoredPostingKey,
   ]);
 
   // Memoized logout handler
@@ -175,7 +192,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
                 </Badge>
               )}
               {/* Follow/Following Button */}
-              {!isOwner && (user || isLiteUser) && (
+              {!isOwner && (user || isLiteUser || useStoredPostingKey) && (
                 <Button
                   onClick={handleFollowToggle}
                   size="xs"

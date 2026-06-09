@@ -62,6 +62,7 @@ interface ProfileHeaderProps {
   farcasterProfile?: FarcasterProfileData | null;
   userbaseUserId?: string | null;
   viewerHiveUsername?: string | null;
+  useStoredPostingKey?: boolean;
 }
 
 const ProfileHeader = function ProfileHeader({
@@ -86,6 +87,7 @@ const ProfileHeader = function ProfileHeader({
   farcasterProfile = null,
   userbaseUserId = null,
   viewerHiveUsername = null,
+  useStoredPostingKey = false,
 }: ProfileHeaderProps) {
   useProfileDebug("ProfileHeader");
   const { connections } = useLinkedIdentities();
@@ -367,6 +369,7 @@ const ProfileHeader = function ProfileHeader({
         onLoadingChange={onLoadingChange}
         onEditModalOpen={activeEditHandler}
         isLiteUser={isViewerLiteUser}
+        useStoredPostingKey={useStoredPostingKey}
       />
 
       {/* Desktop Layout */}
@@ -416,6 +419,7 @@ const ProfileHeader = function ProfileHeader({
                 onEditModalOpen={hiveEditHandler}
                 integrations={networkButtons}
                 isLiteUser={isViewerLiteUser}
+                useStoredPostingKey={useStoredPostingKey}
               />
             </Box>
           )}
@@ -448,6 +452,7 @@ export default memo(ProfileHeader, (prevProps, nextProps) => {
     prevProps.isOwner === nextProps.isOwner &&
     prevProps.isUserbaseOwner === nextProps.isUserbaseOwner &&
     prevProps.user === nextProps.user &&
+    prevProps.useStoredPostingKey === nextProps.useStoredPostingKey &&
     prevProps.isFollowing === nextProps.isFollowing &&
     prevProps.isFollowLoading === nextProps.isFollowLoading &&
     prevProps.debugPayload === nextProps.debugPayload &&

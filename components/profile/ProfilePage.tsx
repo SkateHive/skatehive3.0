@@ -235,9 +235,46 @@ const ProfileHeaderWithFollow = memo(function ProfileHeaderWithFollow({
   const { user } = useAioha();
   const { user: currentUserbaseUser } = useUserbaseAuth();
   const viewerHiveUsername = useViewerHiveIdentity();
+  const [storedPostingKeyHiveUser, setStoredPostingKeyHiveUser] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStoredPostingKeyStatus() {
+      if (!currentUserbaseUser || user) {
+        setStoredPostingKeyHiveUser(null);
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/userbase/keys/hive-info", {
+          cache: "no-store",
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!cancelled) {
+          setStoredPostingKeyHiveUser(
+            response.ok && data?.has_key && data?.hive_username
+              ? data.hive_username
+              : null
+          );
+        }
+      } catch {
+        if (!cancelled) setStoredPostingKeyHiveUser(null);
+      }
+    }
+
+    loadStoredPostingKeyStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserbaseUser, user]);
+
+  const actionActor = user || storedPostingKeyHiveUser;
+  const followStatusActor = actionActor || viewerHiveUsername;
+  const useStoredPostingKey = Boolean(!user && storedPostingKeyHiveUser);
 
   const { isFollowing, isFollowLoading, updateFollowing, updateLoading } =
-    useFollowStatus(isHiveProfile ? user : null, followTarget);
+    useFollowStatus(isHiveProfile ? followStatusActor : null, followTarget);
 
   const isOwner = useMemo(
     () => {
@@ -262,7 +299,7 @@ const ProfileHeaderWithFollow = memo(function ProfileHeaderWithFollow({
   return (
     <ProfileHeader
       {...rest}
-      user={isHiveProfile ? user : null}
+      user={isHiveProfile ? actionActor : null}
       isOwner={isOwner}
       isUserbaseOwner={isUserbaseOwner}
       isFollowing={isFollowing}
@@ -270,6 +307,7 @@ const ProfileHeaderWithFollow = memo(function ProfileHeaderWithFollow({
       onFollowingChange={updateFollowing}
       onLoadingChange={updateLoading}
       viewerHiveUsername={viewerHiveUsername}
+      useStoredPostingKey={useStoredPostingKey}
     />
   );
 });
