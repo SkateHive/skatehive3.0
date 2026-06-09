@@ -11,13 +11,14 @@
  * which powers https://api.skatehive.app/api/status. All servers run the same
  * video-transcoder codebase.
  *
- * Priority order: Oracle (public IP, browser-reachable) → Mac Mini M4 (fallback).
- * NOTE: Mac Mini uses Tailscale Funnel, which is reliable for health GETs (via
- * the server-side video proxy) but unreliable for large browser POST uploads.
+ * Priority order: Mac Mini M4 → Oracle.
+ * IMPORTANT: video blobs must be uploaded directly to transcoder hosts. Do not
+ * proxy uploads through Vercel/API routes; serverless body limits turn normal
+ * phone clips into 413 FUNCTION_PAYLOAD_TOO_LARGE failures before Mac Mini sees them.
  */
 
 /** Stable identifier for a transcoding server, used across UI + upload chain. */
-export type TranscodeServerKey = 'oracle' | 'macmini';
+export type TranscodeServerKey = 'macmini' | 'oracle';
 
 export interface TranscodeServer {
   /** Stable identifier used across UI + upload chain */
@@ -48,27 +49,27 @@ export interface TranscodeServer {
 
 export const TRANSCODE_SERVERS: TranscodeServer[] = [
   {
-    key: 'oracle',
+    key: 'macmini',
     priority: 1,
-    name: 'Oracle (Primary)',
+    name: 'Mac Mini M4 (Primary)',
     label: 'PRIMARY',
+    emoji: '🍎',
+    baseUrl: 'https://minivlad.tail83ea3e.ts.net/video',
+    healthUrl: 'https://minivlad.tail83ea3e.ts.net/video/healthz',
+    transcodeUrl: 'https://minivlad.tail83ea3e.ts.net/video/transcode',
+    useProxy: false, // Direct browser upload — avoids Vercel body limits
+    note: 'Tailscale Funnel — direct upload, no Vercel proxy',
+  },
+  {
+    key: 'oracle',
+    priority: 2,
+    name: 'Oracle (Secondary)',
+    label: 'SECONDARY',
     emoji: '🔮',
     baseUrl: 'https://transcode.skatehive.app',
     healthUrl: 'https://transcode.skatehive.app/healthz',
     transcodeUrl: 'https://transcode.skatehive.app/transcode',
     useProxy: false, // Public endpoint — browser can POST directly
-    note: 'Public IP — all browser uploads go here',
-  },
-  {
-    key: 'macmini',
-    priority: 2,
-    name: 'Mac Mini M4 (Secondary)',
-    label: 'SECONDARY',
-    emoji: '🍎',
-    baseUrl: 'https://minivlad.tail83ea3e.ts.net/video',
-    healthUrl: 'https://minivlad.tail83ea3e.ts.net/video/healthz',
-    transcodeUrl: 'https://minivlad.tail83ea3e.ts.net/video/transcode',
-    useProxy: true, // Tailscale Funnel — route through Vercel to avoid browser CORS/firewall
-    note: 'Tailscale Funnel — browser uploads unreliable',
+    note: 'Public IP — direct fallback upload',
   },
 ];

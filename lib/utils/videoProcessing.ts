@@ -2,12 +2,10 @@
  * Video processing service — server-side transcoding with multi-server fallback.
  *
  * Architecture note:
- *   Health checks always go through /api/video-proxy (same-origin, avoids CORS).
- *   Uploads for Tailscale hosts (Mac Mini) also go through the proxy because
- *   the browser may not be able to reach *.tail83ea3e.ts.net directly from all
- *   networks — the proxy path ensures the transfer goes browser → Vercel → host
- *   instead of browser → host, eliminating the false-positive-health / real-upload-fail
- *   race condition.
+ *   Health checks go through /api/video-proxy (same-origin, avoids CORS).
+ *   Uploads must go directly from browser → transcoder host. Do not proxy video
+ *   blobs through Vercel/API routes; serverless body limits produce 413
+ *   FUNCTION_PAYLOAD_TOO_LARGE for normal phone clips before the transcoder sees them.
  *
  *   Server list and order come from the canonical transcode registry
  *   (config/transcode.config.ts), the single source of truth shared with the
@@ -47,9 +45,8 @@ export interface ServerConfig {
   /** Base URL of the transcoding server */
   url: string;
   /**
-   * When true, uploads are routed through /api/video-proxy instead of going
-   * directly from the browser. Required for Tailscale hosts which are publicly
-   * reachable from Vercel but may be blocked or CORS-restricted in some browsers.
+   * Legacy escape hatch for tiny diagnostic calls only. Keep false for uploads:
+   * browser → Vercel → transcoder breaks on serverless body limits.
    */
   useProxy: boolean;
 }
@@ -301,11 +298,9 @@ async function tryServer(
   const { key: serverKey, name: serverName, url: serverBaseUrl, useProxy } = server;
   const label = `${serverName} (${server.priority})`;
 
-  // Route Tailscale hosts through the Vercel proxy to avoid browser CORS/firewall.
-  // Direct (non-proxied) hosts are reached straight from the browser.
-  const transcodeUrl = useProxy
-    ? `/api/video-proxy?url=${encodeURIComponent(`${serverBaseUrl}/transcode`)}`
-    : `${serverBaseUrl}/transcode`;
+  // Upload directly to the transcoder host. Proxying file uploads through Vercel
+  // causes 413 FUNCTION_PAYLOAD_TOO_LARGE before Mac Mini/Oracle can process them.
+  const transcodeUrl = `${serverBaseUrl}/transcode`;
 
   let eventSource: EventSource | null = null;
 
