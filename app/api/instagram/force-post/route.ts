@@ -341,9 +341,12 @@ export async function POST(request: NextRequest) {
     queuedId = queued.id as string;
   }
 
+  // Invite the original author (mapped skater) as an IG collaborator so the
+  // cross-post also lands on their own feed (they get an invite to accept).
+  const collaborators = igHandle ? [igHandle] : undefined;
   const publishResult = videoUrl
-    ? await publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined })
-    : await publishImageToInstagram({ imageUrl, caption });
+    ? await publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined, collaborators })
+    : await publishImageToInstagram({ imageUrl, caption, collaborators });
 
   if (!publishResult.success) {
     await supabase

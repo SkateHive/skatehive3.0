@@ -22,6 +22,8 @@ interface HiveProfileHeaderProps {
   integrations?: React.ReactNode;
   /** If true, the viewer is a lite account without a Hive wallet connected */
   isLiteUser?: boolean;
+  /** If true, follow actions can use the viewer DB-stored posting key */
+  useStoredPostingKey?: boolean;
 }
 
 const HiveProfileHeader = function HiveProfileHeader({
@@ -37,6 +39,7 @@ const HiveProfileHeader = function HiveProfileHeader({
   onEditModalOpen,
   integrations,
   isLiteUser = false,
+  useStoredPostingKey = false,
 }: HiveProfileHeaderProps) {
   // Fetch voting power value in dollars
   const [voteValue, setVoteValue] = useState<number | null>(null);
@@ -136,7 +139,8 @@ const HiveProfileHeader = function HiveProfileHeader({
         isFollowLoading={isFollowLoading}
         onFollowingChange={onFollowingChange}
         onLoadingChange={onLoadingChange}
-        isLiteUser={isLiteUser && !user}
+        isLiteUser={isLiteUser && !useStoredPostingKey}
+        useStoredPostingKey={useStoredPostingKey}
       />
     ) : null;
 

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { APP_CONFIG, EMAIL_DEFAULTS } from '@/config/app.config';
-import { checkHiveAccountExists } from '@/lib/utils/hiveAccountUtils';
+import { checkHiveAccountExists, validateHiveUsernameFormat } from '@/lib/utils/hiveAccountUtils';
 import { buildMagicLinkEmail } from '@/lib/email/magicLinkTemplate';
 
 const supabaseUrl =
@@ -32,6 +32,11 @@ function slugify(value: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
+}
+
+function toHiveSafeBaseHandle(value: string) {
+  const sanitized = slugify(value) || "skater";
+  return sanitized.slice(0, 16).replace(/(^-|-$)+/g, "") || "skater";
 }
 
 function deriveDisplayName(identifier: string) {
@@ -107,9 +112,9 @@ async function createUserWithUniqueHandle(
   avatarUrl: string,
   maxAttempts = 7
 ): Promise<{ id: string; handle: string } | null> {
-  const sanitized = slugify(baseHandle) || "skater";
+  const sanitized = toHiveSafeBaseHandle(baseHandle);
 
-  if (await checkHiveAccountExists(sanitized)) {
+  if (!validateHiveUsernameFormat(sanitized).isValid || await checkHiveAccountExists(sanitized)) {
     // Avoid creating an app account handle that already exists on Hive
   } else {
   // First attempt: try the sanitized handle directly
@@ -139,9 +144,9 @@ async function createUserWithUniqueHandle(
   // Retry with random suffixes
   for (let attempt = 0; attempt < maxAttempts - 1; attempt++) {
     const suffix = crypto.randomBytes(2).toString("hex");
-    const candidate = `${sanitized}-${suffix}`;
+    const candidate = `${sanitized.slice(0, 11).replace(/-$/g, "")}-${suffix}`;
 
-    if (await checkHiveAccountExists(candidate)) {
+    if (!validateHiveUsernameFormat(candidate).isValid || await checkHiveAccountExists(candidate)) {
       continue;
     }
 
@@ -185,9 +190,9 @@ async function trySetUserHandle(
   baseHandle: string,
   maxAttempts = 7
 ): Promise<string | null> {
-  const sanitized = slugify(baseHandle) || "skater";
+  const sanitized = toHiveSafeBaseHandle(baseHandle);
 
-  if (!(await checkHiveAccountExists(sanitized))) {
+  if (validateHiveUsernameFormat(sanitized).isValid && !(await checkHiveAccountExists(sanitized))) {
   // First attempt: try the sanitized handle directly
   const { error: firstError } = await supabase!
     .from("userbase_users")
@@ -221,9 +226,9 @@ async function trySetUserHandle(
   // Retry with random suffixes
   for (let attempt = 0; attempt < maxAttempts - 1; attempt++) {
     const suffix = crypto.randomBytes(2).toString("hex");
-    const candidate = `${sanitized}-${suffix}`;
+    const candidate = `${sanitized.slice(0, 11).replace(/-$/g, "")}-${suffix}`;
 
-    if (await checkHiveAccountExists(candidate)) {
+    if (!validateHiveUsernameFormat(candidate).isValid || await checkHiveAccountExists(candidate)) {
       continue;
     }
 
@@ -292,7 +297,7 @@ export async function POST(request: NextRequest) {
     }
 
     const identifier = normalizeIdentifier(rawIdentifier);
-    const slugifiedHandle = handle ? slugify(handle) : null;
+    const slugifiedHandle = handle ? toHiveSafeBaseHandle(handle) : null;
     if (slugifiedHandle && (await checkHiveAccountExists(slugifiedHandle))) {
       return NextResponse.json(
         { error: 'Handle already in use on Hive' },
@@ -312,7 +317,7 @@ export async function POST(request: NextRequest) {
 
     if (!userId) {
       const baseHandle = handle
-        ? slugify(handle)
+        ? toHiveSafeBaseHandle(handle)
         : identifier.split("@")[0] || "skater";
       const displayName = deriveDisplayName(identifier);
       const resolvedAvatar = avatarUrl || getAvatarUrl(baseHandle || identifier);
@@ -386,7 +391,7 @@ export async function POST(request: NextRequest) {
         // Handle update for existing users without a handle - use atomic approach
         if (!existingUser.handle) {
           const baseHandle = handle
-            ? slugify(handle)
+            ? toHiveSafeBaseHandle(handle)
             : identifier.split("@")[0] || "skater";
           const newHandle = await trySetUserHandle(userId, baseHandle);
           // If handle was set via trySetUserHandle, remove from updates to avoid conflict

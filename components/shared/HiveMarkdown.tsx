@@ -3,6 +3,7 @@ import markdownRenderer from "@/lib/markdown/MarkdownRenderer";
 import SkateErrorBoundary from "./SkateErrorBoundary";
 import { Skeleton } from "@chakra-ui/react";
 import { observeHeicImages } from "@/lib/utils/heicImageFallback";
+import { observeBrokenImages } from "@/lib/utils/brokenImageFallback";
 import dynamic from "next/dynamic";
 
 const ThreeSpeakPlayer = dynamic(
@@ -39,6 +40,14 @@ const HiveMarkdown: React.FC<HiveMarkdownProps> = ({
   useEffect(() => {
     if (!containerRef.current || isLoading) return;
     return observeHeicImages(containerRef.current);
+  }, [renderedHtml, isLoading]);
+
+  // Swap broken content images (dead IPFS CIDs, etc.) to a placeholder so a
+  // single bad image doesn't spam the console with 4xx errors or show the
+  // browser's broken-image glyph. Capture phase: `error` events don't bubble.
+  useEffect(() => {
+    if (!containerRef.current || isLoading) return;
+    return observeBrokenImages(containerRef.current);
   }, [renderedHtml, isLoading]);
 
   useEffect(() => {

@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { APP_CONFIG, EMAIL_DEFAULTS } from "@/config/app.config";
-import { checkHiveAccountExists } from "@/lib/utils/hiveAccountUtils";
+import { checkHiveAccountExists, validateHiveUsernameFormat } from "@/lib/utils/hiveAccountUtils";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -123,6 +123,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const handleValidation = validateHiveUsernameFormat(handle);
+    if (!handleValidation.isValid) {
+      return NextResponse.json(
+        { error: handleValidation.error || "Invalid Hive username format" },
+        { status: 400 }
+      );
+    }
+
     if (await checkHiveAccountExists(handle)) {
       return NextResponse.json(
         { error: "Handle already in use on Hive" },
@@ -227,6 +236,13 @@ export async function POST(request: NextRequest) {
           updates.avatar_url = avatarUrl;
         }
         if (!existingUser.handle && handle) {
+          const existingHandleValidation = validateHiveUsernameFormat(handle);
+          if (!existingHandleValidation.isValid) {
+            return NextResponse.json(
+              { error: existingHandleValidation.error || "Invalid Hive username format" },
+              { status: 400 }
+            );
+          }
           if (await checkHiveAccountExists(handle)) {
             return NextResponse.json(
               { error: "Handle already in use on Hive" },

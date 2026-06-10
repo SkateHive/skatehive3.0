@@ -27,6 +27,8 @@ function getConfig() {
 type PublishImageInput = {
   imageUrl: string;
   caption: string;
+  /** IG usernames to invite as co-authors (Collab). See {@link collaboratorParam}. */
+  collaborators?: string[];
 };
 
 type PublishReelInput = {
@@ -34,6 +36,8 @@ type PublishReelInput = {
   caption: string;
   /** Optional thumbnail/cover image URL (publicly hosted) */
   coverUrl?: string;
+  /** IG usernames to invite as co-authors (Collab). See {@link collaboratorParam}. */
+  collaborators?: string[];
 };
 
 export type PublishResult =
@@ -63,6 +67,23 @@ async function graphFetch(
 
 function fbError(data: any, fallback: string): string {
   return data?.error?.message || data?.error_user_msg || fallback;
+}
+
+/**
+ * Build the `collaborators` search param for media-container creation.
+ *
+ * Passing IG usernames here sends each one a Collab invite; once accepted the
+ * post is co-authored and appears on their feed too. Meta accepts a JSON array
+ * string of bare usernames (no leading @), max 3, for image/carousel/reels
+ * (not Stories). Returns {} when there's nothing to send so the param is omitted.
+ */
+function collaboratorParam(collaborators?: string[]): { collaborators: string } | {} {
+  const cleaned = (collaborators ?? [])
+    .map((c) => c.trim().replace(/^@/, "").toLowerCase())
+    .filter((c) => /^[a-z0-9._]{1,30}$/.test(c))
+    .slice(0, 3);
+  if (!cleaned.length) return {};
+  return { collaborators: JSON.stringify(cleaned) };
 }
 
 async function fetchPermalink(mediaId: string): Promise<string | undefined> {
@@ -113,6 +134,7 @@ export async function publishImageToInstagram(input: PublishImageInput): Promise
     searchParams: {
       image_url: input.imageUrl,
       caption: input.caption,
+      ...collaboratorParam(input.collaborators),
     },
   });
   if (!containerRes.ok || !containerRes.data?.id) {
@@ -154,6 +176,7 @@ export async function publishReelToInstagram(input: PublishReelInput): Promise<P
       video_url: input.videoUrl,
       caption: input.caption,
       ...(input.coverUrl ? { cover_url: input.coverUrl } : {}),
+      ...collaboratorParam(input.collaborators),
     },
   });
   if (!containerRes.ok || !containerRes.data?.id) {
