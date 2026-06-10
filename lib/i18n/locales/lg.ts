@@ -1208,6 +1208,11 @@ export const lg = {
     nearYou: 'ekiri kumpi',
     useMyLocation: 'kozesa we ndi',
   },
+  globalError: {
+    bailDetected: 'Okugwa kwatondebwa',
+    gettingBackUp: 'Tugenda okunzita nate...',
+    tryAgain: 'Gezaako nate',
+  },
   errorToast: {
     reportBug: 'Babaza bug',
     screenshotHint: '⌘/Ctrl+Enter okukwata screenshot',

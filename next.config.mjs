@@ -355,6 +355,25 @@ const nextConfig = {
                 ],
             },
             {
+                // Build manifests are not content-hashed — bust cache on every deploy
+                source: '/_next/static/:buildId/_buildManifest.js',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'no-cache, no-store, must-revalidate',
+                    },
+                ],
+            },
+            {
+                source: '/_next/static/:buildId/_ssgManifest.js',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'no-cache, no-store, must-revalidate',
+                    },
+                ],
+            },
+            {
                 // Cache public folder assets for 1 day
                 source: '/public/:path*',
                 headers: [
