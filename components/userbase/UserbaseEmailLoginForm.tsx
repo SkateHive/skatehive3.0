@@ -31,10 +31,10 @@ type LookupStatus = "idle" | "checking" | "found" | "new" | "error";
 
 // SkateHive marketing portal endpoint that adds the email to the Paragraph
 // newsletter publication (paragraph.com/@skatehive). Public + idempotent;
-// every newsletter email carries an unsubscribe link.
-const NEWSLETTER_SUBSCRIBE_URL =
-  process.env.NEXT_PUBLIC_NEWSLETTER_SUBSCRIBE_URL ||
-  "https://skatehive.reelflip.com/api/newsletter/subscribe";
+// every newsletter email carries an unsubscribe link. No hardcoded fallback:
+// unset env (dev/preview) means the opt-in is a silent no-op, so test emails
+// never reach the production list.
+const NEWSLETTER_SUBSCRIBE_URL = process.env.NEXT_PUBLIC_NEWSLETTER_SUBSCRIBE_URL ?? "";
 
 interface UserbaseEmailLoginFormProps {
   redirect?: string | null;
@@ -257,9 +257,11 @@ export default function UserbaseEmailLoginForm({
       setExpiresAt(typeof data?.expires_at === "string" ? data.expires_at : null);
 
       // Fire-and-forget newsletter opt-in — never blocks or fails the login.
-      if (newsletterOptIn) {
+      // keepalive lets the POST survive an immediate navigation/teardown.
+      if (newsletterOptIn && NEWSLETTER_SUBSCRIBE_URL) {
         fetch(NEWSLETTER_SUBSCRIBE_URL, {
           method: "POST",
+          keepalive: true,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: trimmedEmail }),
         }).catch(() => {});
