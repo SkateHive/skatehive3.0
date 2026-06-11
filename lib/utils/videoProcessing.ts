@@ -2,7 +2,8 @@
  * Video processing service — server-side transcoding with multi-server fallback.
  *
  * Architecture note:
- *   Health checks go through /api/video-proxy (same-origin, avoids CORS).
+ *   Health checks use the same route style as uploads: direct for public browser
+ *   targets, proxy only for explicitly proxied servers.
  *   Uploads must go directly from browser → transcoder host. Do not proxy video
  *   blobs through Vercel/API routes; serverless body limits produce 413
  *   FUNCTION_PAYLOAD_TOO_LARGE for normal phone clips before the transcoder sees them.
@@ -150,19 +151,20 @@ function resetCircuit(key: ServerKey): void {
 // Timeout constants for tryServer
 // ---------------------------------------------------------------------------
 
-const BASE_TIMEOUT_MS = 60_000;
-const PER_MB_TIMEOUT_MS = 5_000;
-const MAX_TIMEOUT_MS = 900_000; // 15 minutes
+const BASE_TIMEOUT_MS = 300_000;
+const PER_MB_TIMEOUT_MS = 10_000;
+const MAX_TIMEOUT_MS = 1_800_000; // 30 minutes
 
 // ---------------------------------------------------------------------------
 // Health check — always via same-origin proxy to avoid CORS from any region
 // ---------------------------------------------------------------------------
 
-async function checkServerHealth(serverBaseUrl: string): Promise<boolean> {
+async function checkServerHealth(server: ServerConfig): Promise<boolean> {
   try {
-    const healthUrl = `/api/video-proxy?url=${encodeURIComponent(
-      `${serverBaseUrl}/healthz`
-    )}`;
+    const directHealthUrl = `${server.url}/healthz`;
+    const healthUrl = server.useProxy
+      ? `/api/video-proxy?url=${encodeURIComponent(directHealthUrl)}`
+      : directHealthUrl;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10_000);
     const response = await fetch(healthUrl, {
@@ -216,7 +218,7 @@ export async function processVideoOnServer(
 
     // --- Health check ---
     console.log(`🔍 [${correlationId}] Checking ${server.name} health...`);
-    const healthy = await checkServerHealth(server.url);
+    const healthy = await checkServerHealth(server);
 
     if (!healthy) {
       const msg = `${server.name} offline (health check failed)`;

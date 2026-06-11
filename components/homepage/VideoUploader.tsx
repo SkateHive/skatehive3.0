@@ -9,9 +9,7 @@ import React, {
 
 import {
   isMP4,
-  canDirectUpload,
   validateVideo,
-  uploadToIPFS,
   EnhancedUploadOptions,
 } from "@/lib/utils/videoUpload";
 import {
@@ -21,7 +19,6 @@ import {
   SERVER_CONFIG,
   ServerKey,
 } from "@/lib/utils/videoProcessing";
-import { handleVideoUpload } from "@/lib/utils/videoUploadUtils";
 import { useHiveUser } from "@/contexts/UserContext";
 import useHivePower from "@/hooks/useHivePower";
 import {
@@ -302,89 +299,10 @@ const VideoUploader = forwardRef<VideoUploaderRef, VideoUploaderProps>(
           connectionType: deviceData.connectionType,
         };
 
-        // 3. Only MP4 and WebM go direct — everything else (MOV, AVI, MKV) gets transcoded
-        //    Safari reports .mov as video/mp4, so canDirectUpload() checks file extension too
-        if (canDirectUpload(file)) {
-          const reason = isTrimmed
-            ? t('terminal.trimmedDetected')
-            : t('terminal.mp4Detected');
-          terminal.addLine(reason, "info");
-          terminal.addLine(t('terminal.uploadingPinata'), "server", "pinata" as any, "trying");
+        // 3. All videos go through the transcoder for optimization.
+        //    The upload itself is browser → transcoder, not browser → Vercel.
 
-          // For MP4 files, use direct IPFS upload with thumbnail support
-          try {
-            if (existingThumbnail) {
-              // Use handleVideoUpload if we have a thumbnail to preserve
-              const result = await handleVideoUpload(
-                file,
-                username,
-                existingThumbnail,
-                (progress) => terminal.updateProgress(progress, 'uploading'), // Real progress callback
-                hivePower || 0,
-                {
-                  platform: deviceData.platform,
-                  deviceInfo: deviceData.deviceInfo,
-                  browserInfo: deviceData.browserInfo,
-                  viewport: deviceData.viewport,
-                  connectionType: deviceData.connectionType,
-                }
-              );
-
-              if (result.success && result.url) {
-                terminal.updateProgress(100); // Upload complete!
-                terminal.addLine(`✓ ${t('terminal.ipfsSuccess')}`, "success");
-                terminal.addLine(t('terminal.cidLabel').replace('{cid}', result.IpfsHash || 'unknown'), "info");
-                terminal.addLine(`🎉 ${t('terminal.videoReady')}`, "success");
-
-                onUpload({
-                  url: result.url,
-                  hash: result.IpfsHash,
-                });
-                return;
-              } else {
-                throw new Error(result.error || "Upload failed");
-              }
-            } else {
-              // Use original uploadToIPFS for MP4 files without thumbnails
-              const uploadResult = await uploadToIPFS(
-                file,
-                username,
-                enhancedOptions,
-                (progress) => terminal.updateProgress(progress, 'uploading') // Real progress!
-              );
-
-              if (uploadResult.success && uploadResult.url) {
-                terminal.updateProgress(100, 'complete'); // Upload complete!
-                terminal.addLine(`✓ ${t('terminal.ipfsSuccess')}`, "success");
-                terminal.addLine(t('terminal.cidLabel').replace('{cid}', uploadResult.hash || 'unknown'), "info");
-                terminal.addLine(`🎉 ${t('terminal.videoReady')}`, "success");
-
-                onUpload({
-                  url: uploadResult.url,
-                  hash: uploadResult.hash,
-                });
-                return;
-              } else {
-                throw new Error(uploadResult.error || "Upload failed");
-              }
-            }
-          } catch (uploadError) {
-            const errorMsg = uploadError instanceof Error ? uploadError.message : String(uploadError);
-            terminal.addLine(`✗ ${t('terminal.pinataFailed').replace('{error}', errorMsg)}`, "error");
-
-            errorDetails = {
-              errorType: 'ipfs_upload',
-              statusCode: extractStatusCode(errorMsg),
-              failedServer: 'pinata',
-              rawError: errorMsg,
-              uploadType: 'mp4_direct',
-              fileInfo: { name: file.name, size: formatFileSize(file.size), type: file.type }
-            };
-            throw uploadError;
-          }
-        }
-
-        // 5. Non-MP4 files - process on server with enhanced options
+        // 5. All files currently go through server processing for optimization.
         terminal.addLine(t('terminal.nonMp4').replace('{type}', file.type), "info");
         terminal.addLine(t('terminal.startingFallback'), "info");
 
