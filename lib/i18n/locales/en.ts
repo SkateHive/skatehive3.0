@@ -69,6 +69,7 @@ export const en = {
     handleLabel: 'Handle (first login only)',
     handlePlaceholder: 'your-handle',
     handleHelper: 'Only used the first time you sign in with this email.',
+    newsletterOptIn: 'Subscribe to the weekly SkateHive newsletter',
     checkingAccount: 'Checking account...',
     accountFound: 'Account found. Send the link to continue.',
     accountNotFound: 'No account found. Add a handle to create one.',

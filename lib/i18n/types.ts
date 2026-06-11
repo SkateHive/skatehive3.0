@@ -65,6 +65,7 @@ export interface TranslationSchema {
     handleLabel: string;
     handlePlaceholder: string;
     handleHelper: string;
+    newsletterOptIn: string;
     checkingAccount: string;
     accountFound: string;
     accountNotFound: string;

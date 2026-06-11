@@ -69,6 +69,7 @@ export const lg = {
     handleLabel: 'Handle (omulundi ogusooka gwokka)',
     handlePlaceholder: 'handle-yo',
     handleHelper: 'Kikozesebwa omulundi ogusooka gwokka bw\'oyingira n\'email eno.',
+    newsletterOptIn: 'Wewandiise ku newsletter ya SkateHive eya buli wiiki',
     checkingAccount: 'Tukebera akawunti...',
     accountFound: 'Akawunti ezuuliddwa. Weereza link okugenda mu maaso.',
     accountNotFound: 'Akawunti tezuuliddwa. Teeka handle okutonda empya.',

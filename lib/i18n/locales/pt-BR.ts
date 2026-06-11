@@ -69,6 +69,7 @@ export const ptBR = {
     handleLabel: 'Handle (apenas no primeiro login)',
     handlePlaceholder: 'seu-handle',
     handleHelper: 'Usado apenas na primeira vez que você entra com este email.',
+    newsletterOptIn: 'Assinar a newsletter semanal do SkateHive',
     checkingAccount: 'Verificando conta...',
     accountFound: 'Conta encontrada. Envie o link para continuar.',
     accountNotFound: 'Conta não encontrada. Adicione um handle para criar.',
