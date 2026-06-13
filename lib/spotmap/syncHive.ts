@@ -2,6 +2,7 @@ import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
 import { parseSpotBody } from "@/lib/utils/parseSpotBody";
 import { getSpotmapSupabase, type SpotmapUpsertInput } from "./supabase";
 import { pickSpotThumbnail } from "./getThumbnail";
+import HiveClient from "@/lib/hive/hiveclient";
 
 interface HiveSpotRecord {
   author: string;
@@ -203,6 +204,104 @@ export async function syncHiveSpots(): Promise<HiveSyncResult> {
   result.cursorAfter = afterRow?.[0]?.hive_created ?? null;
 
   return result;
+}
+
+export type SingleSpotSyncStatus =
+  | "upserted"
+  | "not_found"
+  | "not_a_spot"
+  | "no_coords"
+  | "error";
+
+export interface SingleSpotSyncResult {
+  status: SingleSpotSyncStatus;
+  source_id: string;
+  spot?: SpotmapUpsertInput;
+  error?: string;
+}
+
+/**
+ * Ingest a single Hive skatespot on demand — used right after a client posts a
+ * spot so it appears on the map within seconds instead of waiting for the bulk
+ * sync. Fetches the post straight from Hive (so the data is trusted: it comes
+ * from the verified on-chain content, not the caller), validates the skatespot
+ * tag, parses the body, and upserts one row.
+ */
+export async function syncSingleHiveSpot(
+  author: string,
+  permlink: string
+): Promise<SingleSpotSyncResult> {
+  const source_id = `${author}/${permlink}`;
+  const supabase = getSpotmapSupabase();
+  if (!supabase) throw new Error("Supabase not configured");
+
+  let content: {
+    author?: string;
+    permlink?: string;
+    body?: string;
+    title?: string;
+    created?: string;
+    last_update?: string;
+    json_metadata?: unknown;
+  } | null = null;
+  try {
+    content = await HiveClient.call("condenser_api", "get_content", [author, permlink]);
+  } catch (err) {
+    return {
+      status: "error",
+      source_id,
+      error: err instanceof Error ? err.message : "Hive fetch failed",
+    };
+  }
+
+  // get_content returns an empty author when the post doesn't exist.
+  if (!content || !content.author || !content.body) {
+    return { status: "not_found", source_id };
+  }
+
+  const record: HiveSpotRecord = {
+    author: content.author,
+    permlink: content.permlink ?? permlink,
+    body: content.body,
+    created: content.created ?? "",
+    last_update: content.last_update,
+    title: content.title,
+    json_metadata: content.json_metadata,
+  };
+
+  if (!hasSkatespotTag(record)) {
+    return { status: "not_a_spot", source_id };
+  }
+
+  const parsed = parseSpotBody(record.body);
+  if (parsed.lat == null || parsed.lng == null) {
+    return { status: "no_coords", source_id };
+  }
+
+  const spot: SpotmapUpsertInput = {
+    source: "hive",
+    source_id,
+    name: parsed.name || record.title || "Skate spot",
+    description: parsed.description || null,
+    lat: parsed.lat,
+    lng: parsed.lng,
+    address: parsed.address,
+    thumbnail: parsed.images[0]?.url ?? null,
+    images: parsed.images,
+    hive_author: record.author,
+    hive_permlink: record.permlink,
+    hive_created: hiveTimeToIso(record.created),
+    hive_last_update: hiveTimeToIso(record.last_update),
+  };
+
+  const { error } = await supabase
+    .from("spotmap_spots")
+    .upsert(spot, { onConflict: "source,source_id" });
+  if (error) {
+    return { status: "error", source_id, error: error.message };
+  }
+
+  return { status: "upserted", source_id, spot };
 }
 
 export const HIVE_SYNC_PAGE_SIZE = PAGE_SIZE;
