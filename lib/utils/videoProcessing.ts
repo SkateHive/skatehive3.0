@@ -29,6 +29,7 @@ export interface ProcessingResult {
   errorType?:
     | "connection"
     | "timeout"
+    | "busy"
     | "server_error"
     | "upload_rejected"
     | "file_too_large"
@@ -172,7 +173,12 @@ async function checkServerHealth(server: ServerConfig): Promise<boolean> {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
-    return response.ok;
+    if (!response.ok) return false;
+
+    const data = await response.json().catch(() => null);
+    if (!data) return true;
+    const hasCapacity = !data.capacity || Number(data.capacity.available ?? 1) > 0;
+    return hasCapacity;
   } catch {
     return false;
   }
@@ -253,7 +259,9 @@ export async function processVideoOnServer(
     console.warn(`⚠️ [${correlationId}] ${server.name} upload failed: ${errMsg}`);
     failures.push({ server, error: errMsg, errorType: result.errorType });
     enhancedOptions?.onServerFailed?.(server.key, errMsg);
-    tripCircuit(server.key);
+    if (result.errorType !== "busy") {
+      tripCircuit(server.key);
+    }
   }
 
   // --- All servers failed — build rich, non-opaque error ---
@@ -370,6 +378,7 @@ async function tryServer(
         let errorType: ProcessingResult["errorType"] = "server_error";
         if (response.status === 403) errorType = "upload_rejected";
         else if (response.status === 413) errorType = "file_too_large";
+        else if (response.status === 503) errorType = "busy";
 
         throw new TranscoderError(
           `${label} responded with ${response.status}: ${errorText}`,
