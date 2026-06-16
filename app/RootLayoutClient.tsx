@@ -16,7 +16,6 @@ import FooterLinks from "@/components/layout/FooterLinks";
 import SplashScreen from "@/components/layout/SplashScreen";
 import { Providers } from "./providers";
 import { NotificationProvider } from "@/contexts/NotificationContext";
-import { Analytics } from "@vercel/analytics/next";
 import InitFrameSDK from "@/hooks/init-frame-sdk";
 import { SkaterData } from "@/types/leaderboard";
 
@@ -101,7 +100,6 @@ export default function RootLayoutClient({
   if (!isHydrated) {
     return (
       <>
-        <Analytics />
         <Providers>
           <NotificationProvider>
             <InnerLayout
@@ -126,7 +124,6 @@ export default function RootLayoutClient({
   return (
     <>
       <InitFrameSDK />
-      <Analytics />
       <Providers>
         <NotificationProvider>
           <InnerLayout
