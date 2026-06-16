@@ -91,6 +91,10 @@ async function userIdForHiveHandle(handle: string): Promise<string | null> {
   return (data?.[0]?.user_id as string | undefined) ?? null;
 }
 
+function isCollaboratorVisibilityError(error: string | undefined) {
+  return /user not visible|collaborator|invite/i.test(error || "");
+}
+
 export async function POST(request: NextRequest) {
   if (!supabase) {
     return NextResponse.json({ error: "Server is missing Supabase config." }, { status: 500 });
@@ -343,17 +347,32 @@ export async function POST(request: NextRequest) {
 
   // Invite the original author (mapped skater) as an IG collaborator so the
   // cross-post also lands on their own feed (they get an invite to accept).
+  // Meta rejects some valid-looking usernames as "User not visible" when the
+  // account is private, blocked, too new, or not eligible for Collab. That
+  // should not block SkateHive from posting the clip, so retry without the
+  // optional collaborator invite on collaborator-specific failures.
   const collaborators = igHandle ? [igHandle] : undefined;
-  const publishResult = videoUrl
+  let publishResult = videoUrl
     ? await publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined, collaborators })
     : await publishImageToInstagram({ imageUrl, caption, collaborators });
+  let collaboratorRetryError: string | null = null;
+
+  if (!publishResult.success && collaborators && isCollaboratorVisibilityError(publishResult.error)) {
+    collaboratorRetryError = publishResult.error;
+    publishResult = videoUrl
+      ? await publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined })
+      : await publishImageToInstagram({ imageUrl, caption });
+  }
 
   if (!publishResult.success) {
+    const error = collaboratorRetryError
+      ? `${publishResult.error} (also retried without collaborator after: ${collaboratorRetryError})`
+      : publishResult.error;
     await supabase
       .from("userbase_instagram_posts")
-      .update({ status: "failed", error: publishResult.error })
+      .update({ status: "failed", error })
       .eq("id", queuedId);
-    return NextResponse.json({ error: publishResult.error }, { status: 502 });
+    return NextResponse.json({ error }, { status: 502 });
   }
 
   await supabase

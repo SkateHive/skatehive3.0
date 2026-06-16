@@ -3,6 +3,14 @@ import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
+const OG_CACHE_HEADER =
+  "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800";
+const RENDERABLE_IMAGE_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+]);
+
 const C = {
   bg: "#050505",
   card: "#111111",
@@ -26,6 +34,23 @@ interface UserData {
   found: boolean;
 }
 
+function getRenderableImageUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    if (url.href.length > 2048) return null;
+
+    const pathname = url.pathname.toLowerCase();
+    for (const extension of RENDERABLE_IMAGE_EXTENSIONS) {
+      if (pathname.endsWith(extension)) return url.href;
+    }
+  } catch {}
+
+  return null;
+}
+
 async function getUserData(username: string): Promise<UserData> {
   try {
     const normalized = username.toLowerCase().trim().replace(/^@/, "");
@@ -47,6 +72,7 @@ async function getUserData(username: string): Promise<UserData> {
     const accountResponse = await fetch("https://api.hive.blog", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      next: { revalidate: 86400 },
       body: JSON.stringify({
         jsonrpc: "2.0",
         method: "condenser_api.get_accounts",
@@ -64,6 +90,7 @@ async function getUserData(username: string): Promise<UserData> {
     const profileResponse = await fetch("https://api.hive.blog", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      next: { revalidate: 86400 },
       body: JSON.stringify({
         jsonrpc: "2.0",
         method: "bridge.get_profile",
@@ -84,8 +111,8 @@ async function getUserData(username: string): Promise<UserData> {
       try {
         const parsed = JSON.parse(account.posting_json_metadata);
         const profile = parsed?.profile || {};
-        profileImage = profile.profile_image || profileImage;
-        coverImage = profile.cover_image || null;
+        profileImage = getRenderableImageUrl(profile.profile_image) || profileImage;
+        coverImage = getRenderableImageUrl(profile.cover_image);
         about = profile.about || "";
         const rawName = profile.name || normalized;
         name = rawName.replace(/[\u{10000}-\u{10FFFF}]|[\u{2460}-\u{24FF}]|[\u{2600}-\u{27BF}]|[\u{1F000}-\u{1FFFF}]/gu, "").trim();
@@ -158,7 +185,7 @@ export async function GET(
             overflow: "hidden",
           }}
         >
-          {/* Cover image as background — full bleed */}
+          {/* Cover image as background - full bleed */}
           {userData.found && userData.coverImage && (
             <img
               src={userData.coverImage}
@@ -273,30 +300,17 @@ export async function GET(
                     position: "relative",
                   }}
                 >
-                  {userData.found ? (
-                    <img
-                      src={userData.profileImage}
-                      alt=""
-                      width={avatarSize}
-                      height={avatarSize}
-                      style={{
-                        objectFit: "cover",
-                        borderRadius: "50%",
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        color: C.green,
-                        fontSize: "72px",
-                        fontWeight: "900",
-                        display: "flex",
-                        opacity: 0.3,
-                      }}
-                    >
-                      ?
-                    </div>
-                  )}
+                  <div
+                    style={{
+                      color: C.green,
+                      fontSize: userData.found ? "82px" : "72px",
+                      fontWeight: "900",
+                      display: "flex",
+                      opacity: userData.found ? 0.55 : 0.3,
+                    }}
+                  >
+                    {userData.found ? username.charAt(0).toUpperCase() : "?"}
+                  </div>
                 </div>
               </div>
 
@@ -520,7 +534,13 @@ export async function GET(
           </div>
         </div>
       ),
-      { width: W, height: H },
+      {
+        width: W,
+        height: H,
+        headers: {
+          "Cache-Control": OG_CACHE_HEADER,
+        },
+      },
     );
   } catch {
     return new ImageResponse(
@@ -545,7 +565,13 @@ export async function GET(
           </div>
         </div>
       ),
-      { width: 1200, height: 630 },
+      {
+        width: 1200,
+        height: 630,
+        headers: {
+          "Cache-Control": OG_CACHE_HEADER,
+        },
+      },
     );
   }
 }

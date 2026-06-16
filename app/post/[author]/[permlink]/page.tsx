@@ -2,7 +2,7 @@ import PostPage from "@/components/blog/PostPage";
 import { getPostContent } from "@/lib/hive/server-content";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
 import { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 
@@ -36,6 +36,7 @@ const PROFILE_TAB_SLUGS = new Set([
   "settings", "followers", "following", "communities",
   "engine", "notifications", "snaps",
 ]);
+const INVALID_POST_PERMLINKS = new Set(["null", "undefined"]);
 
 // Constants
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
@@ -251,6 +252,10 @@ function validatePermlink(permlink: any, source: string) {
   }
 }
 
+function isInvalidPostPermlink(permlink: string): boolean {
+  return INVALID_POST_PERMLINKS.has(permlink.toLowerCase());
+}
+
 // Handle profile-tab redirects, then fetch the post.
 //
 // The actual RPC goes through `getPostContent`, which is wrapped in
@@ -268,6 +273,10 @@ async function loadPost(user: string, permlink: string) {
     redirect(`/user/${cleanUser}/${permlink.toLowerCase()}`);
   }
 
+  if (isInvalidPostPermlink(permlink)) {
+    notFound();
+  }
+
   return getPostContent(user, permlink);
 }
 
@@ -279,6 +288,17 @@ export async function generateMetadata({
   const { author, permlink } = await params;
 
   validatePermlink(permlink, "generateMetadata");
+
+  if (typeof permlink === "string" && isInvalidPostPermlink(permlink)) {
+    return {
+      title: "Post | Skatehive",
+      description: "View this post on Skatehive.",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
 
   // Quick validation to catch object permlinks
   if (typeof permlink !== "string") {
@@ -470,6 +490,10 @@ export default async function PostPageRoute({
   const decodedAuthor = decodeURIComponent(author);
   const decodedPermlink = decodeURIComponent(permlink);
   const cleanedAuthor = cleanUsername(decodedAuthor);
+
+  if (isInvalidPostPermlink(decodedPermlink)) {
+    notFound();
+  }
 
   // Build JSON-LD structured data + SSR content for SEO
   let breadcrumbJsonLd: Record<string, unknown> | null = null;

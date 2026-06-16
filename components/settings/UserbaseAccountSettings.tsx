@@ -15,6 +15,7 @@ import AppAccountSetupChecklist from "@/components/userbase/AppAccountSetupCheck
 import UserbaseIdentityLinker from "@/components/layout/UserbaseIdentityLinker";
 import UserbasePostingKeyPanel from "@/components/userbase/UserbasePostingKeyPanel";
 import UserbaseMergePanel from "@/components/userbase/UserbaseMergePanel";
+import UserbaseNewsletterPanel from "@/components/userbase/UserbaseNewsletterPanel";
 import HiveSponsorshipInfo from "@/components/userbase/HiveSponsorshipInfo";
 
 export default function UserbaseAccountSettings() {
@@ -57,6 +58,9 @@ export default function UserbaseAccountSettings() {
       <Box id="identity-linker-section">
         <UserbaseIdentityLinker />
       </Box>
+
+      {/* Newsletter subscription — proxied to the marketing portal/Paragraph */}
+      <UserbaseNewsletterPanel />
 
       <Box border="1px solid" borderColor="muted" p={4}>
         <HiveSponsorshipInfo />

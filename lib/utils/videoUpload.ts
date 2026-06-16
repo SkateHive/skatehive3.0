@@ -26,9 +26,8 @@ export function isMP4(file: File): boolean {
 
 /**
  * Check if file can be uploaded directly without transcoding.
- * ALL videos go through server for validation/optimization.
- * Server-side ffprobe checks if already web-optimized (H.264/AAC/≤1080p)
- * and skips transcoding if so — best of both worlds.
+ * Keep disabled: even MP4/WebM should go through the transcoder so we can
+ * optimize codecs, resolution and streaming compatibility before pinning.
  */
 export function canDirectUpload(_file: File): boolean {
   return false;

@@ -6,6 +6,7 @@ import {
   AlertIcon,
   Box,
   Button,
+  Checkbox,
   FormControl,
   FormHelperText,
   HStack,
@@ -27,6 +28,13 @@ const blink = keyframes`
 
 type RequestStatus = "idle" | "loading" | "success" | "error";
 type LookupStatus = "idle" | "checking" | "found" | "new" | "error";
+
+// SkateHive marketing portal endpoint that adds the email to the Paragraph
+// newsletter publication (paragraph.com/@skatehive). Public + idempotent;
+// every newsletter email carries an unsubscribe link. No hardcoded fallback:
+// unset env (dev/preview) means the opt-in is a silent no-op, so test emails
+// never reach the production list.
+const NEWSLETTER_SUBSCRIBE_URL = process.env.NEXT_PUBLIC_NEWSLETTER_SUBSCRIBE_URL ?? "";
 
 interface UserbaseEmailLoginFormProps {
   redirect?: string | null;
@@ -57,6 +65,7 @@ export default function UserbaseEmailLoginForm({
   const [lookupError, setLookupError] = useState("");
   const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [newsletterOptIn, setNewsletterOptIn] = useState(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Cleanup: abort any in-flight request on unmount
@@ -246,6 +255,17 @@ export default function UserbaseEmailLoginForm({
 
       setStatus("success");
       setExpiresAt(typeof data?.expires_at === "string" ? data.expires_at : null);
+
+      // Fire-and-forget newsletter opt-in — never blocks or fails the login.
+      // keepalive lets the POST survive an immediate navigation/teardown.
+      if (newsletterOptIn && NEWSLETTER_SUBSCRIBE_URL) {
+        fetch(NEWSLETTER_SUBSCRIBE_URL, {
+          method: "POST",
+          keepalive: true,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: trimmedEmail }),
+        }).catch(() => {});
+      }
     } catch (requestError) {
       // Skip state updates if request was aborted
       if (controller.signal.aborted) return;
@@ -441,6 +461,18 @@ export default function UserbaseEmailLoginForm({
           )}
         </FormControl>
       )}
+
+      {/* Newsletter opt-in */}
+      <Checkbox
+        isChecked={newsletterOptIn}
+        onChange={(event) => setNewsletterOptIn(event.target.checked)}
+        size="sm"
+        colorScheme="green"
+      >
+        <Text fontFamily="mono" fontSize="2xs" color="gray.400">
+          {t("newsletterOptIn")}
+        </Text>
+      </Checkbox>
 
       {/* Primary action button - EMPHASIZED */}
       <Button

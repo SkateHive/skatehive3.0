@@ -65,6 +65,7 @@ export interface TranslationSchema {
     handleLabel: string;
     handlePlaceholder: string;
     handleHelper: string;
+    newsletterOptIn: string;
     checkingAccount: string;
     accountFound: string;
     accountNotFound: string;
@@ -384,6 +385,9 @@ export interface TranslationSchema {
     appAccountTab: string;
     appAccountTitle: string;
     appAccountDescription: string;
+    newsletterTitle: string;
+    newsletterDescription: string;
+    newsletterToggle: string;
     manageAccount: string;
     linkedIdentities: string;
     noIdentities: string;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { APP_CONFIG } from "@/config/app.config";
+import { syncHiveSpots } from "@/lib/spotmap/syncHive";
 
 function getBaseUrl(request: NextRequest) {
   const origin = APP_CONFIG.ORIGIN;
@@ -82,10 +83,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Spot map reconciliation backstop. New spots appear in real time via
+    // POST /api/spotmap/sync-one; this daily pass catches anything that missed
+    // it (edits, spots posted by clients that don't call sync-one). Non-fatal:
+    // a spot-sync failure must not fail the soft-post/vote retries above.
+    let spotmap: unknown = null;
+    try {
+      spotmap = await syncHiveSpots();
+    } catch (err) {
+      console.error("Cron spotmap sync failed:", err);
+      spotmap = { error: err instanceof Error ? err.message : "spotmap sync failed" };
+    }
+
     return NextResponse.json({
       success: true,
       soft_posts: postData,
       soft_votes: voteData,
+      spotmap,
     });
   } catch (error: any) {
     console.error("Cron execution failed:", error);

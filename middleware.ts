@@ -5,8 +5,7 @@ import type { NextRequest } from 'next/server';
  * SkateHive Middleware
  * 
  * Purpose:
- * 1. Redirect www → non-www (SEO canonical)
- * 2. Handle snap URL rewrites
+ * 1. Handle snap URL rewrites
  * 
  * What we DON'T do:
  * - Bot detection via user-agent (ineffective, blocks legitimate crawlers)
@@ -15,17 +14,8 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
-    const host = request.headers.get('host') || '';
 
-    // 1. Redirect www → non-www (SEO canonical)
-    if (host.startsWith('www.')) {
-        const newUrl = new URL(request.url);
-        newUrl.host = host.replace(/^www\./, '');
-        newUrl.protocol = 'https:';
-        return NextResponse.redirect(newUrl, 301);
-    }
-
-    // 2. Handle snap URLs: /user/username/snap/permlink
+    // Handle snap URLs: /user/username/snap/permlink
     const snapMatch = url.pathname.match(/^\/user\/([^\/]+)\/snap\/([^\/]+)$/);
 
     if (snapMatch) {
@@ -44,10 +34,8 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        // Match all paths except:
-        // - Static files (_next/static, _next/image, etc)
-        // - SEO critical files (robots.txt, sitemap.xml)
-        // - Public assets
-        '/((?!_next/static|_next/image|favicon.ico|ogimage.png|SKATE_HIVE_VECTOR_FIN.svg|manifest.json|robots.txt|sitemap.xml).*)',
+        // Keep middleware scoped to the only app route that needs a rewrite.
+        // The www -> apex redirect is configured at the Vercel domain level.
+        '/user/:username/snap/:permlink',
     ],
 };

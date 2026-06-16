@@ -2,7 +2,8 @@
  * Video processing service — server-side transcoding with multi-server fallback.
  *
  * Architecture note:
- *   Health checks go through /api/video-proxy (same-origin, avoids CORS).
+ *   Health checks use the same route style as uploads: direct for public browser
+ *   targets, proxy only for explicitly proxied servers.
  *   Uploads must go directly from browser → transcoder host. Do not proxy video
  *   blobs through Vercel/API routes; serverless body limits produce 413
  *   FUNCTION_PAYLOAD_TOO_LARGE for normal phone clips before the transcoder sees them.
@@ -28,6 +29,7 @@ export interface ProcessingResult {
   errorType?:
     | "connection"
     | "timeout"
+    | "busy"
     | "server_error"
     | "upload_rejected"
     | "file_too_large"
@@ -150,19 +152,20 @@ function resetCircuit(key: ServerKey): void {
 // Timeout constants for tryServer
 // ---------------------------------------------------------------------------
 
-const BASE_TIMEOUT_MS = 60_000;
-const PER_MB_TIMEOUT_MS = 5_000;
-const MAX_TIMEOUT_MS = 900_000; // 15 minutes
+const BASE_TIMEOUT_MS = 300_000;
+const PER_MB_TIMEOUT_MS = 10_000;
+const MAX_TIMEOUT_MS = 1_800_000; // 30 minutes
 
 // ---------------------------------------------------------------------------
 // Health check — always via same-origin proxy to avoid CORS from any region
 // ---------------------------------------------------------------------------
 
-async function checkServerHealth(serverBaseUrl: string): Promise<boolean> {
+async function checkServerHealth(server: ServerConfig): Promise<boolean> {
   try {
-    const healthUrl = `/api/video-proxy?url=${encodeURIComponent(
-      `${serverBaseUrl}/healthz`
-    )}`;
+    const directHealthUrl = `${server.url}/healthz`;
+    const healthUrl = server.useProxy
+      ? `/api/video-proxy?url=${encodeURIComponent(directHealthUrl)}`
+      : directHealthUrl;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10_000);
     const response = await fetch(healthUrl, {
@@ -170,7 +173,12 @@ async function checkServerHealth(serverBaseUrl: string): Promise<boolean> {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
-    return response.ok;
+    if (!response.ok) return false;
+
+    const data = await response.json().catch(() => null);
+    if (!data) return true;
+    const hasCapacity = !data.capacity || Number(data.capacity.available ?? 1) > 0;
+    return hasCapacity;
   } catch {
     return false;
   }
@@ -216,7 +224,7 @@ export async function processVideoOnServer(
 
     // --- Health check ---
     console.log(`🔍 [${correlationId}] Checking ${server.name} health...`);
-    const healthy = await checkServerHealth(server.url);
+    const healthy = await checkServerHealth(server);
 
     if (!healthy) {
       const msg = `${server.name} offline (health check failed)`;
@@ -251,7 +259,9 @@ export async function processVideoOnServer(
     console.warn(`⚠️ [${correlationId}] ${server.name} upload failed: ${errMsg}`);
     failures.push({ server, error: errMsg, errorType: result.errorType });
     enhancedOptions?.onServerFailed?.(server.key, errMsg);
-    tripCircuit(server.key);
+    if (result.errorType !== "busy") {
+      tripCircuit(server.key);
+    }
   }
 
   // --- All servers failed — build rich, non-opaque error ---
@@ -368,6 +378,7 @@ async function tryServer(
         let errorType: ProcessingResult["errorType"] = "server_error";
         if (response.status === 403) errorType = "upload_rejected";
         else if (response.status === 413) errorType = "file_too_large";
+        else if (response.status === 503) errorType = "busy";
 
         throw new TranscoderError(
           `${label} responded with ${response.status}: ${errorText}`,
