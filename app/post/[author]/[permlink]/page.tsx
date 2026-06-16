@@ -2,7 +2,7 @@ import PostPage from "@/components/blog/PostPage";
 import { getPostContent } from "@/lib/hive/server-content";
 import { cleanUsername } from "@/lib/utils/cleanUsername";
 import { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 
@@ -36,6 +36,7 @@ const PROFILE_TAB_SLUGS = new Set([
   "settings", "followers", "following", "communities",
   "engine", "notifications", "snaps",
 ]);
+const INVALID_POST_PERMLINKS = new Set(["null", "undefined"]);
 
 // Constants
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
@@ -266,6 +267,10 @@ async function loadPost(user: string, permlink: string) {
   if (PROFILE_TAB_SLUGS.has(permlink.toLowerCase())) {
     const cleanUser = user.startsWith("@") ? user.slice(1) : user;
     redirect(`/user/${cleanUser}/${permlink.toLowerCase()}`);
+  }
+
+  if (INVALID_POST_PERMLINKS.has(permlink.toLowerCase())) {
+    notFound();
   }
 
   return getPostContent(user, permlink);
