@@ -71,10 +71,10 @@ export const generateVideoIframeMarkdown = (url: string, title?: string): string
     const hashMatch = url.match(/\/ipfs\/([\w-]+)/);
     const videoId = hashMatch ? hashMatch[1] : null;
     
-    // Prompt for video title if not provided (for SEO)
-    const videoTitle = title || (typeof window !== 'undefined' 
-        ? window.prompt('Video title (for SEO):', 'Skateboarding video') || 'Skateboarding video'
-        : 'Skateboarding video');
+    // SEO title for the iframe. Never block with a window.prompt — callers
+    // pass a meaningful title (e.g. derived from the post text); otherwise we
+    // fall back to a sensible default.
+    const videoTitle = title || 'Skatehive skateboarding video';
     
     const videoUrl = videoId 
         ? `https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${videoId}` 

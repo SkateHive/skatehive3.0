@@ -54,6 +54,9 @@ import { type TrimmedVideoFile } from "./VideoTrimModal";
 // Lazy load heavy modals
 const VideoTrimModal = dynamic(() => import("./VideoTrimModal"), { ssr: false });
 const InstagramModal = dynamic(() => import("./InstagramModal"), { ssr: false });
+// Outbound IG cross-post review/edit dialog (caption + collaborators).
+const InstagramCrossPostDialog = dynamic(() => import("./InstagramPreviewModal"), { ssr: false });
+import type { CrossPostContext } from "./InstagramPreviewModal";
 import { IGif } from "@giphy/js-types";
 import { FaImage } from "react-icons/fa";
 import { FaInstagram } from "react-icons/fa";
@@ -87,7 +90,6 @@ import { TbGif } from "react-icons/tb";
 import MatrixOverlay from "@/components/graphics/MatrixOverlay";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
-import { KeyTypes } from "@aioha/aioha";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { buildSnapCastText, buildSnapCastEmbeds } from "@/lib/crosspost/snapCast";
 
@@ -198,6 +200,10 @@ const SnapComposer = React.memo(function SnapComposer({
   // The DestinationMenu disables the row when there's no media yet, so
   // text-only drafts can't accidentally send to IG.
   const [instagramCrossPost, setInstagramCrossPost] = useState(true);
+
+  // When a snap with IG cross-post enabled is published, we open a review
+  // dialog (edit caption + collaborators) instead of firing IG immediately.
+  const [igDialog, setIgDialog] = useState<CrossPostContext | null>(null);
   const isMainFeedSnap = pp === HIVE_CONFIG.THREADS.PERMLINK;
   const hasCrossPostMedia = compressedImages.length > 0 || !!videoUrl;
 
@@ -951,9 +957,21 @@ const SnapComposer = React.memo(function SnapComposer({
           finalCommentBody = finalCommentBody + imageMarkdown;
         }
         
-        // Append video iframe if video was uploaded
+        // Append video iframe if video was uploaded. Derive the SEO title
+        // from the snap text (first non-empty line, stripped of urls/markdown)
+        // instead of firing a blocking window.prompt — passing a title skips
+        // the prompt inside generateVideoIframeMarkdown.
         if (videoUrl) {
-          finalCommentBody = finalCommentBody + generateVideoIframeMarkdown(videoUrl);
+          const seoTitle =
+            commentBody
+              .replace(/https?:\/\/\S+/g, "")
+              .replace(/[#>*_`~\[\]()!]/g, "")
+              .split("\n")
+              .map((l) => l.trim())
+              .find((l) => l.length > 0)
+              ?.slice(0, 80) || "Skatehive skateboarding video";
+          finalCommentBody =
+            finalCommentBody + generateVideoIframeMarkdown(videoUrl, seoTitle);
         }
 
         const permlink = crypto.randomUUID();
@@ -1024,15 +1042,10 @@ const SnapComposer = React.memo(function SnapComposer({
           onNewComment(newComment);
           onClose();
 
-          // ── Cross-post orchestration ─────────────────────────────────
-          // Wait for the snap to be indexable on Hive BEFORE firing any
-          // downstream cross-posts. Otherwise Warpcast / scrapers can hit
-          // /post/{author}/{permlink} during the ~3s block confirmation
-          // window, get "Snap not found" metadata back, and cache that
-          // empty response — breaking the embed preview permanently.
-          // Show a single progress toast that walks through the phases
-          // (confirming → cross-posting → done) so the user can follow
-          // along instead of seeing the composer close into silence.
+          // Snap URL is shared by all cross-posts. Use the /post route —
+          // /user/{username}/snap/... redirects to the profile for non-bot
+          // UAs, which breaks embeds.
+          const snapUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${commentAuthor}/${permlink}`;
           const willFarcaster = wantsFarcaster && !!farcasterLinkage;
           const willInstagram =
             instagramCrossPost &&
@@ -1040,7 +1053,32 @@ const SnapComposer = React.memo(function SnapComposer({
             canBypassLimit &&
             (!!compressedImages[0]?.url || !!videoUrl);
 
-          if (willFarcaster || willInstagram) {
+          // Open the IG review dialog IMMEDIATELY so it appears right after
+          // the user clicks Post. It builds its own caption preview and
+          // publishes using the media URLs directly, so it must NOT wait on
+          // the Hive-confirm / Farcaster orchestration below.
+          if (willInstagram) {
+            setIgDialog({
+              hiveAuthor: commentAuthor,
+              hivePermlink: permlink,
+              title: "",
+              body: finalCommentBody,
+              tags: snapsTags,
+              imageUrl:
+                compressedImages[0]?.url ||
+                (videoUrl ? videoThumbnailUrl : null),
+              videoUrl: videoUrl || null,
+              permalinkUrl: snapUrl,
+            });
+          }
+
+          // ── Farcaster cross-post orchestration ───────────────────────
+          // Wait for the snap to be indexable on Hive BEFORE firing the
+          // Farcaster cast. Otherwise Warpcast / scrapers can hit
+          // /post/{author}/{permlink} during the ~3s block confirmation
+          // window, get "Snap not found" metadata back, and cache that
+          // empty response — breaking the embed preview permanently.
+          if (willFarcaster) {
             const progressId = "snap-share-progress";
             toast({
               id: progressId,
@@ -1060,21 +1098,13 @@ const SnapComposer = React.memo(function SnapComposer({
               );
             }
 
-            const targets: string[] = [];
-            if (willFarcaster) targets.push("Farcaster");
-            if (willInstagram) targets.push("Instagram");
             toast.update(progressId, {
               title: "Sharing snap…",
-              description: `Posting to ${targets.join(" + ")}…`,
+              description: "Posting to Farcaster…",
               status: "loading",
               duration: null,
               isClosable: false,
             });
-
-            // Snap URL is shared between Farcaster + Instagram. Use the
-            // /post route — /user/{username}/snap/... redirects to the
-            // profile page for non-bot UAs, which breaks both embeds.
-            const snapUrl = `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${commentAuthor}/${permlink}`;
 
             // Farcaster (awaited so the progress toast closes when done)
             const farcasterTask: Promise<void> = (async () => {
@@ -1134,105 +1164,22 @@ const SnapComposer = React.memo(function SnapComposer({
               }
             })();
 
-            // Instagram (fire-and-forget — Reels can take 30+ s). Its own
-            // success/failure toast appears later, after the progress
-            // toast has already closed.
-            if (willInstagram) {
-              const igPermalinkUrl = snapUrl;
-              const igImageUrl =
-                compressedImages[0]?.url ||
-                (videoUrl ? videoThumbnailUrl : null);
-              const igVideoUrl = videoUrl || null;
-
-              const igRequest = (async () => {
-                const basePayload: Record<string, unknown> = {
-                  hive_author: commentAuthor,
-                  hive_permlink: permlink,
-                  body: finalCommentBody,
-                  tags: snapsTags,
-                  image_url: igImageUrl,
-                  video_url: igVideoUrl,
-                  permalink_url: igPermalinkUrl,
-                };
-                // Keychain-only users have no userbase_refresh cookie, so
-                // the IG endpoint can't auth them via session. Sign a
-                // fresh challenge with the posting key so the route can
-                // verify ownership via the alternate signature path.
-                if (!userbaseUser && user) {
-                  const issuedAt = new Date().toISOString();
-                  const message = [
-                    "Skatehive: cross-post snap to @skatehive on Instagram.",
-                    `Author: @${commentAuthor}`,
-                    `Permlink: ${permlink}`,
-                    `Issued at: ${issuedAt}`,
-                  ].join("\n");
-                  const signResult = await aioha.signMessage(
-                    message,
-                    KeyTypes.Posting
-                  );
-                  if (
-                    !signResult?.success ||
-                    !signResult.result ||
-                    !signResult.publicKey
-                  ) {
-                    throw new Error(
-                      signResult?.error ||
-                        "Keychain signature was rejected — Instagram cross-post cancelled."
-                    );
-                  }
-                  basePayload.hive_signature = signResult.result;
-                  basePayload.hive_public_key = signResult.publicKey;
-                  basePayload.signed_at = issuedAt;
-                }
-                return fetch("/api/instagram/post", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(basePayload),
-                });
-              })();
-
-              igRequest
-                .then(async (res) => {
-                  const data = await res.json().catch(() => ({}));
-                  if (res.ok) {
-                    toast({
-                      title: "Posted to @skatehive on Instagram",
-                      description: data?.ig_permalink || undefined,
-                      status: "success",
-                      duration: 4000,
-                      isClosable: true,
-                    });
-                  } else {
-                    toast({
-                      title: "Instagram cross-post failed",
-                      description: data?.error || "Try again later.",
-                      status: "warning",
-                      duration: 6000,
-                      isClosable: true,
-                    });
-                  }
-                })
-                .catch((err) => {
-                  toast({
-                    title: "Instagram cross-post failed",
-                    description: err?.message || "Network error.",
-                    status: "warning",
-                    duration: 6000,
-                    isClosable: true,
-                  });
-                });
-            }
-
-            // Wait for Farcaster only — IG keeps running in the
-            // background and surfaces its own toast on completion.
+            // Wait for Farcaster (IG is handled by the dialog opened above).
             await farcasterTask;
 
             // Close progress toast and show the final "shared" badge.
             toast.close(progressId);
             toast({
-              title: willInstagram
-                ? "Snap shared 🛹 (Instagram is still processing…)"
-                : "Snap shared 🛹",
+              title: "Snap shared 🛹",
+              status: "success",
+              duration: 3000,
+              isClosable: true,
+            });
+          } else if (willInstagram) {
+            // No Farcaster orchestration ran, but the snap was posted and the
+            // IG dialog is already open — still confirm the snap shared.
+            toast({
+              title: "Snap shared 🛹",
               status: "success",
               duration: 3000,
               isClosable: true,
@@ -1983,6 +1930,20 @@ const SnapComposer = React.memo(function SnapComposer({
         onMediaDownloaded={handleInstagramMediaDownloaded}
         healthStatus={instagramHealth}
       />
+
+      {/* Outbound IG cross-post review dialog — opens after a snap with
+          Instagram enabled is published. User edits caption + collaborators
+          then publishes to @skatehive. */}
+      {igDialog && (
+        <InstagramCrossPostDialog
+          isOpen={!!igDialog}
+          onClose={() => setIgDialog(null)}
+          mode="self"
+          context={igDialog}
+          userHandle={user || effectiveUser || null}
+          requireSignature={!userbaseUser && !!user}
+        />
+      )}
 
       {/* IG-handle prompt — opens when the user enables cross-post without
           a stored handle. Three exits: save+enable, skip+enable, cancel. */}

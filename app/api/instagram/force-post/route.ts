@@ -243,16 +243,22 @@ export async function POST(request: NextRequest) {
   }
 
   // --- Caption credits the ORIGINAL author (not the moderator). ---
+  // A user-edited override from the review dialog wins; otherwise build the
+  // default server-side. Preview requests never send an override, so the
+  // dialog always pre-fills with the freshly built default.
   const authorUserId = await userIdForHiveHandle(hiveAuthor);
   const igHandle = await resolveIgHandleForCaption({ hiveAuthor, userId: authorUserId, supabase });
-  const caption = buildInstagramCaption({
-    title,
-    body: markdown,
-    hiveAuthor,
-    permalinkUrl,
-    extraTags: tags,
-    igHandle,
-  });
+  const captionOverride = typeof body?.caption === "string" ? body.caption.trim() : "";
+  const caption = captionOverride
+    ? captionOverride.slice(0, 2200)
+    : buildInstagramCaption({
+        title,
+        body: markdown,
+        hiveAuthor,
+        permalinkUrl,
+        extraTags: tags,
+        igHandle,
+      });
 
   const mediaType: "IMAGE" | "REELS" = videoUrl ? "REELS" : "IMAGE";
 
@@ -286,6 +292,7 @@ export async function POST(request: NextRequest) {
       video_url: videoUrl || null,
       media_type: mediaType,
       ig_handle: igHandle ?? null,
+      default_collaborators: igHandle ? [igHandle] : [],
       target_account: "@skatehive",
       moderator: moderatorHandle,
       dedupe,
@@ -351,7 +358,11 @@ export async function POST(request: NextRequest) {
   // account is private, blocked, too new, or not eligible for Collab. That
   // should not block SkateHive from posting the clip, so retry without the
   // optional collaborator invite on collaborator-specific failures.
-  const collaborators = igHandle ? [igHandle] : undefined;
+  const collaborators: string[] | undefined = Array.isArray(body?.collaborators)
+    ? body.collaborators.filter((c: unknown): c is string => typeof c === "string")
+    : igHandle
+    ? [igHandle]
+    : undefined;
   let publishResult = videoUrl
     ? await publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined, collaborators })
     : await publishImageToInstagram({ imageUrl, caption, collaborators });

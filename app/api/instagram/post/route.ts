@@ -27,6 +27,13 @@ function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+/** Meta rejects collaborator invites for private/blocked/ineligible accounts
+ *  ("User not visible" etc.). That's optional, so we retry without it rather
+ *  than fail the whole cross-post. */
+function isCollaboratorVisibilityError(error: string | undefined) {
+  return /user not visible|collaborator|invite/i.test(error || "");
+}
+
 // Per-user 24h cap. No app-level global cap — Meta enforces its own
 // 25/account/24h ceiling, and surfacing that error organically is fine.
 const PER_USER_24H_LIMIT = 7;
@@ -205,6 +212,60 @@ export async function POST(request: NextRequest) {
   const hiveAuthor = typeof body?.hive_author === "string" ? body.hive_author.trim() : "";
   const hivePermlink = typeof body?.hive_permlink === "string" ? body.hive_permlink.trim() : "";
 
+  // ── Preview path ────────────────────────────────────────────────────
+  // Returns the server-built default caption + resolved IG handle + media
+  // so the client review dialog can render and pre-fill its editor. No
+  // dedupe block, no insert, no Meta publish. Auth is best-effort (cookie
+  // only) — we never force a Keychain signature just to render a preview
+  // (the user signs at confirm-time, same as the moderator flow).
+  if (body?.preview === true) {
+    if (!hiveAuthor || !hivePermlink) {
+      return NextResponse.json({ error: "Missing hive_author/hive_permlink." }, { status: 400 });
+    }
+    const previewUserId = await resolveSessionUserId(request);
+    const pTitle = typeof body?.title === "string" ? body.title.trim() : "";
+    const pMarkdown = typeof body?.body === "string" ? body.body : "";
+    const pPermalink = typeof body?.permalink_url === "string" ? body.permalink_url.trim() : "";
+    const pImage = typeof body?.image_url === "string" ? body.image_url.trim() : "";
+    const pVideo = typeof body?.video_url === "string" ? body.video_url.trim() : "";
+    const pTags: string[] = Array.isArray(body?.tags)
+      ? body.tags.filter((t: unknown): t is string => typeof t === "string")
+      : [];
+    const igHandle = await resolveIgHandleForCaption({ hiveAuthor, userId: previewUserId, supabase });
+    const caption = buildInstagramCaption({
+      title: pTitle,
+      body: pMarkdown,
+      hiveAuthor,
+      permalinkUrl: pPermalink,
+      extraTags: pTags,
+      igHandle,
+    });
+    const { data: dedupeRows } = await supabase
+      .from("userbase_instagram_posts")
+      .select("status, ig_permalink")
+      .eq("hive_author", hiveAuthor)
+      .eq("hive_permlink", hivePermlink)
+      .limit(1);
+    const dedupe = dedupeRows?.[0]
+      ? {
+          status: dedupeRows[0].status as string,
+          ig_permalink: (dedupeRows[0].ig_permalink as string | null) ?? null,
+        }
+      : null;
+    return NextResponse.json({
+      success: true,
+      preview: true,
+      caption,
+      image_url: pImage || null,
+      video_url: pVideo || null,
+      media_type: pVideo ? "REELS" : "IMAGE",
+      ig_handle: igHandle ?? null,
+      default_collaborators: igHandle ? [igHandle] : [],
+      target_account: "@skatehive",
+      dedupe,
+    });
+  }
+
   // Auth: prefer the userbase session cookie (email / wallet / Farcaster
   // login). Fall back to a fresh Hive posting-key signature for Keychain-
   // only users who never logged into userbase. Either path must produce a
@@ -367,14 +428,27 @@ export async function POST(request: NextRequest) {
     supabase,
   });
 
-  const caption = buildInstagramCaption({
-    title,
-    body: markdown,
-    hiveAuthor,
-    permalinkUrl,
-    extraTags: tags,
-    igHandle,
-  });
+  // Caption: honor a user-edited override from the review dialog, else build
+  // the default server-side. Always clamp to IG's 2200-char ceiling.
+  const captionOverride = typeof body?.caption === "string" ? body.caption.trim() : "";
+  const caption = captionOverride
+    ? captionOverride.slice(0, 2200)
+    : buildInstagramCaption({
+        title,
+        body: markdown,
+        hiveAuthor,
+        permalinkUrl,
+        extraTags: tags,
+        igHandle,
+      });
+
+  // Collaborators: honor an explicit list from the dialog, else default to
+  // just the mapped author. graph.ts sanitizes + caps at 3.
+  const collaborators: string[] | undefined = Array.isArray(body?.collaborators)
+    ? body.collaborators.filter((c: unknown): c is string => typeof c === "string")
+    : igHandle
+    ? [igHandle]
+    : undefined;
 
   const mediaType: "IMAGE" | "REELS" = videoUrl ? "REELS" : "IMAGE";
 
@@ -432,19 +506,35 @@ export async function POST(request: NextRequest) {
     queuedId = queued.id as string;
   }
 
-  // Invite the mapped skater as an IG collaborator so the cross-post also lands
-  // on their own feed (they get an invite to accept). No-op when no handle.
-  const collaborators = igHandle ? [igHandle] : undefined;
-  const publishResult = videoUrl
+  // `collaborators` resolved above (dialog override or mapped author). Each
+  // gets an IG Collab invite so the post can also land on their own feed.
+  // If Meta rejects a collaborator (private/ineligible account), retry once
+  // without invites rather than failing the whole cross-post.
+  let publishResult = videoUrl
     ? await publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined, collaborators })
     : await publishImageToInstagram({ imageUrl, caption, collaborators });
+  let collaboratorRetryError: string | null = null;
+  if (
+    !publishResult.success &&
+    collaborators &&
+    collaborators.length > 0 &&
+    isCollaboratorVisibilityError(publishResult.error)
+  ) {
+    collaboratorRetryError = publishResult.error;
+    publishResult = videoUrl
+      ? await publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined })
+      : await publishImageToInstagram({ imageUrl, caption });
+  }
 
   if (!publishResult.success) {
+    const error = collaboratorRetryError
+      ? `${publishResult.error} (also retried without collaborator after: ${collaboratorRetryError})`
+      : publishResult.error;
     await supabase
       .from("userbase_instagram_posts")
-      .update({ status: "failed", error: publishResult.error })
+      .update({ status: "failed", error })
       .eq("id", queuedId);
-    return NextResponse.json({ error: publishResult.error }, { status: 502 });
+    return NextResponse.json({ error }, { status: 502 });
   }
 
   await supabase

@@ -1,23 +1,24 @@
 "use client";
 
 /**
- * Moderator-only preview dialog shown before force-posting a snap to
- * the shared @skatehive Instagram. Renders the exact media + caption
- * Meta will receive, then publishes on explicit confirm.
+ * Shared Instagram cross-post review dialog. Used by BOTH flows:
+ *   - mode="self"      : a user cross-posting their own snap   → /api/instagram/post
+ *   - mode="moderator" : an admin force-posting any snap       → /api/instagram/force-post
  *
- * Why preview-then-confirm: force-posting is irreversible (a Reel /
- * photo goes live on a shared account) and bypasses the self-serve HP
- * gate. Showing the rendered caption + media first lets moderators
- * catch typos / wrong media / "already on IG" cases before publishing.
+ * It first fetches a server-built preview (default caption + resolved IG
+ * handle + media), then lets the user EDIT before publishing:
+ *   - the caption (legenda), with a 2200-char counter
+ *   - the Collab collaborators (up to 3 IG usernames who get a co-author
+ *     invite; the post lands on their feed once accepted)
  *
- * The caption is built server-side (same code path as the actual post)
- * so the preview can't drift from what Meta receives. The Keychain
- * signature is requested at confirm-time only — the 5-min replay
- * window means signing on modal open would frequently expire before
- * the moderator clicks Confirm.
+ * The caption/collaborators are sent back as overrides on confirm. The
+ * caption is still built server-side for the default so the preview can't
+ * drift from what Meta would otherwise receive. Keychain signing happens at
+ * confirm-time only (the signed message has a 5-min replay window, so signing
+ * on open would often expire before the user clicks Post).
  */
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AlertIcon,
@@ -28,21 +29,36 @@ import {
   Center,
   HStack,
   Image as ChakraImage,
+  Input,
   Spinner,
+  Tag,
+  TagCloseButton,
+  TagLabel,
   Text,
-  VStack,
+  Textarea,
+  Wrap,
+  WrapItem,
   useToast,
 } from "@chakra-ui/react";
-import { Discussion } from "@hiveio/dhive";
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
-import { FaInstagram } from "react-icons/fa";
+import { FaInstagram, FaPlus } from "react-icons/fa";
 import SkateModal from "@/components/shared/SkateModal";
+import { suggestCaptionCTAs, appendSuggestion } from "@/lib/instagram/captionSuggestions";
 
-interface IgMedia {
-  video: string | null;
-  image: string | null;
-  has: boolean;
+const IG_CAPTION_LIMIT = 2200;
+const MAX_COLLABORATORS = 3;
+
+/** Normalized snap context — built by each call site from its own data. */
+export interface CrossPostContext {
+  hiveAuthor: string;
+  hivePermlink: string;
+  title?: string;
+  body: string;
+  tags: string[];
+  imageUrl: string | null;
+  videoUrl: string | null;
+  permalinkUrl: string;
 }
 
 interface PreviewData {
@@ -51,68 +67,85 @@ interface PreviewData {
   video_url: string | null;
   media_type: "IMAGE" | "REELS";
   ig_handle: string | null;
+  default_collaborators?: string[];
   target_account: string;
-  moderator: string | null;
+  moderator?: string | null;
   dedupe: { status: string; ig_permalink: string | null } | null;
 }
 
-interface InstagramPreviewModalProps {
+interface InstagramCrossPostDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  discussion: Discussion;
-  igMedia: IgMedia;
-  /** The active SkateHive user (Aioha username or userbase Hive handle) —
-   *  used for the Keychain signing message + as a fallback requester
-   *  identity when there's no userbase session cookie. */
-  moderatorHandle: string | null;
+  mode: "self" | "moderator";
+  context: CrossPostContext;
+  /** Active SkateHive user (Aioha username / userbase Hive handle) — signing
+   *  identity + fallback requester when there's no userbase session cookie. */
+  userHandle: string | null;
+  /** Whether to sign a Keychain authorization on confirm. False for users
+   *  who already have a userbase session cookie (cookie auth is enough), so
+   *  they don't get a needless Keychain popup. Defaults to true. */
+  requireSignature?: boolean;
+  /** Called after a successful publish (e.g. to update the parent UI). */
+  onPosted?: (data: { ig_permalink?: string; deduped?: boolean }) => void;
 }
 
-export default function InstagramPreviewModal({
+/** Strip @, lowercase, keep only legal IG handle chars. */
+function sanitizeHandle(raw: string): string {
+  return raw.trim().replace(/^@/, "").toLowerCase().replace(/[^a-z0-9._]/g, "").slice(0, 30);
+}
+
+export default function InstagramCrossPostDialog({
   isOpen,
   onClose,
-  discussion,
-  igMedia,
-  moderatorHandle,
-}: InstagramPreviewModalProps) {
+  mode,
+  context,
+  userHandle,
+  requireSignature = true,
+  onPosted,
+}: InstagramCrossPostDialogProps) {
   const toast = useToast();
   const { aioha, user: walletUser } = useAioha();
+
+  const endpoint = mode === "moderator" ? "/api/instagram/force-post" : "/api/instagram/post";
 
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [isPosting, setIsPosting] = useState(false);
 
-  // ── Build the payload that's shared between preview + real post ─────
-  const buildBasePayload = useCallback(() => {
-    const origin =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "https://skatehive.app";
-    const tags = Array.isArray((discussion as any).json_metadata?.tags)
-      ? (discussion as any).json_metadata.tags
-      : [];
-    return {
-      hive_author: discussion.author,
-      hive_permlink: discussion.permlink,
-      title: (discussion as any).title || "",
-      body: discussion.body,
-      tags,
-      image_url: igMedia.image,
-      video_url: igMedia.video,
-      permalink_url: `${origin}/post/${discussion.author}/${discussion.permlink}`,
-    };
-  }, [discussion, igMedia]);
+  // Editable fields, hydrated from the preview response.
+  const [caption, setCaption] = useState("");
+  const [collaborators, setCollaborators] = useState<string[]>([]);
+  const [collabInput, setCollabInput] = useState("");
 
-  // ── Fetch preview when modal opens ─────────────────────────────────
+  const hasMedia = !!(context.imageUrl || context.videoUrl);
+
+  const basePayload = useMemo(
+    () => ({
+      hive_author: context.hiveAuthor,
+      hive_permlink: context.hivePermlink,
+      title: context.title || "",
+      body: context.body,
+      tags: context.tags,
+      image_url: context.imageUrl,
+      video_url: context.videoUrl,
+      permalink_url: context.permalinkUrl,
+    }),
+    [context]
+  );
+
+  // ── Fetch the server-built preview when the dialog opens ────────────
   useEffect(() => {
     if (!isOpen) {
-      // Reset on close so reopening fetches fresh data
       setPreview(null);
       setPreviewError(null);
       setIsPosting(false);
+      setCaption("");
+      setCollaborators([]);
+      setCollabInput("");
       return;
     }
-    if (!igMedia.has) {
+    if (!hasMedia) {
       setPreviewError("This snap has no image or video to cross-post.");
       return;
     }
@@ -121,13 +154,14 @@ export default function InstagramPreviewModal({
       setIsLoadingPreview(true);
       setPreviewError(null);
       try {
-        const res = await fetch("/api/instagram/force-post", {
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            ...buildBasePayload(),
+            ...basePayload,
             preview: true,
-            requester: moderatorHandle || undefined,
+            // Moderator preview accepts a requester handle (no signature yet).
+            ...(mode === "moderator" ? { requester: userHandle || undefined } : {}),
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -136,7 +170,10 @@ export default function InstagramPreviewModal({
           setPreviewError(data?.error || `Preview failed (HTTP ${res.status})`);
           return;
         }
-        setPreview(data as PreviewData);
+        const p = data as PreviewData;
+        setPreview(p);
+        setCaption(p.caption || "");
+        setCollaborators(Array.isArray(p.default_collaborators) ? p.default_collaborators : []);
       } catch (err: any) {
         if (!cancelled) setPreviewError(err?.message || "Preview request failed");
       } finally {
@@ -146,60 +183,87 @@ export default function InstagramPreviewModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, igMedia.has, buildBasePayload, moderatorHandle]);
+  }, [isOpen, hasMedia, basePayload, endpoint, mode, userHandle]);
 
-  // ── Confirm: sign (if Keychain-only) + force-post for real ─────────
+  // ── Collaborator chip management ────────────────────────────────────
+  const addCollaborator = useCallback(() => {
+    const handle = sanitizeHandle(collabInput);
+    setCollabInput("");
+    if (!handle) return;
+    setCollaborators((prev) =>
+      prev.includes(handle) || prev.length >= MAX_COLLABORATORS ? prev : [...prev, handle]
+    );
+  }, [collabInput]);
+
+  const removeCollaborator = useCallback((handle: string) => {
+    setCollaborators((prev) => prev.filter((c) => c !== handle));
+  }, []);
+
+  // ── Confirm: sign (if needed) + publish for real ────────────────────
   const handleConfirm = useCallback(async () => {
     if (!preview) return;
     setIsPosting(true);
     try {
-      const payload: Record<string, unknown> = { ...buildBasePayload() };
+      const payload: Record<string, unknown> = {
+        ...basePayload,
+        caption: caption.slice(0, IG_CAPTION_LIMIT),
+        collaborators,
+      };
 
-      // Sign at confirm-time so the 5-min replay window starts now.
-      // Cookie-auth moderators skip this — the session handles auth.
-      if (walletUser && aioha) {
+      // Sign with the Hive posting key when there's no userbase session to
+      // authorize against. Cookie-auth users skip this entirely.
+      //   - moderator: bind the signature to moderator + target snap.
+      //   - self:      bind it to author + permlink.
+      const needsSignature = !!(requireSignature && walletUser && aioha);
+      if (needsSignature) {
         const issuedAt = new Date().toISOString();
-        const message = [
-          "Skatehive: FORCE cross-post snap to @skatehive on Instagram.",
-          `Moderator: @${walletUser}`,
-          `Target: @${discussion.author}/${discussion.permlink}`,
-          `Issued at: ${issuedAt}`,
-        ].join("\n");
+        const message =
+          mode === "moderator"
+            ? [
+                "Skatehive: FORCE cross-post snap to @skatehive on Instagram.",
+                `Moderator: @${walletUser}`,
+                `Target: @${context.hiveAuthor}/${context.hivePermlink}`,
+                `Issued at: ${issuedAt}`,
+              ].join("\n")
+            : [
+                "Skatehive: cross-post snap to @skatehive on Instagram.",
+                `Author: @${context.hiveAuthor}`,
+                `Permlink: ${context.hivePermlink}`,
+                `Issued at: ${issuedAt}`,
+              ].join("\n");
         const signResult = await aioha.signMessage(message, KeyTypes.Posting);
         if (!signResult?.success || !signResult.result || !signResult.publicKey) {
-          throw new Error(
-            signResult?.error || "Keychain signature was rejected."
-          );
+          throw new Error(signResult?.error || "Keychain signature was rejected.");
         }
         payload.requester = walletUser;
         payload.hive_signature = signResult.result;
         payload.hive_public_key = signResult.publicKey;
         payload.signed_at = issuedAt;
-      } else if (moderatorHandle) {
-        payload.requester = moderatorHandle;
+      } else if (mode === "moderator" && userHandle) {
+        // Cookie-auth moderator: requester is a fallback identity hint.
+        payload.requester = userHandle;
       }
 
-      const res = await fetch("/api/instagram/force-post", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
 
-      if (res.ok && data?.success) {
+      if (res.ok && (data?.success || data?.ig_permalink || data?.deduped)) {
         toast({
-          title: data.deduped
-            ? "Already on Instagram"
-            : "Posted to @skatehive on Instagram",
+          title: data.deduped ? "Already on Instagram" : "Posted to @skatehive on Instagram",
           description: data.ig_permalink || undefined,
           status: "success",
           duration: 8000,
           isClosable: true,
         });
+        onPosted?.({ ig_permalink: data.ig_permalink, deduped: data.deduped });
         onClose();
       } else {
         toast({
-          title: "Instagram force-post failed",
+          title: "Instagram cross-post failed",
           description: data?.error || `HTTP ${res.status}`,
           status: "error",
           duration: 9000,
@@ -208,7 +272,7 @@ export default function InstagramPreviewModal({
       }
     } catch (err: any) {
       toast({
-        title: "Instagram force-post failed",
+        title: "Instagram cross-post failed",
         description: err?.message || "Network or signing error.",
         status: "error",
         duration: 9000,
@@ -219,25 +283,39 @@ export default function InstagramPreviewModal({
     }
   }, [
     preview,
-    buildBasePayload,
+    basePayload,
+    caption,
+    collaborators,
     walletUser,
     aioha,
-    moderatorHandle,
-    discussion.author,
-    discussion.permlink,
+    mode,
+    userHandle,
+    requireSignature,
+    endpoint,
+    context.hiveAuthor,
+    context.hivePermlink,
     toast,
     onClose,
+    onPosted,
   ]);
 
   const isReel = preview?.media_type === "REELS";
   const mediaUrl = preview?.video_url || preview?.image_url || null;
   const alreadyPublished = preview?.dedupe?.status === "published";
+  const captionOver = caption.length > IG_CAPTION_LIMIT;
+
+  // Smart CTA / hashtag suggestions derived from the snap text + current
+  // caption (trick names, spot references, evergreen CTAs).
+  const suggestions = useMemo(
+    () => suggestCaptionCTAs(context.body, caption),
+    [context.body, caption]
+  );
 
   return (
     <SkateModal
       isOpen={isOpen}
       onClose={isPosting ? () => {} : onClose}
-      title="instagram-force-post"
+      title={mode === "moderator" ? "instagram-force-post" : "instagram-cross-post"}
       size="lg"
       footer={
         <HStack spacing={3} justify="flex-end" w="full">
@@ -259,7 +337,12 @@ export default function InstagramPreviewModal({
             isLoading={isPosting}
             loadingText={isReel ? "Publishing Reel…" : "Publishing…"}
             isDisabled={
-              !preview || !!previewError || isLoadingPreview || alreadyPublished
+              !preview ||
+              !!previewError ||
+              isLoadingPreview ||
+              alreadyPublished ||
+              captionOver ||
+              !caption.trim()
             }
             fontFamily="mono"
             size="sm"
@@ -275,12 +358,12 @@ export default function InstagramPreviewModal({
       <Box p={5}>
         {isLoadingPreview && (
           <Center py={10}>
-            <VStack spacing={2}>
+            <VStackLike>
               <Spinner size="md" color="primary" />
               <Text fontFamily="mono" fontSize="xs" color="dim">
                 Building preview…
               </Text>
-            </VStack>
+            </VStackLike>
           </Center>
         )}
 
@@ -294,8 +377,8 @@ export default function InstagramPreviewModal({
         )}
 
         {preview && !isLoadingPreview && (
-          <VStack align="stretch" spacing={4}>
-            {/* Meta strip — target account, media type, dedupe warning */}
+          <Box display="flex" flexDirection="column" gap={4}>
+            {/* Meta strip */}
             <HStack justify="space-between" flexWrap="wrap" gap={2}>
               <HStack spacing={2}>
                 <FaInstagram color="var(--chakra-colors-primary)" />
@@ -305,10 +388,7 @@ export default function InstagramPreviewModal({
                     {preview.target_account}
                   </Text>
                 </Text>
-                <Badge
-                  colorScheme={isReel ? "purple" : "blue"}
-                  fontFamily="mono"
-                >
+                <Badge colorScheme={isReel ? "purple" : "blue"} fontFamily="mono">
                   {isReel ? "Reel" : "Photo"}
                 </Badge>
               </HStack>
@@ -341,30 +421,17 @@ export default function InstagramPreviewModal({
               </Alert>
             )}
 
-            {/* Media preview — render video as <video>, image as <img>.
-                Constrained to a 4:5 box, which is closer to the IG feed
-                aspect ratio than the raw video dimensions. */}
-            <Box
-              bg="black"
-              border="1px solid"
-              borderColor="border"
-              borderRadius="md"
-              overflow="hidden"
-            >
+            {/* Media preview */}
+            <Box bg="black" border="1px solid" borderColor="border" borderRadius="md" overflow="hidden">
               {isReel && mediaUrl ? (
                 <AspectRatio ratio={4 / 5}>
-                  <video
-                    src={mediaUrl}
-                    controls
-                    playsInline
-                    style={{ objectFit: "contain", background: "#000" }}
-                  />
+                  <video src={mediaUrl} controls playsInline style={{ objectFit: "contain", background: "#000" }} />
                 </AspectRatio>
               ) : mediaUrl ? (
                 <AspectRatio ratio={4 / 5}>
                   <ChakraImage
                     src={mediaUrl}
-                    alt={`Cross-post by @${discussion.author}`}
+                    alt={`Cross-post by @${context.hiveAuthor}`}
                     objectFit="contain"
                     bg="black"
                   />
@@ -378,7 +445,74 @@ export default function InstagramPreviewModal({
               )}
             </Box>
 
-            {/* Caption — rendered with the exact whitespace Meta will see */}
+            {/* Editable caption */}
+            <Box>
+              <HStack justify="space-between" mb={1}>
+                <Text
+                  fontFamily="mono"
+                  fontSize="2xs"
+                  color="dim"
+                  textTransform="uppercase"
+                  letterSpacing="wider"
+                >
+                  Caption (legenda)
+                </Text>
+                <Text fontFamily="mono" fontSize="2xs" color={captionOver ? "red.400" : "dim"}>
+                  {caption.length} / {IG_CAPTION_LIMIT}
+                </Text>
+              </HStack>
+              <Textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                maxLength={IG_CAPTION_LIMIT + 200}
+                minH="160px"
+                fontFamily="mono"
+                fontSize="sm"
+                color="text"
+                bg="background"
+                borderColor={captionOver ? "red.400" : "border"}
+                whiteSpace="pre-wrap"
+                placeholder="Write the Instagram caption…"
+              />
+            </Box>
+
+            {/* Smart suggestions — tap to append to the caption */}
+            {suggestions.length > 0 && (
+              <Box>
+                <Text
+                  fontFamily="mono"
+                  fontSize="2xs"
+                  color="dim"
+                  textTransform="uppercase"
+                  letterSpacing="wider"
+                  mb={1}
+                >
+                  Suggestions
+                </Text>
+                <Wrap>
+                  {suggestions.map((s) => (
+                    <WrapItem key={s.id}>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        colorScheme={s.kind === "trick" || s.kind === "hashtag" ? "blue" : "green"}
+                        fontFamily="mono"
+                        borderRadius="full"
+                        leftIcon={<FaPlus size={9} />}
+                        onClick={() =>
+                          setCaption((prev) => appendSuggestion(prev, s, IG_CAPTION_LIMIT))
+                        }
+                        isDisabled={isPosting}
+                      >
+                        {s.label}
+                      </Button>
+                    </WrapItem>
+                  ))}
+                </Wrap>
+              </Box>
+            )}
+
+            {/* Collaborators */}
             <Box>
               <Text
                 fontFamily="mono"
@@ -388,46 +522,72 @@ export default function InstagramPreviewModal({
                 letterSpacing="wider"
                 mb={1}
               >
-                Caption ({preview.caption.length} / 2200)
+                Collaborators ({collaborators.length} / {MAX_COLLABORATORS})
               </Text>
-              <Box
-                bg="background"
-                border="1px solid"
-                borderColor="border"
-                borderRadius="md"
-                p={3}
-                maxH="240px"
-                overflowY="auto"
-              >
-                <Text
-                  fontFamily="mono"
-                  fontSize="sm"
-                  color="text"
-                  whiteSpace="pre-wrap"
-                  wordBreak="break-word"
-                >
-                  {preview.caption}
-                </Text>
-              </Box>
+              {collaborators.length > 0 && (
+                <Wrap mb={2}>
+                  {collaborators.map((c) => (
+                    <WrapItem key={c}>
+                      <Tag size="md" colorScheme="purple" fontFamily="mono" borderRadius="full">
+                        <TagLabel>@{c}</TagLabel>
+                        <TagCloseButton onClick={() => removeCollaborator(c)} isDisabled={isPosting} />
+                      </Tag>
+                    </WrapItem>
+                  ))}
+                </Wrap>
+              )}
+              {collaborators.length < MAX_COLLABORATORS && (
+                <HStack>
+                  <Input
+                    value={collabInput}
+                    onChange={(e) => setCollabInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addCollaborator();
+                      }
+                    }}
+                    placeholder="add IG username"
+                    size="sm"
+                    fontFamily="mono"
+                    bg="background"
+                    borderColor="border"
+                  />
+                  <Button
+                    size="sm"
+                    leftIcon={<FaPlus />}
+                    onClick={addCollaborator}
+                    isDisabled={!collabInput.trim() || isPosting}
+                    fontFamily="mono"
+                    variant="outline"
+                  >
+                    Add
+                  </Button>
+                </HStack>
+              )}
               <Text fontFamily="mono" fontSize="2xs" color="dim" mt={1}>
-                Credit:{" "}
-                {preview.ig_handle
-                  ? `@${preview.ig_handle} on SkateHive`
-                  : `By ${discussion.author} on SkateHive (no IG handle linked)`}
+                Each gets an invite to co-author — the post appears on their feed once they accept.
               </Text>
             </Box>
 
-            {/* Sign-at-confirm warning for Keychain-only mods */}
-            {walletUser && !aioha ? null : walletUser && aioha ? (
+            {requireSignature && walletUser && aioha ? (
               <Text fontFamily="mono" fontSize="2xs" color="dim">
-                Confirming will open Keychain to sign a one-shot
-                authorization. The signature is bound to this snap and
-                expires in 5 minutes.
+                Confirming opens Keychain to sign a one-shot authorization (bound to this snap, expires in 5
+                minutes).
               </Text>
             ) : null}
-          </VStack>
+          </Box>
         )}
       </Box>
     </SkateModal>
+  );
+}
+
+/** Tiny vertical stack used only by the loading state. */
+function VStackLike({ children }: { children: React.ReactNode }) {
+  return (
+    <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+      {children}
+    </Box>
   );
 }
