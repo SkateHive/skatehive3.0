@@ -2,6 +2,60 @@ import { Metadata } from "next";
 import { formatEther } from "viem";
 import { APP_CONFIG } from "@/config/app.config";
 
+interface MiniAppEmbedOptions {
+  /** Embed image. Must be 3:2 aspect ratio, 600x400 min / 3000x2000 max, <10MB. */
+  imageUrl: string;
+  /** Button call-to-action text. Truncated to the 32 char spec limit. */
+  buttonTitle: string;
+  /** URL the Mini App launches to. */
+  url: string;
+  /** App name shown in the splash screen. Defaults to "Skatehive". */
+  name?: string;
+  splashImageUrl?: string;
+  splashBackgroundColor?: string;
+}
+
+/**
+ * Build spec-compliant Farcaster Mini App embed meta tags.
+ *
+ * Emits both the primary `fc:miniapp` tag (action type `launch_miniapp`) and
+ * the backward-compatible `fc:frame` tag (`launch_frame`), per the current
+ * Mini Apps sharing spec (https://miniapps.farcaster.xyz/docs/guides/sharing).
+ *
+ * Note: legacy `version: "next"`, the non-spec `postUrl` field, and the
+ * Frames-v1 `fc:frame:image` / `fc:frame:post_url` tags are intentionally
+ * dropped — they are not part of the Mini App embed schema.
+ */
+export function buildMiniAppEmbed({
+  imageUrl,
+  buttonTitle,
+  url,
+  name = "Skatehive",
+  splashImageUrl,
+  splashBackgroundColor,
+}: MiniAppEmbedOptions): Record<string, string> {
+  const buildEmbed = (type: "launch_miniapp" | "launch_frame") =>
+    JSON.stringify({
+      version: "1",
+      imageUrl,
+      button: {
+        title: buttonTitle.slice(0, 32),
+        action: {
+          type,
+          name,
+          url,
+          ...(splashImageUrl ? { splashImageUrl } : {}),
+          ...(splashBackgroundColor ? { splashBackgroundColor } : {}),
+        },
+      },
+    });
+
+  return {
+    "fc:miniapp": buildEmbed("launch_miniapp"),
+    "fc:frame": buildEmbed("launch_frame"),
+  };
+}
+
 interface AuctionMetadataProps {
   tokenName: string;
   tokenImage: string;
@@ -64,23 +118,11 @@ export function generateAuctionMetadata({
       description,
       images: [tokenImage],
     },
-    other: {
-      "fc:frame": JSON.stringify({
-        version: "next",
-        imageUrl: tokenImage,
-        button: {
-          title: tokenId && isActive ? "Place Bid" : "View Auction",
-          action: {
-            type: "launch_frame",
-            name: "Skatehive",
-            url: auctionUrl,
-          },
-        },
-        postUrl: auctionUrl,
-      }),
-      "fc:frame:image": tokenImage,
-      "fc:frame:post_url": auctionUrl,
-    },
+    other: buildMiniAppEmbed({
+      imageUrl: tokenImage,
+      buttonTitle: tokenId && isActive ? "Place Bid" : "View Auction",
+      url: auctionUrl,
+    }),
   };
 }
 

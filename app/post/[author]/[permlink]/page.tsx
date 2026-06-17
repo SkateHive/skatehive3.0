@@ -5,6 +5,7 @@ import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
+import { buildMiniAppEmbed } from "@/lib/utils/metadata";
 
 // ISR: cache rendered HTML for a day. The body of a Hive post is
 // immutable after publish; votes/comments load client-side so staleness
@@ -424,23 +425,11 @@ export async function generateMetadata({
         site: "@skatehive",
         creator: `@${cleanedAuthor}`,
       },
-      other: {
-        "fc:frame": JSON.stringify({
-          version: "next",
-          imageUrl: frameOgImage,
-          button: {
-            title: "Open post",
-            action: {
-              type: "launch_frame",
-              name: "Skatehive",
-              url: postUrl,
-            },
-          },
-          postUrl: postUrl,
-        }),
-        "fc:frame:image": frameOgImage,
-        "fc:frame:post_url": postUrl,
-      },
+      other: buildMiniAppEmbed({
+        imageUrl: frameOgImage,
+        buttonTitle: "Open post",
+        url: postUrl,
+      }),
     };
   } catch (error) {
     // `redirect()` throws a NEXT_REDIRECT signal that the framework

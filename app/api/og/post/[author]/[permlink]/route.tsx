@@ -5,10 +5,28 @@ export const runtime = "edge";
 
 const OG_CACHE_HEADER =
   "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800";
-const RENDERABLE_IMAGE_EXTENSIONS = new Set([
-  ".jpg",
-  ".jpeg",
-  ".png",
+// Extensions next/og (Satori) cannot embed as an <img>. We blocklist these
+// rather than allowlisting image extensions, because Skatehive stores
+// thumbnails as extensionless IPFS CIDs (e.g. /ipfs/bafkrei...). An allowlist
+// dropped every snap/video thumbnail and fell back to the generic card.
+const NON_RENDERABLE_EXTENSIONS = new Set([
+  ".mp4",
+  ".webm",
+  ".mov",
+  ".m4v",
+  ".avi",
+  ".mkv",
+  ".m3u8",
+  ".ts",
+  ".mp3",
+  ".wav",
+  ".ogg",
+  ".flac",
+  ".json",
+  ".html",
+  ".htm",
+  ".pdf",
+  ".svg",
 ]);
 
 const C = {
@@ -39,9 +57,12 @@ function getRenderableImageUrl(value: unknown): string | null {
     if (url.href.length > 2048) return null;
 
     const pathname = url.pathname.toLowerCase();
-    for (const extension of RENDERABLE_IMAGE_EXTENSIONS) {
-      if (pathname.endsWith(extension)) return url.href;
-    }
+    const dotIndex = pathname.lastIndexOf(".");
+    const extension = dotIndex >= 0 ? pathname.slice(dotIndex) : "";
+    // Reject known non-image media; allow image extensions AND extensionless
+    // URLs (IPFS CIDs), which the gateway serves with an image content-type.
+    if (extension && NON_RENDERABLE_EXTENSIONS.has(extension)) return null;
+    return url.href;
   } catch {}
 
   return null;
@@ -440,7 +461,9 @@ export async function GET(
       ),
       {
         width: 1200,
-        height: 630,
+        // Keep the frame fallback at a 3:2 aspect ratio so Farcaster still
+        // accepts the embed image when post rendering throws.
+        height: request.nextUrl.searchParams.get("format") === "frame" ? 800 : 630,
         headers: {
           "Cache-Control": OG_CACHE_HEADER,
         },
