@@ -205,6 +205,13 @@ export function wrapDropCapFirstLetter(body: string): string {
     // paragraph; advance and keep looking for the actual first paragraph.
     if (LANGUAGE_LABEL_PATTERN.test(trimmed)) continue;
 
+    // A bare URL on its own line (YouTube, 3speak, IPFS, image, etc.) is a
+    // media embed, not prose. Wrapping its first letter in a <span> both
+    // produces a stray drop-cap and breaks the downstream media parsers,
+    // which match URLs anchored at the start of the line. Skip it and keep
+    // looking for the actual opening paragraph.
+    if (/^https?:\/\/\S+$/i.test(trimmed)) continue;
+
     if (
       trimmed.startsWith("#") ||
       trimmed.startsWith(">") ||
