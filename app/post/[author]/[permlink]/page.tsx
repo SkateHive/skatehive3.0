@@ -429,6 +429,8 @@ export async function generateMetadata({
         imageUrl: frameOgImage,
         buttonTitle: "Open post",
         url: postUrl,
+       splashImageUrl: `${DOMAIN_URL}/icon-512x512.png`,
+       splashBackgroundColor: "#000000",
       }),
     };
   } catch (error) {
