@@ -447,8 +447,9 @@ const ProfileHeader = function ProfileHeader({
 export default memo(ProfileHeader, (prevProps, nextProps) => {
   return (
     prevProps.username === nextProps.username &&
-    prevProps.profileData.ethereum_address ===
-      nextProps.profileData.ethereum_address &&
+    prevProps.profileData === nextProps.profileData &&
+    prevProps.hiveProfileData === nextProps.hiveProfileData &&
+    prevProps.skateProfileData === nextProps.skateProfileData &&
     prevProps.isOwner === nextProps.isOwner &&
     prevProps.isUserbaseOwner === nextProps.isUserbaseOwner &&
     prevProps.user === nextProps.user &&
