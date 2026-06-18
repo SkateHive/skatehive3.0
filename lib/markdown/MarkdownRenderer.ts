@@ -18,6 +18,47 @@ const mentionValidationCache = new LRUCache<string, boolean>(1000, 60 * 60 * 100
 // Import Hive account validation
 const { checkHiveAccountExists } = require('@/lib/utils/hiveAccountUtils');
 
+const YOUTUBE_ID_PATTERN = "[a-zA-Z0-9_-]{11}";
+const YOUTUBE_URL_PATTERN = new RegExp(
+    `https?:\\/\\/(?:www\\.|m\\.)?(?:(?:youtube(?:-nocookie)?\\.com\\/(?:watch\\?(?:[^\\s<>()]*&)?v=|embed\\/|shorts\\/)|youtu\\.be\\/)${YOUTUBE_ID_PATTERN}(?:[?&][^\\s<>()*]*)?)`,
+    "i"
+);
+
+function getYouTubePlaceholder(rawUrl: string): string | null {
+    const normalizedUrl = rawUrl.trim().replace(/^<|>$/g, "");
+    try {
+        const url = new URL(normalizedUrl);
+        const host = url.hostname.replace(/^www\./, "").replace(/^m\./, "");
+        let videoId: string | null = null;
+        let isShort = false;
+
+        if (host === "youtu.be") {
+            videoId = url.pathname.split("/").filter(Boolean)[0] || null;
+        } else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+            if (url.pathname === "/watch") {
+                videoId = url.searchParams.get("v");
+            } else {
+                const [, type, id] = url.pathname.match(/^\/(embed|shorts)\/([a-zA-Z0-9_-]{11})/) || [];
+                videoId = id || null;
+                isShort = type === "shorts";
+            }
+        }
+
+        if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+            return null;
+        }
+
+        return `[[YOUTUBE:${isShort ? "s:" : ""}${videoId}]]`;
+    } catch {
+        return null;
+    }
+}
+
+function replaceYouTubeLine(match: string, prefix: string, rawUrl: string) {
+    const placeholder = getYouTubePlaceholder(rawUrl);
+    return placeholder ? `${prefix}${placeholder}` : match;
+}
+
 // Simple function to get DOMPurify instance, sanitize on both server and client
 function getSanitizedHTML(html: string): string {
     // isomorphic-dompurify works on both server and client
@@ -173,16 +214,23 @@ export function processMediaContent(content: string): string {
         /<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})[^"']*["'][^>]*><\/iframe>/gim,
         (_match, videoId) => `[[YOUTUBE:${videoId}]]`
     );
-    // YouTube Shorts direct links — captured separately and tagged with an
-    // "s:" prefix so the dispatcher can render at 9/16 instead of 16/9.
+
+    // YouTube links wrapped by markdown formatting should still autoembed.
+    // Examples: [video](https://youtu.be/...), **https://youtube...**, or
+    // quoted/listed standalone YouTube URLs.
     processedContent = processedContent.replace(
-        /^https?:\/\/(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})[\S]*/gim,
-        (_match, videoId) => `[[YOUTUBE:s:${videoId}]]`
+        new RegExp(
+            `^(\\s*(?:>\\s*)?(?:(?:[-*+]|\\d+\\.)\\s+)?)!?\\[[^\\n]*\\]\\((${YOUTUBE_URL_PATTERN.source})\\)\\s*$`,
+            "gim"
+        ),
+        replaceYouTubeLine
     );
-    // YouTube direct links (regular videos — must run AFTER the Shorts rule)
     processedContent = processedContent.replace(
-        /^https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^\s]*&)?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})[\S]*/gim,
-        (_match, videoId) => `[[YOUTUBE:${videoId}]]`
+        new RegExp(
+            `^(\\s*(?:>\\s*)?(?:(?:[-*+]|\\d+\\.)\\s+)?)(?:\\*\\*|__|\\*|_)?<?(${YOUTUBE_URL_PATTERN.source})>?(?:\\*\\*|__|\\*|_)?\\s*$`,
+            "gim"
+        ),
+        replaceYouTubeLine
     );
     // Vimeo iframe embeds
     processedContent = processedContent.replace(
