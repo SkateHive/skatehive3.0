@@ -218,7 +218,10 @@ export async function POST(request: NextRequest) {
     .eq("hive_permlink", hivePermlink)
     .limit(1);
   const existing = existingRows?.[0];
-  if (existing && existing.status === "published") {
+  // Preview requests skip these early returns so they always reach the
+  // preview branch below, which surfaces the dedupe state as a non-blocking
+  // warning (the moderator may still want to see the second attempt's caption).
+  if (!isPreview && existing && existing.status === "published") {
     return NextResponse.json(
       {
         success: true,
@@ -230,7 +233,7 @@ export async function POST(request: NextRequest) {
     );
   }
   let existingRetryableId: string | null = null;
-  if (existing) {
+  if (!isPreview && existing) {
     const ageMs = Date.now() - new Date(existing.created_at).getTime();
     if (existing.status === "failed" || (existing.status === "queued" && ageMs > 10 * 60 * 1000)) {
       existingRetryableId = existing.id as string;
