@@ -84,6 +84,23 @@ function isChunkError(error: Error): boolean {
   );
 }
 
+function getLastChunkRetry(retryKey: string): number {
+  try {
+    return Number(sessionStorage.getItem(retryKey) ?? 0);
+  } catch {
+    const url = new URL(window.location.href);
+    return Number(url.searchParams.get("v") ?? 0);
+  }
+}
+
+function rememberChunkRetry(retryKey: string, timestamp: number): void {
+  try {
+    sessionStorage.setItem(retryKey, String(timestamp));
+  } catch {
+    // The cache-busting URL param is the fallback retry marker.
+  }
+}
+
 export default function GlobalError({
   error,
   reset,
@@ -100,10 +117,10 @@ export default function GlobalError({
     if (!chunkError) return;
     const retryKey = "chunk-error-retry-ts";
     const now = Date.now();
-    const lastRetry = Number(sessionStorage.getItem(retryKey) ?? 0);
+    const lastRetry = getLastChunkRetry(retryKey);
     const hasRetriedRecently = now - lastRetry < 30_000;
     if (!hasRetriedRecently) {
-      sessionStorage.setItem(retryKey, String(now));
+      rememberChunkRetry(retryKey, now);
       setShouldReload(true);
     }
   }, [chunkError]);
