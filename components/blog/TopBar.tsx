@@ -64,7 +64,7 @@ export default function TopBar({
         {user && (
           <Button
             leftIcon={<FaPen />}
-            onClick={() => router.push("/compose")}
+            onClick={() => router.push("/compose/workspace")}
             variant="outline"
             borderColor="primary"
             bg="background"

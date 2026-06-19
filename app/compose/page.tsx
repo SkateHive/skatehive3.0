@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Flex,
   Input,
@@ -34,6 +34,15 @@ import { useTranslations } from "@/contexts/LocaleContext";
 import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
 import { useSkateDialog } from "@/hooks/useSkateDialog";
 import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
+import { FaSave } from "react-icons/fa";
+import {
+  ACTIVE_COMPOSE_DRAFT_KEY,
+  COMPOSE_TEMPLATES,
+  ComposeDraft,
+  createDraftId,
+  getComposeDraft,
+  saveComposeDraft,
+} from "@/lib/compose/drafts";
 
 export default function Composer() {
   const t = useTranslations();
@@ -63,6 +72,9 @@ export default function Composer() {
   } = useComposeForm();
 
   const [activeSettingsTab, setActiveSettingsTab] = useState<string>("thumbnail");
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<string | null>(null);
+  const [hasLoadedInitialDraft, setHasLoadedInitialDraft] = useState(false);
 
   const handleSubmit = originalHandleSubmit;
 
@@ -76,6 +88,120 @@ export default function Composer() {
 
   const imageCompressorRef = useRef<ImageCompressorRef>(null);
   const videoUploaderRef = useRef<VideoUploaderRef>(null);
+
+  const hasDraftContent =
+    title.trim().length > 0 ||
+    markdown.trim().length > 0 ||
+    hashtags.length > 0 ||
+    !!selectedThumbnail ||
+    beneficiaries.length > 0;
+
+  const buildDraft = useCallback(
+    (draftId?: string): ComposeDraft => {
+      const now = new Date().toISOString();
+
+      return {
+        id: draftId || activeDraftId || createDraftId(),
+        title,
+        markdown,
+        hashtags,
+        selectedThumbnail,
+        uploadedThumbnail,
+        beneficiaries,
+        createdAt: now,
+        updatedAt: now,
+      };
+    },
+    [
+      activeDraftId,
+      beneficiaries,
+      hashtags,
+      markdown,
+      selectedThumbnail,
+      title,
+      uploadedThumbnail,
+    ]
+  );
+
+  const saveCurrentDraft = useCallback(
+    (force = false) => {
+      if (!force && !hasDraftContent) return;
+
+      const draft = buildDraft();
+      saveComposeDraft(draft);
+      setActiveDraftId(draft.id);
+      setLastDraftSavedAt(draft.updatedAt);
+    },
+    [buildDraft, hasDraftContent]
+  );
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const draftId = searchParams.get("draft");
+    const templateId = searchParams.get("template");
+    const startsNewDraft = searchParams.get("new") === "1";
+
+    if (draftId) {
+      const draft = getComposeDraft(draftId);
+      if (draft) {
+        setTitle(draft.title);
+        setMarkdown(draft.markdown);
+        setHashtags(draft.hashtags);
+        setBeneficiaries(draft.beneficiaries);
+        setSelectedThumbnail(draft.selectedThumbnail);
+        setUploadedThumbnail(draft.uploadedThumbnail);
+        setActiveDraftId(draft.id);
+        setLastDraftSavedAt(draft.updatedAt);
+      }
+    } else if (templateId) {
+      const template = COMPOSE_TEMPLATES.find((item) => item.id === templateId);
+      if (template) {
+        setMarkdown(t(`createWorkspace.templates.${template.bodyKey}`));
+        setActiveDraftId(createDraftId());
+      }
+    } else if (startsNewDraft) {
+      setActiveDraftId(createDraftId());
+    } else {
+      const storedDraftId = window.localStorage.getItem(ACTIVE_COMPOSE_DRAFT_KEY);
+      if (storedDraftId) {
+        setActiveDraftId(storedDraftId);
+      }
+    }
+
+    setHasLoadedInitialDraft(true);
+  }, [
+    setBeneficiaries,
+    setHashtags,
+    setMarkdown,
+    setSelectedThumbnail,
+    setTitle,
+    setUploadedThumbnail,
+    t,
+  ]);
+
+  useEffect(() => {
+    if (!hasLoadedInitialDraft) return;
+
+    const interval = window.setInterval(() => saveCurrentDraft(), 30000);
+    const saveBeforeExit = () => saveCurrentDraft();
+    const saveOnBlur = () => saveCurrentDraft();
+
+    window.addEventListener("beforeunload", saveBeforeExit);
+    window.addEventListener("blur", saveOnBlur);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("beforeunload", saveBeforeExit);
+      window.removeEventListener("blur", saveOnBlur);
+    };
+  }, [hasLoadedInitialDraft, saveCurrentDraft]);
+
+  useEffect(() => {
+    if (!hasLoadedInitialDraft || !hasDraftContent || lastDraftSavedAt) return;
+
+    const timeout = window.setTimeout(() => saveCurrentDraft(), 1200);
+    return () => window.clearTimeout(timeout);
+  }, [hasDraftContent, hasLoadedInitialDraft, lastDraftSavedAt, saveCurrentDraft]);
 
   const handleImageUploadWithCaption = async (
     url: string | null,
@@ -488,7 +614,35 @@ export default function Composer() {
         </Alert>
       )}
 
-      <Flex mt={4} justify="flex-end" maxWidth="1200px" mx="auto" width="100%">
+      <Flex
+        mt={4}
+        justify="space-between"
+        align={{ base: "stretch", md: "center" }}
+        direction={{ base: "column", md: "row" }}
+        gap={3}
+        maxWidth="1200px"
+        mx="auto"
+        width="100%"
+      >
+        <HStack spacing={3}>
+          <Button
+            size="md"
+            leftIcon={<FaSave />}
+            variant="outline"
+            borderColor="primary"
+            color="primary"
+            borderRadius="none"
+            onClick={() => saveCurrentDraft(true)}
+            isDisabled={!hasDraftContent}
+          >
+            {t("createWorkspace.saveDraft")}
+          </Button>
+          {lastDraftSavedAt && (
+            <Text fontSize="sm" color="dim">
+              {t("createWorkspace.draftSaved")}
+            </Text>
+          )}
+        </HStack>
         <Tooltip
           label={
             !selectedThumbnail
