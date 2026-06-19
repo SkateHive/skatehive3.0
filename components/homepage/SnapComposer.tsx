@@ -798,12 +798,19 @@ const SnapComposer = React.memo(function SnapComposer({
       }
       setIsLoading(true);
       try {
-        const castText = buildSnapCastText(commentBody, APP_CONFIG.ORIGIN);
-        // No SkateHive snap exists in this branch, so we can't fall back
-        // to a snap URL — embed media directly: images first (up to 2),
-        // else video for the inline player, else nothing.
+        // A reply/comment links the RELATED post being discussed, not itself.
+        // A top-level snap has no Hive URL in this Farcaster-only branch, so
+        // it falls back to the site origin.
+        const fcUrl = isMainFeedSnap
+          ? APP_CONFIG.ORIGIN
+          : `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${pa}/${pp}`;
+        const castText = buildSnapCastText(commentBody, fcUrl);
+        // Snap → embed media directly (images first, else video). Reply →
+        // embed the related post so it doesn't read as a standalone post.
         let embeds: { url: string }[] = [];
-        if (compressedImages.length > 0) {
+        if (!isMainFeedSnap) {
+          embeds = [{ url: fcUrl }];
+        } else if (compressedImages.length > 0) {
           embeds = compressedImages.slice(0, 2).map((img) => ({ url: img.url }));
         } else if (videoUrl) {
           embeds = [{ url: videoUrl }];
@@ -1109,19 +1116,29 @@ const SnapComposer = React.memo(function SnapComposer({
             // Farcaster (awaited so the progress toast closes when done)
             const farcasterTask: Promise<void> = (async () => {
               if (!willFarcaster) return;
-              const castText = buildSnapCastText(commentBody, snapUrl);
+              // A top-level main-feed snap IS the content → link the snap and
+              // embed its media. A reply/comment (feed reply, or a comment on
+              // a blog/mag post) should link the RELATED post being discussed
+              // rather than presenting the comment as its own Farcaster post.
+              const farcasterUrl = isMainFeedSnap
+                ? snapUrl
+                : `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${pa}/${pp}`;
+              const castText = buildSnapCastText(commentBody, farcasterUrl);
               // Embed selection:
-              //   - images → embed up to 2 image URLs directly (Warpcast
+              //   - snap images → embed up to 2 image URLs directly (Warpcast
               //     renders inline image previews — best UX).
-              //   - video  → snapUrl FIRST (frame renders the SkateHive
-              //     thumbnail), videoUrl SECOND for clients with inline
-              //     video support.
-              //   - text   → snapUrl alone (frame card).
-              const embeds = buildSnapCastEmbeds({
-                snapUrl,
-                imageUrls: compressedImages.map((img) => img.url),
-                videoUrl: videoUrl || null,
-              });
+              //   - snap video  → snapUrl FIRST (frame renders the SkateHive
+              //     thumbnail), videoUrl SECOND for inline-video clients.
+              //   - snap text   → snapUrl alone (frame card).
+              //   - reply       → the related post alone (frame card), so the
+              //     cast points at what's being discussed, not the comment.
+              const embeds = isMainFeedSnap
+                ? buildSnapCastEmbeds({
+                    snapUrl: farcasterUrl,
+                    imageUrls: compressedImages.map((img) => img.url),
+                    videoUrl: videoUrl || null,
+                  })
+                : [{ url: farcasterUrl }];
               try {
                 const res = await fetch("/api/farcaster/cast", {
                   method: "POST",
