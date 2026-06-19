@@ -10,13 +10,14 @@ import {
   Heading,
   HStack,
   IconButton,
+  Image,
   Text,
   VStack,
 } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { FaFileAlt, FaPen, FaRegClock, FaTrash } from "react-icons/fa";
 import { FiCopy } from "react-icons/fi";
-import { useTranslations } from "@/contexts/LocaleContext";
+import { useLocale, useTranslations } from "@/contexts/LocaleContext";
 import {
   COMPOSE_TEMPLATES,
   ComposeDraft,
@@ -24,11 +25,11 @@ import {
   readComposeDrafts,
 } from "@/lib/compose/drafts";
 
-function formatDraftDate(value: string) {
+function formatDraftDate(value: string, locale: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -38,6 +39,7 @@ function formatDraftDate(value: string) {
 
 export default function ComposeWorkspacePage() {
   const t = useTranslations();
+  const { locale } = useLocale();
   const router = useRouter();
   const [drafts, setDrafts] = useState<ComposeDraft[]>([]);
 
@@ -115,20 +117,33 @@ export default function ComposeWorkspacePage() {
                     bg="panel"
                     p={4}
                     gap={4}
-                    align="center"
+                    align={{ base: "flex-start", md: "center" }}
                     justify="space-between"
+                    direction={{ base: "column", md: "row" }}
                   >
-                    <HStack spacing={3} minW={0}>
-                      <Box color="primary" flexShrink={0}>
-                        <FaFileAlt />
-                      </Box>
+                    <HStack spacing={3} minW={0} w="100%">
+                      {draft.selectedThumbnail || draft.uploadedThumbnail ? (
+                        <Image
+                          src={draft.selectedThumbnail || draft.uploadedThumbnail || undefined}
+                          alt={draft.title.trim() || t("createWorkspace.untitledDraft")}
+                          boxSize="52px"
+                          objectFit="cover"
+                          border="1px solid"
+                          borderColor="border"
+                          flexShrink={0}
+                        />
+                      ) : (
+                        <Box color="primary" flexShrink={0}>
+                          <FaFileAlt />
+                        </Box>
+                      )}
                       <Box minW={0}>
                         <Text fontWeight="semibold" noOfLines={1}>
                           {draft.title.trim() || t("createWorkspace.untitledDraft")}
                         </Text>
                         <HStack color="dim" fontSize="sm" spacing={2} mt={1}>
                           <FaRegClock />
-                          <Text>{formatDraftDate(draft.updatedAt)}</Text>
+                          <Text>{formatDraftDate(draft.updatedAt, locale)}</Text>
                           {draft.hashtags.length > 0 && (
                             <Text noOfLines={1}>
                               {draft.hashtags.map((tag) => `#${tag}`).join(" ")}

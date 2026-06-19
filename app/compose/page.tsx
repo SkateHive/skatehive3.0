@@ -99,16 +99,18 @@ export default function Composer() {
   const buildDraft = useCallback(
     (draftId?: string): ComposeDraft => {
       const now = new Date().toISOString();
+      const id = draftId || activeDraftId || createDraftId();
+      const existingDraft = draftId || activeDraftId ? getComposeDraft(id) : null;
 
       return {
-        id: draftId || activeDraftId || createDraftId(),
+        id,
         title,
         markdown,
         hashtags,
         selectedThumbnail,
         uploadedThumbnail,
         beneficiaries,
-        createdAt: now,
+        createdAt: existingDraft?.createdAt || now,
         updatedAt: now,
       };
     },
@@ -140,18 +142,21 @@ export default function Composer() {
     const draftId = searchParams.get("draft");
     const templateId = searchParams.get("template");
     const startsNewDraft = searchParams.get("new") === "1";
+    const restoreDraft = (draft: ComposeDraft) => {
+      setTitle(draft.title);
+      setMarkdown(draft.markdown);
+      setHashtags(draft.hashtags);
+      setBeneficiaries(draft.beneficiaries);
+      setSelectedThumbnail(draft.selectedThumbnail);
+      setUploadedThumbnail(draft.uploadedThumbnail);
+      setActiveDraftId(draft.id);
+      setLastDraftSavedAt(draft.updatedAt);
+    };
 
     if (draftId) {
       const draft = getComposeDraft(draftId);
       if (draft) {
-        setTitle(draft.title);
-        setMarkdown(draft.markdown);
-        setHashtags(draft.hashtags);
-        setBeneficiaries(draft.beneficiaries);
-        setSelectedThumbnail(draft.selectedThumbnail);
-        setUploadedThumbnail(draft.uploadedThumbnail);
-        setActiveDraftId(draft.id);
-        setLastDraftSavedAt(draft.updatedAt);
+        restoreDraft(draft);
       }
     } else if (templateId) {
       const template = COMPOSE_TEMPLATES.find((item) => item.id === templateId);
@@ -164,7 +169,12 @@ export default function Composer() {
     } else {
       const storedDraftId = window.localStorage.getItem(ACTIVE_COMPOSE_DRAFT_KEY);
       if (storedDraftId) {
-        setActiveDraftId(storedDraftId);
+        const draft = getComposeDraft(storedDraftId);
+        if (draft) {
+          restoreDraft(draft);
+        } else {
+          setActiveDraftId(storedDraftId);
+        }
       }
     }
 
@@ -197,11 +207,11 @@ export default function Composer() {
   }, [hasLoadedInitialDraft, saveCurrentDraft]);
 
   useEffect(() => {
-    if (!hasLoadedInitialDraft || !hasDraftContent || lastDraftSavedAt) return;
+    if (!hasLoadedInitialDraft || !hasDraftContent) return;
 
     const timeout = window.setTimeout(() => saveCurrentDraft(), 1200);
     return () => window.clearTimeout(timeout);
-  }, [hasDraftContent, hasLoadedInitialDraft, lastDraftSavedAt, saveCurrentDraft]);
+  }, [hasDraftContent, hasLoadedInitialDraft, saveCurrentDraft]);
 
   const handleImageUploadWithCaption = async (
     url: string | null,
