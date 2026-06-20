@@ -347,6 +347,7 @@ export const es = {
     compressionError: 'Error al comprimir imagen',
     unsupportedFileType: 'Tipo de archivo no compatible',
     videoProcessFailed: 'Error al procesar archivo de video',
+    hashtagPlaceholder: 'Escribe #skateboarding y presiona Enter',
   },
   videoUploader: {
     roasts: {

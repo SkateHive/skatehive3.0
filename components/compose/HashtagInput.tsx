@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslations } from "@/contexts/LocaleContext";
 import {
   Box,
   Flex,
@@ -24,6 +25,7 @@ export default function HashtagInput({
   setHashtagInput,
   setHashtags,
 }: HashtagInputProps) {
+  const t = useTranslations();
   const handleHashtagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (
       (e.key === " " || e.key === "Enter" || e.key === ",") &&
@@ -60,7 +62,7 @@ export default function HashtagInput({
       </Text>
       <Flex width="100%" direction="row" alignItems="center" gap={4}>
         <Input
-          placeholder="Type #skateboarding and press Enter"
+          placeholder={t('compose.hashtagPlaceholder')}
           value={hashtagInput}
           onChange={(e) => setHashtagInput(e.target.value)}
           onKeyDown={handleHashtagKeyDown}

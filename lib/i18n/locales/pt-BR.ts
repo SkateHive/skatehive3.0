@@ -347,6 +347,7 @@ export const ptBR = {
     compressionError: 'Erro ao comprimir imagem',
     unsupportedFileType: 'Tipo de arquivo não suportado',
     videoProcessFailed: 'Falha ao processar arquivo de vídeo',
+    hashtagPlaceholder: 'Digite #skateboarding e pressione Enter',
   },
   videoUploader: {
     roasts: {

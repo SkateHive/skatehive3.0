@@ -346,6 +346,7 @@ export const lg = {
     compressionError: 'Kifo mu kukakaasa image',
     unsupportedFileType: 'Unsupported file type',
     videoProcessFailed: 'Kifo mu kutegeeza video file',
+    hashtagPlaceholder: 'Type #skateboarding and press Enter',
   },
   videoUploader: {
     roasts: {

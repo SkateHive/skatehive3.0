@@ -330,6 +330,7 @@ export const en = {
     compressionError: 'Error compressing image',
     unsupportedFileType: 'Unsupported file type',
     videoProcessFailed: 'Failed to process video file',
+    hashtagPlaceholder: 'Type #skateboarding and press Enter',
   },
   videoUploader: {
     roasts: {
