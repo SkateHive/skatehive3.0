@@ -60,7 +60,7 @@ export default function HashtagInput({
       </Text>
       <Flex width="100%" direction="row" alignItems="center" gap={4}>
         <Input
-          placeholder="Type hashtag and press space..."
+          placeholder="Type #skateboarding and press Enter"
           value={hashtagInput}
           onChange={(e) => setHashtagInput(e.target.value)}
           onKeyDown={handleHashtagKeyDown}
