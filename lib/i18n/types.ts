@@ -248,6 +248,47 @@ export interface TranslationSchema {
     unsupportedFileType: string;
     videoProcessFailed: string;
   };
+  createWorkspace: {
+    title: string;
+    subtitle: string;
+    continueDraft: string;
+    continueEditing: string;
+    blankPost: string;
+    createFromTemplate: string;
+    useTemplate: string;
+    noDrafts: string;
+    noDraftsDescription: string;
+    untitledDraft: string;
+    untitledTemplate: string;
+    deleteDraft: string;
+    saveDraft: string;
+    saveTemplate: string;
+    draftSaved: string;
+    savedStatus: string;
+    notSavedYet: string;
+    templateSaved: string;
+    templateNeedsContent: string;
+    hashtags: string;
+    hashtagPlaceholder: string;
+    userTemplate: string;
+    templates: {
+      sessionReport: string;
+      sessionReportDescription: string;
+      sessionReportBody: string;
+      spotReview: string;
+      spotReviewDescription: string;
+      spotReviewBody: string;
+      eventCoverage: string;
+      eventCoverageDescription: string;
+      eventCoverageBody: string;
+      videoBreakdown: string;
+      videoBreakdownDescription: string;
+      videoBreakdownBody: string;
+      travelSkateTrip: string;
+      travelSkateTripDescription: string;
+      travelSkateTripBody: string;
+    };
+  };
   videoUploader: {
     roasts: {
       oracle1: string;
