@@ -19,10 +19,11 @@ import { FaFileAlt, FaPen, FaRegClock, FaTrash } from "react-icons/fa";
 import { FiCopy } from "react-icons/fi";
 import { useLocale, useTranslations } from "@/contexts/LocaleContext";
 import {
-  COMPOSE_TEMPLATES,
   ComposeDraft,
   deleteComposeDraft,
+  getComposeTemplates,
   readComposeDrafts,
+  ComposeTemplate,
 } from "@/lib/compose/drafts";
 
 function formatDraftDate(value: string, locale: string) {
@@ -42,9 +43,11 @@ export default function ComposeWorkspacePage() {
   const { locale } = useLocale();
   const router = useRouter();
   const [drafts, setDrafts] = useState<ComposeDraft[]>([]);
+  const [templates, setTemplates] = useState<ComposeTemplate[]>([]);
 
   useEffect(() => {
     setDrafts(readComposeDrafts());
+    setTemplates(getComposeTemplates());
   }, []);
 
   const sortedDrafts = useMemo(() => {
@@ -183,7 +186,7 @@ export default function ComposeWorkspacePage() {
               {t("createWorkspace.createFromTemplate")}
             </Heading>
             <Grid templateColumns={{ base: "1fr", md: "1fr 1fr", lg: "1fr" }} gap={3}>
-              {COMPOSE_TEMPLATES.map((template) => (
+              {templates.map((template) => (
                 <Box
                   key={template.id}
                   border="1px solid"
@@ -197,11 +200,22 @@ export default function ComposeWorkspacePage() {
                     </Box>
                     <Box>
                       <Text fontWeight="semibold">
-                        {t(`createWorkspace.templates.${template.titleKey}`)}
+                        {template.title ||
+                          (template.titleKey
+                            ? t(`createWorkspace.templates.${template.titleKey}`)
+                            : t("createWorkspace.untitledTemplate"))}
                       </Text>
                       <Text color="dim" fontSize="sm" mt={1}>
-                        {t(`createWorkspace.templates.${template.descriptionKey}`)}
+                        {template.description ||
+                          (template.descriptionKey
+                            ? t(`createWorkspace.templates.${template.descriptionKey}`)
+                            : t("createWorkspace.userTemplate"))}
                       </Text>
+                      {template.isCustom && (
+                        <Badge mt={2} colorScheme="green" variant="outline">
+                          {t("createWorkspace.userTemplate")}
+                        </Badge>
+                      )}
                       <Button
                         mt={3}
                         size="sm"

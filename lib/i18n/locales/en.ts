@@ -342,9 +342,18 @@ export const en = {
     noDrafts: 'No drafts yet',
     noDraftsDescription: 'Start writing and Skatehive will keep a local draft in this browser.',
     untitledDraft: 'Untitled Draft',
+    untitledTemplate: 'Untitled Template',
     deleteDraft: 'Delete draft',
     saveDraft: 'Save Draft',
+    saveTemplate: 'Save Template',
     draftSaved: 'Draft saved',
+    savedStatus: 'Saved',
+    notSavedYet: 'not yet',
+    templateSaved: 'Template saved',
+    templateNeedsContent: 'Add a title or content before saving a template.',
+    hashtags: 'Hashtags',
+    hashtagPlaceholder: 'Type hashtags and press enter...',
+    userTemplate: 'User template',
     templates: {
       sessionReport: 'Session Report',
       sessionReportDescription: 'Recap the spot, crew, tricks, clips, and progression from a session.',
@@ -1233,4 +1242,3 @@ export const en = {
     screenshotHint: '⌘/Ctrl+Enter to attach screenshot',
   },
 };
-

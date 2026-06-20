@@ -259,9 +259,18 @@ export interface TranslationSchema {
     noDrafts: string;
     noDraftsDescription: string;
     untitledDraft: string;
+    untitledTemplate: string;
     deleteDraft: string;
     saveDraft: string;
+    saveTemplate: string;
     draftSaved: string;
+    savedStatus: string;
+    notSavedYet: string;
+    templateSaved: string;
+    templateNeedsContent: string;
+    hashtags: string;
+    hashtagPlaceholder: string;
+    userTemplate: string;
     templates: {
       sessionReport: string;
       sessionReportDescription: string;

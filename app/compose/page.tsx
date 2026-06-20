@@ -14,6 +14,7 @@ import {
   Alert,
   AlertIcon,
   Tooltip,
+  useToast,
 } from "@chakra-ui/react";
 import ImageCompressor, {
   ImageCompressorRef,
@@ -34,18 +35,23 @@ import { useTranslations } from "@/contexts/LocaleContext";
 import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
 import { useSkateDialog } from "@/hooks/useSkateDialog";
 import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
-import { FaSave } from "react-icons/fa";
+import { useRouter } from "next/navigation";
+import { FaArrowLeft, FaFileAlt, FaSave } from "react-icons/fa";
 import {
   ACTIVE_COMPOSE_DRAFT_KEY,
-  COMPOSE_TEMPLATES,
   ComposeDraft,
   createDraftId,
+  createTemplateFromDraft,
   getComposeDraft,
+  getComposeTemplates,
+  saveComposeTemplate,
   saveComposeDraft,
 } from "@/lib/compose/drafts";
 
 export default function Composer() {
   const t = useTranslations();
+  const router = useRouter();
+  const toast = useToast();
   const { prompt, SkateDialogComponent } = useSkateDialog();
   const {
     markdown,
@@ -137,6 +143,27 @@ export default function Composer() {
     [buildDraft, hasDraftContent]
   );
 
+  const handleSaveTemplate = useCallback(() => {
+    if (!title.trim() && !markdown.trim()) {
+      toast({
+        title: t("createWorkspace.templateNeedsContent"),
+        status: "warning",
+        duration: 2200,
+        isClosable: true,
+      });
+      return;
+    }
+
+    const template = createTemplateFromDraft({ title, markdown });
+    saveComposeTemplate(template);
+    toast({
+      title: t("createWorkspace.templateSaved"),
+      status: "success",
+      duration: 2200,
+      isClosable: true,
+    });
+  }, [markdown, t, title, toast]);
+
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const draftId = searchParams.get("draft");
@@ -146,6 +173,7 @@ export default function Composer() {
       setTitle(draft.title);
       setMarkdown(draft.markdown);
       setHashtags(draft.hashtags);
+      setHashtagInput("");
       setBeneficiaries(draft.beneficiaries);
       setSelectedThumbnail(draft.selectedThumbnail);
       setUploadedThumbnail(draft.uploadedThumbnail);
@@ -159,9 +187,15 @@ export default function Composer() {
         restoreDraft(draft);
       }
     } else if (templateId) {
-      const template = COMPOSE_TEMPLATES.find((item) => item.id === templateId);
+      const template = getComposeTemplates().find((item) => item.id === templateId);
       if (template) {
-        setMarkdown(t(`createWorkspace.templates.${template.bodyKey}`));
+        setTitle(template.title || "");
+        setMarkdown(
+          template.markdown ||
+            (template.bodyKey ? t(`createWorkspace.templates.${template.bodyKey}`) : "")
+        );
+        setHashtags([]);
+        setHashtagInput("");
         setActiveDraftId(createDraftId());
       }
     } else if (startsNewDraft) {
@@ -181,6 +215,7 @@ export default function Composer() {
     setHasLoadedInitialDraft(true);
   }, [
     setBeneficiaries,
+    setHashtagInput,
     setHashtags,
     setMarkdown,
     setSelectedThumbnail,
@@ -357,6 +392,17 @@ export default function Composer() {
         maxWidth="1200px"
         mx="auto"
       >
+        <Button
+          leftIcon={<FaArrowLeft />}
+          variant="outline"
+          borderColor="border"
+          color="text"
+          borderRadius="none"
+          onClick={() => router.push("/compose/workspace")}
+          alignSelf={{ base: "flex-start", md: "center" }}
+        >
+          {t("common.back")}
+        </Button>
         <Input
           placeholder={placeholders[placeholderIndex]}
           value={title}
@@ -634,7 +680,19 @@ export default function Composer() {
         mx="auto"
         width="100%"
       >
-        <HStack spacing={3}>
+        <VStack align={{ base: "stretch", md: "start" }} spacing={3}>
+          <Text fontSize="sm" color="dim">
+            {t("createWorkspace.savedStatus")}:{" "}
+            {lastDraftSavedAt
+              ? new Intl.DateTimeFormat(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(new Date(lastDraftSavedAt))
+              : t("createWorkspace.notSavedYet")}
+          </Text>
+          <Flex direction={{ base: "column", md: "row" }} gap={3} width="100%">
           <Button
             size="md"
             leftIcon={<FaSave />}
@@ -644,15 +702,25 @@ export default function Composer() {
             borderRadius="none"
             onClick={() => saveCurrentDraft(true)}
             isDisabled={!hasDraftContent}
+            width={{ base: "100%", md: "auto" }}
           >
             {t("createWorkspace.saveDraft")}
           </Button>
-          {lastDraftSavedAt && (
-            <Text fontSize="sm" color="dim">
-              {t("createWorkspace.draftSaved")}
-            </Text>
-          )}
-        </HStack>
+          <Button
+            size="md"
+            leftIcon={<FaFileAlt />}
+            variant="outline"
+            borderColor="primary"
+            color="primary"
+            borderRadius="none"
+            onClick={handleSaveTemplate}
+            isDisabled={!title.trim() && !markdown.trim()}
+            width={{ base: "100%", md: "auto" }}
+          >
+            {t("createWorkspace.saveTemplate")}
+          </Button>
+          </Flex>
+        </VStack>
         <Tooltip
           label={
             !selectedThumbnail
@@ -684,6 +752,7 @@ export default function Composer() {
             isDisabled={isSubmitting || !title.trim() || !selectedThumbnail}
             px={10}
             h="44px"
+            width={{ base: "100%", md: "auto" }}
             _hover={{ bg: "accent" }}
           >
             {t('compose.publish')}

@@ -2,6 +2,7 @@ import { Beneficiary } from "@/components/compose/BeneficiariesInput";
 
 export const COMPOSE_DRAFTS_STORAGE_KEY = "skatehive.compose.drafts.v1";
 export const ACTIVE_COMPOSE_DRAFT_KEY = "skatehive.compose.activeDraftId.v1";
+export const COMPOSE_TEMPLATES_STORAGE_KEY = "skatehive.compose.templates.v1";
 
 export type ComposeDraft = {
   id: string;
@@ -17,9 +18,14 @@ export type ComposeDraft = {
 
 export type ComposeTemplate = {
   id: string;
-  titleKey: string;
-  descriptionKey: string;
-  bodyKey: string;
+  titleKey?: string;
+  descriptionKey?: string;
+  bodyKey?: string;
+  title?: string;
+  description?: string;
+  markdown?: string;
+  isCustom?: boolean;
+  updatedAt?: string;
 };
 
 export const COMPOSE_TEMPLATES: ComposeTemplate[] = [
@@ -40,18 +46,6 @@ export const COMPOSE_TEMPLATES: ComposeTemplate[] = [
     titleKey: "eventCoverage",
     descriptionKey: "eventCoverageDescription",
     bodyKey: "eventCoverageBody",
-  },
-  {
-    id: "video-breakdown",
-    titleKey: "videoBreakdown",
-    descriptionKey: "videoBreakdownDescription",
-    bodyKey: "videoBreakdownBody",
-  },
-  {
-    id: "travel-skate-trip",
-    titleKey: "travelSkateTrip",
-    descriptionKey: "travelSkateTripDescription",
-    bodyKey: "travelSkateTripBody",
   },
 ];
 
@@ -117,4 +111,69 @@ export function deleteComposeDraft(id: string) {
 
 export function getComposeDraft(id: string) {
   return readComposeDrafts().find((draft) => draft.id === id) ?? null;
+}
+
+export function readComposeTemplates(): ComposeTemplate[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(COMPOSE_TEMPLATES_STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter((template): template is ComposeTemplate => {
+      return (
+        typeof template?.id === "string" &&
+        typeof template?.title === "string" &&
+        typeof template?.markdown === "string"
+      );
+    });
+  } catch {
+    return [];
+  }
+}
+
+export function writeComposeTemplates(templates: ComposeTemplate[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(COMPOSE_TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+}
+
+export function getComposeTemplates() {
+  const storedTemplates = readComposeTemplates();
+  const defaultIds = new Set(COMPOSE_TEMPLATES.map((template) => template.id));
+  const customTemplates = storedTemplates
+    .filter((template) => !defaultIds.has(template.id))
+    .sort((a, b) => Date.parse(b.updatedAt || "") - Date.parse(a.updatedAt || ""));
+
+  const storedById = new Map(storedTemplates.map((template) => [template.id, template]));
+  const mergedDefaults = COMPOSE_TEMPLATES.map((template) => storedById.get(template.id) || template);
+
+  return [...customTemplates, ...mergedDefaults];
+}
+
+export function saveComposeTemplate(template: ComposeTemplate) {
+  const templates = readComposeTemplates();
+  const nextTemplates = [
+    { ...template, isCustom: true },
+    ...templates.filter((existingTemplate) => existingTemplate.id !== template.id),
+  ];
+
+  writeComposeTemplates(nextTemplates);
+  return template;
+}
+
+export function createTemplateFromDraft(draft: Pick<ComposeDraft, "title" | "markdown">) {
+  const now = new Date().toISOString();
+  const title = draft.title.trim() || "Untitled Template";
+
+  return {
+    id: `template-${createDraftId()}`,
+    title,
+    description: `Saved from ${title}.`,
+    markdown: draft.markdown,
+    isCustom: true,
+    updatedAt: now,
+  };
 }
