@@ -8,6 +8,10 @@
 ALTER TABLE userbase_hive_keys
   ADD COLUMN IF NOT EXISTS trail_opt_out boolean NOT NULL DEFAULT false;
 
+-- Per-user vote weight for the trail boost, 0..10000 (0..100%). Default 50%.
+ALTER TABLE userbase_hive_keys
+  ADD COLUMN IF NOT EXISTS trail_vote_weight smallint NOT NULL DEFAULT 5000;
+
 -- Optional: index for the portal's filtered read (small table, not required).
 CREATE INDEX IF NOT EXISTS idx_userbase_hive_keys_trail_opt_out
   ON userbase_hive_keys (trail_opt_out);

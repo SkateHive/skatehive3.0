@@ -11,6 +11,10 @@ import {
   Heading,
   HStack,
   Input,
+  Slider,
+  SliderFilledTrack,
+  SliderThumb,
+  SliderTrack,
   Text,
   useToast,
 } from "@chakra-ui/react";
@@ -51,6 +55,8 @@ export default function UserbasePostingKeyPanel({
   // key may upvote SkateHive official posts via the marketing trail.
   const [supportOfficial, setSupportOfficial] = useState(true);
   const [savingPref, setSavingPref] = useState(false);
+  // Per-user vote weight for the trail boost, as a percentage (default 50%).
+  const [voteWeight, setVoteWeight] = useState(50);
 
   const hasHiveIdentity = !!hiveIdentity;
 
@@ -78,11 +84,31 @@ export default function UserbasePostingKeyPanel({
       const data = await response.json();
       if (response.ok && typeof data?.support_official === "boolean") {
         setSupportOfficial(data.support_official);
+        if (typeof data?.vote_weight === "number") {
+          setVoteWeight(Math.round(data.vote_weight / 100));
+        }
       }
     } catch (error) {
       console.error("Failed to fetch trail preference", error);
     }
   }, [user]);
+
+  const handleWeightCommit = async (pct: number) => {
+    setSavingPref(true);
+    try {
+      const response = await fetch("/api/userbase/keys/trail-preference", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vote_weight: pct * 100 }),
+      });
+      if (!response.ok) throw new Error("Failed to save weight");
+      toast({ title: `Voto ajustado para ${pct}%`, status: "success", duration: 1800 });
+    } catch (error: any) {
+      toast({ title: "Não foi possível salvar o peso.", description: error?.message, status: "error", duration: 3000 });
+    } finally {
+      setSavingPref(false);
+    }
+  };
 
   const handleToggleSupport = async (next: boolean) => {
     setSupportOfficial(next); // optimistic
@@ -305,10 +331,42 @@ export default function UserbasePostingKeyPanel({
             </Text>
           </Checkbox>
           <FormHelperText color="dim" mt={1}>
-            Com isso marcado, sua conta dá um pequeno upvote automático nos posts
+            Com isso marcado, sua conta dá um upvote automático nos posts
             oficiais (SkateHive, Gnars, Reelflip, Nogenta) pra fortalecer a
             comunidade. Você pode desmarcar quando quiser — aí sai da curadoria.
           </FormHelperText>
+
+          {supportOfficial && (
+            <Box mt={4}>
+              <HStack justify="space-between" mb={1}>
+                <Text color="primary" fontSize="sm" fontWeight="medium">
+                  Peso do meu voto
+                </Text>
+                <Text color="primary" fontSize="sm" fontWeight="bold">
+                  {voteWeight}%
+                </Text>
+              </HStack>
+              <Slider
+                aria-label="peso-do-voto"
+                min={1}
+                max={100}
+                step={1}
+                value={voteWeight}
+                isDisabled={savingPref}
+                onChange={setVoteWeight}
+                onChangeEnd={handleWeightCommit}
+                colorScheme="green"
+              >
+                <SliderTrack>
+                  <SliderFilledTrack />
+                </SliderTrack>
+                <SliderThumb />
+              </Slider>
+              <FormHelperText color="dim" mt={1}>
+                Quanto do seu poder de voto vai em cada post oficial. Padrão 50%.
+              </FormHelperText>
+            </Box>
+          )}
         </Box>
       )}
     </Box>
