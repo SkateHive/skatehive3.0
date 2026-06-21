@@ -51,17 +51,18 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase!
     .from("userbase_hive_keys")
-    .select("trail_opt_out")
+    .select("trail_opt_out, trail_vote_weight")
     .eq("user_id", session.userId)
     .limit(1);
   if (error) {
-    // Column may not be migrated yet — treat as opted-in.
-    return NextResponse.json({ has_key: false, support_official: true });
+    // Columns may not be migrated yet — treat as opted-in at the default weight.
+    return NextResponse.json({ has_key: false, support_official: true, vote_weight: 5000 });
   }
   const row = data?.[0];
   return NextResponse.json({
     has_key: !!row,
     support_official: row ? row.trail_opt_out !== true : true,
+    vote_weight: row && typeof row.trail_vote_weight === "number" ? row.trail_vote_weight : 5000,
   });
 }
 
@@ -69,22 +70,31 @@ export async function POST(request: NextRequest) {
   const session = await getSessionUserId(request);
   if (session.error) return session.error;
 
-  let body: { support_official?: boolean };
+  let body: { support_official?: boolean; vote_weight?: number };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-  if (typeof body.support_official !== "boolean") {
-    return NextResponse.json({ error: "support_official (boolean) required" }, { status: 400 });
+
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (typeof body.support_official === "boolean") {
+    update.trail_opt_out = !body.support_official;
+  }
+  if (typeof body.vote_weight === "number") {
+    // Clamp to 1..10000 (0.01%..100%).
+    update.trail_vote_weight = Math.max(1, Math.min(10000, Math.round(body.vote_weight)));
+  }
+  if (Object.keys(update).length === 1) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
   const { error } = await supabase!
     .from("userbase_hive_keys")
-    .update({ trail_opt_out: !body.support_official, updated_at: new Date().toISOString() })
+    .update(update)
     .eq("user_id", session.userId);
   if (error) {
     return NextResponse.json({ error: "Failed to update preference" }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, support_official: body.support_official });
+  return NextResponse.json({ ok: true });
 }
