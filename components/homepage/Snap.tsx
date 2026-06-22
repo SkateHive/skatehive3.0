@@ -735,9 +735,22 @@ const Snap = React.memo(function Snap({
           <InstagramPreviewModal
             isOpen={isIgPreviewOpen}
             onClose={() => setIsIgPreviewOpen(false)}
-            discussion={discussion}
-            igMedia={igMedia}
-            moderatorHandle={walletUser || effectiveUser}
+            mode="moderator"
+            context={{
+              hiveAuthor: discussion.author,
+              hivePermlink: discussion.permlink,
+              title: (discussion as any).title || "",
+              body: discussion.body,
+              tags: Array.isArray((discussion as any).json_metadata?.tags)
+                ? (discussion as any).json_metadata.tags
+                : [],
+              imageUrl: igMedia.image,
+              videoUrl: igMedia.video,
+              permalinkUrl: `${
+                typeof window !== "undefined" ? window.location.origin : "https://skatehive.app"
+              }/post/${discussion.author}/${discussion.permlink}`,
+            }}
+            userHandle={walletUser || effectiveUser}
           />
         )}
       </Box>

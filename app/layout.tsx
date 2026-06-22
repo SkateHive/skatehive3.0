@@ -7,6 +7,7 @@ import { ColorModeScript } from "@chakra-ui/react";
 import Image from "next/image";
 import { APP_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
+import { buildMiniAppEmbed } from "@/lib/utils/metadata";
 
 // Google Analytics 4
 const GA_MEASUREMENT_ID = "G-M3CSHT7F03";
@@ -53,19 +54,11 @@ const jsonLdWebSite = {
   },
 };
 
-const frameObject = {
-  version: "next",
+const frameEmbed = buildMiniAppEmbed({
   imageUrl: `${BASE_URL}/ogimage.png`,
-  button: {
-    title: "Open",
-    action: {
-      type: "launch_frame",
-      name: "Skatehive",
-      url: BASE_URL,
-    },
-  },
-  postUrl: BASE_URL,
-};
+  buttonTitle: "Open",
+  url: BASE_URL,
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -151,9 +144,7 @@ export const metadata: Metadata = {
     apple: "/favicon.ico",
   },
   other: {
-    "fc:frame": JSON.stringify(frameObject),
-    "fc:frame:image": `${BASE_URL}/ogimage.png`,
-    "fc:frame:post_url": BASE_URL,
+    ...frameEmbed,
     "apple-itunes-app": "app-id=6751173076",
   },
 };

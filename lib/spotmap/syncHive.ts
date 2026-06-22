@@ -286,7 +286,15 @@ export async function syncSingleHiveSpot(
     lat: parsed.lat,
     lng: parsed.lng,
     address: parsed.address,
-    thumbnail: parsed.images[0]?.url ?? null,
+    // Same fallback chain the bulk sync uses (markdown image →
+    // json_metadata.image[0] → .thumbnail[0] → YouTube hqdefault) so a
+    // spot ingested by sync-one ends up identical to one ingested by
+    // the nightly cron.
+    thumbnail: pickSpotThumbnail({
+      firstMarkdownImage: parsed.images[0]?.url ?? null,
+      body: record.body,
+      json_metadata: record.json_metadata,
+    }),
     images: parsed.images,
     hive_author: record.author,
     hive_permlink: record.permlink,

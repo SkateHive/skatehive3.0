@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { buildMagicLinkEmail } from "@/lib/email/magicLinkTemplate";
+import { buildWelcomeEmail } from "@/lib/email/welcomeTemplate";
 import { buildInviteKeysBackup } from "@/lib/invite/backup";
 import getMailTemplate_Invite from "@/lib/invite/template";
 
@@ -34,6 +35,11 @@ export default function EmailRevampPage() {
   const [language, setLanguage] = useState("EN");
 
   const magic = useMemo(() => buildMagicLinkEmail(loginUrl), [loginUrl]);
+
+  const welcome = useMemo(
+    () => buildWelcomeEmail({ handle: desiredUsername, displayName: null }),
+    [desiredUsername]
+  );
 
   const inviteHtml = useMemo(
     () =>
@@ -125,6 +131,13 @@ export default function EmailRevampPage() {
           subject={magic.subject}
           html={magic.html}
           text={magic.text}
+          file={null}
+        />
+        <EmailPreview
+          title="3. New account welcome (email sign-up)"
+          subject={welcome.subject}
+          html={welcome.html}
+          text={welcome.text}
           file={null}
         />
         <EmailPreview

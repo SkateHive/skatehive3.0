@@ -4,6 +4,7 @@ import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { APP_CONFIG, EMAIL_DEFAULTS } from "@/config/app.config";
 import { checkHiveAccountExists, validateHiveUsernameFormat } from "@/lib/utils/hiveAccountUtils";
+import { buildWelcomeEmail } from "@/lib/email/welcomeTemplate";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -317,6 +318,23 @@ export async function POST(request: NextRequest) {
       text: `Click to sign in: ${link.toString()}`,
       html: `<p>Click to sign in:</p><p><a href="${link.toString()}">${link.toString()}</a></p>`,
     });
+
+    // Welcome email — only for brand-new accounts. Best-effort: a failure here
+    // must never break the sign-up flow (the login link already went out).
+    if (createdUserId) {
+      try {
+        const welcome = buildWelcomeEmail({ handle, displayName });
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER || EMAIL_DEFAULTS.FROM_ADDRESS,
+          to: identifier,
+          subject: welcome.subject,
+          text: welcome.text,
+          html: welcome.html,
+        });
+      } catch (welcomeError) {
+        console.error("Failed to send welcome email:", welcomeError);
+      }
+    }
 
     return NextResponse.json({
       success: true,
