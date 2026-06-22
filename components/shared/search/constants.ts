@@ -22,7 +22,7 @@ import { PageResult } from "./types";
 import { ETH_ADDRESSES } from "@/config/app.config";
 
 // Platform configuration
-export const SKATEHIVE_PLATFORM_REFERRER = ETH_ADDRESSES.SKATEHIVE_HOT;
+export const SKATEHIVE_PLATFORM_REFERRER = ETH_ADDRESSES.PLATFORM_REFERRER;
 
 export const STATIC_PAGES: PageResult[] = [
   {

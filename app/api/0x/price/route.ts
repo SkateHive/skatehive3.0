@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSwapFeeBps, getSwapFeeRecipient } from "@/lib/evm/platformFees";
 
 const ZEROX_HEADERS = {
   "0x-api-key": process.env.ZEROX_API_KEY || "",
@@ -6,10 +7,9 @@ const ZEROX_HEADERS = {
   "Content-Type": "application/json",
 };
 
-// Optional affiliate fee — set SKATEHIVE_FEE_RECIPIENT in env to enable.
-// Default: 50 bps (0.5%). Configurable via SKATEHIVE_FEE_BPS.
-const FEE_RECIPIENT = process.env.SKATEHIVE_FEE_RECIPIENT || "";
-const FEE_BPS = process.env.SKATEHIVE_FEE_BPS || "50";
+// Base swaps always route platform fees to the SkateHive split contract.
+// Other chains keep the env-configured recipient behavior.
+const FEE_BPS = getSwapFeeBps();
 
 /** GET /api/0x/price?chainId=8453&sellToken=...&buyToken=...&sellAmount=...&taker=... */
 export async function GET(request: NextRequest) {
@@ -19,9 +19,11 @@ export async function GET(request: NextRequest) {
   const wantsFee = params.get("fee") === "1";
   params.delete("fee");
 
-  if (FEE_RECIPIENT && wantsFee) {
+  const feeRecipient = getSwapFeeRecipient(params.get("chainId"));
+
+  if (feeRecipient && wantsFee) {
     const buyToken = params.get("buyToken") || "";
-    params.set("swapFeeRecipient", FEE_RECIPIENT);
+    params.set("swapFeeRecipient", feeRecipient);
     params.set("swapFeeBps", FEE_BPS);
     params.set("swapFeeToken", buyToken);
   }

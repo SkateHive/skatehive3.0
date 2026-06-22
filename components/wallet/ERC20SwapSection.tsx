@@ -1170,7 +1170,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </Button>
           )}
 
-          {/* Optional treasury fee (0x route only) */}
+          {/* Optional platform fee (0x route only) */}
           {showFeeOption && route === "0x" && (
             <HStack mt={2} spacing={2} justify="center">
               <Checkbox
@@ -1183,7 +1183,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
                   Support Skatehive (0.5% fee)
                 </Text>
               </Checkbox>
-              <Tooltip label="A tiny 0.5% fee goes to the Skatehive shared treasury — funding skateparks, obstacles, rider sponsorships and public goods.">
+              <Tooltip label="A tiny 0.5% fee goes to the Skatehive platform split for skateparks, obstacles, rider sponsorships and public goods.">
                 <Box as="span" cursor="help" color="dim"><FaInfoCircle style={{ display: "inline" }} /></Box>
               </Tooltip>
             </HStack>
