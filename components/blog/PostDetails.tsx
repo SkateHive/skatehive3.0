@@ -36,7 +36,7 @@ import React, {
   useEffect,
 } from "react";
 import { Discussion } from "@hiveio/dhive";
-import { FaHeart, FaRegHeart, FaShareSquare, FaEdit } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaShareSquare, FaEdit, FaInstagram } from "react-icons/fa";
 import { getPostDate } from "@/lib/utils/GetPostDate";
 import { useAioha } from "@aioha/react-ui";
 import useHiveVote from "@/hooks/useHiveVote";
@@ -59,6 +59,11 @@ import { extractSafeUser } from "@/lib/userbase/safeUserMetadata";
 import HiveUpgradePromptModal from "@/components/shared/HiveUpgradePromptModal";
 import { usePostProseTweaks } from "@/hooks/usePostProseTweaks";
 import { PostProseTweaksPanel } from "./PostProseTweaksPanel";
+import useIsAdmin from "@/hooks/useIsAdmin";
+import InstagramPreviewModal, {
+  type CrossPostContext,
+} from "@/components/homepage/InstagramPreviewModal";
+import { extractPostMedia } from "@/lib/instagram/extractPostMedia";
 import {
   buildProseStyleVars,
   resolveReaderBg,
@@ -210,6 +215,12 @@ export default function PostDetails({
 
   // Markdown coin modal state
   const [isMarkdownCoinModalOpen, setIsMarkdownCoinModalOpen] = useState(false);
+
+  // Moderator-only: cross-post a mag post to @skatehive Instagram. Multiple
+  // media → carousel; single → image/Reel. Built lazily from the post body.
+  const isModerator = useIsAdmin();
+  const [isIgOpen, setIsIgOpen] = useState(false);
+  const igMediaItems = useMemo(() => extractPostMedia(post.body || ""), [post.body]);
 
   // Check if this post is eligible for coin creation
   const coinEligibility = useMemo(() => {
@@ -670,6 +681,26 @@ export default function PostDetails({
                 h="auto"
                 p={1}
               />
+              {isModerator && igMediaItems.length > 0 && (
+                <IconButton
+                  aria-label="Cross-post to Instagram"
+                  title={
+                    igMediaItems.length >= 2
+                      ? `Cross-post to Instagram (carousel · ${igMediaItems.length})`
+                      : "Cross-post to Instagram"
+                  }
+                  icon={<FaInstagram />}
+                  size="sm"
+                  variant="ghost"
+                  color="primary"
+                  onClick={() => setIsIgOpen(true)}
+                  _hover={{ bg: "transparent", color: "accent" }}
+                  fontSize="14px"
+                  minW="auto"
+                  h="auto"
+                  p={1}
+                />
+              )}
               {isAuthor && (
                 <IconButton
                   aria-label="Edit post"
@@ -942,6 +973,40 @@ export default function PostDetails({
 
       {/* Reader typography tweaks — floating FAB on post pages */}
       <PostProseTweaksPanel />
+
+      {/* Moderator: cross-post this mag post to @skatehive (carousel when
+          it has 2+ media, otherwise a single image/Reel). */}
+      {isModerator && isIgOpen && (
+        <InstagramPreviewModal
+          isOpen={isIgOpen}
+          onClose={() => setIsIgOpen(false)}
+          mode="moderator"
+          context={
+            {
+              hiveAuthor: post.author,
+              hivePermlink: post.permlink,
+              title: post.title || "",
+              body: post.body,
+              tags: postTags,
+              imageUrl:
+                igMediaItems.length >= 2
+                  ? igMediaItems.find((m) => m.type === "image")?.url ?? null
+                  : igMediaItems[0]?.type === "image"
+                  ? igMediaItems[0].url
+                  : null,
+              videoUrl:
+                igMediaItems.length < 2 && igMediaItems[0]?.type === "video"
+                  ? igMediaItems[0].url
+                  : null,
+              mediaItems: igMediaItems.length >= 2 ? igMediaItems : undefined,
+              permalinkUrl: `${
+                typeof window !== "undefined" ? window.location.origin : "https://skatehive.app"
+              }/post/${post.author}/${post.permlink}`,
+            } as CrossPostContext
+          }
+          userHandle={walletUser || effectiveUser || null}
+        />
+      )}
     </Box>
   );
 }
