@@ -4,9 +4,15 @@
  * carousel reads like the post. Deduped by URL, capped (IG allows 10).
  *
  * Sources scanned:
- *   - markdown images        ![alt](url)         → image (or video if .mp4 etc)
- *   - iframe players         <iframe src="…">     → video (IPFS / video file)
- *   - raw video URLs         https://….mp4        → video
+ *   - markdown images        ![alt](url)              → image (or video if .mp4)
+ *   - raw image URLs         https://….jpg / ?…=x.jpg → image (skatehive embeds
+ *                            IPFS photos as bare URLs, ext often in the query)
+ *   - iframe players         <iframe src="…">          → video (IPFS / video file)
+ *   - raw video URLs         https://….mp4             → video
+ *
+ * YouTube/Vimeo embeds are intentionally NOT collected — Instagram can't put a
+ * third-party video link in a carousel. A YouTube post with hosted photos still
+ * qualifies via its images.
  */
 
 export interface CarouselMediaItem {
@@ -15,6 +21,9 @@ export interface CarouselMediaItem {
 }
 
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
+// Image extension anywhere in the URL — covers `…/photo.jpg` and skatehive's
+// extensionless IPFS form `…/ipfs/<cid>?filename=skatehive.jpg`.
+const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif)\b/i;
 const isIpfs = (u: string) => /\/ipfs\/[a-z0-9]{40,}/i.test(u) || /\bipfs\./i.test(u);
 
 /** Dedupe key: same media referenced with different query strings / trailing
@@ -41,6 +50,16 @@ export function extractPostMedia(body: string, max = 10): CarouselMediaItem[] {
     const url = m[1];
     const isVid = VIDEO_EXT.test(url);
     hits.push({ pos: m.index, type: isVid ? "video" : "image", url, mdImage: !isVid });
+  }
+
+  // Raw image URLs (not wrapped in markdown) — skatehive embeds IPFS photos as
+  // bare URLs, and the extension is often in the query (?filename=…jpg).
+  const rawImgRe = /https?:\/\/[^\s"'<>)\]]+/gi;
+  while ((m = rawImgRe.exec(text))) {
+    const url = m[0];
+    if (IMAGE_EXT.test(url) && !VIDEO_EXT.test(url)) {
+      hits.push({ pos: m.index, type: "image", url, mdImage: true });
+    }
   }
 
   // Iframe players — IPFS or direct video file srcs (assumed video by convention).
