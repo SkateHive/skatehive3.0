@@ -121,6 +121,10 @@ export default function InstagramCrossPostDialog({
   const [caption, setCaption] = useState("");
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [collabInput, setCollabInput] = useState("");
+  // Carousel items the moderator has deselected (by index). Excluded items are
+  // dropped from the post — lets them remove a clip Meta would reject (e.g.
+  // unsupported aspect ratio) instead of being blocked.
+  const [excluded, setExcluded] = useState<Set<number>>(new Set());
   // Hydrate the editable fields from the preview only ONCE per open, so a
   // refetch (e.g. parent re-render) can't clobber the user's in-progress edits.
   const hydratedRef = useRef(false);
@@ -128,6 +132,13 @@ export default function InstagramCrossPostDialog({
   const carouselItems = context.mediaItems ?? [];
   const isCarousel = carouselItems.length >= 2;
   const hasMedia = !!(context.imageUrl || context.videoUrl) || isCarousel;
+  const selectedItems = carouselItems.filter((_, i) => !excluded.has(i));
+  const toggleItem = (i: number) =>
+    setExcluded((prev) => {
+      const next = new Set(prev);
+      next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
 
   const basePayload = useMemo(
     () => ({
@@ -153,6 +164,7 @@ export default function InstagramCrossPostDialog({
       setCaption("");
       setCollaborators([]);
       setCollabInput("");
+      setExcluded(new Set());
       hydratedRef.current = false;
       return;
     }
@@ -225,6 +237,19 @@ export default function InstagramCrossPostDialog({
         caption: caption.slice(0, IG_CAPTION_LIMIT),
         collaborators,
       };
+
+      // Send only the moderator-selected carousel items. If they left just one,
+      // post it as a single image/video instead of a carousel.
+      if (isCarousel) {
+        if (selectedItems.length >= 2) {
+          payload.media_items = selectedItems;
+        } else if (selectedItems.length === 1) {
+          const only = selectedItems[0];
+          delete payload.media_items;
+          payload.image_url = only.type === "image" ? only.url : null;
+          payload.video_url = only.type === "video" ? only.url : null;
+        }
+      }
 
       // Sign with the Hive posting key when there's no userbase session to
       // authorize against. Cookie-auth users skip this entirely.
@@ -310,6 +335,8 @@ export default function InstagramCrossPostDialog({
     endpoint,
     context.hiveAuthor,
     context.hivePermlink,
+    isCarousel,
+    selectedItems,
     toast,
     onClose,
     onPosted,
@@ -358,7 +385,8 @@ export default function InstagramCrossPostDialog({
               isLoadingPreview ||
               alreadyPublished ||
               captionOver ||
-              !caption.trim()
+              !caption.trim() ||
+              (isCarousel && selectedItems.length === 0)
             }
             fontFamily="mono"
             size="sm"
@@ -408,7 +436,11 @@ export default function InstagramCrossPostDialog({
                   colorScheme={isCarousel ? "green" : isReel ? "purple" : "blue"}
                   fontFamily="mono"
                 >
-                  {isCarousel ? `Carousel · ${carouselItems.length}` : isReel ? "Reel" : "Photo"}
+                  {isCarousel
+                    ? `Carousel · ${selectedItems.length}/${carouselItems.length}`
+                    : isReel
+                    ? "Reel"
+                    : "Photo"}
                 </Badge>
               </HStack>
               {preview.moderator && (
@@ -442,7 +474,12 @@ export default function InstagramCrossPostDialog({
 
             {/* Media preview */}
             {isCarousel ? (
-              // Carousel — horizontal thumbnail strip in publish order.
+              // Carousel — horizontal thumbnail strip in publish order. Tap a
+              // thumbnail to include/exclude it from the post.
+              <Box>
+              <Text fontFamily="mono" fontSize="2xs" color="dim" mb={1}>
+                tap to include / exclude
+              </Text>
               <Box
                 display="flex"
                 gap={2}
@@ -453,13 +490,16 @@ export default function InstagramCrossPostDialog({
                 {carouselItems.map((item, i) => (
                   <Box
                     key={`${item.url}-${i}`}
+                    onClick={() => toggleItem(i)}
+                    cursor="pointer"
+                    opacity={excluded.has(i) ? 0.35 : 1}
                     position="relative"
                     flex="0 0 auto"
                     w="96px"
                     h="120px"
                     bg="black"
                     border="1px solid"
-                    borderColor="border"
+                    borderColor={excluded.has(i) ? "border" : "green.400"}
                     borderRadius="md"
                     overflow="hidden"
                   >
@@ -503,8 +543,31 @@ export default function InstagramCrossPostDialog({
                     >
                       {i + 1}/{carouselItems.length}
                     </Box>
+                    {excluded.has(i) && (
+                      <Box
+                        position="absolute"
+                        inset={0}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        bg="blackAlpha.700"
+                      >
+                        <Text
+                          fontFamily="mono"
+                          fontSize="2xs"
+                          color="white"
+                          border="1px solid"
+                          borderColor="whiteAlpha.800"
+                          borderRadius="sm"
+                          px={1}
+                        >
+                          SKIP
+                        </Text>
+                      </Box>
+                    )}
                   </Box>
                 ))}
+              </Box>
               </Box>
             ) : (
               <Box bg="black" border="1px solid" borderColor="border" borderRadius="md" overflow="hidden">
