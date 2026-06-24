@@ -41,8 +41,23 @@ const TRICKS: { pattern: RegExp; tag: string }[] = [
   { pattern: /\bwall ?ride\b/, tag: "wallride" },
   { pattern: /\bmanual\b/, tag: "manual" },
   { pattern: /\bollie\b/, tag: "ollie" },
-  { pattern: /\bgrind\b/, tag: "grind" },
+  { pattern: /\bgrind(s|ing)?\b/, tag: "grind" },
 ];
+
+/** Specific grind tricks — when one matches, the generic #grind is redundant. */
+const SPECIFIC_GRINDS = new Set(["smithgrind", "nosegrind", "5050", "crooks"]);
+
+/** True when a hashtag insert already appears in the caption as a WHOLE tag
+ *  (so `#grind` isn't suppressed by `#grindday`, and `#skate` isn't suppressed
+ *  by `#skatehive`). CTAs fall back to a plain substring check. */
+function alreadyPresent(captionLower: string, insert: string, kind: SuggestionKind): boolean {
+  const ins = insert.toLowerCase();
+  if (kind === "trick" || kind === "hashtag") {
+    const escaped = ins.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`${escaped}(?![a-z0-9_])`).test(captionLower);
+  }
+  return captionLower.includes(ins);
+}
 
 /** Words that imply the clip features a spot worth tagging. */
 const SPOT_PATTERN =
@@ -69,8 +84,17 @@ export function suggestCaptionCTAs(sourceText: string, existingCaption: string):
   };
 
   // 1. Trick hashtags (highest signal — the trick is the content).
+  const matched = new Set<string>();
   for (const t of TRICKS) {
-    if (t.pattern.test(haystack)) {
+    if (t.pattern.test(haystack)) matched.add(t.tag);
+  }
+  // Drop the generic #grind when a specific grind (smith, nose, 50-50…) matched.
+  if (matched.has("grind") && [...SPECIFIC_GRINDS].some((g) => matched.has(g))) {
+    matched.delete("grind");
+  }
+  // Emit in TRICKS order so priority is stable.
+  for (const t of TRICKS) {
+    if (matched.has(t.tag)) {
       add({ id: `trick-${t.tag}`, label: `#${t.tag}`, insert: `#${t.tag}`, kind: "trick" });
     }
   }
@@ -96,9 +120,9 @@ export function suggestCaptionCTAs(sourceText: string, existingCaption: string):
   add({ id: "cta-tag", label: "Tag a friend", insert: "Tag someone who'd send this 👇", kind: "cta" });
   add({ id: "cta-comment", label: "Comment CTA", insert: "Drop a 🛹 if this was clean.", kind: "cta" });
 
-  // Drop anything already in the caption, cap the list.
+  // Drop anything already in the caption (whole-tag match for hashtags), cap.
   const cap = (existingCaption || "").toLowerCase();
-  return out.filter((s) => !cap.includes(s.insert.toLowerCase())).slice(0, MAX_SUGGESTIONS);
+  return out.filter((s) => !alreadyPresent(cap, s.insert, s.kind)).slice(0, MAX_SUGGESTIONS);
 }
 
 /** Append a suggestion to a caption: hashtags inline, CTAs on their own line. */

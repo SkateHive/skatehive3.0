@@ -18,7 +18,7 @@
  * on open would often expire before the user clicks Post).
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   AlertIcon,
@@ -45,6 +45,7 @@ import { KeyTypes } from "@aioha/aioha";
 import { FaInstagram, FaPlus } from "react-icons/fa";
 import SkateModal from "@/components/shared/SkateModal";
 import { suggestCaptionCTAs, appendSuggestion } from "@/lib/instagram/captionSuggestions";
+import type { CarouselMediaItem } from "@/lib/instagram/extractPostMedia";
 
 const IG_CAPTION_LIMIT = 2200;
 const MAX_COLLABORATORS = 3;
@@ -59,13 +60,16 @@ export interface CrossPostContext {
   imageUrl: string | null;
   videoUrl: string | null;
   permalinkUrl: string;
+  /** Ordered media for a CAROUSEL post (mag posts). 2+ items → carousel. */
+  mediaItems?: CarouselMediaItem[];
 }
 
 interface PreviewData {
   caption: string;
   image_url: string | null;
   video_url: string | null;
-  media_type: "IMAGE" | "REELS";
+  media_type: "IMAGE" | "REELS" | "CAROUSEL";
+  media_count?: number;
   ig_handle: string | null;
   default_collaborators?: string[];
   target_account: string;
@@ -117,8 +121,13 @@ export default function InstagramCrossPostDialog({
   const [caption, setCaption] = useState("");
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [collabInput, setCollabInput] = useState("");
+  // Hydrate the editable fields from the preview only ONCE per open, so a
+  // refetch (e.g. parent re-render) can't clobber the user's in-progress edits.
+  const hydratedRef = useRef(false);
 
-  const hasMedia = !!(context.imageUrl || context.videoUrl);
+  const carouselItems = context.mediaItems ?? [];
+  const isCarousel = carouselItems.length >= 2;
+  const hasMedia = !!(context.imageUrl || context.videoUrl) || isCarousel;
 
   const basePayload = useMemo(
     () => ({
@@ -130,8 +139,9 @@ export default function InstagramCrossPostDialog({
       image_url: context.imageUrl,
       video_url: context.videoUrl,
       permalink_url: context.permalinkUrl,
+      ...(isCarousel ? { media_items: context.mediaItems } : {}),
     }),
-    [context]
+    [context, isCarousel]
   );
 
   // ── Fetch the server-built preview when the dialog opens ────────────
@@ -143,6 +153,7 @@ export default function InstagramCrossPostDialog({
       setCaption("");
       setCollaborators([]);
       setCollabInput("");
+      hydratedRef.current = false;
       return;
     }
     if (!hasMedia) {
@@ -172,8 +183,13 @@ export default function InstagramCrossPostDialog({
         }
         const p = data as PreviewData;
         setPreview(p);
-        setCaption(p.caption || "");
-        setCollaborators(Array.isArray(p.default_collaborators) ? p.default_collaborators : []);
+        // Only hydrate the editable fields the first time — never overwrite
+        // edits the user has already made if the preview refetches.
+        if (!hydratedRef.current) {
+          setCaption(p.caption || "");
+          setCollaborators(Array.isArray(p.default_collaborators) ? p.default_collaborators : []);
+          hydratedRef.current = true;
+        }
       } catch (err: any) {
         if (!cancelled) setPreviewError(err?.message || "Preview request failed");
       } finally {
@@ -388,8 +404,11 @@ export default function InstagramCrossPostDialog({
                     {preview.target_account}
                   </Text>
                 </Text>
-                <Badge colorScheme={isReel ? "purple" : "blue"} fontFamily="mono">
-                  {isReel ? "Reel" : "Photo"}
+                <Badge
+                  colorScheme={isCarousel ? "green" : isReel ? "purple" : "blue"}
+                  fontFamily="mono"
+                >
+                  {isCarousel ? `Carousel · ${carouselItems.length}` : isReel ? "Reel" : "Photo"}
                 </Badge>
               </HStack>
               {preview.moderator && (
@@ -422,28 +441,95 @@ export default function InstagramCrossPostDialog({
             )}
 
             {/* Media preview */}
-            <Box bg="black" border="1px solid" borderColor="border" borderRadius="md" overflow="hidden">
-              {isReel && mediaUrl ? (
-                <AspectRatio ratio={4 / 5}>
-                  <video src={mediaUrl} controls playsInline style={{ objectFit: "contain", background: "#000" }} />
-                </AspectRatio>
-              ) : mediaUrl ? (
-                <AspectRatio ratio={4 / 5}>
-                  <ChakraImage
-                    src={mediaUrl}
-                    alt={`Cross-post by @${context.hiveAuthor}`}
-                    objectFit="contain"
+            {isCarousel ? (
+              // Carousel — horizontal thumbnail strip in publish order.
+              <Box
+                display="flex"
+                gap={2}
+                overflowX="auto"
+                py={1}
+                css={{ scrollSnapType: "x mandatory" }}
+              >
+                {carouselItems.map((item, i) => (
+                  <Box
+                    key={`${item.url}-${i}`}
+                    position="relative"
+                    flex="0 0 auto"
+                    w="96px"
+                    h="120px"
                     bg="black"
-                  />
-                </AspectRatio>
-              ) : (
-                <Center py={10}>
-                  <Text fontFamily="mono" fontSize="sm" color="dim">
-                    no media
-                  </Text>
-                </Center>
-              )}
-            </Box>
+                    border="1px solid"
+                    borderColor="border"
+                    borderRadius="md"
+                    overflow="hidden"
+                  >
+                    {item.type === "video" ? (
+                      <>
+                        <video
+                          src={item.url}
+                          muted
+                          playsInline
+                          preload="metadata"
+                          style={{ width: "100%", height: "100%", objectFit: "cover", background: "#000" }}
+                        />
+                        <Box
+                          position="absolute"
+                          top="2px"
+                          right="3px"
+                          fontSize="10px"
+                          color="white"
+                          textShadow="0 0 3px #000"
+                        >
+                          ▶
+                        </Box>
+                      </>
+                    ) : (
+                      <ChakraImage
+                        src={item.url}
+                        alt={`item ${i + 1}`}
+                        w="100%"
+                        h="100%"
+                        objectFit="cover"
+                      />
+                    )}
+                    <Box
+                      position="absolute"
+                      bottom="2px"
+                      left="3px"
+                      fontFamily="mono"
+                      fontSize="9px"
+                      color="white"
+                      textShadow="0 0 3px #000"
+                    >
+                      {i + 1}/{carouselItems.length}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Box bg="black" border="1px solid" borderColor="border" borderRadius="md" overflow="hidden">
+                {isReel && mediaUrl ? (
+                  <AspectRatio ratio={4 / 5}>
+                    <video src={mediaUrl} controls playsInline style={{ objectFit: "contain", background: "#000" }} />
+                  </AspectRatio>
+                ) : mediaUrl ? (
+                  <AspectRatio ratio={4 / 5}>
+                    <ChakraImage
+                      src={mediaUrl}
+                      alt={`Cross-post by @${context.hiveAuthor}`}
+                      objectFit="contain"
+                      bg="black"
+                    />
+                  </AspectRatio>
+                ) : (
+                  <Center py={10}>
+                    <Text fontFamily="mono" fontSize="sm" color="dim">
+                      no media
+                    </Text>
+                  </Center>
+                )}
+              </Box>
+            )}
 
             {/* Editable caption */}
             <Box>

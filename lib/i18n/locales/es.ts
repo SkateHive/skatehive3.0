@@ -59,6 +59,8 @@ export const es = {
     authenticationFailed: 'Autenticación fallida',
     connectionFailed: 'Conexión Fallida',
     connectedSuccess: '¡Conectado exitosamente!',
+    welcome: 'Bienvenido,',
+    farcasterAuthFailed: 'Error al autenticar con Farcaster',
   },
   signIn: {
     title: 'Iniciar sesión',
@@ -1253,6 +1255,11 @@ export const es = {
     another: 'otro',
     nearYou: 'cerca de ti',
     useMyLocation: 'usar mi ubicación',
+  },
+  globalError: {
+    bailDetected: 'Caída detectada',
+    gettingBackUp: 'Levantándose...',
+    tryAgain: 'Intentar de nuevo',
   },
   errorToast: {
     reportBug: 'Reportar bug',

@@ -59,6 +59,8 @@ export const en = {
     authenticationFailed: 'Authentication failed',
     connectionFailed: 'Connection Failed',
     connectedSuccess: 'Connected successfully!',
+    welcome: 'Welcome,',
+    farcasterAuthFailed: 'Failed to authenticate with Farcaster',
   },
   signIn: {
     title: 'Sign in',
@@ -1236,6 +1238,11 @@ export const en = {
     another: 'another',
     nearYou: 'near you',
     useMyLocation: 'use my location',
+  },
+  globalError: {
+    bailDetected: 'Bail detected',
+    gettingBackUp: 'Getting back up...',
+    tryAgain: 'Try again',
   },
   errorToast: {
     reportBug: 'Report bug',

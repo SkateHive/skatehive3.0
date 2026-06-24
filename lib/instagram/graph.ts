@@ -200,6 +200,86 @@ export async function publishReelToInstagram(input: PublishReelInput): Promise<P
   return { success: true, containerId, mediaId, permalink };
 }
 
+export type CarouselItem = { imageUrl?: string; videoUrl?: string };
+
+/**
+ * Publish a CAROUSEL (2–10 mixed image/video items) to @skatehive.
+ *
+ * Three phases per Meta's docs:
+ *   1. create a child container per item (is_carousel_item=true; videos use
+ *      media_type=VIDEO and must finish processing before step 2)
+ *   2. create the parent container (media_type=CAROUSEL, children=<csv ids>,
+ *      caption, collaborators)
+ *   3. publish the parent
+ *
+ * `collaborators` on a carousel parent isn't officially documented; we still
+ * send it and the caller retries without it on collaborator-specific errors.
+ */
+export async function publishCarouselToInstagram(input: {
+  items: CarouselItem[];
+  caption: string;
+  collaborators?: string[];
+}): Promise<PublishResult> {
+  const cfg = getConfig();
+  if (!cfg.ok) return { success: false, error: cfg.error };
+
+  const items = input.items.filter((i) => i.imageUrl || i.videoUrl).slice(0, 10);
+  if (items.length < 2) {
+    return { success: false, error: "A carousel needs at least 2 media items." };
+  }
+
+  // Phase 1: child containers (poll video children until FINISHED).
+  const childIds: string[] = [];
+  for (const it of items) {
+    const childRes = await graphFetch(`/${cfg.igUserId}/media`, {
+      method: "POST",
+      searchParams: it.videoUrl
+        ? { media_type: "VIDEO", video_url: it.videoUrl, is_carousel_item: "true" }
+        : { image_url: it.imageUrl as string, is_carousel_item: "true" },
+    });
+    if (!childRes.ok || !childRes.data?.id) {
+      return { success: false, error: fbError(childRes.data, "Failed to create a carousel item.") };
+    }
+    const childId: string = childRes.data.id;
+    if (it.videoUrl) {
+      const ready = await waitForContainerReady(childId, 180_000, 4000);
+      if (!ready.ok) return { success: false, error: ready.error };
+    }
+    childIds.push(childId);
+  }
+
+  // Phase 2: parent carousel container.
+  const parentRes = await graphFetch(`/${cfg.igUserId}/media`, {
+    method: "POST",
+    searchParams: {
+      media_type: "CAROUSEL",
+      children: childIds.join(","),
+      caption: input.caption,
+      ...collaboratorParam(input.collaborators),
+    },
+  });
+  if (!parentRes.ok || !parentRes.data?.id) {
+    return { success: false, error: fbError(parentRes.data, "Failed to create carousel container.") };
+  }
+  const containerId: string = parentRes.data.id;
+
+  // A carousel with video children may still be assembling — poll before publish.
+  const ready = await waitForContainerReady(containerId, 60_000, 2000);
+  if (!ready.ok) return { success: false, error: ready.error };
+
+  // Phase 3: publish.
+  const publishRes = await graphFetch(`/${cfg.igUserId}/media_publish`, {
+    method: "POST",
+    searchParams: { creation_id: containerId },
+  });
+  if (!publishRes.ok || !publishRes.data?.id) {
+    return { success: false, error: fbError(publishRes.data, "Failed to publish carousel.") };
+  }
+  const mediaId: string = publishRes.data.id;
+  const permalink = await fetchPermalink(mediaId);
+  return { success: true, containerId, mediaId, permalink };
+}
+
 export function isInstagramConfigured(): boolean {
   return getConfig().ok;
 }

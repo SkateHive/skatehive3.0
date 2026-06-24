@@ -59,6 +59,8 @@ export const lg = {
     authenticationFailed: 'Okukkiriza Byetagganya',
     connectionFailed: 'Okukoboka Byetagganya',
     connectedSuccess: 'Okukoboka Okukola Bulungi!',
+    welcome: 'Tukwanirizza,',
+    farcasterAuthFailed: 'Failed to authenticate with Farcaster',
   },
   signIn: {
     title: 'Kwingira',
@@ -1252,6 +1254,11 @@ export const lg = {
     another: 'ekirala',
     nearYou: 'ekiri kumpi',
     useMyLocation: 'kozesa we ndi',
+  },
+  globalError: {
+    bailDetected: 'Okugwa kwatondebwa',
+    gettingBackUp: 'Tugenda okunzita nate...',
+    tryAgain: 'Gezaako nate',
   },
   errorToast: {
     reportBug: 'Babaza bug',

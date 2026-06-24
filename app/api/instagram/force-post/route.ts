@@ -4,6 +4,7 @@ import {
   isInstagramConfigured,
   publishImageToInstagram,
   publishReelToInstagram,
+  publishCarouselToInstagram,
 } from "@/lib/instagram/graph";
 import { buildInstagramCaption } from "@/lib/instagram/caption";
 import { resolveIgHandleForCaption } from "@/lib/instagram/resolveIgHandle";
@@ -189,19 +190,31 @@ export async function POST(request: NextRequest) {
     ? body.tags.filter((t: unknown): t is string => typeof t === "string")
     : [];
 
+  // Optional carousel: an ordered list of {type, url}. 2+ items → CAROUSEL.
+  const mediaItems: { type: "image" | "video"; url: string }[] = Array.isArray(body?.media_items)
+    ? body.media_items
+        .filter(
+          (it: any) =>
+            it && typeof it.url === "string" && (it.type === "image" || it.type === "video")
+        )
+        .map((it: any) => ({ type: it.type as "image" | "video", url: it.url.trim() }))
+        .slice(0, 10)
+    : [];
+  const isCarousel = mediaItems.length >= 2;
+
   if (!hiveAuthor || !hivePermlink || !permalinkUrl) {
     return NextResponse.json(
       { error: "Missing required fields (hive_author, hive_permlink, permalink_url)." },
       { status: 400 }
     );
   }
-  if (!imageUrl && !videoUrl) {
+  if (!imageUrl && !videoUrl && !isCarousel) {
     return NextResponse.json(
-      { error: "Force cross-post requires an image_url or video_url." },
+      { error: "Force cross-post requires an image_url, video_url, or media_items." },
       { status: 400 }
     );
   }
-  for (const url of [imageUrl, videoUrl].filter(Boolean)) {
+  for (const url of [imageUrl, videoUrl, ...mediaItems.map((m) => m.url)].filter(Boolean)) {
     try {
       const u = new URL(url);
       if (u.protocol !== "https:" && u.protocol !== "http:") throw new Error("bad protocol");
@@ -263,7 +276,11 @@ export async function POST(request: NextRequest) {
         igHandle,
       });
 
-  const mediaType: "IMAGE" | "REELS" = videoUrl ? "REELS" : "IMAGE";
+  const mediaType: "IMAGE" | "REELS" | "CAROUSEL" = isCarousel
+    ? "CAROUSEL"
+    : videoUrl
+    ? "REELS"
+    : "IMAGE";
 
   // --- Preview path: return everything the client needs to render the
   // dialog (caption text built server-side so the user sees EXACTLY what
@@ -294,6 +311,7 @@ export async function POST(request: NextRequest) {
       image_url: imageUrl || null,
       video_url: videoUrl || null,
       media_type: mediaType,
+      media_count: isCarousel ? mediaItems.length : undefined,
       ig_handle: igHandle ?? null,
       default_collaborators: igHandle ? [igHandle] : [],
       target_account: "@skatehive",
@@ -366,16 +384,33 @@ export async function POST(request: NextRequest) {
     : igHandle
     ? [igHandle]
     : undefined;
-  let publishResult = videoUrl
-    ? await publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined, collaborators })
-    : await publishImageToInstagram({ imageUrl, caption, collaborators });
-  let collaboratorRetryError: string | null = null;
+  const carouselItems = mediaItems.map((m) =>
+    m.type === "video" ? { videoUrl: m.url } : { imageUrl: m.url }
+  );
+  // Single publish helper so the collaborator-retry doesn't duplicate the
+  // image / reel / carousel branching.
+  const doPublish = (collab: string[] | undefined) =>
+    isCarousel
+      ? publishCarouselToInstagram({ items: carouselItems, caption, collaborators: collab })
+      : videoUrl
+      ? publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined, collaborators: collab })
+      : publishImageToInstagram({ imageUrl, caption, collaborators: collab });
 
-  if (!publishResult.success && collaborators && isCollaboratorVisibilityError(publishResult.error)) {
+  let publishResult = await doPublish(collaborators);
+  let collaboratorRetryError: string | null = null;
+  // Retry without the collaborator invite when it's the likely culprit. For a
+  // CAROUSEL the `collaborators` param is undocumented and Meta may reject it
+  // with a generic "Invalid parameter" that isCollaboratorVisibilityError
+  // won't match — so for carousels we retry on ANY failure when collaborators
+  // were sent. (Image/Reel keep the targeted visibility-error check.)
+  if (
+    !publishResult.success &&
+    collaborators &&
+    collaborators.length > 0 &&
+    (isCarousel || isCollaboratorVisibilityError(publishResult.error))
+  ) {
     collaboratorRetryError = publishResult.error;
-    publishResult = videoUrl
-      ? await publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined })
-      : await publishImageToInstagram({ imageUrl, caption });
+    publishResult = await doPublish(undefined);
   }
 
   if (!publishResult.success) {

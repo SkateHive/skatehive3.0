@@ -59,6 +59,8 @@ export const ptBR = {
     authenticationFailed: 'Autenticação falhou',
     connectionFailed: 'Conexão Falhou',
     connectedSuccess: 'Conectado com sucesso!',
+    welcome: 'Bem-vindo,',
+    farcasterAuthFailed: 'Falha ao autenticar com Farcaster',
   },
   signIn: {
     title: 'Entrar',
@@ -1254,6 +1256,11 @@ export const ptBR = {
     another: 'outro',
     nearYou: 'perto de você',
     useMyLocation: 'usar minha localização',
+  },
+  globalError: {
+    bailDetected: 'Queda detectada',
+    gettingBackUp: 'Levantando...',
+    tryAgain: 'Tentar novamente',
   },
   errorToast: {
     reportBug: 'Reportar bug',

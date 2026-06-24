@@ -55,6 +55,8 @@ export interface TranslationSchema {
     authenticationFailed: string;
     connectionFailed: string;
     connectedSuccess: string;
+    welcome: string;
+    farcasterAuthFailed: string;
   };
   signIn: {
     title: string;
