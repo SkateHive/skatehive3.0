@@ -440,5 +440,10 @@ export async function POST(request: NextRequest) {
     ig_media_id: publishResult.mediaId,
     ig_permalink: publishResult.permalink || null,
     forced_by: moderatorHandle,
+    // Items Meta rejected (e.g. unsupported aspect ratio) that we dropped so the
+    // rest of the carousel could still post.
+    ...(publishResult.skipped && publishResult.skipped.length
+      ? { skipped: publishResult.skipped }
+      : {}),
   });
 }

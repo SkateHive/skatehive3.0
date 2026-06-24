@@ -41,7 +41,7 @@ type PublishReelInput = {
 };
 
 export type PublishResult =
-  | { success: true; containerId: string; mediaId: string; permalink?: string }
+  | { success: true; containerId: string; mediaId: string; permalink?: string; skipped?: string[] }
   | { success: false; error: string };
 
 async function graphFetch(
@@ -224,13 +224,18 @@ export async function publishCarouselToInstagram(input: {
   if (!cfg.ok) return { success: false, error: cfg.error };
 
   const items = input.items.filter((i) => i.imageUrl || i.videoUrl).slice(0, 10);
-  if (items.length < 2) {
-    return { success: false, error: "A carousel needs at least 2 media items." };
+  if (items.length === 0) {
+    return { success: false, error: "No media items to post." };
   }
 
-  // Phase 1: child containers (poll video children until FINISHED).
+  // Phase 1: child containers. SKIP items Meta rejects (e.g. "aspect ratio not
+  // supported", unfetchable media) instead of failing the whole carousel —
+  // collect the valid ones and note what was dropped.
   const childIds: string[] = [];
+  const validItems: CarouselItem[] = [];
+  const skipped: string[] = [];
   for (const it of items) {
+    const label = (it.videoUrl || it.imageUrl || "item").split("/").pop() || "item";
     const childRes = await graphFetch(`/${cfg.igUserId}/media`, {
       method: "POST",
       searchParams: it.videoUrl
@@ -238,14 +243,32 @@ export async function publishCarouselToInstagram(input: {
         : { image_url: it.imageUrl as string, is_carousel_item: "true" },
     });
     if (!childRes.ok || !childRes.data?.id) {
-      return { success: false, error: fbError(childRes.data, "Failed to create a carousel item.") };
+      skipped.push(`${label}: ${fbError(childRes.data, "rejected")}`);
+      continue;
     }
     const childId: string = childRes.data.id;
     if (it.videoUrl) {
       const ready = await waitForContainerReady(childId, 180_000, 4000);
-      if (!ready.ok) return { success: false, error: ready.error };
+      if (!ready.ok) {
+        skipped.push(`${label}: ${ready.error}`);
+        continue;
+      }
     }
     childIds.push(childId);
+    validItems.push(it);
+  }
+
+  if (childIds.length === 0) {
+    return { success: false, error: `All carousel items were rejected. ${skipped.join("; ")}` };
+  }
+  // Only one valid item left → a carousel needs 2+, so publish it as a single
+  // post instead of failing.
+  if (childIds.length === 1) {
+    const only = validItems[0];
+    const single = only.videoUrl
+      ? await publishReelToInstagram({ videoUrl: only.videoUrl, caption: input.caption, collaborators: input.collaborators })
+      : await publishImageToInstagram({ imageUrl: only.imageUrl as string, caption: input.caption, collaborators: input.collaborators });
+    return single.success ? { ...single, skipped } : single;
   }
 
   // Phase 2: parent carousel container.
@@ -277,7 +300,7 @@ export async function publishCarouselToInstagram(input: {
   }
   const mediaId: string = publishRes.data.id;
   const permalink = await fetchPermalink(mediaId);
-  return { success: true, containerId, mediaId, permalink };
+  return { success: true, containerId, mediaId, permalink, skipped };
 }
 
 export function isInstagramConfigured(): boolean {
