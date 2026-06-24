@@ -15,9 +15,43 @@
  * qualifies via its images.
  */
 
+import { APP_CONFIG } from "@/config/app.config";
+
 export interface CarouselMediaItem {
   type: "image" | "video";
   url: string;
+}
+
+// Meta fetches each media_url server-side (facebookexternalhit). Public IPFS
+// gateways (gateway.pinata.cloud, ipfs.io, cloudflare-ipfs) rate-limit or block
+// that UA, so a video embedded in a blog/magazine post via a public gateway
+// fails to fetch ("Media could not be fetched") while images that happen to be
+// on the SkateHive dedicated gateway succeed — the carousel then drops the
+// video and posts images only. We rewrite EVERY IPFS URL to the SkateHive
+// gateway (hardcoded, not the env-overridable IPFS_GATEWAY) since that's the
+// one verified to serve Meta. Non-IPFS URLs (other CDNs) are left untouched.
+const SKATEHIVE_GATEWAY = APP_CONFIG.PINATA_GATEWAY; // 'ipfs.skatehive.app'
+
+function toSkatehiveGateway(url: string): string {
+  // path form: …/ipfs/<cid>[/subpath]
+  let cid = "";
+  let subpath = "";
+  const pathMatch = url.match(/\/ipfs\/([a-zA-Z0-9]+)((?:\/[^?#\s]*)?)/);
+  if (pathMatch) {
+    cid = pathMatch[1];
+    subpath = pathMatch[2] || "";
+  } else {
+    // subdomain form: https://<cid>.ipfs.<host>/<subpath>
+    const subMatch = url.match(/https?:\/\/([a-z0-9]+)\.ipfs\.[^/?#\s]+((?:\/[^?#\s]*)?)/i);
+    if (subMatch) {
+      cid = subMatch[1];
+      subpath = subMatch[2] || "";
+    }
+  }
+  if (!cid) return url; // not an IPFS URL — leave it as-is
+  // Drop the query entirely: the bare CID serves the correct content-type, and
+  // any gateway-specific params (e.g. ?pinataGatewayToken) must not carry over.
+  return `https://${SKATEHIVE_GATEWAY}/ipfs/${cid}${subpath}`;
 }
 
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
@@ -92,8 +126,10 @@ export function extractPostMedia(body: string, max = 10): CarouselMediaItem[] {
     }
   }
 
+  // Classification used the original URL (extension often lives in the query);
+  // normalize the OUTPUT url to the SkateHive gateway so Meta can fetch it.
   return Array.from(groups.values())
     .sort((a, b) => a.pos - b.pos)
     .slice(0, max)
-    .map(({ type, url }) => ({ type, url }));
+    .map(({ type, url }) => ({ type, url: toSkatehiveGateway(url) }));
 }

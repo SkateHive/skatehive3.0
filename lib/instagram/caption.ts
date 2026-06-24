@@ -17,16 +17,63 @@ const DEFAULT_HASHTAGS = [
   "skatelife",
 ];
 
+function fromCode(code: number): string {
+  try {
+    return Number.isFinite(code) && code > 0 ? String.fromCodePoint(code) : "";
+  } catch {
+    return "";
+  }
+}
+
+// Decode the HTML entities that actually show up in Hive post bodies.
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&mdash;/gi, "—")
+    .replace(/&ndash;/gi, "–")
+    .replace(/&hellip;/gi, "…")
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => fromCode(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => fromCode(parseInt(d, 10)));
+}
+
+/**
+ * Reduce a Hive post body (markdown + embedded HTML) to clean plain text for an
+ * IG caption. Hive bodies routinely contain raw HTML (`<center>`, `<h1>`,
+ * `<a href>`, `<img src=ipfs…>`) and bare media URLs that IG can't render — we
+ * strip all of that and keep only the human-readable words (incl. link text).
+ */
 function markdownToPlainText(md: string): string {
-  return md
-    .replace(/<iframe[\s\S]*?<\/iframe>/gi, "")
+  let s = md;
+  // 1. HTML we never want as text: comments, embeds (with their content), and
+  //    void media tags (img/br/hr → space). Drops the ipfs/src URLs entirely.
+  s = s
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<(script|style|iframe|video|audio)\b[\s\S]*?<\/\1>/gi, "")
+    .replace(/<(?:img|br|hr|source|embed)\b[^>]*\/?>/gi, " ");
+  // 2. Markdown embeds/links → keep alt/anchor text only.
+  s = s
     .replace(/```[\s\S]*?```/g, "")
     .replace(/`([^`]+)`/g, "$1")
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/[*_~>#]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
+  // 3. Block close-tags → space (preserve word breaks), then drop every
+  //    remaining tag. `<a href="…">text</a>` becomes just `text`.
+  s = s
+    .replace(/<\/(?:p|div|h[1-6]|li|ul|ol|center|blockquote|tr|table|section)>/gi, " ")
+    .replace(/<[^>]+>/g, "");
+  // 4. Decode entities now that the tags are gone.
+  s = decodeEntities(s);
+  // 5. Bare URLs are never clickable on IG — strip them as noise.
+  s = s.replace(/\bhttps?:\/\/[^\s)]+/gi, "");
+  // 6. Leftover markdown markers (emphasis, headings, quotes, table pipes).
+  s = s.replace(/[*_~>#|]/g, "");
+  // 7. Collapse whitespace.
+  return s.replace(/\s+/g, " ").trim();
 }
 
 function normalizeTag(raw: string): string | null {

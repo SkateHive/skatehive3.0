@@ -69,6 +69,61 @@ function fbError(data: any, fallback: string): string {
   return data?.error?.message || data?.error_user_msg || fallback;
 }
 
+// Meta transient errors → worth retrying the same call after a short backoff.
+// 2207077 "Media could not be fetched" usually means a freshly-pinned CID isn't
+// warm on the gateway yet; code 1/2 "unexpected error, please retry" and 5xx
+// are Meta-side blips. Permanent media errors (aspect ratio, format) are NOT
+// transient and fail fast.
+function isTransientError(error: string | undefined): boolean {
+  return /could not be fetched|2207077|unexpected error|please (?:try again|retry)|temporar|timeout|timed out/i.test(
+    error || ""
+  );
+}
+
+const TRANSIENT_TRIES = 3;
+const TRANSIENT_BASE_DELAY_MS = 2000;
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// POST /media (container create) with bounded retry on transient errors.
+async function createContainerWithRetry(
+  igUserId: string,
+  searchParams: Record<string, string>,
+  fallbackMsg: string
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  let error = fallbackMsg;
+  for (let i = 0; i < TRANSIENT_TRIES; i++) {
+    const res = await graphFetch(`/${igUserId}/media`, { method: "POST", searchParams });
+    if (res.ok && res.data?.id) return { ok: true, id: res.data.id };
+    error = fbError(res.data, fallbackMsg);
+    if (!isTransientError(error) || i === TRANSIENT_TRIES - 1) break;
+    await sleep(TRANSIENT_BASE_DELAY_MS * (i + 1)); // 2s, then 4s — lets a fresh CID warm up
+  }
+  return { ok: false, error };
+}
+
+// POST /media_publish with bounded retry on transient errors.
+async function publishContainerWithRetry(
+  igUserId: string,
+  containerId: string,
+  fallbackMsg: string
+): Promise<PublishResult> {
+  let error = fallbackMsg;
+  for (let i = 0; i < TRANSIENT_TRIES; i++) {
+    const res = await graphFetch(`/${igUserId}/media_publish`, {
+      method: "POST",
+      searchParams: { creation_id: containerId },
+    });
+    if (res.ok && res.data?.id) {
+      const mediaId: string = res.data.id;
+      return { success: true, containerId, mediaId, permalink: await fetchPermalink(mediaId) };
+    }
+    error = fbError(res.data, fallbackMsg);
+    if (!isTransientError(error) || i === TRANSIENT_TRIES - 1) break;
+    await sleep(TRANSIENT_BASE_DELAY_MS * (i + 1));
+  }
+  return { success: false, error };
+}
+
 /**
  * Build the `collaborators` search param for media-container creation.
  *
@@ -128,35 +183,20 @@ export async function publishImageToInstagram(input: PublishImageInput): Promise
   const cfg = getConfig();
   if (!cfg.ok) return { success: false, error: cfg.error };
 
-  // Step 1: create container
-  const containerRes = await graphFetch(`/${cfg.igUserId}/media`, {
-    method: "POST",
-    searchParams: {
-      image_url: input.imageUrl,
-      caption: input.caption,
-      ...collaboratorParam(input.collaborators),
-    },
-  });
-  if (!containerRes.ok || !containerRes.data?.id) {
-    return { success: false, error: fbError(containerRes.data, "Failed to create IG media container.") };
-  }
-  const containerId: string = containerRes.data.id;
+  // Step 1: create container (retries transient Meta errors)
+  const created = await createContainerWithRetry(
+    cfg.igUserId,
+    { image_url: input.imageUrl, caption: input.caption, ...collaboratorParam(input.collaborators) },
+    "Failed to create IG media container."
+  );
+  if (!created.ok) return { success: false, error: created.error };
 
   // Step 2: wait for FINISHED — short timeout because images normally finish in 1-5s
-  const ready = await waitForContainerReady(containerId, 30_000, 1500);
+  const ready = await waitForContainerReady(created.id, 30_000, 1500);
   if (!ready.ok) return { success: false, error: ready.error };
 
-  // Step 3: publish
-  const publishRes = await graphFetch(`/${cfg.igUserId}/media_publish`, {
-    method: "POST",
-    searchParams: { creation_id: containerId },
-  });
-  if (!publishRes.ok || !publishRes.data?.id) {
-    return { success: false, error: fbError(publishRes.data, "Failed to publish IG media.") };
-  }
-  const mediaId: string = publishRes.data.id;
-  const permalink = await fetchPermalink(mediaId);
-  return { success: true, containerId, mediaId, permalink };
+  // Step 3: publish (retries transient Meta errors)
+  return publishContainerWithRetry(cfg.igUserId, created.id, "Failed to publish IG media.");
 }
 
 /**
@@ -169,35 +209,24 @@ export async function publishReelToInstagram(input: PublishReelInput): Promise<P
   const cfg = getConfig();
   if (!cfg.ok) return { success: false, error: cfg.error };
 
-  const containerRes = await graphFetch(`/${cfg.igUserId}/media`, {
-    method: "POST",
-    searchParams: {
+  const created = await createContainerWithRetry(
+    cfg.igUserId,
+    {
       media_type: "REELS",
       video_url: input.videoUrl,
       caption: input.caption,
       ...(input.coverUrl ? { cover_url: input.coverUrl } : {}),
       ...collaboratorParam(input.collaborators),
     },
-  });
-  if (!containerRes.ok || !containerRes.data?.id) {
-    return { success: false, error: fbError(containerRes.data, "Failed to create IG Reel container.") };
-  }
-  const containerId: string = containerRes.data.id;
+    "Failed to create IG Reel container."
+  );
+  if (!created.ok) return { success: false, error: created.error };
 
   // Reels can take up to ~2 minutes (encode + checks). Poll status_code.
-  const ready = await waitForContainerReady(containerId, 180_000, 4000);
+  const ready = await waitForContainerReady(created.id, 180_000, 4000);
   if (!ready.ok) return { success: false, error: ready.error };
 
-  const publishRes = await graphFetch(`/${cfg.igUserId}/media_publish`, {
-    method: "POST",
-    searchParams: { creation_id: containerId },
-  });
-  if (!publishRes.ok || !publishRes.data?.id) {
-    return { success: false, error: fbError(publishRes.data, "Failed to publish IG Reel.") };
-  }
-  const mediaId: string = publishRes.data.id;
-  const permalink = await fetchPermalink(mediaId);
-  return { success: true, containerId, mediaId, permalink };
+  return publishContainerWithRetry(cfg.igUserId, created.id, "Failed to publish IG Reel.");
 }
 
 export type CarouselItem = { imageUrl?: string; videoUrl?: string };
@@ -236,17 +265,18 @@ export async function publishCarouselToInstagram(input: {
   const skipped: string[] = [];
   for (const it of items) {
     const label = (it.videoUrl || it.imageUrl || "item").split("/").pop() || "item";
-    const childRes = await graphFetch(`/${cfg.igUserId}/media`, {
-      method: "POST",
-      searchParams: it.videoUrl
+    const created = await createContainerWithRetry(
+      cfg.igUserId,
+      it.videoUrl
         ? { media_type: "VIDEO", video_url: it.videoUrl, is_carousel_item: "true" }
         : { image_url: it.imageUrl as string, is_carousel_item: "true" },
-    });
-    if (!childRes.ok || !childRes.data?.id) {
-      skipped.push(`${label}: ${fbError(childRes.data, "rejected")}`);
+      "rejected"
+    );
+    if (!created.ok) {
+      skipped.push(`${label}: ${created.error}`);
       continue;
     }
-    const childId: string = childRes.data.id;
+    const childId: string = created.id;
     if (it.videoUrl) {
       const ready = await waitForContainerReady(childId, 180_000, 4000);
       if (!ready.ok) {
@@ -290,17 +320,9 @@ export async function publishCarouselToInstagram(input: {
   const ready = await waitForContainerReady(containerId, 60_000, 2000);
   if (!ready.ok) return { success: false, error: ready.error };
 
-  // Phase 3: publish.
-  const publishRes = await graphFetch(`/${cfg.igUserId}/media_publish`, {
-    method: "POST",
-    searchParams: { creation_id: containerId },
-  });
-  if (!publishRes.ok || !publishRes.data?.id) {
-    return { success: false, error: fbError(publishRes.data, "Failed to publish carousel.") };
-  }
-  const mediaId: string = publishRes.data.id;
-  const permalink = await fetchPermalink(mediaId);
-  return { success: true, containerId, mediaId, permalink, skipped };
+  // Phase 3: publish (retries transient Meta errors). Preserve the skipped list.
+  const published = await publishContainerWithRetry(cfg.igUserId, containerId, "Failed to publish carousel.");
+  return published.success ? { ...published, skipped } : published;
 }
 
 export function isInstagramConfigured(): boolean {

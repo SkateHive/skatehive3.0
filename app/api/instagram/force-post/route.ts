@@ -435,6 +435,10 @@ export async function POST(request: NextRequest) {
     })
     .eq("id", queuedId);
 
+  if (publishResult.skipped && publishResult.skipped.length) {
+    console.warn("[ig-force-post] carousel items skipped:", publishResult.skipped);
+  }
+
   return NextResponse.json({
     success: true,
     ig_media_id: publishResult.mediaId,
