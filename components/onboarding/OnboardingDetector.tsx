@@ -23,6 +23,8 @@ import {
 import { FiCamera, FiFileText, FiEdit3, FiCheck, FiX } from "react-icons/fi";
 import dynamic from "next/dynamic";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
+import { useTranslations } from "@/lib/i18n/hooks";
+import { useHasHivePosts } from "@/hooks/useHasHivePosts";
 import {
   ONBOARDING_FLAG_PHOTO,
   ONBOARDING_FLAG_BIO,
@@ -47,6 +49,11 @@ function isLocallyDone() {
 export default function OnboardingDetector() {
   const { user } = useUserbaseAuth();
   const theme = useTheme();
+  const t = useTranslations("onboarding");
+
+  // Whether the linked Hive account already has posts (intro post step skipped).
+  // `null` while still resolving — onboarding stays hidden until it settles.
+  const hasHivePosts = useHasHivePosts();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCardDismissed, setIsCardDismissed] = useState(false);
@@ -56,8 +63,17 @@ export default function OnboardingDetector() {
   useEffect(() => {
     if (!user) return;
     if (hasAutoOpened.current) return;
+    // Wait for the Hive post check before deciding — avoids opening the modal
+    // on the intro post step for a user who already has Hive history.
+    if (hasHivePosts === null) return;
 
-    const isDone = ((user.onboarding_step ?? 0) & ONBOARDING_ALL_DONE) === ONBOARDING_ALL_DONE || isLocallyDone();
+    const hasCustomAvatar = !!user.avatar_url && !user.avatar_url.includes(DICEBEAR_URL_PATTERN);
+    const hasBio = !!user.bio?.trim();
+    const effectiveStep = (hasCustomAvatar ? ONBOARDING_FLAG_PHOTO : 0)
+      | (hasBio ? ONBOARDING_FLAG_BIO : 0)
+      | (hasHivePosts ? ONBOARDING_FLAG_POST : 0)
+      | (user.onboarding_step ?? 0);
+    const isDone = (effectiveStep & ONBOARDING_ALL_DONE) === ONBOARDING_ALL_DONE || isLocallyDone();
     if (isDone) return;
 
     const alreadySeen = typeof window !== "undefined"
@@ -74,7 +90,7 @@ export default function OnboardingDetector() {
     }
 
     hasAutoOpened.current = true;
-  }, [user]);
+  }, [user, hasHivePosts]);
 
   // ── Clean up SS_DONE once the server confirms onboarding_step === 7 ───────
   useEffect(() => {
@@ -100,6 +116,11 @@ export default function OnboardingDetector() {
   // the modal mid-flow and reset its state.
   if (!user) return null;
 
+  // Wait for the Hive post check to settle before rendering anything, so the
+  // card/modal never flashes the intro post step for a user who already has
+  // Hive history.
+  if (hasHivePosts === null) return null;
+
   // Only show onboarding for accounts created after the feature launch date.
   // Existing users are excluded without any database migration.
   const createdAt = new Date(user.created_at);
@@ -110,18 +131,19 @@ export default function OnboardingDetector() {
   const hasBio = !!user.bio?.trim();
   const effectiveStep = (hasCustomAvatar ? ONBOARDING_FLAG_PHOTO : 0)
     | (hasBio ? ONBOARDING_FLAG_BIO : 0)
+    | (hasHivePosts ? ONBOARDING_FLAG_POST : 0)
     | step;
   const isDone = (effectiveStep & ONBOARDING_ALL_DONE) === ONBOARDING_ALL_DONE || isLocallyDone();
   if (isDone) return null;
 
   const items = [
-    ...(!hasCustomAvatar ? [{ flag: ONBOARDING_FLAG_PHOTO, icon: FiCamera, label: "Add a photo" }] : []),
-    ...(!hasBio ? [{ flag: ONBOARDING_FLAG_BIO, icon: FiFileText, label: "Write your bio" }] : []),
-    { flag: ONBOARDING_FLAG_POST, icon: FiEdit3, label: "Intro post" },
+    ...(!hasCustomAvatar ? [{ flag: ONBOARDING_FLAG_PHOTO, icon: FiCamera, label: t("cardPhoto") }] : []),
+    ...(!hasBio ? [{ flag: ONBOARDING_FLAG_BIO, icon: FiFileText, label: t("cardBio") }] : []),
+    ...(!hasHivePosts ? [{ flag: ONBOARDING_FLAG_POST, icon: FiEdit3, label: t("cardPost") }] : []),
   ];
 
   const pendingItems = items.filter(({ flag }) => !(effectiveStep & flag));
-  const ctaLabel = pendingItems.length === 1 ? pendingItems[0].label : "finish setup";
+  const ctaLabel = pendingItems.length === 1 ? pendingItems[0].label : t("cardFinishSetup");
 
   const bgColor = theme.colors.panel || theme.colors.background;
   const borderColor = theme.colors.border;
@@ -133,6 +155,7 @@ export default function OnboardingDetector() {
       <OnboardingModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        hasHivePosts={hasHivePosts}
       />
 
       {/* Floating card — hidden when dismissed for session OR when modal is open */}
@@ -161,10 +184,10 @@ export default function OnboardingDetector() {
             borderColor={borderColor}
           >
             <Text fontSize="2xs" color={dimColor} fontFamily="mono">
-              profile.sh
+              {t("cardTitle")}
             </Text>
             <IconButton
-              aria-label="Dismiss"
+              aria-label={t("cardDismiss")}
               icon={<Icon as={FiX} boxSize={3} />}
               size="xs"
               variant="ghost"
@@ -199,7 +222,7 @@ export default function OnboardingDetector() {
                   </Text>
                   {!done && (
                     <Text fontSize="2xs" color="orange.400" fontFamily="mono" ml="auto">
-                      pending
+                      {t("cardPending")}
                     </Text>
                   )}
                 </HStack>

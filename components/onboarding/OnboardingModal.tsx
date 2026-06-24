@@ -19,6 +19,7 @@ import { FiCamera, FiFileText, FiEdit3, FiCheck, FiArrowRight } from "react-icon
 import Image from "next/image";
 import SkateModal from "@/components/shared/SkateModal";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
+import { useTranslations } from "@/lib/i18n/hooks";
 import { uploadToIpfs } from "@/lib/markdown/composeUtils";
 import { HIVE_CONFIG } from "@/config/app.config";
 
@@ -37,11 +38,15 @@ type Step = (typeof STEPS)[number];
 interface OnboardingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // True when the user's linked Hive account already has posts — the intro
+  // post step is skipped for them. `null` means the check is still resolving.
+  hasHivePosts?: boolean | null;
 }
 
-export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
+export default function OnboardingModal({ isOpen, onClose, hasHivePosts }: OnboardingModalProps) {
   const { user, refresh } = useUserbaseAuth();
   const toast = useToast();
+  const t = useTranslations("onboarding");
 
   // Freeze pending steps at mount — prevents navigation bugs caused by
   // user.onboarding_step changing mid-flow when refresh() is called.
@@ -55,6 +60,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
     return STEPS.filter((s) => {
       if (s === "photo" && hasCustomAvatar) return false;
       if (s === "bio" && hasBio) return false;
+      if (s === "post" && hasHivePosts) return false;
       const flag =
         s === "photo" ? ONBOARDING_FLAG_PHOTO :
         s === "bio"   ? ONBOARDING_FLAG_BIO :
@@ -71,6 +77,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
   const completedFlagsRef = useRef(0);
   const photoFlagSyncedRef = useRef(false);
   const bioFlagSyncedRef = useRef(false);
+  const postFlagSyncedRef = useRef(false);
 
   // ── Photo state ───────────────────────────────────────────────────────────
   const [avatarPreview, setAvatarPreview] = useState<string>(user?.avatar_url ?? "");
@@ -83,7 +90,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
   const BIO_MAX = 160;
 
   // ── Post state ────────────────────────────────────────────────────────────
-  const displayName = user?.display_name ?? user?.handle ?? "Skater";
+  const displayName = user?.display_name ?? user?.handle ?? t("skater");
   const [postBody, setPostBody] = useState("");
   const [postTouched, setPostTouched] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
@@ -92,9 +99,9 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
   // Sync template when displayName resolves (user might load after mount)
   useEffect(() => {
     if (!postTouched) {
-      setPostBody(`Hey crew! I'm ${displayName} 🛹\n\n`);
+      setPostBody(t("postTemplate").replace("{name}", displayName));
     }
-  }, [displayName, postTouched]);
+  }, [displayName, postTouched, t]);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -127,8 +134,12 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
       bioFlagSyncedRef.current = true;
       flagsToSync |= ONBOARDING_FLAG_BIO;
     }
+    if (!postFlagSyncedRef.current && hasHivePosts && !(currentStep & ONBOARDING_FLAG_POST)) {
+      postFlagSyncedRef.current = true;
+      flagsToSync |= ONBOARDING_FLAG_POST;
+    }
     if (flagsToSync) saveToServer({ onboarding_step_flag: flagsToSync });
-  }, [user, saveToServer]);
+  }, [user, hasHivePosts, saveToServer]);
 
   function advance() {
     if (stepIndex + 1 < pendingSteps.length) {
@@ -177,7 +188,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         URL.revokeObjectURL(localBlobRef.current);
         localBlobRef.current = null;
       }
-      toast({ title: "Upload failed", status: "error", duration: 3000 });
+      toast({ title: t("uploadFailed"), status: "error", duration: 3000 });
     } finally {
       setIsUploadingPhoto(false);
       e.target.value = "";
@@ -199,7 +210,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         });
         completedFlagsRef.current |= ONBOARDING_FLAG_PHOTO;
       } catch {
-        toast({ title: "Could not save photo", status: "error", duration: 3000 });
+        toast({ title: t("couldNotSavePhoto"), status: "error", duration: 3000 });
       } finally {
         setIsSaving(false);
       }
@@ -209,7 +220,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
   function saveBio() {
     if (bio.trim()) {
-      saveToServer({ bio: bio.trim(), onboarding_step_flag: ONBOARDING_FLAG_BIO }, "Could not save bio");
+      saveToServer({ bio: bio.trim(), onboarding_step_flag: ONBOARDING_FLAG_BIO }, t("couldNotSaveBio"));
       completedFlagsRef.current |= ONBOARDING_FLAG_BIO;
     }
     advance();
@@ -229,7 +240,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
     });
     const data = await res.json();
     const permlink: string = data?.result?.[0]?.permlink;
-    if (!permlink) throw new Error("Could not find snaps container");
+    if (!permlink) throw new Error(t("couldNotFindContainer"));
     setSnapContainerPermlink(permlink);
     return permlink;
   }
@@ -250,22 +261,25 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
           parent_permlink: containerPermlink,
           title: "",
           body: postBody.trim(),
+          // type: "snap" ensures the soft_post is recorded as a snap (not a
+          // comment), so the intro shows up in the user's profile snaps tab.
+          type: "snap",
           json_metadata: {
-            tags: [HIVE_CONFIG.COMMUNITY_TAG, "skatehive", "introduceyourself"],
+            tags: [HIVE_CONFIG.COMMUNITY_TAG, HIVE_CONFIG.THREADS.PERMLINK, "introduceyourself"],
             app: "Skatehive App 3.0",
           },
         }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error ?? "Post failed");
+        throw new Error(err?.error ?? t("postFailed"));
       }
       saveToServer({ onboarding_step_flag: ONBOARDING_FLAG_POST });
       completedFlagsRef.current |= ONBOARDING_FLAG_POST;
-      toast({ title: "Posted to the feed! Welcome 🛹", status: "success", duration: 4000 });
+      toast({ title: t("postSuccess"), status: "success", duration: 4000 });
       advance();
     } catch (e: any) {
-      toast({ title: e?.message ?? "Could not post", status: "error", duration: 4000 });
+      toast({ title: e?.message ?? t("couldNotPost"), status: "error", duration: 4000 });
     } finally {
       setIsPosting(false);
     }
@@ -279,9 +293,9 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
   const progressValue = (stepIndex / totalSteps) * 100;
 
   const stepLabels: Record<Step, string> = {
-    photo: "Add a profile photo",
-    bio:   "Write a short bio",
-    post:  "Say hi to the crew",
+    photo: t("stepPhotoLabel"),
+    bio:   t("stepBioLabel"),
+    post:  t("stepPostLabel"),
   };
 
   const stepIcons: Record<Step, React.ElementType> = {
@@ -294,7 +308,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
     <SkateModal
       isOpen={isOpen}
       onClose={onClose}
-      title={showWelcome ? "welcome.sh" : `onboarding.sh — step ${stepIndex + 1}/${totalSteps}`}
+      title={showWelcome ? t("welcomeTitle") : t("stepTitle").replace("{n}", String(stepIndex + 1)).replace("{total}", String(totalSteps))}
       size="sm"
       closeOnOverlayClick={false}
       windowId="onboarding-modal"
@@ -311,15 +325,15 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
           <VStack spacing={1} align="center">
             <Text fontWeight="bold" fontSize="lg" fontFamily="mono">
-              Welcome to Skatehive
+              {t("welcomeHeading")}
             </Text>
             <Text fontSize="xs" color="dim" fontFamily="mono">
-              {user?.display_name ?? user?.handle ?? "Skater"}
+              {user?.display_name ?? user?.handle ?? t("skater")}
             </Text>
           </VStack>
 
           <Text fontSize="sm" color="dim" textAlign="center" maxW="260px">
-            Before you start skating the feed, let&apos;s set up your profile and introduce you to the crew. It only takes a minute.
+            {t("welcomeIntro")}
           </Text>
 
           <VStack spacing={1} align="start" w="full" px={2}>
@@ -339,7 +353,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             rightIcon={<Icon as={FiArrowRight} />}
             onClick={() => setShowWelcome(false)}
           >
-            let&apos;s go
+            {t("letsGo")}
           </Button>
         </VStack>
       ) : (
@@ -358,7 +372,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
           </Flex>
           <Box>
             <Text fontSize="xs" color="dim" fontFamily="mono">
-              step {stepIndex + 1} of {totalSteps}
+              {t("stepProgress").replace("{n}", String(stepIndex + 1)).replace("{total}", String(totalSteps))}
             </Text>
             <Text fontWeight="semibold" fontSize="sm">
               {stepLabels[currentStep]}
@@ -370,7 +384,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         {currentStep === "photo" && (
           <VStack px={5} pb={5} spacing={4} align="center">
             <Text fontSize="sm" color="dim" textAlign="center">
-              Skaters want to know who they&apos;re riding with.
+              {t("photoDescription")}
             </Text>
 
             <Box position="relative" cursor="pointer" onClick={() => fileInputRef.current?.click()}>
@@ -396,7 +410,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
               </Flex>
             </Box>
 
-            <Text fontSize="xs" color="dim">Click the avatar to upload</Text>
+            <Text fontSize="xs" color="dim">{t("photoUploadHint")}</Text>
 
             <input
               ref={fileInputRef}
@@ -410,7 +424,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
               onSkip={advance}
               onNext={savePhoto}
               isLoading={isSaving || isUploadingPhoto}
-              nextLabel={avatarPreview && avatarPreview !== user?.avatar_url ? "Save & continue" : "Continue"}
+              nextLabel={avatarPreview && avatarPreview !== user?.avatar_url ? t("saveContinue") : t("continue")}
               isLast={stepIndex + 1 === totalSteps}
             />
           </VStack>
@@ -420,14 +434,14 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         {currentStep === "bio" && (
           <VStack px={5} pb={5} spacing={4} align="stretch">
             <Text fontSize="sm" color="dim">
-              Where you skate, what style, how long you&apos;ve been rolling.
+              {t("bioDescription")}
             </Text>
 
             <Box position="relative">
               <Textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX))}
-                placeholder="São Paulo street skater, 10 years deep..."
+                placeholder={t("bioPlaceholder")}
                 rows={4} resize="none" fontSize="sm" fontFamily="mono"
               />
               <Text
@@ -443,7 +457,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
               onSkip={advance}
               onNext={saveBio}
               isLoading={false}
-              nextLabel="Save & continue"
+              nextLabel={t("saveContinue")}
               isLast={stepIndex + 1 === totalSteps}
             />
           </VStack>
@@ -453,14 +467,14 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         {currentStep === "post" && (
           <VStack px={5} pb={5} spacing={4} align="stretch">
             <Text fontSize="sm" color="dim">
-              Edit your intro below — it goes live on the feed when you click post.
+              {t("postDescription")}
             </Text>
 
             <Box position="relative">
               <Textarea
                 value={postBody}
                 onChange={(e) => { setPostBody(e.target.value); setPostTouched(true); }}
-                placeholder="Tell the crew who you are..."
+                placeholder={t("postPlaceholder")}
                 rows={6} resize="none" fontSize="sm" fontFamily="mono"
                 autoFocus
                 border="1px solid" borderColor="green.500"
@@ -471,7 +485,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
                   position="absolute" top={2} right={3}
                   fontSize="2xs" color="green.500" fontFamily="mono" userSelect="none"
                 >
-                  editable
+                  {t("postEditable")}
                 </Text>
               )}
             </Box>
@@ -480,7 +494,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
               onSkip={advance}
               onNext={submitPost}
               isLoading={isPosting}
-              nextLabel="Post & finish 🛹"
+              nextLabel={t("postFinish")}
               isLast={true}
             />
           </VStack>
@@ -507,13 +521,14 @@ function ActionBar({
   nextLabel: string;
   isLast: boolean;
 }) {
+  const t = useTranslations("onboarding");
   return (
     <HStack justify="space-between" w="full" pt={1}>
       <Button
         size="sm" variant="ghost" color="dim" fontFamily="mono"
         onClick={onSkip} isDisabled={isLoading}
       >
-        skip
+        {t("skip")}
       </Button>
       <Button
         size="sm" colorScheme="green" fontFamily="mono"
