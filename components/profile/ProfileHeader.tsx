@@ -449,6 +449,8 @@ export default memo(ProfileHeader, (prevProps, nextProps) => {
     prevProps.username === nextProps.username &&
     prevProps.profileData.ethereum_address ===
       nextProps.profileData.ethereum_address &&
+    prevProps.profileData.profileImage === nextProps.profileData.profileImage &&
+    prevProps.hiveProfileData?.profileImage === nextProps.hiveProfileData?.profileImage &&
     prevProps.isOwner === nextProps.isOwner &&
     prevProps.isUserbaseOwner === nextProps.isUserbaseOwner &&
     prevProps.user === nextProps.user &&
