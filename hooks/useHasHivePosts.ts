@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 
+// Cap the Hive post_count lookup so a stalled RPC node never leaves the hook
+// stuck at null (which would silently prevent onboarding from showing).
+const REQUEST_TIMEOUT_MS = 5000;
+
 /**
  * Detects whether the viewer's linked Hive account already has on-chain
  * activity (posts or comments).
@@ -33,6 +37,11 @@ export function useHasHivePosts(): boolean | null {
     let cancelled = false;
     setHasPosts(null);
 
+    // Abort the request if it stalls, so hasPosts never stays stuck at null
+    // (which would silently block onboarding from ever appearing).
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     (async () => {
       try {
         const res = await fetch("https://api.hive.blog", {
@@ -44,19 +53,24 @@ export function useHasHivePosts(): boolean | null {
             params: [[handle]],
             id: 1,
           }),
+          signal: controller.signal,
         });
         const data = await res.json();
         const postCount: number = data?.result?.[0]?.post_count ?? 0;
         if (!cancelled) setHasPosts(postCount > 0);
       } catch {
-        // On failure, fail open by resolving to false: showing one extra
-        // (skippable) step is better than blocking the onboarding flow.
+        // On failure/timeout/abort, fail open by resolving to false: showing
+        // one extra (skippable) step is better than blocking the onboarding.
         if (!cancelled) setHasPosts(false);
+      } finally {
+        clearTimeout(timeout);
       }
     })();
 
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
     };
   }, [handle]);
 
