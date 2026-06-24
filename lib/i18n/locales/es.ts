@@ -1254,6 +1254,11 @@ export const es = {
     nearYou: 'cerca de ti',
     useMyLocation: 'usar mi ubicación',
   },
+  globalError: {
+    bailDetected: 'Caída detectada',
+    gettingBackUp: 'Levantándose...',
+    tryAgain: 'Intentar de nuevo',
+  },
   errorToast: {
     reportBug: 'Reportar bug',
     screenshotHint: '⌘/Ctrl+Enter para adjuntar captura de pantalla',

@@ -1255,6 +1255,11 @@ export const ptBR = {
     nearYou: 'perto de você',
     useMyLocation: 'usar minha localização',
   },
+  globalError: {
+    bailDetected: 'Queda detectada',
+    gettingBackUp: 'Levantando...',
+    tryAgain: 'Tentar novamente',
+  },
   errorToast: {
     reportBug: 'Reportar bug',
     screenshotHint: '⌘/Ctrl+Enter para anexar captura de tela',

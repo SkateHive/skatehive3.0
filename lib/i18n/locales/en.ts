@@ -1237,6 +1237,11 @@ export const en = {
     nearYou: 'near you',
     useMyLocation: 'use my location',
   },
+  globalError: {
+    bailDetected: 'Bail detected',
+    gettingBackUp: 'Getting back up...',
+    tryAgain: 'Try again',
+  },
   errorToast: {
     reportBug: 'Report bug',
     screenshotHint: '⌘/Ctrl+Enter to attach screenshot',
