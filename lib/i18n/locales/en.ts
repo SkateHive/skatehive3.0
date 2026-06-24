@@ -59,6 +59,8 @@ export const en = {
     authenticationFailed: 'Authentication failed',
     connectionFailed: 'Connection Failed',
     connectedSuccess: 'Connected successfully!',
+    welcome: 'Welcome,',
+    farcasterAuthFailed: 'Failed to authenticate with Farcaster',
   },
   signIn: {
     title: 'Sign in',

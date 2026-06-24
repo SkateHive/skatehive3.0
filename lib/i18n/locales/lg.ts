@@ -59,6 +59,8 @@ export const lg = {
     authenticationFailed: 'Okukkiriza Byetagganya',
     connectionFailed: 'Okukoboka Byetagganya',
     connectedSuccess: 'Okukoboka Okukola Bulungi!',
+    welcome: 'Tukwanirizza,',
+    farcasterAuthFailed: 'Failed to authenticate with Farcaster',
   },
   signIn: {
     title: 'Kwingira',

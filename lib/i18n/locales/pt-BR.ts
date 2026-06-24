@@ -59,6 +59,8 @@ export const ptBR = {
     authenticationFailed: 'Autenticação falhou',
     connectionFailed: 'Conexão Falhou',
     connectedSuccess: 'Conectado com sucesso!',
+    welcome: 'Bem-vindo,',
+    farcasterAuthFailed: 'Falha ao autenticar com Farcaster',
   },
   signIn: {
     title: 'Entrar',
