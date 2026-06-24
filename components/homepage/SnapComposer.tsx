@@ -1047,7 +1047,6 @@ const SnapComposer = React.memo(function SnapComposer({
           };
 
           onNewComment(newComment);
-          onClose();
 
           // Snap URL is shared by all cross-posts. Use the /post route —
           // /user/{username}/snap/... redirects to the profile for non-bot
@@ -1060,9 +1059,10 @@ const SnapComposer = React.memo(function SnapComposer({
             canBypassLimit &&
             (!!compressedImages[0]?.url || !!videoUrl);
 
-          // Open the IG review dialog IMMEDIATELY so it appears right after
-          // the user clicks Post. It builds its own caption preview and
-          // publishes using the media URLs directly, so it must NOT wait on
+          // Open the IG review dialog IMMEDIATELY (before onClose) so it appears
+          // right after the user clicks Post and so the state update lands while
+          // this component is still mounted. It builds its own caption preview
+          // and publishes from the media URLs directly, so it must NOT wait on
           // the Hive-confirm / Farcaster orchestration below.
           if (willInstagram) {
             setIgDialog({
@@ -1078,6 +1078,8 @@ const SnapComposer = React.memo(function SnapComposer({
               permalinkUrl: snapUrl,
             });
           }
+
+          onClose();
 
           // ── Farcaster cross-post orchestration ───────────────────────
           // Wait for the snap to be indexable on Hive BEFORE firing the

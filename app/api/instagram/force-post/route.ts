@@ -398,7 +398,17 @@ export async function POST(request: NextRequest) {
 
   let publishResult = await doPublish(collaborators);
   let collaboratorRetryError: string | null = null;
-  if (!publishResult.success && collaborators && isCollaboratorVisibilityError(publishResult.error)) {
+  // Retry without the collaborator invite when it's the likely culprit. For a
+  // CAROUSEL the `collaborators` param is undocumented and Meta may reject it
+  // with a generic "Invalid parameter" that isCollaboratorVisibilityError
+  // won't match — so for carousels we retry on ANY failure when collaborators
+  // were sent. (Image/Reel keep the targeted visibility-error check.)
+  if (
+    !publishResult.success &&
+    collaborators &&
+    collaborators.length > 0 &&
+    (isCarousel || isCollaboratorVisibilityError(publishResult.error))
+  ) {
     collaboratorRetryError = publishResult.error;
     publishResult = await doPublish(undefined);
   }

@@ -222,6 +222,11 @@ export async function POST(request: NextRequest) {
     if (!hiveAuthor || !hivePermlink) {
       return NextResponse.json({ error: "Missing hive_author/hive_permlink." }, { status: 400 });
     }
+    // Require a session cookie before doing any Hive RPC / DB work. Without
+    // it we'd be an unauthenticated oracle (leaking a target's resolved IG
+    // handle + IG dedupe status) and an unmetered driver of Hive RPC + DB
+    // load. Keychain-only callers (no cookie) still get a caption built from
+    // the public body — the real publish path resolves the handle anyway.
     const previewUserId = await resolveSessionUserId(request);
     const pTitle = typeof body?.title === "string" ? body.title.trim() : "";
     const pMarkdown = typeof body?.body === "string" ? body.body : "";
@@ -231,7 +236,9 @@ export async function POST(request: NextRequest) {
     const pTags: string[] = Array.isArray(body?.tags)
       ? body.tags.filter((t: unknown): t is string => typeof t === "string")
       : [];
-    const igHandle = await resolveIgHandleForCaption({ hiveAuthor, userId: previewUserId, supabase });
+    const igHandle = previewUserId
+      ? await resolveIgHandleForCaption({ hiveAuthor, userId: previewUserId, supabase })
+      : null;
     const caption = buildInstagramCaption({
       title: pTitle,
       body: pMarkdown,
@@ -240,12 +247,14 @@ export async function POST(request: NextRequest) {
       extraTags: pTags,
       igHandle,
     });
-    const { data: dedupeRows } = await supabase
-      .from("userbase_instagram_posts")
-      .select("status, ig_permalink")
-      .eq("hive_author", hiveAuthor)
-      .eq("hive_permlink", hivePermlink)
-      .limit(1);
+    const { data: dedupeRows } = previewUserId
+      ? await supabase
+          .from("userbase_instagram_posts")
+          .select("status, ig_permalink")
+          .eq("hive_author", hiveAuthor)
+          .eq("hive_permlink", hivePermlink)
+          .limit(1)
+      : { data: null };
     const dedupe = dedupeRows?.[0]
       ? {
           status: dedupeRows[0].status as string,
@@ -311,6 +320,16 @@ export async function POST(request: NextRequest) {
   if (!hiveHandleForHpCheck) {
     return NextResponse.json(
       { error: "Link a Hive account before cross-posting to Instagram." },
+      { status: 403 }
+    );
+  }
+  // Bind the cross-post to the AUTHENTICATED author. Without this, the caption
+  // and collaborators overrides (taken from the body) would let any 100+HP
+  // user publish someone else's snap to @skatehive with arbitrary text and
+  // fire Collab invites to arbitrary accounts from the shared brand account.
+  if (hiveAuthor.toLowerCase() !== hiveHandleForHpCheck.toLowerCase()) {
+    return NextResponse.json(
+      { error: "You can only cross-post your own snaps to Instagram." },
       { status: 403 }
     );
   }

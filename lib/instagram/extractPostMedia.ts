@@ -17,41 +17,64 @@ export interface CarouselMediaItem {
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
 const isIpfs = (u: string) => /\/ipfs\/[a-z0-9]{40,}/i.test(u) || /\bipfs\./i.test(u);
 
+/** Dedupe key: same media referenced with different query strings / trailing
+ *  slashes (e.g. `…/video.mp4?autoplay=1` vs `…/video.mp4`) collapses to one. */
+const normKey = (u: string) => u.split(/[?#]/)[0].replace(/\/+$/, "");
+
+interface RawHit {
+  pos: number;
+  type: "image" | "video";
+  url: string;
+  /** True only for a markdown `![](…)` image element — a strong "this is an
+   *  image" signal that overrides an ambiguous iframe/IPFS video guess. */
+  mdImage: boolean;
+}
+
 export function extractPostMedia(body: string, max = 10): CarouselMediaItem[] {
-  const found: { pos: number; item: CarouselMediaItem }[] = [];
+  const hits: RawHit[] = [];
   const text = body || "";
+  let m: RegExpExecArray | null;
 
   // Markdown images (may actually point at a video file).
   const imgRe = /!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/gi;
-  let m: RegExpExecArray | null;
   while ((m = imgRe.exec(text))) {
     const url = m[1];
-    found.push({ pos: m.index, item: { type: VIDEO_EXT.test(url) ? "video" : "image", url } });
+    const isVid = VIDEO_EXT.test(url);
+    hits.push({ pos: m.index, type: isVid ? "video" : "image", url, mdImage: !isVid });
   }
 
-  // Iframe players — IPFS or direct video file srcs.
+  // Iframe players — IPFS or direct video file srcs (assumed video by convention).
   const iframeRe = /<iframe[\s\S]*?\bsrc=["']([^"']+)["']/gi;
   while ((m = iframeRe.exec(text))) {
     const url = m[1];
     if (isIpfs(url) || VIDEO_EXT.test(url)) {
-      found.push({ pos: m.index, item: { type: "video", url } });
+      hits.push({ pos: m.index, type: "video", url, mdImage: false });
     }
   }
 
   // Raw video URLs not wrapped in markdown/iframes.
   const rawVidRe = /https?:\/\/[^\s"'<>)]+\.(?:mp4|webm|mov|m4v)[^\s"'<>)]*/gi;
   while ((m = rawVidRe.exec(text))) {
-    found.push({ pos: m.index, item: { type: "video", url: m[0] } });
+    hits.push({ pos: m.index, type: "video", url: m[0], mdImage: false });
   }
 
-  const seen = new Set<string>();
-  return found
+  // Group by normalized key: earliest position wins the slot + canonical URL,
+  // but a markdown-image hit forces the type to "image" (so an asset embedded
+  // both as ![](…) and inside an <iframe> isn't published as a broken video).
+  const groups = new Map<string, RawHit>();
+  for (const hit of hits.sort((a, b) => a.pos - b.pos)) {
+    const key = normKey(hit.url);
+    const existing = groups.get(key);
+    if (!existing) {
+      groups.set(key, { ...hit });
+    } else if (hit.mdImage && !existing.mdImage) {
+      existing.type = "image";
+      existing.mdImage = true;
+    }
+  }
+
+  return Array.from(groups.values())
     .sort((a, b) => a.pos - b.pos)
-    .filter((f) => {
-      if (seen.has(f.item.url)) return false;
-      seen.add(f.item.url);
-      return true;
-    })
     .slice(0, max)
-    .map((f) => f.item);
+    .map(({ type, url }) => ({ type, url }));
 }

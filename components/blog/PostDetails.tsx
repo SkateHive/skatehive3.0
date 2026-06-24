@@ -221,6 +221,33 @@ export default function PostDetails({
   const isModerator = useIsAdmin();
   const [isIgOpen, setIsIgOpen] = useState(false);
   const igMediaItems = useMemo(() => extractPostMedia(post.body || ""), [post.body]);
+  // Stable reference — PostDetails re-renders on its own payout/animation/slider
+  // state; an inline object would re-run the dialog's preview fetch and wipe the
+  // moderator's in-progress caption/collaborator edits.
+  const igContext: CrossPostContext = useMemo(
+    () => ({
+      hiveAuthor: post.author,
+      hivePermlink: post.permlink,
+      title: post.title || "",
+      body: post.body,
+      tags: postTags,
+      imageUrl:
+        igMediaItems.length >= 2
+          ? igMediaItems.find((m) => m.type === "image")?.url ?? null
+          : igMediaItems[0]?.type === "image"
+          ? igMediaItems[0].url
+          : null,
+      videoUrl:
+        igMediaItems.length < 2 && igMediaItems[0]?.type === "video"
+          ? igMediaItems[0].url
+          : null,
+      mediaItems: igMediaItems.length >= 2 ? igMediaItems : undefined,
+      permalinkUrl: `${
+        typeof window !== "undefined" ? window.location.origin : "https://skatehive.app"
+      }/post/${post.author}/${post.permlink}`,
+    }),
+    [post.author, post.permlink, post.title, post.body, postTags, igMediaItems]
+  );
 
   // Check if this post is eligible for coin creation
   const coinEligibility = useMemo(() => {
@@ -981,29 +1008,7 @@ export default function PostDetails({
           isOpen={isIgOpen}
           onClose={() => setIsIgOpen(false)}
           mode="moderator"
-          context={
-            {
-              hiveAuthor: post.author,
-              hivePermlink: post.permlink,
-              title: post.title || "",
-              body: post.body,
-              tags: postTags,
-              imageUrl:
-                igMediaItems.length >= 2
-                  ? igMediaItems.find((m) => m.type === "image")?.url ?? null
-                  : igMediaItems[0]?.type === "image"
-                  ? igMediaItems[0].url
-                  : null,
-              videoUrl:
-                igMediaItems.length < 2 && igMediaItems[0]?.type === "video"
-                  ? igMediaItems[0].url
-                  : null,
-              mediaItems: igMediaItems.length >= 2 ? igMediaItems : undefined,
-              permalinkUrl: `${
-                typeof window !== "undefined" ? window.location.origin : "https://skatehive.app"
-              }/post/${post.author}/${post.permlink}`,
-            } as CrossPostContext
-          }
+          context={igContext}
           userHandle={walletUser || effectiveUser || null}
         />
       )}

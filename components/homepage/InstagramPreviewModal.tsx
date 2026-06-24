@@ -18,7 +18,7 @@
  * on open would often expire before the user clicks Post).
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   AlertIcon,
@@ -68,7 +68,8 @@ interface PreviewData {
   caption: string;
   image_url: string | null;
   video_url: string | null;
-  media_type: "IMAGE" | "REELS";
+  media_type: "IMAGE" | "REELS" | "CAROUSEL";
+  media_count?: number;
   ig_handle: string | null;
   default_collaborators?: string[];
   target_account: string;
@@ -120,6 +121,9 @@ export default function InstagramCrossPostDialog({
   const [caption, setCaption] = useState("");
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [collabInput, setCollabInput] = useState("");
+  // Hydrate the editable fields from the preview only ONCE per open, so a
+  // refetch (e.g. parent re-render) can't clobber the user's in-progress edits.
+  const hydratedRef = useRef(false);
 
   const carouselItems = context.mediaItems ?? [];
   const isCarousel = carouselItems.length >= 2;
@@ -149,6 +153,7 @@ export default function InstagramCrossPostDialog({
       setCaption("");
       setCollaborators([]);
       setCollabInput("");
+      hydratedRef.current = false;
       return;
     }
     if (!hasMedia) {
@@ -178,8 +183,13 @@ export default function InstagramCrossPostDialog({
         }
         const p = data as PreviewData;
         setPreview(p);
-        setCaption(p.caption || "");
-        setCollaborators(Array.isArray(p.default_collaborators) ? p.default_collaborators : []);
+        // Only hydrate the editable fields the first time — never overwrite
+        // edits the user has already made if the preview refetches.
+        if (!hydratedRef.current) {
+          setCaption(p.caption || "");
+          setCollaborators(Array.isArray(p.default_collaborators) ? p.default_collaborators : []);
+          hydratedRef.current = true;
+        }
       } catch (err: any) {
         if (!cancelled) setPreviewError(err?.message || "Preview request failed");
       } finally {
