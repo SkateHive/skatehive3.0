@@ -50,6 +50,8 @@ interface PostJsonMetadata {
   users?: string[];
   links?: string[];
   image?: string | string[];
+  images?: string | string[];
+  thumbnail?: string | string[];
   [key: string]: any;
 }
 
@@ -165,11 +167,19 @@ export default function PostCard({
   }, [body, listView]);
 
   const mediaData = useMemo(() => {
-    const metadataImages = metadata.image
-      ? Array.isArray(metadata.image)
-        ? metadata.image
-        : [metadata.image]
-      : [];
+    const toUrlArray = (value: unknown): string[] => {
+      if (Array.isArray(value)) {
+        return value.filter((item): item is string => typeof item === "string");
+      }
+      return typeof value === "string" ? [value] : [];
+    };
+
+    const metadataImages = [
+      ...toUrlArray(metadata.image),
+      ...toUrlArray(metadata.images),
+      ...toUrlArray(metadata.thumbnail),
+      ...toUrlArray(metadata.video?.thumbnail),
+    ];
 
     const optimize = (imgs: string[]) =>
       Array.from(new Set(imgs))
@@ -178,14 +188,14 @@ export default function PostCard({
           optimizeImageUrl(img, IMAGE_SIZES.SIDEBAR_THUMB.w, IMAGE_SIZES.SIDEBAR_THUMB.h)
         );
 
-    const validMarkdownImages = optimize(extractImageUrls(body));
-    if (validMarkdownImages.length > 0) {
-      return { imageUrls: validMarkdownImages };
-    }
-
     const validMetadataImages = optimize(metadataImages);
     if (validMetadataImages.length > 0) {
       return { imageUrls: validMetadataImages };
+    }
+
+    const validMarkdownImages = optimize(extractImageUrls(body));
+    if (validMarkdownImages.length > 0) {
+      return { imageUrls: validMarkdownImages };
     }
 
     // No images anywhere — if the post embeds a YouTube video, use the video's
@@ -204,7 +214,15 @@ export default function PostCard({
     }
 
     return { imageUrls: [default_thumbnail] };
-  }, [body, metadata.image, failedImages, default_thumbnail]);
+  }, [
+    body,
+    metadata.image,
+    metadata.images,
+    metadata.thumbnail,
+    metadata.video?.thumbnail,
+    failedImages,
+    default_thumbnail,
+  ]);
 
   const { imageUrls } = mediaData;
   const hasMultipleImages = imageUrls.length > 1;
