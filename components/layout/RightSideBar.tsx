@@ -18,8 +18,15 @@ import PostGrid from "@/components/blog/PostGrid";
 import { filterAutoComments } from "@/lib/utils/postUtils";
 import { CommunityTotalPayout } from "../shared";
 import { getHiveTagForQuery } from "@/lib/hive/tag-utils";
+import SpotNearYou from "@/components/homepage/SpotNearYou";
+import type { FeaturedSpot } from "@/lib/spotmap/featured";
 
-export default function RightSideBar() {
+interface RightSideBarProps {
+  /** SSR'd spot for the "Discover a spot" widget. See app/page.tsx. */
+  initialFeaturedSpot?: FeaturedSpot | null;
+}
+
+export default function RightSideBar({ initialFeaturedSpot }: RightSideBarProps = {}) {
   const [allPosts, setAllPosts] = useState<Discussion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -137,16 +144,9 @@ export default function RightSideBar() {
         p={4}
         borderWidth="1px"
         borderColor="whiteAlpha.200"
-        borderRadius="lg"
         bg="rgba(20,20,20,0.45)"
       >
-        <Text fontSize="sm" color="gray.300">
-          Looking for your next session? Check the {" "}
-          <ChakraLink as={NextLink} href="/map" color="primary" fontWeight="semibold">
-            Skatehive spot map
-          </ChakraLink>{" "}
-          for skateparks, street spots, and DIY spots shared by the community.
-        </Text>
+      <SpotNearYou initialSpot={initialFeaturedSpot ?? null} />
       </Box>
       <Divider my={2} borderColor="muted" />
       {allPosts.length > 0 ? (

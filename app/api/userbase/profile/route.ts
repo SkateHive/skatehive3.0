@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import crypto from "crypto";
+import { checkHiveAccountExists, validateHiveUsernameFormat } from "@/lib/utils/hiveAccountUtils";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -259,6 +260,21 @@ export async function PATCH(request: NextRequest) {
     if (handle !== undefined) {
       // Normalize handle
       const normalizedHandle = handle ? handle.trim().toLowerCase() : null;
+      if (normalizedHandle) {
+        const validation = validateHiveUsernameFormat(normalizedHandle);
+        if (!validation.isValid) {
+          return NextResponse.json(
+            { error: validation.error || "Invalid Hive username format" },
+            { status: 400 }
+          );
+        }
+        if (await checkHiveAccountExists(normalizedHandle)) {
+          return NextResponse.json(
+            { error: "Handle already in use on Hive" },
+            { status: 409 }
+          );
+        }
+      }
       updateData.handle = normalizedHandle;
     }
 

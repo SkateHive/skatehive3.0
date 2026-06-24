@@ -6,8 +6,7 @@ const getInstagramServers = () => {
 
   return [
     'https://minivlad.tail83ea3e.ts.net',        // Mac Mini M4 (primary)
-    'https://vladsberry.tail83ea3e.ts.net',     // Raspberry Pi (secondary)
-    'https://skate-insta.onrender.com'           // Render (fallback)
+    'https://vladsberry.tail83ea3e.ts.net'      // Raspberry Pi (secondary)
   ];
 };
 

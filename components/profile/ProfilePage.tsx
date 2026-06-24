@@ -200,6 +200,8 @@ export interface ProfileData {
   rc_percent?: string;
   zineCover?: string;
   svs_profile?: string;
+  /** Self-claimed Instagram handle (no @). Surfaces in IG cross-post captions. */
+  instagram?: string;
 }
 
 // Wrapper that isolates useFollowStatus + context hooks from ProfilePage.
@@ -233,13 +235,56 @@ const ProfileHeaderWithFollow = memo(function ProfileHeaderWithFollow({
   const { user } = useAioha();
   const { user: currentUserbaseUser } = useUserbaseAuth();
   const viewerHiveUsername = useViewerHiveIdentity();
+  const [storedPostingKeyHiveUser, setStoredPostingKeyHiveUser] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStoredPostingKeyStatus() {
+      if (!currentUserbaseUser || user) {
+        setStoredPostingKeyHiveUser(null);
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/userbase/keys/hive-info", {
+          cache: "no-store",
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!cancelled) {
+          setStoredPostingKeyHiveUser(
+            response.ok && data?.has_key && data?.hive_username
+              ? data.hive_username
+              : null
+          );
+        }
+      } catch {
+        if (!cancelled) setStoredPostingKeyHiveUser(null);
+      }
+    }
+
+    loadStoredPostingKeyStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserbaseUser, user]);
+
+  const actionActor = user || storedPostingKeyHiveUser;
+  const followStatusActor = actionActor || viewerHiveUsername;
+  const useStoredPostingKey = Boolean(!user && storedPostingKeyHiveUser);
 
   const { isFollowing, isFollowLoading, updateFollowing, updateLoading } =
-    useFollowStatus(isHiveProfile ? user : null, followTarget);
+    useFollowStatus(isHiveProfile ? followStatusActor : null, followTarget);
 
   const isOwner = useMemo(
-    () => (isHiveProfile ? user === hiveLookupHandle : false),
-    [user, hiveLookupHandle, isHiveProfile]
+    () => {
+      if (!isHiveProfile) return false;
+      if (user && user === hiveLookupHandle) return true;
+      if (viewerHiveUsername && viewerHiveUsername === hiveLookupHandle)
+        return true;
+      return false;
+    },
+    [user, hiveLookupHandle, isHiveProfile, viewerHiveUsername]
   );
   const isUserbaseOwner = useMemo(
     () =>
@@ -254,7 +299,7 @@ const ProfileHeaderWithFollow = memo(function ProfileHeaderWithFollow({
   return (
     <ProfileHeader
       {...rest}
-      user={isHiveProfile ? user : null}
+      user={isHiveProfile ? actionActor : null}
       isOwner={isOwner}
       isUserbaseOwner={isUserbaseOwner}
       isFollowing={isFollowing}
@@ -262,6 +307,7 @@ const ProfileHeaderWithFollow = memo(function ProfileHeaderWithFollow({
       onFollowingChange={updateFollowing}
       onLoadingChange={updateLoading}
       viewerHiveUsername={viewerHiveUsername}
+      useStoredPostingKey={useStoredPostingKey}
     />
   );
 });
@@ -556,8 +602,16 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
         svs_profile: "",
       };
     }
+    // Anonymous visitor viewing a likely-Hive-handle profile (e.g. /user/xvlad)
+    // before the Hive RPC call resolves. Use the Hive image gateway as a
+    // pre-fetch avatar so the UI doesn't render an empty avatar in prod when
+    // the RPC is slow.
+    const handleLooksLikeHive =
+      !!username && !isEvmAddress && /^[a-z0-9.\-]{3,16}$/i.test(username);
     return {
-      profileImage: "",
+      profileImage: handleLooksLikeHive
+        ? `https://images.hive.blog/u/${username.toLowerCase()}/avatar`
+        : "",
       coverImage: "",
       website: "",
       name: username,

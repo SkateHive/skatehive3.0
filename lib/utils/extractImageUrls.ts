@@ -50,6 +50,7 @@ export function extractImageUrls(markdown: string): string[] {
 export interface LinkWithDomain {
     url: string
     domain: string
+    thumbnail?: string
 }
 
 export function extractCustomLinks(inputText: string): LinkWithDomain[] {
@@ -76,14 +77,17 @@ export function extractCustomLinks(inputText: string): LinkWithDomain[] {
 
 // Add new function to extract YouTube links
 export function extractYoutubeLinks(content: string): LinkWithDomain[] {
-    const regex = /https:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9-_]+)/g;
+    const regex = /(?:<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?(?:[^"'\s>]*&)?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})[^"']*["'][^>]*><\/iframe>|https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?(?:[^\s]*&)?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})[^\s]*)/gi;
     const links: LinkWithDomain[] = [];
     let match;
     while ((match = regex.exec(content)) !== null) {
-        const videoID = match[1];
+        const videoID = match[1] || match[2];
+        if (!videoID) continue;
         // Use the nocookie domain with controls disabled to help prevent logging requests
         const embedUrl = `https://www.youtube-nocookie.com/embed/${videoID}?controls=0`;
-        links.push({ url: embedUrl, domain: "youtube.com" });
+        // mqdefault is a native 320x180 16:9 frame (no black bars) that always exists
+        const thumbnail = `https://img.youtube.com/vi/${videoID}/mqdefault.jpg`;
+        links.push({ url: embedUrl, domain: "youtube.com", thumbnail });
     }
     return links;
 }

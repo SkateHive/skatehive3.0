@@ -12,7 +12,8 @@ import {
   TabPanel,
   Icon,
 } from "@chakra-ui/react";
-import { FiFlag } from "react-icons/fi";
+import { FiFlag, FiSettings, FiKey, FiTool } from "react-icons/fi";
+import { FaWallet } from "react-icons/fa";
 import { useAioha } from "@aioha/react-ui";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import useProfileData from "@/hooks/useProfileData";
@@ -45,89 +46,68 @@ const Settings = () => {
     hiveAccount
   );
 
+  // Tab spec — keeps the JSX below tight and gives every tab an icon so
+  // mobile users can recognise tabs even when the strip overflows.
+  const tabSpec = [
+    { icon: FiSettings, label: t("settings.mainSettings") },
+    { icon: FiKey, label: t("settings.appAccountTab") },
+    { icon: FaWallet, label: t("settings.assets") },
+    { icon: FiTool, label: t("settings.advanced") },
+    { icon: FiFlag, label: t("settings.reportBugTab") },
+  ];
+
+  const tabSelectedStyle = {
+    color: "accent",
+    borderColor: "accent",
+    borderBottomColor: "background",
+    bg: "background",
+  } as const;
+
   return (
     <Box minH="100vh" bg="background" color="primary">
-      <Box maxW="container.md" mx="auto" px={6} py={12}>
-        <VStack spacing={8} align="stretch">
-          {/* Header */}
-          <Box textAlign="center" mb={4}>
-            <Heading size="xl" color="primary" mb={2}>
+      <Box maxW="container.md" mx="auto" px={{ base: 4, md: 6 }} py={{ base: 8, md: 12 }}>
+        <VStack spacing={6} align="stretch">
+          {/* Header — title + subtitle on a single line of visual hierarchy */}
+          <Box textAlign="center" mb={2}>
+            <Heading size="lg" color="primary" fontFamily="mono" mb={1}>
               {t('settings.title')}
             </Heading>
-            <Text color="primary" fontSize="lg">
+            <Text color="dim" fontSize="sm" fontFamily="mono">
               {t('settings.subtitle')}
             </Text>
           </Box>
 
-          {/* Tabs */}
+          {/* Tabs — compact strip with icons for quick recognition */}
           <Tabs
             index={activeTab}
             onChange={(index) => setActiveTab(index)}
             variant="enclosed"
             colorScheme="gray"
           >
-            <TabList overflowX="auto" flexWrap="nowrap" sx={{ "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>
-              <Tab
-                _selected={{
-                  color: "accent",
-                  borderColor: "accent",
-                  borderBottomColor: "background",
-                  bg: "background",
-                }}
-                color="primary"
-                fontWeight="semibold"
-              >
-                {t('settings.mainSettings')}
-              </Tab>
-              <Tab
-                _selected={{
-                  color: "accent",
-                  borderColor: "accent",
-                  borderBottomColor: "background",
-                  bg: "background",
-                }}
-                color="primary"
-                fontWeight="semibold"
-              >
-                {t('settings.appAccountTab')}
-              </Tab>
-              <Tab
-                _selected={{
-                  color: "accent",
-                  borderColor: "accent",
-                  borderBottomColor: "background",
-                  bg: "background",
-                }}
-                color="primary"
-                fontWeight="semibold"
-              >
-                {t('settings.assets')}
-              </Tab>
-              <Tab
-                _selected={{
-                  color: "accent",
-                  borderColor: "accent",
-                  borderBottomColor: "background",
-                  bg: "background",
-                }}
-                color="primary"
-                fontWeight="semibold"
-              >
-                {t('settings.advanced')}
-              </Tab>
-              <Tab
-                _selected={{
-                  color: "primary",
-                  borderColor: "primary",
-                  borderBottomColor: "background",
-                  bg: "background",
-                }}
-                color="primary"
-                fontWeight="semibold"
-              >
-                <Icon as={FiFlag} mr={1} />
-                {t('settings.reportBugTab')}
-              </Tab>
+            <TabList
+              overflowX="auto"
+              flexWrap="nowrap"
+              sx={{
+                "&::-webkit-scrollbar": { display: "none" },
+                scrollbarWidth: "none",
+              }}
+            >
+              {tabSpec.map((tab) => (
+                <Tab
+                  key={tab.label}
+                  _selected={tabSelectedStyle}
+                  color="primary"
+                  fontFamily="mono"
+                  fontSize="sm"
+                  fontWeight="semibold"
+                  px={3}
+                  py={2}
+                  whiteSpace="nowrap"
+                >
+                  <Icon as={tab.icon} mr={2} boxSize={3.5} />
+                  {tab.label}
+                </Tab>
+              ))}
             </TabList>
 
             <TabPanels>

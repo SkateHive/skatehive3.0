@@ -4,7 +4,11 @@ import HiveClient from '@/lib/hive/hiveclient';
 // === CONFIG ===
 const BRIDGE_PAGE_SIZE = 20;
 const SNAP_API_PAGE_SIZE = 50;
-const MAX_SNAP_PAGES = 100;
+// Snaps are thin, ephemeral content and each URL maps to a per-request,
+// bot-rendered (uncacheable) page. We index only the most recent ones to
+// keep crawl surface — and therefore serverless invocations — bounded.
+// (Was 100 pages = up to 5,000 snap URLs.)
+const MAX_SNAP_PAGES = 10;
 const MAX_COMMUNITY_POSTS = 500;
 const COMMUNITY_TAG_ALLOWLIST = new Set([
   'intoskate',
@@ -13,6 +17,10 @@ const COMMUNITY_TAG_ALLOWLIST = new Set([
 const TAG_SLUG_REGEX = /^[a-z0-9][a-z0-9-]{1,48}$/;
 const MIN_TAG_POSTS_FOR_SITEMAP = 2;
 
+// Cache the generated sitemap for an hour. Previously `force-dynamic` was
+// set alongside `revalidate`, which silently disabled it — every uncached
+// request then re-ran the full Hive crawl (hundreds of RPCs). ISR lets the
+// expensive generation run at most once per hour and serve from cache.
 export const revalidate = 3600;
 
 type HivePost = { author?: string; permlink?: string; created?: string; last_update?: string; json_metadata?: any; pending_payout_value?: string; total_payout_value?: string; net_votes?: number; children?: number; };

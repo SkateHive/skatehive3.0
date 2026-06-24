@@ -127,11 +127,12 @@ async function getPostingKey(userId: string) {
   const hiveKey = hiveKeyRows?.[0];
 
   if (hiveKey && hiveKey.encrypted_posting_key) {
-    // Format as encrypted secret for decryption
+    // The save path uses encryptSecret(), which produces {iv, tag, data}.
+    // Re-assemble in that shape so decryptSecret() can read it back.
     const secret = JSON.stringify({
-      encryptedKey: hiveKey.encrypted_posting_key,
       iv: hiveKey.encryption_iv,
-      authTag: hiveKey.encryption_auth_tag,
+      tag: hiveKey.encryption_auth_tag,
+      data: hiveKey.encrypted_posting_key,
     });
     return { error: null, userKeyId: hiveKey.id, secret };
   }
@@ -271,20 +272,26 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Check if this is a sponsored key (JSON format)
       if (secret.startsWith('{')) {
         const encryptedData = JSON.parse(secret);
-        postingKey = decryptHivePostingKey(encryptedData, session.userId);
+        try {
+          postingKey = decryptHivePostingKey(encryptedData, session.userId);
+        } catch (decryptError) {
+          postingKey = decryptSecret(secret);
+        }
       } else {
-        // Old system decryption
         postingKey = decryptSecret(secret);
       }
       userKeyId = keyId;
     } catch (error: any) {
       console.error("[POST /comment] Decryption failed:", error);
       return NextResponse.json(
-        { error: error?.message || "Failed to decrypt posting key" },
-        { status: 500 }
+        {
+          error: error?.message || "Failed to decrypt posting key",
+          code: "POSTING_KEY_DECRYPT_FAILED",
+          hive_handle: author,
+        },
+        { status: 400 }
       );
     }
   } else {

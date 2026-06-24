@@ -6,7 +6,7 @@ import { useAioha } from "@aioha/react-ui";
 import { Tooltip, useToast } from "@chakra-ui/react";
 import { useEffect, useCallback, useState } from "react";
 import { Box, Spinner, Table, Tbody, Td, Text, Th, Thead, Tr } from "@chakra-ui/react";
-import { PixDashboardData } from "./PIXTabContent";
+import type { PixDashboardData } from "./PIXTabContent";
 
 const MAX_MEMO_LENGTH = 25;
 const CALENDAR_EMOJI = "📅";

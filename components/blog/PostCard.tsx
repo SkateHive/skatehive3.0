@@ -28,7 +28,6 @@ import useSoftVoteOverlay from "@/hooks/useSoftVoteOverlay";
 import { getPayoutValue } from "@/lib/hive/client-functions";
 import {
   extractYoutubeLinks,
-  LinkWithDomain,
   extractImageUrls,
 } from "@/lib/utils/extractImageUrls"; // Import YouTube extraction function
 import useHivePower from "@/hooks/useHivePower";
@@ -166,39 +165,49 @@ export default function PostCard({
   }, [body, listView]);
 
   const mediaData = useMemo(() => {
-    let images: string[] = [];
-    if (metadata.image) {
-      images = Array.isArray(metadata.image) ? metadata.image : [metadata.image];
+    const metadataImages = metadata.image
+      ? Array.isArray(metadata.image)
+        ? metadata.image
+        : [metadata.image]
+      : [];
+
+    const optimize = (imgs: string[]) =>
+      Array.from(new Set(imgs))
+        .filter((img) => typeof img === "string" && img.length > 0 && !failedImages.has(img))
+        .map((img) =>
+          optimizeImageUrl(img, IMAGE_SIZES.SIDEBAR_THUMB.w, IMAGE_SIZES.SIDEBAR_THUMB.h)
+        );
+
+    const validMarkdownImages = optimize(extractImageUrls(body));
+    if (validMarkdownImages.length > 0) {
+      return { imageUrls: validMarkdownImages };
     }
 
-    const markdownImages = extractImageUrls(body);
-    images = images.concat(markdownImages);
-
-    const uniqueImages = Array.from(new Set(images));
-    const validImages = uniqueImages
-      .filter((img) => typeof img === 'string' && img.length > 0 && !failedImages.has(img))
-      .map((img) => optimizeImageUrl(img, IMAGE_SIZES.SIDEBAR_THUMB.w, IMAGE_SIZES.SIDEBAR_THUMB.h));
-    if (validImages.length > 0) {
-      return { imageUrls: validImages, youtubeLinks: [] as LinkWithDomain[] };
+    const validMetadataImages = optimize(metadataImages);
+    if (validMetadataImages.length > 0) {
+      return { imageUrls: validMetadataImages };
     }
 
-    const ytLinks = extractYoutubeLinks(body);
-    if (ytLinks.length > 0) {
-      const uniqueLinks = Array.from(new Set(ytLinks.map((link) => link.url)))
-        .map((url) => ytLinks.find((link) => link.url === url)!)
-        .filter(Boolean);
-      return { imageUrls: [] as string[], youtubeLinks: uniqueLinks };
+    // No images anywhere — if the post embeds a YouTube video, use the video's
+    // thumbnail frame as the card thumbnail. mqdefault is already 320x180, so it
+    // is served directly (no proxy), and it also covers the list view, which
+    // only renders images.
+    const ytThumbs = Array.from(
+      new Set(
+        extractYoutubeLinks(body)
+          .map((link) => link.thumbnail)
+          .filter(Boolean) as string[]
+      )
+    ).filter((thumb) => !failedImages.has(thumb));
+    if (ytThumbs.length > 0) {
+      return { imageUrls: ytThumbs };
     }
 
-    return {
-      imageUrls: [default_thumbnail],
-      youtubeLinks: [] as LinkWithDomain[],
-    };
+    return { imageUrls: [default_thumbnail] };
   }, [body, metadata.image, failedImages, default_thumbnail]);
 
-  const { imageUrls, youtubeLinks } = mediaData;
+  const { imageUrls } = mediaData;
   const hasMultipleImages = imageUrls.length > 1;
-  const hasMultipleVideos = youtubeLinks.length > 1;
 
   // **Function to load more slides**
   function handleSlideChange(swiper: any) {
@@ -761,66 +770,6 @@ export default function PostCard({
                       onError={handleImageError}
                       onLoad={handleImageLoad}
                     />
-                    <Box
-                      position="absolute"
-                      inset={0}
-                      bg="background"
-                      opacity={0}
-                      transition="opacity 0.18s ease"
-                      pointerEvents="none"
-                      className="post-card-image-mask"
-                    />
-                  </Box>
-                )
-              ) : youtubeLinks.length > 0 ? (
-                hasMultipleVideos ? (
-                  <Swiper
-                    spaceBetween={10}
-                    slidesPerView={1}
-                    pagination={{ clickable: true }}
-                    navigation={true}
-                    modules={[Navigation, Pagination]}
-                    className="custom-swiper"
-                    onSwiper={handleSwiperInit}
-                  >
-                    {youtubeLinks.map((link, index) => (
-                      <SwiperSlide key={`${link.url}-${index}`}>
-                         <Box h="200px" w="100%" position="relative">
-                            <iframe
-                              src={link.url}
-                              title={`YouTube video from ${link.domain}`}
-                              width="100%"
-                              height="100%"
-                              frameBorder="0"
-                              loading="lazy"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                            ></iframe>
-                            <Box
-                              position="absolute"
-                              inset={0}
-                              bg="background"
-                              opacity={0}
-                              transition="opacity 0.18s ease"
-                              pointerEvents="none"
-                              className="post-card-image-mask"
-                            />
-                         </Box>
-                      </SwiperSlide>
-                    ))}
-                  </Swiper>
-                ) : (
-                  <Box h="200px" w="100%" position="relative">
-                    <iframe
-                      src={youtubeLinks[0].url}
-                      title={`YouTube video from ${youtubeLinks[0].domain}`}
-                      width="100%"
-                      height="100%"
-                      frameBorder="0"
-                      loading="lazy"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    ></iframe>
                     <Box
                       position="absolute"
                       inset={0}

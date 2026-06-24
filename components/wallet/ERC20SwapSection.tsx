@@ -4,12 +4,12 @@ import {
   Box, Text, Button, Input, HStack, VStack, Image,
   Spinner, Tooltip, useToast, Checkbox,
   Modal, ModalOverlay, ModalContent, ModalBody, ModalCloseButton,
-  InputGroup, InputLeftElement, useDisclosure, Wrap, WrapItem,
+  InputGroup, InputLeftElement, InputRightElement, useDisclosure, Wrap, WrapItem,
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
-import { FaExchangeAlt, FaInfoCircle, FaSearch, FaChevronDown, FaCheck } from "react-icons/fa";
+import { FaExchangeAlt, FaInfoCircle, FaSearch, FaChevronDown, FaCheck, FaCog } from "react-icons/fa";
 import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceipt, useWriteContract, useSwitchChain } from "wagmi";
-import { parseUnits, parseEther, formatUnits, formatEther, maxUint256, isAddress } from "viem";
+import { parseUnits, parseEther, formatUnits, formatEther, maxUint256, isAddress, UserRejectedRequestError } from "viem";
 import { base } from "wagmi/chains";
 import { getCoin } from "@zoralabs/coins-sdk";
 import { useZoraTrade } from "@/hooks/useZoraTrade";
@@ -388,6 +388,22 @@ function TokenPicker({
   );
 }
 
+// ─── Error helpers ──────────────────────────────────────────────────────────
+
+function isUserRejection(e: unknown): boolean {
+  if (e instanceof UserRejectedRequestError) return true;
+  const text = `${(e as { shortMessage?: string })?.shortMessage ?? ""} ${(e as { message?: string })?.message ?? ""}`.toLowerCase();
+  return text.includes("user denied") || text.includes("user rejected");
+}
+
+function friendlyError(e: unknown): string {
+  return (
+    (e as { shortMessage?: string })?.shortMessage ||
+    (e instanceof Error ? e.message : null) ||
+    "Unknown error"
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface ERC20SwapSectionProps {
@@ -473,6 +489,11 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const [sellAmount, setSellAmount] = useState("");
   const [supportFee, setSupportFee] = useState(true);
 
+  // ── Slippage tolerance (basis points) ───────────────────────────────────
+  const [slippageBps, setSlippageBps] = useState(100); // 1% default
+  const [customSlippage, setCustomSlippage] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+
   // ── 0x-specific state ──────────────────────────────────────────────────
   const [price, setPrice] = useState<any>(null);
   const [needsApproval, setNeedsApproval] = useState(false);
@@ -493,6 +514,35 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
 
   const route = getRoute(sellToken, buyToken);
   const isOnBase = chainId === base.id;
+
+  // ── Balance of the currently selected sell token (from enriched list) ────
+  const sellBalance = useMemo(() => {
+    const match = allTokens.find(
+      (t) =>
+        t.address.toLowerCase() === sellToken.address.toLowerCase() &&
+        t.source === sellToken.source,
+    );
+    return match?.balance ? parseFloat(match.balance) : 0;
+  }, [allTokens, sellToken]);
+
+  const isNativeSell = sellToken.address === NATIVE;
+
+  const setAmountFromBalance = useCallback(
+    (fraction: number) => {
+      if (sellBalance <= 0) return;
+      let amount = sellBalance * fraction;
+      // Leave a little ETH for gas when spending the full native balance
+      if (isNativeSell && fraction >= 1) amount = Math.max(0, amount - 0.0002);
+      if (amount <= 0) return;
+      setSellAmount(String(Number(amount.toFixed(sellToken.decimals > 8 ? 8 : sellToken.decimals))));
+      setPrice(null);
+      setZoraEstimate("");
+    },
+    [sellBalance, isNativeSell, sellToken.decimals],
+  );
+
+  const insufficientBalance =
+    !!sellAmount && parseFloat(sellAmount) > 0 && parseFloat(sellAmount) > sellBalance;
 
   // Reset tokens when chain changes
   useEffect(() => {
@@ -574,6 +624,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             buyToken: buyToken.address,
             sellAmount: rawAmount,
             taker: address,
+            slippageBps: String(slippageBps),
           });
           if (supportFee) params.set("fee", "1");
           const res = await fetch(`/api/0x/price?${params}`);
@@ -604,7 +655,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             toToken: isBuying
               ? { type: "erc20", address: coinAddress as `0x${string}` }
               : { type: "eth" },
-            slippage: 5,
+            slippage: slippageBps / 100,
           });
 
           setPrice(null);
@@ -628,7 +679,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
     }, 600);
 
     return () => clearTimeout(timeout);
-  }, [sellAmount, sellToken, buyToken, address, chainId, supportFee, route, getZoraQuote]);
+  }, [sellAmount, sellToken, buyToken, address, chainId, supportFee, route, slippageBps, getZoraQuote]);
 
   // ── Approval (0x only) ────────────────────────────────────────────────
   const { writeContractAsync, isPending: isApproving } = useWriteContract();
@@ -643,8 +694,11 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
       });
       toast({ title: "Approval submitted", description: hash, status: "info", duration: 5000, isClosable: true });
       setNeedsApproval(false);
-    } catch (e: any) {
-      toast({ title: "Approval failed", description: e?.shortMessage ?? e?.message, status: "error", duration: 4000, isClosable: true });
+    } catch (e: unknown) {
+      if (isUserRejection(e))
+        toast({ title: "Transaction cancelled", status: "info", duration: 2000, isClosable: true });
+      else
+        toast({ title: "Approval failed", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
     }
   }, [approvalTarget, sellToken, writeContractAsync, toast]);
 
@@ -666,6 +720,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
           buyToken: buyToken.address,
           sellAmount: rawAmount,
           taker: address,
+          slippageBps: String(slippageBps),
         });
         if (supportFee) params.set("fee", "1");
         const res = await fetch(`/api/0x/quote?${params}`);
@@ -676,19 +731,24 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
           return;
         }
 
+        const tx = quote.transaction;
         const hash = await sendTransactionAsync({
-          to: quote.transaction.to,
-          data: quote.transaction.data,
-          value: quote.transaction.value ? BigInt(quote.transaction.value) : undefined,
-          gas: quote.transaction.gas ? BigInt(quote.transaction.gas) : undefined,
+          to: tx.to as `0x${string}`,
+          data: tx.data as `0x${string}`,
+          value: BigInt(tx.value ?? 0),
+          gas: tx.gas != null ? BigInt(tx.gas) : undefined,
+          chainId,
         });
 
         setTxHash(hash);
         toast({ title: "Swap submitted!", description: hash, status: "success", duration: 6000, isClosable: true });
         setSellAmount("");
         setPrice(null);
-      } catch (e: any) {
-        toast({ title: "Swap failed", description: e?.shortMessage ?? e?.message, status: "error", duration: 4000, isClosable: true });
+      } catch (e: unknown) {
+        if (isUserRejection(e))
+          toast({ title: "Transaction cancelled", status: "info", duration: 2000, isClosable: true });
+        else
+          toast({ title: "Swap failed", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
       }
     } else {
       // ── Zora bonding curve swap ─────────────────────────────────────
@@ -710,13 +770,13 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
         toToken: isBuying
           ? { type: "erc20", address: coinAddress as `0x${string}` }
           : { type: "eth" },
-        slippage: 5,
+        slippage: slippageBps / 100,
       });
 
       setSellAmount("");
       setZoraEstimate("");
     }
-  }, [address, price, sellAmount, sellToken, buyToken, chainId, supportFee, route, isOnBase, sendTransactionAsync, executeZoraTrade, switchChain, toast]);
+  }, [address, price, sellAmount, sellToken, buyToken, chainId, supportFee, route, slippageBps, isOnBase, sendTransactionAsync, executeZoraTrade, switchChain, toast]);
 
   // ── Derived display values ────────────────────────────────────────────
   const estimatedOut = useMemo(() => {
@@ -732,10 +792,32 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
     return eth.toFixed(6);
   }, [route, price]);
 
+  // Minimum received after slippage (0x returns minBuyAmount)
+  const minReceived = useMemo(() => {
+    if (route !== "0x" || !price?.minBuyAmount) return null;
+    const val = parseFloat(formatUnits(BigInt(price.minBuyAmount), buyToken.decimals));
+    return val < 0.0001 ? val.toExponential(4) : val.toFixed(6);
+  }, [route, price, buyToken.decimals]);
+
+  // Exchange rate: 1 sellToken = X buyToken
+  const exchangeRate = useMemo(() => {
+    const inAmt = parseFloat(sellAmount);
+    if (!inAmt || inAmt <= 0) return null;
+    let out: number | null = null;
+    if (route === "zora") out = zoraEstimate ? parseFloat(zoraEstimate) : null;
+    else if (price?.buyAmount)
+      out = parseFloat(formatUnits(BigInt(price.buyAmount), buyToken.decimals));
+    if (!out || isNaN(out)) return null;
+    const rate = out / inAmt;
+    return rate < 0.0001 ? rate.toExponential(3) : rate < 1 ? rate.toFixed(6) : rate.toFixed(4);
+  }, [route, zoraEstimate, price, sellAmount, buyToken.decimals]);
+
+  const slippagePct = (slippageBps / 100).toString();
+
   const isLoading = isFetching || isSending || isApproving || isConfirming || isZoraTrading;
   const canSwap = route === "zora"
-    ? isConnected && !!sellAmount && parseFloat(sellAmount) > 0 && !isLoading
-    : isConnected && !!price?.liquidityAvailable && !needsApproval && !isLoading && !!sellAmount;
+    ? isConnected && !!sellAmount && parseFloat(sellAmount) > 0 && !isLoading && !insufficientBalance
+    : isConnected && !!price?.liquidityAvailable && !needsApproval && !isLoading && !!sellAmount && !insufficientBalance;
 
   const routeLabel = route === "zora"
     ? "via Zora SDK · Base"
@@ -752,14 +834,126 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
     setZoraEstimate("");
   };
 
+  const SLIPPAGE_PRESETS = [50, 100, 300]; // 0.5% · 1% · 3%
+
   const swapBody = (
     <VStack spacing={0} align="stretch">
 
-          {/* Sell */}
-          <Box border="1px solid" borderColor="border" p={3} mb={1}>
-            <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={1}>
-              You Pay
+          {/* Settings bar: slippage tolerance */}
+          <HStack justify="space-between" mb={1}>
+            <Text fontSize="10px" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
+              Slippage {slippagePct}%
             </Text>
+            <Button
+              size="xs"
+              variant="ghost"
+              color={showSettings ? "primary" : "dim"}
+              fontFamily="mono"
+              leftIcon={<FaCog />}
+              onClick={() => setShowSettings((s) => !s)}
+              _hover={{ color: "primary" }}
+              h="20px"
+              px={1}
+            >
+              <Text fontSize="10px">Settings</Text>
+            </Button>
+          </HStack>
+
+          {showSettings && (
+            <Box border="1px solid" borderColor="primary" p={3} mb={2} bg="background">
+              <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={2}>
+                Slippage tolerance
+                <Tooltip label="Maximum price movement you'll accept before the swap reverts. Higher = more likely to fill on volatile/low-liquidity pairs, but worse worst-case price.">
+                  <Box as="span" ml={1} cursor="help"><FaInfoCircle style={{ display: "inline" }} /></Box>
+                </Tooltip>
+              </Text>
+              <HStack spacing={2}>
+                {SLIPPAGE_PRESETS.map((bps) => {
+                  const active = slippageBps === bps && !customSlippage;
+                  return (
+                    <Button
+                      key={bps}
+                      size="sm"
+                      flex={1}
+                      borderRadius="none"
+                      fontFamily="mono"
+                      fontWeight="bold"
+                      fontSize="xs"
+                      variant="outline"
+                      borderColor={active ? "primary" : "border"}
+                      color={active ? "primary" : "text"}
+                      bg={active ? "muted" : "transparent"}
+                      onClick={() => { setSlippageBps(bps); setCustomSlippage(""); }}
+                      _hover={{ borderColor: "primary" }}
+                    >
+                      {bps / 100}%
+                    </Button>
+                  );
+                })}
+                <InputGroup size="sm" w="80px" flexShrink={0}>
+                  <Input
+                    placeholder="Custom"
+                    value={customSlippage}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCustomSlippage(v);
+                      const pct = parseFloat(v);
+                      if (!isNaN(pct) && pct > 0 && pct <= 50) setSlippageBps(Math.round(pct * 100));
+                    }}
+                    type="number"
+                    bg="muted"
+                    border="1px solid"
+                    borderColor={customSlippage ? "primary" : "border"}
+                    borderRadius="none"
+                    fontFamily="mono"
+                    fontSize="xs"
+                    color="text"
+                    textAlign="right"
+                    pr={5}
+                    _placeholder={{ color: "dim" }}
+                    _focus={{ borderColor: "primary", boxShadow: "none" }}
+                  />
+                  <InputRightElement pointerEvents="none" w={4}>
+                    <Text fontSize="xs" color="dim" fontFamily="mono">%</Text>
+                  </InputRightElement>
+                </InputGroup>
+              </HStack>
+              {slippageBps >= 500 && (
+                <Text fontSize="10px" color="orange.400" fontFamily="mono" mt={2}>
+                  High slippage — your swap may be front-run.
+                </Text>
+              )}
+            </Box>
+          )}
+
+          {/* Sell */}
+          <Box border="1px solid" borderColor={insufficientBalance ? "red.400" : "border"} p={3} mb={1}>
+            <HStack justify="space-between" mb={1} align="center">
+              <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
+                You Pay
+              </Text>
+              {isConnected && (
+                <HStack spacing={2}>
+                  <Text fontSize="10px" color={insufficientBalance ? "red.400" : "dim"} fontFamily="mono">
+                    Bal: {sellBalance < 0.0001 ? sellBalance.toExponential(2) : sellBalance < 1 ? sellBalance.toFixed(4) : sellBalance < 1000 ? sellBalance.toFixed(2) : Math.floor(sellBalance).toLocaleString()}
+                  </Text>
+                  <Button
+                    size="xs" h="16px" px={1} variant="ghost" color="primary" fontFamily="mono" fontSize="9px"
+                    onClick={() => setAmountFromBalance(0.5)} isDisabled={sellBalance <= 0}
+                    _hover={{ bg: "muted" }}
+                  >
+                    HALF
+                  </Button>
+                  <Button
+                    size="xs" h="16px" px={1} variant="ghost" color="primary" fontFamily="mono" fontSize="9px"
+                    onClick={() => setAmountFromBalance(1)} isDisabled={sellBalance <= 0}
+                    _hover={{ bg: "muted" }}
+                  >
+                    MAX
+                  </Button>
+                </HStack>
+              )}
+            </HStack>
             <HStack>
               <HStack spacing={2} flex={1} minW={0}>
                 {sellToken.logo && (
@@ -899,23 +1093,44 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </Box>
           )}
 
-          {/* Price info (0x route only) */}
-          {route === "0x" && price && !isFetching && (
-            <Box border="1px solid" borderColor="border" p={2} mb={3} fontSize="xs" fontFamily="mono">
+          {/* Swap details (rate, min received, fees) */}
+          {!isFetching && exchangeRate && (
+            <VStack spacing={1} align="stretch" border="1px solid" borderColor="border" p={2} mb={3} fontSize="xs" fontFamily="mono">
               <HStack justify="space-between" color="dim">
-                <Text>Network fee</Text>
-                <Text color="text">{networkFeeEth} ETH</Text>
+                <Text>Rate</Text>
+                <Text color="text">1 {sellToken.symbol} = {exchangeRate} {buyToken.symbol}</Text>
               </HStack>
-              {price.issues?.balance && (
-                <Text color="red.400" mt={1}>Insufficient {sellToken.symbol} balance</Text>
+              {minReceived && (
+                <HStack justify="space-between" color="dim">
+                  <HStack spacing={1}>
+                    <Text>Min received</Text>
+                    <Tooltip label={`After ${slippagePct}% max slippage`}>
+                      <Box as="span" cursor="help"><FaInfoCircle style={{ display: "inline" }} /></Box>
+                    </Tooltip>
+                  </HStack>
+                  <Text color="text">{minReceived} {buyToken.symbol}</Text>
+                </HStack>
               )}
-              {!price.liquidityAvailable && (
-                <Text color="red.400" mt={1}>No liquidity available for this pair</Text>
+              <HStack justify="space-between" color="dim">
+                <Text>Max slippage</Text>
+                <Text color="text">{slippagePct}%</Text>
+              </HStack>
+              {networkFeeEth && (
+                <HStack justify="space-between" color="dim">
+                  <Text>Network fee</Text>
+                  <Text color="text">{networkFeeEth} ETH</Text>
+                </HStack>
+              )}
+              {route === "0x" && price?.issues?.balance && (
+                <Text color="red.400">Insufficient {sellToken.symbol} balance</Text>
+              )}
+              {route === "0x" && price && !price.liquidityAvailable && (
+                <Text color="red.400">No liquidity available for this pair</Text>
               )}
               {isSuccess && (
-                <Text color="green.400" mt={1}>Last swap confirmed!</Text>
+                <Text color="green.400">Last swap confirmed!</Text>
               )}
-            </Box>
+            </VStack>
           )}
 
           {/* Zora route info */}
@@ -951,11 +1166,11 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
               leftIcon={<FaExchangeAlt />}
               onClick={handleSwap}
             >
-              {!sellAmount ? "Enter Amount" : route === "zora" && !isOnBase ? "Switch to Base" : isFetching ? "..." : "Swap"}
+              {!sellAmount ? "Enter Amount" : insufficientBalance ? `Insufficient ${sellToken.symbol}` : route === "zora" && !isOnBase ? "Switch to Base" : isFetching ? "..." : "Swap"}
             </Button>
           )}
 
-          {/* Optional treasury fee (0x route only) */}
+          {/* Optional platform fee (0x route only) */}
           {showFeeOption && route === "0x" && (
             <HStack mt={2} spacing={2} justify="center">
               <Checkbox
@@ -968,7 +1183,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
                   Support Skatehive (0.5% fee)
                 </Text>
               </Checkbox>
-              <Tooltip label="A tiny 0.5% fee goes to the Skatehive shared treasury — funding skateparks, obstacles, rider sponsorships and public goods.">
+              <Tooltip label="A tiny 0.5% fee goes to the Skatehive platform split for skateparks, obstacles, rider sponsorships and public goods.">
                 <Box as="span" cursor="help" color="dim"><FaInfoCircle style={{ display: "inline" }} /></Box>
               </Tooltip>
             </HStack>
@@ -977,8 +1192,8 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
           <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" mt={2}>
             {route === "zora" ? (
               <>
-                5% slippage · Zora bonding curve
-                <Tooltip label="Trades Zora creator coins via bonding curve. Higher slippage accounts for low-liquidity coins.">
+                {slippagePct}% slippage · Zora bonding curve
+                <Tooltip label="Trades Zora creator coins via bonding curve. Adjust slippage in settings for low-liquidity coins.">
                   <Box as="span" ml={1} cursor="help"><FaInfoCircle style={{ display: "inline" }} /></Box>
                 </Tooltip>
               </>

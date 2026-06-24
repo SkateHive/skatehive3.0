@@ -7,7 +7,7 @@ import {
   AlertDescription,
   Link as ChakraLink,
 } from "@chakra-ui/react";
-import { useState, useRef, useEffect, useCallback, Suspense } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "react";
 import { Discussion } from "@hiveio/dhive";
 import { findPosts } from "@/lib/hive/client-functions";
 import { filterAutoComments } from "@/lib/utils/postUtils";
@@ -28,8 +28,8 @@ import {
   type QueryType,
   type ViewMode,
 } from "@/config/blog.config";
-import { HIVE_CONFIG } from "@/config/app.config";
 import { fetchHighestPaidPosts, convertToDiscussionFormat } from "@/services/skatehiveApiService";
+import { HIVE_CONFIG } from "@/config/app.config";
 
 function BlogContent() {
   const t = useTranslations();
@@ -318,13 +318,9 @@ function BlogContent() {
 
   // Modal logic for magazine view
   const isMagazineOpen = viewMode === "magazine";
-  const closeMagazine = () => {
-    // Simple state change - just close the magazine
-    setViewMode("grid");
-  };
-  // Magazine props (same as /magazine/page.tsx)
-  const magazineTag = [{ tag: HIVE_CONFIG.COMMUNITY_TAG, limit: 20 }]; // Bridge API max limit is 20
-  const magazineQuery = "created"; // Use trending for blog magazine view
+  const closeMagazine = useCallback(() => setViewMode("grid"), []);
+  const magazineTag = useMemo(() => [{ tag: HIVE_CONFIG.COMMUNITY_TAG, limit: 20 }], []);
+  const magazineQuery = "created";
 
   return (
     <>

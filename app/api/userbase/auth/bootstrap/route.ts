@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import { isAddress } from "ethers";
-import { validateHiveUsernameFormat } from "@/lib/utils/hiveAccountUtils";
+import { checkHiveAccountExists, validateHiveUsernameFormat } from "@/lib/utils/hiveAccountUtils";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -32,7 +32,16 @@ function slugify(value: string) {
     .replace(/(^-|-$)+/g, "");
 }
 
+function toHiveSafeBaseHandle(value: string) {
+  const sanitized = slugify(value) || "skater";
+  return sanitized.slice(0, 16).replace(/(^-|-$)+/g, "") || "skater";
+}
+
 async function isHandleAvailable(handle: string) {
+  if (!validateHiveUsernameFormat(handle).isValid || await checkHiveAccountExists(handle)) {
+    return false;
+  }
+
   const { data } = await supabase!
     .from("userbase_users")
     .select("id")
@@ -42,13 +51,13 @@ async function isHandleAvailable(handle: string) {
 }
 
 async function findAvailableHandle(base: string) {
-  const sanitized = slugify(base) || "skater";
+  const sanitized = toHiveSafeBaseHandle(base);
   if (await isHandleAvailable(sanitized)) {
     return sanitized;
   }
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const suffix = crypto.randomBytes(2).toString("hex");
-    const candidate = `${sanitized}-${suffix}`;
+    const candidate = `${sanitized.slice(0, 11).replace(/-$/g, "")}-${suffix}`;
     if (await isHandleAvailable(candidate)) {
       return candidate;
     }
@@ -320,7 +329,7 @@ export async function POST(request: NextRequest) {
         updates.avatar_url = avatarRaw;
       }
       if (!existingUser.handle && handleRaw) {
-        const candidate = slugify(handleRaw);
+        const candidate = toHiveSafeBaseHandle(handleRaw);
         if (candidate && (await isHandleAvailable(candidate))) {
           updates.handle = candidate;
         }
@@ -386,6 +395,15 @@ export async function POST(request: NextRequest) {
 
   response.cookies.set("userbase_refresh", sessionResult.refreshToken, {
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,
+    path: "/",
+  });
+  // Companion non-httpOnly flag so the client can detect "logged in"
+  // without calling /auth/session. Holds no sensitive data — just "1".
+  response.cookies.set("userbase_logged_in", "1", {
+    httpOnly: false,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,

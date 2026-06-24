@@ -14,7 +14,7 @@ import HiveProfileHeader from "./HiveProfileHeader";
 import ZoraProfileHeader from "./ZoraProfileHeader";
 import SkateProfileHeader from "./SkateProfileHeader";
 import FarcasterProfileHeader from "./FarcasterProfileHeader";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import ProfileDebugControl from "./ProfileDebugControl";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
@@ -62,6 +62,7 @@ interface ProfileHeaderProps {
   farcasterProfile?: FarcasterProfileData | null;
   userbaseUserId?: string | null;
   viewerHiveUsername?: string | null;
+  useStoredPostingKey?: boolean;
 }
 
 const ProfileHeader = function ProfileHeader({
@@ -86,6 +87,7 @@ const ProfileHeader = function ProfileHeader({
   farcasterProfile = null,
   userbaseUserId = null,
   viewerHiveUsername = null,
+  useStoredPostingKey = false,
 }: ProfileHeaderProps) {
   useProfileDebug("ProfileHeader");
   const { connections } = useLinkedIdentities();
@@ -366,12 +368,8 @@ const ProfileHeader = function ProfileHeader({
         onFollowingChange={onFollowingChange}
         onLoadingChange={onLoadingChange}
         onEditModalOpen={activeEditHandler}
-        showZoraProfile={activeView === "zora"}
-        onToggleProfile={(show) => setView(show ? "zora" : "hive")}
-        cachedZoraData={null}
-        zoraLoading={false}
-        zoraError={null}
         isLiteUser={isViewerLiteUser}
+        useStoredPostingKey={useStoredPostingKey}
       />
 
       {/* Desktop Layout */}
@@ -421,6 +419,7 @@ const ProfileHeader = function ProfileHeader({
                 onEditModalOpen={hiveEditHandler}
                 integrations={networkButtons}
                 isLiteUser={isViewerLiteUser}
+                useStoredPostingKey={useStoredPostingKey}
               />
             </Box>
           )}
@@ -453,6 +452,7 @@ export default memo(ProfileHeader, (prevProps, nextProps) => {
     prevProps.isOwner === nextProps.isOwner &&
     prevProps.isUserbaseOwner === nextProps.isUserbaseOwner &&
     prevProps.user === nextProps.user &&
+    prevProps.useStoredPostingKey === nextProps.useStoredPostingKey &&
     prevProps.isFollowing === nextProps.isFollowing &&
     prevProps.isFollowLoading === nextProps.isFollowLoading &&
     prevProps.debugPayload === nextProps.debugPayload &&

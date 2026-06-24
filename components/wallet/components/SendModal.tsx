@@ -103,8 +103,8 @@ export default function SendModal({ isOpen, onClose, token }: SendModalProps) {
       onClose();
     } catch (error) {
       toast({
-        title: "Transaction Failed",
-        description: "Failed to send transaction. Please try again.",
+        title: t('wallet.transactionFailed'),
+        description: t('wallet.transactionFailedRetry'),
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -128,20 +128,20 @@ export default function SendModal({ isOpen, onClose, token }: SendModalProps) {
             flex={1}
             onClick={onClose}
           >
-            Cancel
+            {t('wallet.send.cancel')}
           </Button>
           <Button
             colorScheme="blue"
             leftIcon={<FaPaperPlane />}
             flex={1}
             isLoading={isLoading}
-            loadingText="Sending..."
+            loadingText={t('wallet.send.sending')}
             onClick={handleSend}
             isDisabled={
               !recipientAddress || !amount || parseFloat(amount || "0") <= 0
             }
           >
-            Send
+            {t('wallet.send.send')}
           </Button>
         </HStack>
       }
@@ -158,7 +158,7 @@ export default function SendModal({ isOpen, onClose, token }: SendModalProps) {
             >
               <VStack spacing={1} align="start">
                 <Text fontSize="sm" color="gray.400">
-                  Available Balance
+                  {t('wallet.availableBalance')}
                 </Text>
                 <HStack justify="space-between" w="100%">
                   <Text fontSize="lg" fontWeight="bold" color="white">
@@ -174,7 +174,7 @@ export default function SendModal({ isOpen, onClose, token }: SendModalProps) {
             {/* Recipient Address */}
             <FormControl>
               <FormLabel color="white" fontSize="sm">
-                Recipient Address
+                {t('wallet.recipientAddress')}
               </FormLabel>
               <Input
                 placeholder="0x..."
@@ -196,7 +196,7 @@ export default function SendModal({ isOpen, onClose, token }: SendModalProps) {
             {/* Amount */}
             <FormControl>
               <FormLabel color="white" fontSize="sm">
-                Amount
+                {t('wallet.amount')}
               </FormLabel>
               <InputGroup>
                 <Input
@@ -221,7 +221,7 @@ export default function SendModal({ isOpen, onClose, token }: SendModalProps) {
                       {token.token.symbol}
                     </Text>
                     <Button size="xs" variant="ghost" onClick={handleMaxClick}>
-                      MAX
+                      {t('wallet.max')}
                     </Button>
                   </HStack>
                 </InputRightAddon>
@@ -238,8 +238,7 @@ export default function SendModal({ isOpen, onClose, token }: SendModalProps) {
               <Alert status="warning" bg="orange.900" borderColor="orange.700">
                 <AlertIcon />
                 <AlertDescription fontSize="sm">
-                  You&apos;re sending a large portion of your balance. Please
-                  double-check the amount.
+                  {t('wallet.largeBalanceWarning')}
                 </AlertDescription>
               </Alert>
             )}

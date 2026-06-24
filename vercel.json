@@ -1,45 +1,62 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron",
-      "schedule": "0 0 * * *"
-    }
-  ],
-  "functions": {
-    "app/api/video-proxy/route.ts": {
-      "maxDuration": 300
-    }
-  },
-  "headers": [
-    {
-      "source": "/api/video-proxy",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type"
-        }
-      ]
+    "crons": [
+          {
+                  "path": "/api/cron",
+                  "schedule": "0 0 * * *"
+          }
+    ],
+    "functions": {
+          "app/api/video-proxy/route.ts": {
+                  "maxDuration": 300
+          }
     },
-    {
-      "source": "/games/quest-for-stoken/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        }
-      ]
-    }
-  ]
+    "headers": [
+          {
+                  "source": "/api/og/(.*)",
+                  "headers": [
+                            {
+                                        "key": "Cache-Control",
+                                        "value": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800"
+                            },
+                            {
+                                        "key": "Access-Control-Allow-Origin",
+                                        "value": "*"
+                            },
+                            {
+                                        "key": "X-Robots-Tag",
+                                        "value": "noindex"
+                            }
+                  ]
+          },
+          {
+                  "source": "/api/video-proxy",
+                  "headers": [
+                            {
+                                        "key": "Access-Control-Allow-Origin",
+                                        "value": "*"
+                            },
+                            {
+                                        "key": "Access-Control-Allow-Methods",
+                                        "value": "GET, POST, OPTIONS"
+                            },
+                            {
+                                        "key": "Access-Control-Allow-Headers",
+                                        "value": "Content-Type"
+                            }
+                  ]
+          },
+          {
+                  "source": "/games/quest-for-stoken/(.*)",
+                  "headers": [
+                            {
+                                        "key": "Cache-Control",
+                                        "value": "public, max-age=31536000, immutable"
+                            },
+                            {
+                                        "key": "Access-Control-Allow-Origin",
+                                        "value": "*"
+                            }
+                  ]
+          }
+    ]
 }

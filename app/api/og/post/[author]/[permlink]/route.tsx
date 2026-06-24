@@ -3,6 +3,32 @@ import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
+const OG_CACHE_HEADER =
+  "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800";
+// Extensions next/og (Satori) cannot embed as an <img>. We blocklist these
+// rather than allowlisting image extensions, because Skatehive stores
+// thumbnails as extensionless IPFS CIDs (e.g. /ipfs/bafkrei...). An allowlist
+// dropped every snap/video thumbnail and fell back to the generic card.
+const NON_RENDERABLE_EXTENSIONS = new Set([
+  ".mp4",
+  ".webm",
+  ".mov",
+  ".m4v",
+  ".avi",
+  ".mkv",
+  ".m3u8",
+  ".ts",
+  ".mp3",
+  ".wav",
+  ".ogg",
+  ".flac",
+  ".json",
+  ".html",
+  ".htm",
+  ".pdf",
+  ".svg",
+]);
+
 const C = {
   bg: "#050505",
   green: "#a7ff00",
@@ -22,6 +48,26 @@ interface PostData {
   found: boolean;
 }
 
+function getRenderableImageUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    if (url.href.length > 2048) return null;
+
+    const pathname = url.pathname.toLowerCase();
+    const dotIndex = pathname.lastIndexOf(".");
+    const extension = dotIndex >= 0 ? pathname.slice(dotIndex) : "";
+    // Reject known non-image media; allow image extensions AND extensionless
+    // URLs (IPFS CIDs), which the gateway serves with an image content-type.
+    if (extension && NON_RENDERABLE_EXTENSIONS.has(extension)) return null;
+    return url.href;
+  } catch {}
+
+  return null;
+}
+
 async function getPostData(author: string, permlink: string): Promise<PostData> {
   try {
     const cleanAuthor = author.replace(/^@/, "");
@@ -29,6 +75,7 @@ async function getPostData(author: string, permlink: string): Promise<PostData> 
     const res = await fetch("https://api.hive.blog", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      next: { revalidate: 86400 },
       body: JSON.stringify({
         jsonrpc: "2.0",
         method: "condenser_api.get_content",
@@ -50,17 +97,18 @@ async function getPostData(author: string, permlink: string): Promise<PostData> 
     try {
       let meta = post.json_metadata;
       if (typeof meta === "string") meta = JSON.parse(meta);
-      if (meta?.image?.[0]) bannerImage = meta.image[0];
-      else if (meta?.thumbnail?.[0]) bannerImage = meta.thumbnail[0];
+      bannerImage =
+        getRenderableImageUrl(meta?.image?.[0]) ??
+        getRenderableImageUrl(meta?.thumbnail?.[0]);
     } catch {}
 
     // Also try to find image in body if metadata has none
     if (!bannerImage && post.body) {
       const imgMatch = post.body.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/);
-      if (imgMatch) bannerImage = imgMatch[1];
+      if (imgMatch) bannerImage = getRenderableImageUrl(imgMatch[1]);
       else {
         const htmlImgMatch = post.body.match(/<img[^>]+src="(https?:\/\/[^"]+)"/);
-        if (htmlImgMatch) bannerImage = htmlImgMatch[1];
+        if (htmlImgMatch) bannerImage = getRenderableImageUrl(htmlImgMatch[1]);
       }
     }
 
@@ -117,7 +165,6 @@ export async function GET(
         })
       : "";
 
-    const avatarUrl = `https://images.hive.blog/u/${postData.author}/avatar`;
     const hasBanner = postData.found && !!postData.bannerImage;
 
     // Layout: if there's a banner image, show it on the right side
@@ -248,14 +295,14 @@ export async function GET(
                 {/* Author info */}
                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                   {postData.found && (
-                    <img
-                      src={avatarUrl}
-                      alt=""
-                      width="40"
-                      height="40"
+                    <div
                       style={{
+                        width: "40px",
+                        height: "40px",
                         borderRadius: "50%",
                         border: `2px solid ${C.green}`,
+                        background: C.greenDim,
+                        display: "flex",
                       }}
                     />
                   )}
@@ -380,7 +427,13 @@ export async function GET(
           </div>
         </div>
       ),
-      { width: W, height: H },
+      {
+        width: W,
+        height: H,
+        headers: {
+          "Cache-Control": OG_CACHE_HEADER,
+        },
+      },
     );
   } catch (err) {
     console.error("POST OG ERROR:", err);
@@ -406,7 +459,15 @@ export async function GET(
           </div>
         </div>
       ),
-      { width: 1200, height: 630 },
+      {
+        width: 1200,
+        // Keep the frame fallback at a 3:2 aspect ratio so Farcaster still
+        // accepts the embed image when post rendering throws.
+        height: request.nextUrl.searchParams.get("format") === "frame" ? 800 : 630,
+        headers: {
+          "Cache-Control": OG_CACHE_HEADER,
+        },
+      },
     );
   }
 }

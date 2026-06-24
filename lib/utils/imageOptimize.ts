@@ -126,12 +126,20 @@ export function optimizeImageUrl(
     return pinataOptimizedUrl(cid, w, h);
   }
 
-  // Already proxied through Hive — update dimensions
-  if (src.includes("images.hive.blog")) {
+  // Already proxied through Hive with a WxH segment — just update the dimensions
+  if (/images\.hive\.blog\/\d+x\d+\//.test(src)) {
     return src.replace(/images\.hive\.blog\/\d+x\d+\//, `images.hive.blog/${w}x${h}/`);
   }
 
-  // External images — proxy through Hive image service for resize + WebP
+  // Avatar endpoints (/u/) and pre-canonicalized (/p/) URLs already carry their
+  // own sizing — wrapping them again would double-proxy, so pass through.
+  if (src.includes("images.hive.blog/u/") || src.includes("images.hive.blog/p/")) {
+    return src;
+  }
+
+  // Everything else — raw Hive uploads (images.hive.blog/<hash>/file.jpg, served
+  // full-size) and external images — proxy through the Hive image service to
+  // resize. Without this, raw uploads ship at their original size (often 500KB+).
   return `${HIVE_PROXY}/${w}x${h}/${src}`;
 }
 

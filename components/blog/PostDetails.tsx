@@ -36,7 +36,7 @@ import React, {
   useEffect,
 } from "react";
 import { Discussion } from "@hiveio/dhive";
-import { FaHeart, FaRegHeart, FaShareSquare, FaEdit } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaShareSquare, FaEdit, FaInstagram } from "react-icons/fa";
 import { getPostDate } from "@/lib/utils/GetPostDate";
 import { useAioha } from "@aioha/react-ui";
 import useHiveVote from "@/hooks/useHiveVote";
@@ -57,10 +57,95 @@ import { canCreateCoin, analyzeContent } from "@/lib/utils/markdownCoinUtils";
 import { ZoraButton } from "./ZoraButton";
 import { extractSafeUser } from "@/lib/userbase/safeUserMetadata";
 import HiveUpgradePromptModal from "@/components/shared/HiveUpgradePromptModal";
+import { usePostProseTweaks } from "@/hooks/usePostProseTweaks";
+import { PostProseTweaksPanel } from "./PostProseTweaksPanel";
+import useIsAdmin from "@/hooks/useIsAdmin";
+import InstagramPreviewModal, {
+  type CrossPostContext,
+} from "@/components/homepage/InstagramPreviewModal";
+import { extractPostMedia } from "@/lib/instagram/extractPostMedia";
+import {
+  buildProseStyleVars,
+  resolveReaderBg,
+  wrapDropCapFirstLetter,
+} from "@/lib/prose/proseStyle";
 
 interface PostDetailsProps {
   post: Discussion;
   onOpenConversation: () => void;
+}
+
+// Build a human-friendly date pair. Relative ("3 mo ago") gives quick
+// recency; absolute ("Aug 27, 2025") removes ambiguity for old posts.
+function formatPostDate(date: string): { relative: string; absolute: string } {
+  const created = new Date(date);
+  const now = new Date();
+  const diffMs = now.getTime() - created.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHrs = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
+
+  let relative: string;
+  if (diffMins < 1) relative = "just now";
+  else if (diffMins < 60) relative = `${diffMins}m ago`;
+  else if (diffHrs < 24) relative = `${diffHrs}h ago`;
+  else if (diffDays < 7) relative = `${diffDays}d ago`;
+  else if (diffDays < 30) relative = `${Math.floor(diffDays / 7)}w ago`;
+  else if (diffMonths < 12) relative = `${diffMonths}mo ago`;
+  else relative = `${diffYears}y ago`;
+
+  const absolute = created.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return { relative, absolute };
+}
+
+// Many authors paste the post title back into the markdown as the first
+// heading. The header already renders the title, so strip a leading
+// "# Title" or "Title\n===" if it matches post.title (case-insensitive,
+// trimmed). Common variants: optional bold/italic markers, optional
+// trailing punctuation.
+function stripDuplicateLeadingTitle(body: string, title: string): string {
+  if (!body || !title) return body;
+  const trimmedBody = body.replace(/^\s+/, "");
+  const normalizedTitle = title.trim().toLowerCase();
+  if (!normalizedTitle) return body;
+
+  // Read the first non-empty line and compare to title after stripping
+  // common markdown markers (# heading, **bold**, *italic*).
+  const newlineIdx = trimmedBody.indexOf("\n");
+  const firstLine = (newlineIdx === -1 ? trimmedBody : trimmedBody.slice(0, newlineIdx)).trim();
+  const restOfBody = newlineIdx === -1 ? "" : trimmedBody.slice(newlineIdx + 1);
+
+  // ATX heading: `# Title`, `## Title`, etc.
+  const atxMatch = firstLine.match(/^#{1,6}\s+(.+?)\s*#*\s*$/);
+  if (atxMatch) {
+    const headingText = atxMatch[1]
+      .replace(/^[*_]+|[*_]+$/g, "")
+      .trim()
+      .toLowerCase();
+    if (headingText === normalizedTitle) {
+      return restOfBody.replace(/^\s+/, "");
+    }
+  }
+
+  // Setext heading: `Title\n===` or `Title\n---`
+  // Need to look at 2nd line for === or ---
+  if (restOfBody) {
+    const secondNewline = restOfBody.indexOf("\n");
+    const secondLine = (secondNewline === -1 ? restOfBody : restOfBody.slice(0, secondNewline)).trim();
+    if (/^=+$/.test(secondLine) && firstLine.toLowerCase() === normalizedTitle) {
+      const remainder = secondNewline === -1 ? "" : restOfBody.slice(secondNewline + 1);
+      return remainder.replace(/^\s+/, "");
+    }
+  }
+
+  return body;
 }
 
 export default function PostDetails({
@@ -95,6 +180,8 @@ export default function PostDetails({
     softPost?.user.avatar_url ||
     `https://images.hive.blog/u/${author}/avatar/sm`;
   const postDate = useMemo(() => getPostDate(created), [created]);
+  const postDateFull = useMemo(() => formatPostDate(created), [created]);
+  const primaryTag = postTags[0];
   const { user: walletUser } = useAioha();
   const { vote, effectiveUser, canVote } = useHiveVote();
   const userVoteWeight = useVoteWeight(effectiveUser || "");
@@ -128,6 +215,39 @@ export default function PostDetails({
 
   // Markdown coin modal state
   const [isMarkdownCoinModalOpen, setIsMarkdownCoinModalOpen] = useState(false);
+
+  // Moderator-only: cross-post a mag post to @skatehive Instagram. Multiple
+  // media → carousel; single → image/Reel. Built lazily from the post body.
+  const isModerator = useIsAdmin();
+  const [isIgOpen, setIsIgOpen] = useState(false);
+  const igMediaItems = useMemo(() => extractPostMedia(post.body || ""), [post.body]);
+  // Stable reference — PostDetails re-renders on its own payout/animation/slider
+  // state; an inline object would re-run the dialog's preview fetch and wipe the
+  // moderator's in-progress caption/collaborator edits.
+  const igContext: CrossPostContext = useMemo(
+    () => ({
+      hiveAuthor: post.author,
+      hivePermlink: post.permlink,
+      title: post.title || "",
+      body: post.body,
+      tags: postTags,
+      imageUrl:
+        igMediaItems.length >= 2
+          ? igMediaItems.find((m) => m.type === "image")?.url ?? null
+          : igMediaItems[0]?.type === "image"
+          ? igMediaItems[0].url
+          : null,
+      videoUrl:
+        igMediaItems.length < 2 && igMediaItems[0]?.type === "video"
+          ? igMediaItems[0].url
+          : null,
+      mediaItems: igMediaItems.length >= 2 ? igMediaItems : undefined,
+      permalinkUrl: `${
+        typeof window !== "undefined" ? window.location.origin : "https://skatehive.app"
+      }/post/${post.author}/${post.permlink}`,
+    }),
+    [post.author, post.permlink, post.title, post.body, postTags, igMediaItems]
+  );
 
   // Check if this post is eligible for coin creation
   const coinEligibility = useMemo(() => {
@@ -180,11 +300,7 @@ export default function PostDetails({
     prevPayoutValueRef.current = currentPayout;
   }, [payoutValue, triggerUpvoteStoke]);
 
-  // Check if current user is the author
-  const isAuthor =
-    walletUser && walletUser.toLowerCase() === author.toLowerCase();
-
-  // Use the post edit hook
+  // Use the post edit hook (handles Keychain + stored-posting-key paths)
   const {
     isEditing,
     editedContent,
@@ -198,7 +314,12 @@ export default function PostDetails({
     showUpgradeModal,
     upgradeAction,
     closeUpgradeModal,
+    canEditThisPost,
   } = usePostEdit(post);
+
+  // Edit-button visibility: any user whose effective Hive identity matches
+  // the post's author, whether they're on Keychain or using a stored key.
+  const isAuthor = canEditThisPost;
 
   const {
     hivePower,
@@ -224,11 +345,53 @@ export default function PostDetails({
     );
   }, [post, effectiveUser, hasSoftVote]);
 
-  // Process markdown content once
+  // Process markdown content once.
+  // We strip a leading "# Title" / "Title\n===" line if it duplicates
+  // post.title — the title is already shown in the header above the body,
+  // and many authors copy it into the markdown as well.
   const processedMarkdown = useMemo(() => {
-    const contentToProcess = isEditing ? editedContent : body;
-    return MarkdownProcessor.process(contentToProcess);
-  }, [body, editedContent, isEditing]);
+    const raw = isEditing ? editedContent : body;
+    const deduped = stripDuplicateLeadingTitle(raw, title);
+    const withCap = wrapDropCapFirstLetter(deduped);
+    return MarkdownProcessor.process(withCap);
+  }, [body, editedContent, isEditing, title]);
+
+  // Reader typography tweaks (driven by PostProseTweaksPanel via localStorage)
+  const { tweaks: proseTweaks } = usePostProseTweaks();
+
+  // Resolve every enum/numeric tweak into the final CSS variable values
+  // consumed by `.post-prose` rules in styles/markdown.css. Memoized so we
+  // don't allocate a new style object on every re-render.
+  const proseStyleVars = useMemo(
+    () => buildProseStyleVars(proseTweaks),
+    [proseTweaks],
+  );
+
+  // Reader column background — applied to the markdownRef Box around the
+  // prose, not the prose itself. Falls through to theme when "theme".
+  const readerBg = useMemo(
+    () => resolveReaderBg(proseTweaks),
+    [proseTweaks],
+  );
+
+  // Page-level background override (applies to the document body). Theme
+  // mode = no override; transparent/custom paint the body directly. Cleanup
+  // on unmount or when leaving the post page so other routes keep theme bg.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const body = document.body;
+    const prevBg = body.style.background;
+    if (proseTweaks.pageBg === "custom") {
+      body.style.background = proseTweaks.pageBgCustom;
+    } else if (proseTweaks.pageBg === "transparent") {
+      body.style.background = "transparent";
+    } else {
+      body.style.background = "";
+    }
+    return () => {
+      body.style.background = prevBg;
+    };
+  }, [proseTweaks.pageBg, proseTweaks.pageBgCustom]);
 
   // Memoize payout calculations
   const payoutData = useMemo(() => {
@@ -372,7 +535,7 @@ export default function PostDetails({
       data-component="PostDetails"
       borderRadius="base"
       overflow="hidden"
-      bg="muted"
+      bg="background"
       mb={3}
       p={2}
       w="100%"
@@ -383,252 +546,93 @@ export default function PostDetails({
         <Breadcrumbs items={breadcrumbs} />
       </Box>
 
-      <Flex
+      <Box
         data-subcomponent="PostDetails/Header"
-        direction="column"
-        bg={"background"}
-        p={2}
-        mb={2}
-        border={"1px solid"}
-        borderColor={"primary"}
+        bg="background"
+        px={{ base: 2, md: 3 }}
+        pt={{ base: 2, md: 3 }}
+        pb={{ base: 3, md: 3 }}
+        mb={3}
+        borderBottom="1px solid"
+        borderColor="muted"
       >
-        {/* Mobile and Desktop layouts */}
-        <Box display={["block", "none"]}>
-          {/* Mobile Layout - Two rows */}
-          <Flex
-            direction="row"
-            alignItems="center"
-            w="100%"
-            justifyContent="space-between"
-            mb={2}
-          >
-            <Flex direction="row" alignItems="center" flex="0 0 auto" minW="0">
-              <Avatar size="sm" name={displayAuthor} src={displayAvatar} />
-              <Box ml={2} minW="0">
-                <Text
-                  fontWeight="medium"
-                  fontSize="sm"
-                  mb={-1}
-                  color="colorBackground"
-                  isTruncated
-                >
-                  <Link href={`/user/${author}`} color="primary">
-                    {displayAuthor}
-                  </Link>
-                </Text>
-              </Box>
-            </Flex>
-
-            <Flex
-              alignItems="center"
-              gap={1}
-              flex="0 0 auto"
-              justifyContent="flex-end"
-            >
-              <Popover
-                placement="top"
-                isOpen={isPayoutOpen}
-                onClose={closePayout}
-                closeOnBlur={true}
-              >
-                <PopoverTrigger>
-                  <Box position="relative">
-                    <span
-                      style={{ cursor: "pointer" }}
-                      onMouseDown={openPayout}
-                      onMouseUp={closePayout}
-                    >
-                      <Text fontWeight="bold" color="primary" fontSize="sm">
-                        ${payoutValue.toFixed(2)}
-                      </Text>
-                    </span>
-                    {/* UpvoteStoke animations for mobile */}
-                    {stokeInstances.map((instance) => (
-                      <UpvoteStoke
-                        key={instance.id}
-                        estimatedValue={instance.value}
-                        isVisible={instance.isVisible}
-                      />
-                    ))}
-                  </Box>
-                </PopoverTrigger>
-                <PopoverContent
-                  w="auto"
-                  bg="gray.800"
-                  color="white"
-                  borderRadius="none"
-                  boxShadow="lg"
-                  p={2}
-                >
-                  <PopoverArrow />
-                  <PopoverBody>
-                    {payoutData.isPending ? (
-                      <div>
-                        <div>
-                          <b>Pending</b>
-                        </div>
-                        <div>
-                          {payoutData.daysRemaining} day
-                          {payoutData.daysRemaining !== 1 ? "s" : ""} until
-                          payout
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div>
-                          Author: <b>${payoutData.authorPayout.toFixed(3)}</b>
-                        </div>
-                        <div>
-                          Curators:{" "}
-                          <b>${payoutData.curatorPayout.toFixed(3)}</b>
-                        </div>
-                      </>
-                    )}
-                  </PopoverBody>
-                </PopoverContent>
-              </Popover>
-              <Divider orientation="vertical" h="20px" mx={2} />
-              <IconButton
-                aria-label="Share post"
-                icon={<FaShareSquare />}
-                size="sm"
-                variant="ghost"
-                color="primary"
-                onClick={handleShare}
-                _hover={{ bg: "transparent", color: "accent" }}
-                fontSize="14px"
-                minW="auto"
-                h="auto"
-                p={1}
-              />
-              {isAuthor && (
-                <IconButton
-                  aria-label="Edit post"
-                  icon={<FaEdit />}
-                  size="sm"
-                  variant="ghost"
-                  color="primary"
-                  onClick={handleEditClick}
-                  _hover={{ bg: "transparent", color: "accent" }}
-                  fontSize="14px"
-                  minW="auto"
-                  h="auto"
-                  p={1}
-                />
-              )}
-              {coinEligibility.canCreate && contentAnalysis.isLongform && (
-                <ZoraButton
-                  wordCount={contentAnalysis.wordCount}
-                  onClick={handleOpenMarkdownCoinModal}
-                  fontSize="10px"
-                  tooltipPlacement="top"
-                />
-              )}
-              {voted ? (
-                <Icon
-                  as={FaHeart}
-                  onClick={handleHeartClick}
-                  cursor="pointer"
-                  color={"primary"}
-                  boxSize="14px"
-                />
-              ) : (
-                <Icon
-                  as={FaRegHeart}
-                  onClick={handleHeartClick}
-                  cursor="pointer"
-                  color="accent"
-                  opacity={0.5}
-                  boxSize="14px"
-                />
-              )}
-              <VoteListPopover
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    minW="auto"
-                    px={1}
-                    _active={{ bg: "transparent" }}
-                    color={voted ? "red" : "primary"}
-                    _hover={{ textDecoration: "underline" }}
-                    fontSize="sm"
-                    h="auto"
-                    p={1}
-                  >
-                    {activeVotes.length}
-                  </Button>
-                }
-                votes={activeVotes}
-                post={post}
-              />
-            </Flex>
-          </Flex>
-
-          {/* Mobile Title Row */}
-          <Box w="100%" mt={1}>
-            <Text
-              fontSize="lg"
-              fontWeight="bold"
-              color="colorBackground"
-              lineHeight="1.3"
-              noOfLines={2}
-            >
-              {title}
-            </Text>
-          </Box>
-        </Box>
-        {/* Desktop Title Row */}
-        <Box w="100%" display={["none", "block"]}>
-          <Text
-            fontSize="lg"
-            fontWeight="bold"
-            color="colorBackground"
-            lineHeight="1.3"
-            noOfLines={2}
-          >
-            {title}
-          </Text>
-        </Box>
-        <Divider mt={2} mb={2} />
-        {/* Desktop Layout - Two rows like mobile */}
-        <Flex
-          direction="row"
-          alignItems="center"
-          w="100%"
-          justifyContent="space-between"
-          display={["none", "flex"]}
-          m={2}
+        {/* Title — leads on both mobile and desktop */}
+        <Text
+          as="h1"
+          fontSize={{ base: "xl", md: "2xl" }}
+          fontWeight="bold"
+          color="colorBackground"
+          lineHeight="1.2"
+          mb={2}
         >
-          <Flex direction="row" alignItems="center" flex="0 0 auto" minW="0">
-            <Avatar size="sm" name={displayAuthor} src={displayAvatar} />
-            <HStack ml={2} minW="0">
-              <Text
-                fontWeight="medium"
-                fontSize="sm"
+          {title}
+        </Text>
+
+        {/* Meta layout: stacks at true-mobile widths (<sm), single row at sm+
+            so the narrow desktop post column still gets a tidy single line. */}
+        <Flex
+          direction={{ base: "column", sm: "row" }}
+          alignItems={{ base: "stretch", sm: "center" }}
+          justifyContent="space-between"
+          gap={{ base: 2, sm: 2 }}
+          w="100%"
+        >
+          {/* Author block — avatar + 2-line name/date stack on mobile,
+              keeps horizontal flow on larger widths via baseline + wrap. */}
+          <Flex alignItems="center" gap={2.5} minW="0" flexShrink={1}>
+            <Avatar
+              size="sm"
+              name={displayAuthor}
+              src={displayAvatar}
+            />
+            <Box minW="0">
+              <Link
+                href={`/user/${author}`}
                 color="colorBackground"
+                fontWeight="semibold"
+                fontSize="sm"
+                _hover={{ color: "primary" }}
+                display="block"
+                lineHeight="1.25"
                 isTruncated
               >
-                <Link href={`/user/${author}`} color="colorBackground">
-                  {displayAuthor}
-                </Link>
+                {displayAuthor}
+              </Link>
+              <Text
+                fontSize="xs"
+                color="colorBackground"
+                opacity={0.6}
+                lineHeight="1.3"
+                mt="2px"
+              >
+                <Tooltip
+                  label={postDateFull.absolute}
+                  placement="bottom"
+                  hasArrow
+                >
+                  <span>{postDateFull.relative}</span>
+                </Tooltip>
+                {contentAnalysis.readingTime > 0 && (
+                  <> · {contentAnalysis.readingTime} min read</>
+                )}
               </Text>
-              <Text fontSize="sm" color="colorBackground">
-                - {postDate}
-              </Text>
-            </HStack>
+            </Box>
           </Flex>
 
+          {/* Stats + actions — full-width bar on mobile (payout left, actions
+              right), tight cluster on sm+. */}
           <Flex
             alignItems="center"
-            gap={2}
-            flex="0 0 auto"
-            justifyContent="flex-end"
+            gap={1}
+            justifyContent={{ base: "space-between", sm: "flex-end" }}
+            flexShrink={0}
+            w={{ base: "100%", sm: "auto" }}
           >
             <Popover
               placement="top"
               isOpen={isPayoutOpen}
               onClose={closePayout}
+              closeOnBlur={true}
             >
               <PopoverTrigger>
                 <Box position="relative">
@@ -640,13 +644,11 @@ export default function PostDetails({
                     <Text
                       fontWeight="bold"
                       color="primary"
-                      fontSize="xs"
-                      mt={1}
+                      fontSize="sm"
                     >
                       ${payoutValue.toFixed(2)}
                     </Text>
                   </span>
-                  {/* UpvoteStoke animations for desktop */}
                   {stokeInstances.map((instance) => (
                     <UpvoteStoke
                       key={instance.id}
@@ -689,78 +691,100 @@ export default function PostDetails({
                 </PopoverBody>
               </PopoverContent>
             </Popover>
-            <Divider orientation="vertical" h="20px" mx={2} />
-            <IconButton
-              aria-label="Share post"
-              icon={<FaShareSquare />}
-              size="sm"
-              variant="ghost"
-              color="primary"
-              onClick={handleShare}
-              _hover={{ bg: "transparent", color: "accent" }}
-              fontSize="14px"
-              minW="auto"
-              h="auto"
-              p={1}
-            />
-            {isAuthor && (
+
+            <Divider orientation="vertical" h="16px" mx={1} />
+
+            <HStack spacing={{ base: 0, md: 1 }}>
               <IconButton
-                aria-label="Edit post"
-                icon={<FaEdit />}
+                aria-label="Share post"
+                icon={<FaShareSquare />}
                 size="sm"
                 variant="ghost"
                 color="primary"
-                onClick={handleEditClick}
+                onClick={handleShare}
                 _hover={{ bg: "transparent", color: "accent" }}
                 fontSize="14px"
                 minW="auto"
                 h="auto"
                 p={1}
               />
-            )}
-            {coinEligibility.canCreate && contentAnalysis.isLongform && (
-              <ZoraButton
-                wordCount={contentAnalysis.wordCount}
-                onClick={handleOpenMarkdownCoinModal}
-                fontSize="9px"
-                tooltipPlacement="top"
-              />
-            )}
-            <IconButton
-              aria-label={voted ? "Unvote" : "Vote"}
-              icon={voted ? <FaHeart /> : <FaRegHeart />}
-              size="sm"
-              variant="ghost"
-              color={voted ? "accent" : "primary"}
-              onClick={handleHeartClick}
-              _hover={{ bg: "transparent", color: "accent" }}
-              fontSize="14px"
-              minW="auto"
-              h="auto"
-              p={1}
-              mr={-2}
-            />
-
-            <VoteListPopover
-              trigger={
-                <Button
-                  variant="ghost"
+              {isModerator && igMediaItems.length > 0 && (
+                <IconButton
+                  aria-label="Cross-post to Instagram"
+                  title={
+                    igMediaItems.length >= 2
+                      ? `Cross-post to Instagram (carousel · ${igMediaItems.length})`
+                      : "Cross-post to Instagram"
+                  }
+                  icon={<FaInstagram />}
                   size="sm"
+                  variant="ghost"
+                  color="primary"
+                  onClick={() => setIsIgOpen(true)}
+                  _hover={{ bg: "transparent", color: "accent" }}
+                  fontSize="14px"
                   minW="auto"
-                  px={1}
-                  _active={{ bg: "transparent" }}
-                  color={voted ? "accent" : "primary"}
-                  _hover={{ textDecoration: "underline" }}
-                  fontSize="xs"
                   h="auto"
                   p={1}
-                >
-                  {activeVotes.length}
-                </Button>
-              }
-              votes={activeVotes}
-              post={post}
-            />
+                />
+              )}
+              {isAuthor && (
+                <IconButton
+                  aria-label="Edit post"
+                  icon={<FaEdit />}
+                  size="sm"
+                  variant="ghost"
+                  color="primary"
+                  onClick={handleEditClick}
+                  _hover={{ bg: "transparent", color: "accent" }}
+                  fontSize="14px"
+                  minW="auto"
+                  h="auto"
+                  p={1}
+                />
+              )}
+              {coinEligibility.canCreate && contentAnalysis.isLongform && (
+                <ZoraButton
+                  wordCount={contentAnalysis.wordCount}
+                  onClick={handleOpenMarkdownCoinModal}
+                  fontSize="10px"
+                  tooltipPlacement="top"
+                />
+              )}
+              <IconButton
+                aria-label={voted ? "Unvote" : "Vote"}
+                icon={voted ? <FaHeart /> : <FaRegHeart />}
+                size="sm"
+                variant="ghost"
+                color={voted ? "accent" : "primary"}
+                onClick={handleHeartClick}
+                _hover={{ bg: "transparent", color: "accent" }}
+                fontSize="14px"
+                minW="auto"
+                h="auto"
+                p={1}
+              />
+              <VoteListPopover
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    minW="auto"
+                    px={1}
+                    _active={{ bg: "transparent" }}
+                    color={voted ? "accent" : "primary"}
+                    _hover={{ textDecoration: "underline" }}
+                    fontSize="sm"
+                    h="auto"
+                    p={1}
+                  >
+                    {activeVotes.length}
+                  </Button>
+                }
+                votes={activeVotes}
+                post={post}
+              />
+            </HStack>
           </Flex>
         </Flex>
 
@@ -827,13 +851,12 @@ export default function PostDetails({
             </Button>
           </Flex>
         ) : null}
-      </Flex>
-
-      <Divider />
+      </Box>
 
       <Box
-        mt={4}
+        mt={2}
         ref={markdownRef}
+        background={readerBg}
         maxHeight={{ base: "none", md: "1000px" }}
         overflowY={{ base: "visible", md: "auto" }}
         css={{
@@ -920,9 +943,21 @@ export default function PostDetails({
             </Flex>
           </Box>
         ) : (
-          <EnhancedMarkdownRenderer
-            content={processedMarkdown.contentWithPlaceholders}
-          />
+          <Box
+            className="post-prose"
+            style={proseStyleVars}
+            data-drop-cap={proseTweaks.dropCap ? "on" : "off"}
+            data-image-frames={proseTweaks.imageFrames ? "on" : "off"}
+            data-tight-rhythm={proseTweaks.tightRhythm ? "on" : "off"}
+            data-blockquote={proseTweaks.blockquoteStyle}
+            data-bg-pattern={proseTweaks.bgPattern}
+            data-hr-style={proseTweaks.hrStyle}
+            data-link-underline={proseTweaks.linkUnderline}
+          >
+            <EnhancedMarkdownRenderer
+              content={processedMarkdown.contentWithPlaceholders}
+            />
+          </Box>
         )}
       </Box>
 
@@ -962,6 +997,21 @@ export default function PostDetails({
         onClose={closeUpgradeModal}
         action={upgradeAction}
       />
+
+      {/* Reader typography tweaks — floating FAB on post pages */}
+      <PostProseTweaksPanel />
+
+      {/* Moderator: cross-post this mag post to @skatehive (carousel when
+          it has 2+ media, otherwise a single image/Reel). */}
+      {isModerator && isIgOpen && (
+        <InstagramPreviewModal
+          isOpen={isIgOpen}
+          onClose={() => setIsIgOpen(false)}
+          mode="moderator"
+          context={igContext}
+          userHandle={walletUser || effectiveUser || null}
+        />
+      )}
     </Box>
   );
 }

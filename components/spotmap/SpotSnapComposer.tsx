@@ -23,6 +23,7 @@ import { Discussion } from "@hiveio/dhive";
 import { getFileSignature, uploadImage } from "@/lib/hive/client-functions";
 import { getLastSnapsContainer } from "@/lib/hive/client-functions";
 import { HIVE_CONFIG } from "@/config/app.config";
+import { triggerSpotmapSyncOne } from "@/lib/spotmap/syncSpotClient";
 import ImageCompressor, {
   ImageCompressorRef,
 } from "@/lib/utils/ImageCompressor";
@@ -203,14 +204,22 @@ export default function SpotSnapComposer({
         setLon("");
         setAddress("");
         // Set created to "just now" for optimistic update
+        const author = commentResponse?.author || effectiveUser;
         const newComment: Partial<Discussion> = {
-          author: commentResponse?.author || effectiveUser,
+          author,
           permlink: permlink,
           body: commentBody,
           created: "just now",
           pending_payout_value: "0.000 HBD",
         };
         onNewComment(newComment);
+        // Ingest the new spot into the map's Supabase store in the
+        // background with retries — so it lands on /map and the homepage
+        // discovery widget within seconds instead of waiting for the
+        // nightly cron reconciliation. Fire-and-forget on purpose.
+        if (author) {
+          triggerSpotmapSyncOne(author, permlink);
+        }
         onClose();
       }
     } finally {

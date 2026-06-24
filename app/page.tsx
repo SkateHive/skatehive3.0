@@ -1,6 +1,12 @@
 import { Metadata } from "next";
 import HomePageClient from "./HomePageClient";
 import { APP_CONFIG } from "@/config/app.config";
+import { getInitialFeaturedSpot } from "@/lib/spotmap/featured";
+import { buildMiniAppEmbed } from "@/lib/utils/metadata";
+
+// Revalidate the SSR'd featured spot every 5 minutes so the first paint
+// stays fresh without making the homepage fully dynamic.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Skatehive - The Infinity Skateboard Magazine",
@@ -46,19 +52,11 @@ export const metadata: Metadata = {
       "The global skateboarding community. Post videos, find spots, earn crypto. Built by skaters, for skaters.",
     images: [`${APP_CONFIG.BASE_URL}/ogimage.png`],
   },
-  other: {
-    "fc:frame": JSON.stringify({
-      version: "next",
-      imageUrl: `${APP_CONFIG.BASE_URL}/ogimage.png`,
-      button: {
-        title: "Open Skatehive",
-        action: { type: "launch_frame", name: "Skatehive", url: APP_CONFIG.BASE_URL },
-      },
-      postUrl: APP_CONFIG.BASE_URL,
-    }),
-    "fc:frame:image": `${APP_CONFIG.BASE_URL}/ogimage.png`,
-    "fc:frame:post_url": APP_CONFIG.BASE_URL,
-  },
+  other: buildMiniAppEmbed({
+    imageUrl: `${APP_CONFIG.BASE_URL}/ogimage.png`,
+    buttonTitle: "Open Skatehive",
+    url: APP_CONFIG.BASE_URL,
+  }),
 };
 
 const BASE_URL = APP_CONFIG.BASE_URL;
@@ -103,7 +101,12 @@ const navJsonLd = {
   ],
 };
 
-export default function Home() {
+export default async function Home() {
+  // Server-side initial spot for the "Discover a spot" sidebar widget
+  // so the user doesn't see a skeleton on first paint. The client widget
+  // re-fetches with geolocation as soon as it mounts and replaces this.
+  const initialFeaturedSpot = await getInitialFeaturedSpot();
+
   return (
     <>
       <script
@@ -118,7 +121,7 @@ export default function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(navJsonLd) }}
       />
-      <HomePageClient />
+      <HomePageClient initialFeaturedSpot={initialFeaturedSpot} />
     </>
   );
 }

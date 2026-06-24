@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSwapFeeBps, getSwapFeeRecipient } from "@/lib/evm/platformFees";
 
 const ZEROX_HEADERS = {
   "0x-api-key": process.env.ZEROX_API_KEY || "",
@@ -7,8 +8,7 @@ const ZEROX_HEADERS = {
 };
 
 // Must match the fee params in /api/0x/price so the quote is consistent.
-const FEE_RECIPIENT = process.env.SKATEHIVE_FEE_RECIPIENT || "";
-const FEE_BPS = process.env.SKATEHIVE_FEE_BPS || "50";
+const FEE_BPS = getSwapFeeBps();
 
 /** GET /api/0x/quote?chainId=8453&sellToken=...&buyToken=...&sellAmount=...&taker=... */
 export async function GET(request: NextRequest) {
@@ -18,10 +18,12 @@ export async function GET(request: NextRequest) {
   const wantsFee = params.get("fee") === "1";
   params.delete("fee");
 
-  if (FEE_RECIPIENT && wantsFee) {
+  const feeRecipient = getSwapFeeRecipient(params.get("chainId"));
+
+  if (feeRecipient && wantsFee) {
     const buyToken = params.get("buyToken") || "";
     if (buyToken) {
-      params.set("swapFeeRecipient", FEE_RECIPIENT);
+      params.set("swapFeeRecipient", feeRecipient);
       params.set("swapFeeBps", FEE_BPS);
       params.set("swapFeeToken", buyToken);
     }

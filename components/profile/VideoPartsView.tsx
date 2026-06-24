@@ -12,7 +12,7 @@ import { memo, useCallback } from "react";
 import { VideoPart } from "@/types/VideoPart";
 import VideoPartCard from "./VideoPartCard";
 import VideoPartsForm from "./VideoPartsForm";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import { updateProfile } from "@/lib/hive/client-functions";
 
 interface VideoPartsViewProps {

@@ -13,6 +13,8 @@ interface FollowButtonProps {
   onLoadingChange: (loading: boolean) => void;
   /** If true, the user is a lite account without a Hive wallet connected */
   isLiteUser?: boolean;
+  /** If true, broadcast follow through the server with the DB-stored posting key */
+  useStoredPostingKey?: boolean;
 }
 
 export default function FollowButton({
@@ -23,13 +25,14 @@ export default function FollowButton({
   onFollowingChange,
   onLoadingChange,
   isLiteUser = false,
+  useStoredPostingKey = false,
 }: FollowButtonProps) {
   const toast = useToast();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const handleFollowToggle = useCallback(async () => {
-    // If lite user without Hive wallet, show upgrade modal
-    if (isLiteUser) {
+    // If lite user without a stored posting key, show upgrade modal
+    if (isLiteUser && !useStoredPostingKey) {
       setShowUpgradeModal(true);
       return;
     }
@@ -42,6 +45,21 @@ export default function FollowButton({
     onLoadingChange(true);
 
     try {
+      if (useStoredPostingKey) {
+        const response = await fetch("/api/userbase/hive/follow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ following: username }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to update follow status");
+        }
+        onFollowingChange(Boolean(data?.isFollowing));
+        onLoadingChange(false);
+        return;
+      }
+
       await changeFollow(user, username);
       // Poll for backend confirmation
       let tries = 0;
@@ -74,7 +92,9 @@ export default function FollowButton({
       toast({
         title: "Follow action failed",
         description:
-          "There was a problem updating your follow status. Please try again.",
+          err instanceof Error
+            ? err.message
+            : "There was a problem updating your follow status. Please try again.",
         status: "error",
         duration: 4000,
         isClosable: true,
@@ -88,6 +108,7 @@ export default function FollowButton({
     onLoadingChange,
     toast,
     isLiteUser,
+    useStoredPostingKey,
   ]);
 
   // Show button for lite users (to trigger upgrade modal) or for logged in users

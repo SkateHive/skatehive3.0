@@ -12,12 +12,10 @@ import {
   Badge,
 } from "@chakra-ui/react";
 import { FaSignOutAlt, FaCog } from "react-icons/fa";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import { useRouter } from "next/navigation";
 import { useAioha } from "@aioha/react-ui";
 import { checkFollow, changeFollow } from "@/lib/hive/client-functions";
-import ZoraProfileCoinDisplay from "./ZoraProfileCoinDisplay";
-import { ZoraProfileData } from "@/hooks/useZoraProfileCoin";
 import { useTranslations } from "@/contexts/LocaleContext";
 import HiveUpgradePromptModal from "@/components/shared/HiveUpgradePromptModal";
 interface MobileProfileHeaderProps {
@@ -31,13 +29,10 @@ interface MobileProfileHeaderProps {
   onFollowingChange: (following: boolean | null) => void;
   onLoadingChange: (loading: boolean) => void;
   onEditModalOpen: () => void;
-  showZoraProfile?: boolean;
-  onToggleProfile?: (show: boolean) => void;
-  cachedZoraData?: ZoraProfileData | null;
-  zoraLoading?: boolean;
-  zoraError?: string | null;
   /** If true, the viewer is a lite account without a Hive wallet connected */
   isLiteUser?: boolean;
+  /** If true, follow actions can use the viewer DB-stored posting key */
+  useStoredPostingKey?: boolean;
 }
 
 const MobileProfileHeader = memo(function MobileProfileHeader({
@@ -51,12 +46,8 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
   onFollowingChange,
   onLoadingChange,
   onEditModalOpen,
-  showZoraProfile = false,
-  onToggleProfile,
-  cachedZoraData,
-  zoraLoading = false,
-  zoraError = null,
   isLiteUser = false,
+  useStoredPostingKey = false,
 }: MobileProfileHeaderProps) {
   const router = useRouter();
   const { aioha } = useAioha();
@@ -82,8 +73,8 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
 
   // Memoized follow handler
   const handleFollowToggle = useCallback(async () => {
-    // If lite user without Hive wallet, show upgrade modal
-    if (isLiteUser && !user) {
+    // If lite user without a stored posting key, show upgrade modal
+    if (isLiteUser && !useStoredPostingKey) {
       setShowUpgradeModal(true);
       return;
     }
@@ -98,8 +89,21 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
     onLoadingChange(true);
 
     try {
-      await changeFollow(user, username);
-      // Keep optimistic state
+      if (useStoredPostingKey) {
+        const response = await fetch("/api/userbase/hive/follow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ following: username }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to update follow status");
+        }
+        onFollowingChange(Boolean(data?.isFollowing));
+      } else {
+        await changeFollow(user, username);
+        // Keep optimistic state
+      }
       onLoadingChange(false);
     } catch (error) {
       console.error("Follow action failed:", error);
@@ -115,6 +119,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
     onFollowingChange,
     onLoadingChange,
     isLiteUser,
+    useStoredPostingKey,
   ]);
 
   // Memoized logout handler
@@ -128,23 +133,23 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
 
   return (
     <Box display={{ base: "block", md: "none" }} position="relative" w="100%">
-      {/* Farcaster-style Profile Section - Overlapping the banner */}
-      <Box position="relative" p={4} mt={-12}>
-        {/* Avatar positioned to overlap banner */}
-        <Flex justify="space-between" align="flex-start" mb={3}>
+      {/* Profile Section — full padding from top since cover image is no longer rendered */}
+      <Box position="relative" px={4} pt={5} pb={4}>
+        <Flex justify="space-between" align="flex-start" mb={3} gap={3}>
           <Avatar
             src={profileData.profileImage}
             name={username}
             size="xl"
-            border="4px solid"
-            borderColor="white"
-            bg="white"
+            border="2px solid"
+            borderColor="border"
+            bg="muted"
             shadow="lg"
             loading="lazy"
             cursor={(canEdit ?? isOwner) ? "pointer" : "default"}
             _hover={(canEdit ?? isOwner) ? { opacity: 0.8 } : {}}
             transition="opacity 0.2s"
             onClick={(canEdit ?? isOwner) ? onEditModalOpen : undefined}
+            flexShrink={0}
           />
 
           {/* Top-right settings (only for owner) */}
@@ -187,7 +192,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
                 </Badge>
               )}
               {/* Follow/Following Button */}
-              {!isOwner && (user || isLiteUser) && (
+              {!isOwner && (user || isLiteUser || useStoredPostingKey) && (
                 <Button
                   onClick={handleFollowToggle}
                   size="xs"
@@ -275,16 +280,6 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
                 <Text color="whiteAlpha.700">VP</Text>
               </Flex>
             )}
-            {/* Zora Profile Coin Display integrated into stats */}
-            <Box>
-              <ZoraProfileCoinDisplay
-                walletAddress={profileData.ethereum_address}
-                size="xs"
-                cachedProfileData={cachedZoraData}
-                cachedLoading={zoraLoading}
-                cachedError={zoraError}
-              />
-            </Box>
           </Flex>
         </VStack>
         {/* Action Buttons - Only for Owners */}

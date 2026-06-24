@@ -32,9 +32,13 @@ import ShareMenuButtons from "./ShareMenuButtons";
 import useHivePower from "@/hooks/useHivePower";
 import { useVoteWeightContext } from "@/contexts/VoteWeightContext";
 import { separateContent, fetchFilteredReplies } from "@/lib/utils/snapUtils";
+import { extractImageUrls } from "@/lib/utils/extractImageUrls";
+import useIsAdmin from "@/hooks/useIsAdmin";
+import { FaInstagram } from "react-icons/fa";
 import { SlPencil } from "react-icons/sl";
 import { usePostEdit } from "@/hooks/usePostEdit";
 import { usePostDelete } from "@/hooks/usePostDelete";
+import InstagramPreviewModal from "@/components/homepage/InstagramPreviewModal";
 import {
   parsePayout,
   calculatePayoutDays,
@@ -73,8 +77,13 @@ const Snap = React.memo(function Snap({
   onCommentAdded,
   onDelete,
 }: SnapProps) {
-  const { user: walletUser } = useAioha();
+  const { user: walletUser, aioha } = useAioha();
   const { handle: effectiveUser } = useEffectiveHiveUser();
+  const isModerator = useIsAdmin();
+  // Moderator-only preview dialog for the Instagram force-post action.
+  // Opens BEFORE we publish so the moderator can see the rendered caption
+  // + media + dedupe status, then confirm explicitly.
+  const [isIgPreviewOpen, setIsIgPreviewOpen] = useState(false);
   const { vote, canVote } = useHiveVote();
   const toast = useToast();
   const {
@@ -117,6 +126,7 @@ const Snap = React.memo(function Snap({
     handleEditClick,
     handleCancelEdit,
     handleSaveEdit,
+    canEditThisPost,
   } = usePostEdit(discussion);
 
   const [isDeleted, setIsDeleted] = useState(false);
@@ -197,6 +207,34 @@ const Snap = React.memo(function Snap({
     [discussion.body]
   );
 
+  // Media derived for the moderator "Force post to Instagram" action.
+  // Snap videos are embedded as an <iframe> IPFS player (often multi-line) or
+  // as a markdown/raw video URL; images use ![](...) markdown. Scan the full
+  // body so multi-line iframes aren't missed. Prefer video (→ Reel).
+  const igMedia = useMemo(() => {
+    const body = discussion.body || "";
+    const isVideoFile = (u: string) => /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(u);
+    const isIpfs = (u: string) =>
+      /\/ipfs\/[a-z0-9]{40,}/i.test(u) || /\bipfs\./i.test(u);
+
+    let video: string | null = null;
+    // 1. iframe player (the skatehive video embed) — IPFS or a video file
+    const iframeSrc = body.match(/<iframe[\s\S]*?\bsrc=["']([^"']+)["']/i)?.[1];
+    if (iframeSrc && (isIpfs(iframeSrc) || isVideoFile(iframeSrc))) {
+      video = iframeSrc;
+    }
+    // 2. markdown / raw video URL fallback
+    if (!video) {
+      video =
+        body.match(/!\[[^\]]*\]\((https?:\/\/[^)\s]+\.(?:mp4|webm|mov|m4v)[^)\s]*)\)/i)?.[1] ||
+        body.match(/https?:\/\/[^\s"'<>)]+\.(?:mp4|webm|mov|m4v)/i)?.[0] ||
+        null;
+    }
+
+    const image = extractImageUrls(body)[0] || null;
+    return { video, image, has: Boolean(video || image) };
+  }, [discussion.body]);
+
   const hasSoftVote =
     !!softVote && softVote.status !== "failed" && softVote.weight > 0;
 
@@ -205,7 +243,8 @@ const Snap = React.memo(function Snap({
     () =>
       hasSoftVote ||
       discussion.active_votes?.some(
-        (item: { voter: string }) => item.voter === effectiveUser
+        (item: { voter: string }) =>
+          item.voter?.toLowerCase() === effectiveUser?.toLowerCase()
       ) ||
       false,
     [discussion.active_votes, effectiveUser, hasSoftVote]
@@ -273,6 +312,16 @@ const Snap = React.memo(function Snap({
       setConversation(discussion);
     }
   }, [setConversation, discussion]);
+
+  // Moderator-only: open the Instagram force-post preview dialog. The
+  // actual POST to /api/instagram/force-post happens inside the modal
+  // on Confirm — including the Keychain signature, which must be signed
+  // at confirm-time (5-min replay window) rather than now. Server still
+  // re-verifies the moderator allowlist; this open is just UX.
+  const handleOpenIgPreview = useCallback(() => {
+    if (!igMedia.has) return;
+    setIsIgPreviewOpen(true);
+  }, [igMedia.has]);
 
   function handleInlineNewReply(newComment: Partial<Discussion>) {
     const newReply = newComment as Discussion;
@@ -378,7 +427,7 @@ const Snap = React.memo(function Snap({
               color={"primary"}
             />
             <MenuList bg={"background"} color={"primary"}>
-              {walletUser === discussion.author && (
+              {canEditThisPost && (
                 <MenuItem
                   onClick={handleEditClick}
                   bg={"background"}
@@ -397,6 +446,19 @@ const Snap = React.memo(function Snap({
                 >
                   <DeleteIcon style={{ marginRight: "8px" }} />
                   Delete
+                </MenuItem>
+              )}
+              {isModerator && (
+                <MenuItem
+                  onClick={handleOpenIgPreview}
+                  bg={"background"}
+                  color={"primary"}
+                  isDisabled={!igMedia.has}
+                >
+                  <FaInstagram style={{ marginRight: "8px" }} />
+                  {igMedia.has
+                    ? "Force post to Instagram…"
+                    : "Force post to Instagram (no media)"}
                 </MenuItem>
               )}
               <ShareMenuButtons comment={discussion} />
@@ -663,6 +725,32 @@ const Snap = React.memo(function Snap({
             liteUserHandle={softPost.user.handle}
             liteUserDisplayName={softPost.user.handle || softPost.user.display_name || 'User'}
             sponsorHiveUsername={viewerHiveUsername}
+          />
+        )}
+
+        {/* Instagram force-post preview (moderator only). Lazy: only
+            mounted while open so we don't preflight a fetch for every
+            snap that has a 3-dots menu rendered on screen. */}
+        {isModerator && isIgPreviewOpen && (
+          <InstagramPreviewModal
+            isOpen={isIgPreviewOpen}
+            onClose={() => setIsIgPreviewOpen(false)}
+            mode="moderator"
+            context={{
+              hiveAuthor: discussion.author,
+              hivePermlink: discussion.permlink,
+              title: (discussion as any).title || "",
+              body: discussion.body,
+              tags: Array.isArray((discussion as any).json_metadata?.tags)
+                ? (discussion as any).json_metadata.tags
+                : [],
+              imageUrl: igMedia.image,
+              videoUrl: igMedia.video,
+              permalinkUrl: `${
+                typeof window !== "undefined" ? window.location.origin : "https://skatehive.app"
+              }/post/${discussion.author}/${discussion.permlink}`,
+            }}
+            userHandle={walletUser || effectiveUser}
           />
         )}
       </Box>

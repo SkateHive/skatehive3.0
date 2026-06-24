@@ -71,19 +71,19 @@ All swap routes are thin proxies to the [0x Swap API v2](https://docs.0x.org) (`
 
 ### Affiliate fee
 
-SkateHive collects a **0.5% fee** (50 bps) on every ERC-20 swap when `SKATEHIVE_FEE_RECIPIENT` is set in the environment. The fee is taken from the `buyToken` (what the user receives).
+SkateHive collects a **0.5% fee** (50 bps) on opted-in ERC-20 swaps. Base swaps route fees to the SkateHive split contract (`0x1c043B5c01E7d29F85493830b98EB182BD205F21`); non-Base swaps use `SKATEHIVE_FEE_RECIPIENT` when set. The fee is taken from the `buyToken` (what the user receives).
 
 | Env var | Default | Description |
 |---|---|---|
 | `ZEROX_API_KEY` | — | Required. From 0x dashboard. |
-| `SKATEHIVE_FEE_RECIPIENT` | `""` (disabled) | Treasury wallet to receive fees. |
+| `SKATEHIVE_FEE_RECIPIENT` | `""` (disabled) | Non-Base wallet or contract to receive fees. |
 | `SKATEHIVE_FEE_BPS` | `50` | Fee in basis points (50 = 0.5%). Max 1000. |
 
 ### `GET /api/0x/price`
 
 Fetches an **indicative price** (no transaction included). Used for quote previews while the user types.
 
-Forwards all query params to `https://api.0x.org/swap/allowance-holder/price`, appending fee params if configured.
+Forwards all query params to `https://api.0x.org/swap/allowance-holder/price`, appending fee params when the client opts in.
 
 **Required params:** `chainId`, `sellToken`, `buyToken`, `sellAmount`, `taker`
 

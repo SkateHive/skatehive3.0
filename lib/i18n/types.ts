@@ -55,6 +55,8 @@ export interface TranslationSchema {
     authenticationFailed: string;
     connectionFailed: string;
     connectedSuccess: string;
+    welcome: string;
+    farcasterAuthFailed: string;
   };
   signIn: {
     title: string;
@@ -65,6 +67,7 @@ export interface TranslationSchema {
     handleLabel: string;
     handlePlaceholder: string;
     handleHelper: string;
+    newsletterOptIn: string;
     checkingAccount: string;
     accountFound: string;
     accountNotFound: string;
@@ -247,6 +250,47 @@ export interface TranslationSchema {
     unsupportedFileType: string;
     videoProcessFailed: string;
   };
+  createWorkspace: {
+    title: string;
+    subtitle: string;
+    continueDraft: string;
+    continueEditing: string;
+    blankPost: string;
+    createFromTemplate: string;
+    useTemplate: string;
+    noDrafts: string;
+    noDraftsDescription: string;
+    untitledDraft: string;
+    untitledTemplate: string;
+    deleteDraft: string;
+    saveDraft: string;
+    saveTemplate: string;
+    draftSaved: string;
+    savedStatus: string;
+    notSavedYet: string;
+    templateSaved: string;
+    templateNeedsContent: string;
+    hashtags: string;
+    hashtagPlaceholder: string;
+    userTemplate: string;
+    templates: {
+      sessionReport: string;
+      sessionReportDescription: string;
+      sessionReportBody: string;
+      spotReview: string;
+      spotReviewDescription: string;
+      spotReviewBody: string;
+      eventCoverage: string;
+      eventCoverageDescription: string;
+      eventCoverageBody: string;
+      videoBreakdown: string;
+      videoBreakdownDescription: string;
+      videoBreakdownBody: string;
+      travelSkateTrip: string;
+      travelSkateTripDescription: string;
+      travelSkateTripBody: string;
+    };
+  };
   videoUploader: {
     roasts: {
       oracle1: string;
@@ -369,6 +413,14 @@ export interface TranslationSchema {
     helpSkateHiveDetailed: string;
     container: string;
     upvoteNow: string;
+    needsPostingKey: string;
+    addPostingKey: string;
+  };
+  postingKeyDialog: {
+    title: string;
+    description: string;
+    descriptionWithHandle: string;
+    close: string;
   };
   settings: {
     title: string;
@@ -376,6 +428,9 @@ export interface TranslationSchema {
     appAccountTab: string;
     appAccountTitle: string;
     appAccountDescription: string;
+    newsletterTitle: string;
+    newsletterDescription: string;
+    newsletterToggle: string;
     manageAccount: string;
     linkedIdentities: string;
     noIdentities: string;

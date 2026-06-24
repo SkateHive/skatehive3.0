@@ -92,7 +92,33 @@ const nextConfig = {
         serverActions: {
             bodySizeLimit: '200mb', // Increase the body size limit for large video uploads
         },
+        // Cut shared-chunk size by letting Next rewrite barrel-file imports
+        // into direct subpath imports. These libs all have large index.ts
+        // re-exports that defeat tree-shaking otherwise.
+        optimizePackageImports: [
+            '@chakra-ui/react',
+            '@chakra-ui/icons',
+            'react-icons',
+            'wagmi',
+            'viem',
+            '@hiveio/dhive',
+            'framer-motion',
+            '@rainbow-me/rainbowkit',
+        ],
     },
+
+    // Heavy server-only packages with WASM or native bindings — keep them
+    // out of the bundler entirely so they're required at runtime from
+    // node_modules. Also silences the libheif-js "Critical dependency"
+    // warning that adds compile time on every build.
+    serverExternalPackages: ['libheif-js', 'heic-convert', 'heic-decode', 'sharp'],
+
+    // ESM-only packages that webpack chokes on inside dynamically-imported chunks
+    // (e.g. @aioha/providers exposes "./react" with only an "import" condition,
+    // so when CoinCreationModal is loaded via next/dynamic the chunk's module
+    // factory comes back undefined). Transpiling lets Next normalize them.
+    transpilePackages: ['@aioha/react-ui', '@aioha/providers', '@aioha/aioha'],
+
     webpack: (config, { isServer, dev, webpack }) => {
         // On the server, replace idb-keyval with a no-op stub so that
         // indexedDB.open() is never called.  The real idb-keyval will
@@ -325,6 +351,25 @@ const nextConfig = {
                     {
                         key: 'Cache-Control',
                         value: 'public, max-age=31536000, immutable',
+                    },
+                ],
+            },
+            {
+                // Build manifests are not content-hashed — bust cache on every deploy
+                source: '/_next/static/:buildId/_buildManifest.js',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'no-cache, no-store, must-revalidate',
+                    },
+                ],
+            },
+            {
+                source: '/_next/static/:buildId/_ssgManifest.js',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'no-cache, no-store, must-revalidate',
                     },
                 ],
             },

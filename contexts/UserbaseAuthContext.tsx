@@ -76,6 +76,21 @@ export function UserbaseAuthProvider({ children }: { children: React.ReactNode }
     setIsLoading((prev) => (prev ? prev : true));
     setError(null);
     try {
+      // Short-circuit: if there is no `userbase_logged_in` companion
+      // cookie, we know the user is anonymous and can skip the
+      // serverless call (which would always 401). This cuts ~95% of
+      // `/api/userbase/auth/session` invocations — the highest-traffic
+      // cache-MISS route in prod.
+      if (
+        typeof document !== "undefined" &&
+        !document.cookie.split("; ").some((c) => c.startsWith("userbase_logged_in="))
+      ) {
+        if (userRef.current !== null) setUser(null);
+        if (sessionIdRef.current !== null) setSessionId(null);
+        if (expiresAtRef.current !== null) setExpiresAt(null);
+        setIsLoading(false);
+        return;
+      }
       const response = await fetch("/api/userbase/auth/session", {
         cache: "no-store",
       });

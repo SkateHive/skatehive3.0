@@ -36,6 +36,7 @@ function buildInitialForm(initialData?: ReportOptions): ReportFormData {
     description: initialData?.prefillDescription ?? "",
     type: initialData?.type ?? "bug",
     errorStack: initialData?.errorStack,
+    screenshot: initialData?.screenshot,
     pageUrl: typeof window !== "undefined" ? window.location.href : undefined,
     userAgent: typeof window !== "undefined" ? navigator.userAgent : undefined,
   };
@@ -58,7 +59,7 @@ export function ReportModal({ isOpen, onClose, initialData }: ReportModalProps) 
     if (isOpen) {
       setForm(buildInitialForm(initialData));
       setStatus("idle");
-      setImagePreview(null);
+      setImagePreview(initialData?.screenshot ?? null);
       setImageError(null);
     }
   }, [isOpen, initialData]);

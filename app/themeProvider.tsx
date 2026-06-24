@@ -108,6 +108,19 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [themeName]);
 
+  // Expose the active theme name on <html> so theme-scoped CSS rules can
+  // target it (e.g. warm reading fonts on dark/mono themes). Chakra owns
+  // `data-theme` for color mode, so we use a separate attribute it won't
+  // overwrite.
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute(
+        "data-skatehive-theme",
+        themeName,
+      );
+    }
+  }, [themeName]);
+
   const changeTheme = (newThemeName: ThemeName) => {
     setThemeName(newThemeName);
     setTheme(themeMap[newThemeName]);

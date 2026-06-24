@@ -56,6 +56,9 @@ export const ETH_ADDRESSES = {
   
   /** Skatehive hot wallet */
   SKATEHIVE_HOT: '0xB4964e1ecA55Db36a94e8aeFfBFBAb48529a2f6c' as Address,
+
+  /** Skatehive split contract for platform fees and referrals */
+  SKATEHIVE_SPLIT_CONTRACT: '0x1c043B5c01E7d29F85493830b98EB182BD205F21' as Address,
   
   /** USDC on Base */
   USDC: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913' as Address,
@@ -73,7 +76,7 @@ export const ETH_ADDRESSES = {
   GNARS_NFT: '0x880fb3cf5c6cc2d7dfc13a993e839a9411200c17' as Address,
 
   /** Platform referrer address */
-  PLATFORM_REFERRER: '0x8D36b2cBc8f5Bc9fB43065D5E0485bc2a37eA94E' as Address,
+  PLATFORM_REFERRER: '0x1c043B5c01E7d29F85493830b98EB182BD205F21' as Address,
 
   /** Zero address */
   ZERO: '0x0000000000000000000000000000000000000000' as Address,

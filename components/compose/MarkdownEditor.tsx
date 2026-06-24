@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Box, Textarea, HStack, IconButton, Button, Flex, Text, useColorModeValue } from "@chakra-ui/react";
 import { useDropzone } from "react-dropzone";
-import HiveMarkdown from "../shared/HiveMarkdown";
+import { EnhancedMarkdownRenderer } from "../markdown/EnhancedMarkdownRenderer";
 import { FaColumns } from "react-icons/fa";
 import { TbGif } from "react-icons/tb";
 import { MdPermMedia } from "react-icons/md";
@@ -315,7 +315,7 @@ export default function MarkdownEditor({
               Preview
             </Text>
             <Box color={textPrimary} fontSize="15px" lineHeight="1.7">
-              <HiveMarkdown markdown={markdown} rawIframes={true} />
+              <EnhancedMarkdownRenderer content={markdown} />
             </Box>
           </Box>
           <Box
@@ -378,7 +378,7 @@ export default function MarkdownEditor({
           maxHeight="50%"
           overflow="auto"
         >
-          <HiveMarkdown markdown={markdown} rawIframes={true} />
+          <EnhancedMarkdownRenderer content={markdown} />
         </Box>
       )}
 

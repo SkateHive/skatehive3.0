@@ -1,7 +1,7 @@
 "use client";
 import React, { memo } from "react";
 import { HStack, Text } from "@chakra-ui/react";
-import { ProfileData } from "./ProfilePage";
+import type { ProfileData } from "./ProfilePage";
 import ProfileHeaderWrapper from "./ProfileHeaderWrapper";
 import IdentityBlock from "./IdentityBlock";
 

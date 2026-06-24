@@ -1,6 +1,7 @@
 "use client";
 
-import { AuctionBid, BidsModal } from "./";
+import { AuctionBid } from "./AuctionBid";
+import { BidsModal } from "./BidsModal";
 import { AdminAuctionPage } from "./AdminAuctionPage";
 import { fetchAuctionByTokenId, fetchAuction } from "@/services/auction";
 import { fetchAuctions } from "@/lib/dao/auction";

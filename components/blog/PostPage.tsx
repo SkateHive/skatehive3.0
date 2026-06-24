@@ -96,7 +96,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
 
   return (
     <ContentErrorWatcher>
-      <Box bg="background" color="text" minH="100vh">
+      <Box className="post-page" bg="background" color="text" minH="100vh">
         <Flex
           direction={{ base: "column", md: "row" }}
           h={{ base: "auto", md: "100vh" }}

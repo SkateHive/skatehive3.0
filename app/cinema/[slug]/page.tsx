@@ -20,6 +20,8 @@ interface CinemaVideo {
   link: string;
   soundtrack?: { part: string; song: string }[];
   skaters?: string[];
+  cast?: string[];
+  type?: string;
   dataSource?: string;
   svsSlug?: string;
 }
@@ -36,10 +38,15 @@ for (const brand of brands) {
   brandSlugMap.set(brandSlug(brand), brand);
 }
 
+// ISR: pages render on-demand and are cached for a day. Brand index
+// pages are still prerendered at build (small set, frequent entry
+// points); video pages defer to first-visit because there are 600+ and
+// most see little traffic. Saves ~15s on every build.
+export const revalidate = 86400; // 1 day
+export const dynamicParams = true;
+
 export async function generateStaticParams() {
-  const videoParams = videos.map((v) => ({ slug: v.slug }));
-  const brandParams = brands.map((b) => ({ slug: brandSlug(b) }));
-  return [...videoParams, ...brandParams];
+  return brands.map((b) => ({ slug: brandSlug(b) }));
 }
 
 export async function generateMetadata({
@@ -87,6 +94,8 @@ export async function generateMetadata({
   const title = `${video.title} — Skatehive Cinema`;
   const rawDescription = video.description || `Watch ${video.title} from ${video.brand}. Classic skateboarding video from the Skatehive cinema archive.`;
   const description = rawDescription.length > 160 ? rawDescription.substring(0, 157) + "..." : rawDescription;
+  const normalizedTitle = video.title.toLowerCase();
+  const isGrindMovie = slug === "grind-the-movie-2003" || normalizedTitle.includes("grind");
 
   return {
     title,
@@ -98,6 +107,10 @@ export async function generateMetadata({
       video.year ? `${video.year} skate video` : "",
       "full length",
       "skateboarding film",
+      isGrindMovie ? "grind movie" : "",
+      isGrindMovie ? "grind 2003" : "",
+      isGrindMovie ? "grind skate movie" : "",
+      isGrindMovie ? "cult skateboarding movie" : "",
     ].filter(Boolean),
     openGraph: {
       title,
@@ -164,7 +177,7 @@ export default async function CinemaSlugPage({
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "VideoObject",
+    "@type": video.type === "film" ? "Movie" : "VideoObject",
     name: video.title,
     description: video.description || `${video.title} — classic skateboarding video.`,
     thumbnailUrl: video.thumbnail,
@@ -174,6 +187,9 @@ export default async function CinemaSlugPage({
     publisher: { "@type": "Organization", name: "Skatehive", url: BASE_URL },
     ...(video.brand !== "Other" && {
       productionCompany: { "@type": "Organization", name: video.brand },
+    }),
+    ...(video.cast?.length && {
+      actor: video.cast.map((name) => ({ "@type": "Person", name })),
     }),
   };
 

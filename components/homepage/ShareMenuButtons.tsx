@@ -11,6 +11,7 @@ import React, { useMemo, useCallback } from "react";
 import { useFarcasterContext } from "@/hooks/useFarcasterContext";
 import useHiveVote from "@/hooks/useHiveVote";
 import { APP_CONFIG } from "@/config/app.config";
+import { isSpotPost } from "@/lib/utils/parseSpotBody";
 
 // Lazy load heavy modals
 const CoinCreationModal = dynamic(() => import("@/components/shared/CoinCreationModal").then(mod => ({ default: mod.CoinCreationModal })), { ssr: false });
@@ -90,11 +91,18 @@ interface ShareMenuButtonsProps {
 }
 
 const ShareMenuButtons = ({ comment }: ShareMenuButtonsProps) => {
-  // Memoize the post link to prevent unnecessary re-computations
+  // Memoize the post link to prevent unnecessary re-computations.
+  // Skate spots get their own dedicated /spot URL so the share opens
+  // the rich spot page (with mini-map + gallery) instead of the generic post view.
   const postLink = useMemo(() => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    return `${origin}/post/${comment.author}/${comment.permlink}`;
-  }, [comment.author, comment.permlink]);
+    const isSpot = isSpotPost({
+      body: comment.body,
+      json_metadata: comment.json_metadata as any,
+    });
+    const path = isSpot ? "spot" : "post";
+    return `${origin}/${path}/${comment.author}/${comment.permlink}`;
+  }, [comment.author, comment.permlink, comment.body, comment.json_metadata]);
 
   const { onCopy } = useClipboard(postLink);
   const toast = useToast();

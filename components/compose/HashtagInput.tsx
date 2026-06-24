@@ -10,6 +10,7 @@ import {
   WrapItem,
   Text,
 } from "@chakra-ui/react";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 interface HashtagInputProps {
   hashtags: string[];
@@ -24,14 +25,39 @@ export default function HashtagInput({
   setHashtagInput,
   setHashtags,
 }: HashtagInputProps) {
+  const t = useTranslations();
+
+  const parseHashtags = (value: string) =>
+    value
+      .split(/[\s,]+/)
+      .map((tag) => tag.trim().replace(/^#+/, ""))
+      .filter(Boolean);
+
+  const addHashtags = () => {
+    const nextTags = parseHashtags(hashtagInput);
+    if (!nextTags.length) return;
+
+    setHashtags((prev) => {
+      const existingTags = new Set(prev.map((tag) => tag.toLowerCase()));
+      const uniqueTags = nextTags.filter((tag) => {
+        const normalizedTag = tag.toLowerCase();
+        if (existingTags.has(normalizedTag)) return false;
+        existingTags.add(normalizedTag);
+        return true;
+      });
+
+      return [...prev, ...uniqueTags];
+    });
+    setHashtagInput("");
+  };
+
   const handleHashtagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (
       (e.key === " " || e.key === "Enter" || e.key === ",") &&
       hashtagInput.trim()
     ) {
       e.preventDefault();
-      setHashtags((prev) => [...prev, hashtagInput.trim()]);
-      setHashtagInput("");
+      addHashtags();
     } else if (e.key === "Backspace" && !hashtagInput && hashtags.length) {
       setHashtags((prev) => prev.slice(0, -1));
     }
@@ -56,11 +82,11 @@ export default function HashtagInput({
         fontWeight="600"
         textTransform="uppercase"
       >
-        Hashtags
+        {t("createWorkspace.hashtags")}
       </Text>
       <Flex width="100%" direction="row" alignItems="center" gap={4}>
         <Input
-          placeholder="Type hashtag and press space..."
+          placeholder={t("createWorkspace.hashtagPlaceholder")}
           value={hashtagInput}
           onChange={(e) => setHashtagInput(e.target.value)}
           onKeyDown={handleHashtagKeyDown}

@@ -49,3 +49,7 @@ Thumbs.db
 # MCP config with API keys
 .vscode/mcp.json
 
+# Claude
+.claude/
+
+.mcp.json
