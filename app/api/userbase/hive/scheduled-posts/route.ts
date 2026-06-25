@@ -252,3 +252,27 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ success: true, scheduled_post: inserted }, { status: 201 });
 }
+
+// DELETE — cancel ALL pending scheduled posts for the authenticated user.
+// Used when the user revokes posting authority so queued posts aren't stuck.
+export async function DELETE(request: NextRequest) {
+  const session = await getSessionUserId(request);
+  if ("error" in session) return session.error;
+
+  if (!supabase) {
+    return NextResponse.json({ error: "Missing Supabase configuration" }, { status: 500 });
+  }
+
+  const { data, error } = await supabase
+    .from("userbase_scheduled_posts")
+    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .eq("user_id", session.userId)
+    .eq("status", "pending")
+    .select("id");
+
+  if (error) {
+    return NextResponse.json({ error: "Failed to cancel pending posts" }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, cancelled_count: (data ?? []).length });
+}

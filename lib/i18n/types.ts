@@ -249,6 +249,17 @@ export interface TranslationSchema {
     compressionError: string;
     unsupportedFileType: string;
     videoProcessFailed: string;
+    scheduleForLater: string;
+    scheduleDateTimeLabel: string;
+    scheduleDateInPast: string;
+    selectDateTime: string;
+    scheduling: string;
+    schedulePost: string;
+    scheduleSuccess: string;
+    scheduleAuthorityNeeded: string;
+    scheduleAuthoritySettingsLink: string;
+    scheduleNoHiveIdentity: string;
+    scheduleError: string;
   };
   createWorkspace: {
     title: string;
@@ -452,6 +463,9 @@ export interface TranslationSchema {
     needsHiveIdentity: string;
     savePostingKey: string;
     removePostingKey: string;
+    postingAuthorityCardTitle: string;
+    postingAuthorityCardDescription: string;
+    postingAuthorityCardCta: string;
     mergeTitle: string;
     mergeDescription: string;
     mergeTypeLabel: string;
@@ -794,5 +808,31 @@ export interface TranslationSchema {
     pending: string;
     completed: string;
     failed: string;
+  };
+  hiveSettings: {
+    authorityTitle: string;
+    authorityDescription: string;
+    serviceAccountLabel: string;
+    statusGranted: string;
+    statusNotGranted: string;
+    statusLoading: string;
+    grantButton: string;
+    revokeButton: string;
+    granting: string;
+    revoking: string;
+    grantSuccess: string;
+    revokeSuccess: string;
+    grantError: string;
+    revokeError: string;
+    needsKeychain: string;
+    scheduledPostsTitle: string;
+    noScheduledPosts: string;
+    cancelPost: string;
+    statusPending: string;
+    statusBroadcasted: string;
+    statusFailed: string;
+    statusCancelled: string;
+    scheduledFor: string;
+    backToSettings: string;
   };
 }
