@@ -83,6 +83,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Process scheduled posts whose scheduled_at has arrived. Non-fatal: a failure
+    // here must not prevent soft-post/vote retries from being reported.
+    let scheduledPosts: unknown = null;
+    try {
+      const scheduledPostsResponse = await fetch(
+        new URL("/api/userbase/hive/scheduled-posts/process", baseUrl).toString(),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "x-userbase-token": token } : {}),
+          },
+          body: JSON.stringify({ limit: 50 }),
+        }
+      );
+      scheduledPosts = await scheduledPostsResponse.json().catch(() => null);
+    } catch (err) {
+      console.error("Cron scheduled posts processing failed:", err);
+      scheduledPosts = {
+        error: err instanceof Error ? err.message : "scheduled posts processing failed",
+      };
+    }
+
     // Spot map reconciliation backstop. New spots appear in real time via
     // POST /api/spotmap/sync-one; this daily pass catches anything that missed
     // it (edits, spots posted by clients that don't call sync-one). Non-fatal:
@@ -99,6 +122,7 @@ export async function GET(request: NextRequest) {
       success: true,
       soft_posts: postData,
       soft_votes: voteData,
+      scheduled_posts: scheduledPosts,
       spotmap,
     });
   } catch (error: any) {
