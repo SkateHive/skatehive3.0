@@ -10,13 +10,12 @@ import React, {
 } from "react";
 import {
   VStack,
+  HStack,
   Text,
   Alert,
   AlertIcon,
   Tabs,
-  TabList,
   TabPanels,
-  Tab,
   TabPanel,
   Box,
   Button,
@@ -32,6 +31,16 @@ const VideoPlayer = lazy(() => import("./VideoPlayer"));
 const VideoTimeline = lazy(() => import("./VideoTimeline"));
 const ThumbnailCapture = lazy(() => import("./ThumbnailCapture"));
 const VideoTrimModalFooter = lazy(() => import("./VideoTrimModalFooter"));
+const ImageCropper = lazy(() => import("@/components/shared/ImageCropper"));
+import type { AspectOption } from "@/components/shared/ImageCropper";
+
+// Crop presets for the reel cover (matches the photo-snap presets).
+const COVER_CROP_ASPECTS: AspectOption[] = [
+  { label: "Original", value: null },
+  { label: "1:1", value: 1 },
+  { label: "4:5", value: 4 / 5 },
+  { label: "9:16", value: 9 / 16 },
+];
 
 // Loading component for Suspense
 const ComponentLoader = memo(() => (
@@ -91,9 +100,14 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
     const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null);
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
     const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false);
+    // Local data URL of the current frame, captured for the crop/position editor
+    // (cropping the local frame avoids cross-origin canvas taint on upload).
+    const [coverCropSrc, setCoverCropSrc] = useState<string | null>(null);
 
     // Advanced options toggle
-    const [showAdvanced, setShowAdvanced] = useState(false);
+    // Steps (Trim/Cover) are shown by default — this IS the media-prepare flow,
+    // not a hidden "advanced" panel. The toggle can still collapse it.
+    const [showAdvanced, setShowAdvanced] = useState(true);
     const [activeTab, setActiveTab] = useState(0);
 
     // Memoized computed values
@@ -132,7 +146,7 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
       setThumbnailUrl(null);
       setIsGeneratingThumbnail(false);
       setActiveTab(0);
-      setShowAdvanced(false);
+      setShowAdvanced(true);
     }, []);
 
     // Reset state when modal opens with a new video
@@ -161,10 +175,10 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
         const needsTrimming = !canBypass && videoDuration > maxDuration;
         if (needsTrimming) {
           setShowAdvanced(true);
-          setActiveTab(1); // Switch to trim tab
+          setActiveTab(0); // Start on the Trim step
         } else {
-          setShowAdvanced(false);
-          setActiveTab(0); // Default to thumbnail tab
+          setShowAdvanced(true);
+          setActiveTab(0); // Start on the Trim step
         }
       }
     }, [canBypass, maxDuration]);
@@ -439,6 +453,44 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
     const handleCaptureFrame = useCallback(async () => {
       await generateThumbnail();
     }, [generateThumbnail]);
+
+    // Capture the current frame to a local data URL and open the crop/position
+    // editor (no upload yet — the cropped result is uploaded on confirm).
+    const handleCropFrame = useCallback(() => {
+      const video = videoRef.current;
+      if (!video || !video.videoWidth) return;
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      setCoverCropSrc(canvas.toDataURL("image/jpeg", 0.92));
+    }, []);
+
+    // Upload the cropped cover and use it as the video thumbnail.
+    const handleCoverCropComplete = useCallback(async (file: File) => {
+      setIsGeneratingThumbnail(true);
+      try {
+        let url: string | null = null;
+        try {
+          const signature = await getFileSignature(file);
+          url = await uploadImage(file, signature);
+        } catch (error) {
+          console.warn("Hive cover upload failed, falling back to Pinata:", error);
+          url = await uploadThumbnail(file);
+        }
+        if (url) {
+          setThumbnailBlob(file);
+          setThumbnailUrl(url);
+        }
+      } catch (error) {
+        console.error("Error uploading cropped cover:", error);
+      } finally {
+        setIsGeneratingThumbnail(false);
+        setCoverCropSrc(null);
+      }
+    }, []);
 
     const handleSliderChangeEnd = useCallback(() => {
       setIsPreviewingSlider(false);
@@ -721,7 +773,7 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
         <SkateModal
           isOpen={isOpen}
           onClose={onClose}
-          title={trimmingRequired ? "video-trimming-required" : "video-editor"}
+          title={trimmingRequired ? "prepare-media (trim required)" : "prepare-media"}
           size={{ base: "xl", md: "xl" }}
           onCloseComplete={() => {
             setVideoUrl(null);
@@ -817,7 +869,7 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
                       <Text fontSize="lg">{showAdvanced ? "▼" : "▶"}</Text>
                     }
                   >
-                    Show Advanced Options
+                    {showAdvanced ? "Hide editing tools" : "Trim & cover"}
                   </Button>
                 )}
 
@@ -837,37 +889,30 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
                       index={activeTab}
                       onChange={setActiveTab}
                     >
-                      <TabList>
-                        <Tab>📸 Thumbnail</Tab>
-                        <Tab
-                          color={trimmingRequired ? "orange.500" : undefined}
-                          fontWeight={trimmingRequired ? "semibold" : undefined}
-                          _selected={{
-                            color: trimmingRequired ? "orange.300" : "blue.500",
-                            borderColor: trimmingRequired
-                              ? "orange.300"
-                              : "blue.500",
-                          }}
+                      {/* Step header — Prepare media: Trim → Cover */}
+                      <HStack spacing={2} mb={4} flexWrap="wrap">
+                        <Button
+                          size="sm"
+                          variant={activeTab === 0 ? "solid" : "outline"}
+                          colorScheme={trimmingRequired ? "orange" : "blue"}
+                          borderRadius="full"
+                          onClick={() => setActiveTab(0)}
                         >
-                          ✂️{" "}
-                          {trimmingRequired
-                            ? "Trim Video (Required)"
-                            : "Trim Video"}
-                        </Tab>
-                      </TabList>
+                          {`1 · Trim${trimmingRequired ? " (required)" : ""}`}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={activeTab === 1 ? "solid" : "outline"}
+                          colorScheme="blue"
+                          borderRadius="full"
+                          onClick={() => setActiveTab(1)}
+                        >
+                          2 · Cover
+                        </Button>
+                      </HStack>
 
                       <TabPanels>
-                        {/* Thumbnail Tab */}
-                        <TabPanel px={0}>
-                          <Suspense fallback={<ComponentLoader />}>
-                            <ThumbnailCapture
-                              thumbnailUrl={thumbnailUrl}
-                              isGeneratingThumbnail={isGeneratingThumbnail}
-                              onCaptureFrame={handleCaptureFrame}
-                            />
-                          </Suspense>
-                        </TabPanel>
-                        {/* Trim Tab */}
+                        {/* Step 1 — Trim */}
                         <TabPanel px={0}>
                           <Suspense fallback={<ComponentLoader />}>
                             <VideoTimeline
@@ -890,7 +935,52 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
                             />
                           </Suspense>
                         </TabPanel>
+                        {/* Step 2 — Cover (pick frame + crop/position) */}
+                        <TabPanel px={0}>
+                          <Suspense fallback={<ComponentLoader />}>
+                            <ThumbnailCapture
+                              thumbnailUrl={thumbnailUrl}
+                              isGeneratingThumbnail={isGeneratingThumbnail}
+                              onCaptureFrame={handleCaptureFrame}
+                              onCropFrame={handleCropFrame}
+                            />
+                          </Suspense>
+                          {coverCropSrc && (
+                            <Suspense fallback={null}>
+                              <ImageCropper
+                                isOpen
+                                imageSrc={coverCropSrc}
+                                title="Crop & position cover"
+                                aspectOptions={COVER_CROP_ASPECTS}
+                                outputMaxDimension={1080}
+                                outputFileName="cover.jpg"
+                                onClose={() => setCoverCropSrc(null)}
+                                onCropComplete={handleCoverCropComplete}
+                              />
+                            </Suspense>
+                          )}
+                        </TabPanel>
                       </TabPanels>
+
+                      {/* Step navigation */}
+                      <HStack justify="space-between" mt={4}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setActiveTab(0)}
+                          isDisabled={activeTab === 0}
+                        >
+                          ← Trim
+                        </Button>
+                        <Button
+                          size="sm"
+                          colorScheme="blue"
+                          onClick={() => setActiveTab(1)}
+                          isDisabled={activeTab === 1}
+                        >
+                          Cover →
+                        </Button>
+                      </HStack>
                     </Tabs>
                   </Box>
                 )}

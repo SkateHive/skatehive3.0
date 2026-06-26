@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useMemo, useCallback } from "react";
+import React, { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useSkateDialog } from "@/hooks/useSkateDialog";
@@ -57,6 +57,9 @@ const InstagramModal = dynamic(() => import("./InstagramModal"), { ssr: false })
 // Outbound IG cross-post review/edit dialog (caption + collaborators).
 const InstagramCrossPostDialog = dynamic(() => import("./InstagramPreviewModal"), { ssr: false });
 import type { CrossPostContext } from "./InstagramPreviewModal";
+// Unified pre-publish review dialog (caption + Hive/Instagram/Farcaster previews).
+const PublishPreviewDialog = dynamic(() => import("./PublishPreviewDialog"), { ssr: false });
+import { publishSnapToInstagram } from "@/lib/instagram/publishSnap";
 import { IGif } from "@giphy/js-types";
 import { FaImage } from "react-icons/fa";
 import { FaInstagram } from "react-icons/fa";
@@ -207,6 +210,18 @@ const SnapComposer = React.memo(function SnapComposer({
   const isMainFeedSnap = pp === HIVE_CONFIG.THREADS.PERMLINK;
   const hasCrossPostMedia = compressedImages.length > 0 || !!videoUrl;
 
+  // Pre-publish review dialog: on Post with media, preview every destination
+  // before publishing. The ref lets the dialog re-invoke handleComment to
+  // actually publish without re-opening the dialog.
+  const publishConfirmedRef = useRef(false);
+  const [showPublishPreview, setShowPublishPreview] = useState(false);
+  // Set true after the dialog processes media + sets final URLs; an effect then
+  // runs handleComment on the next render so it reads the fresh state.
+  const [pendingPublish, setPendingPublish] = useState(false);
+  // Per-network content the publish dialog collected (IG caption + collaborators,
+  // Farcaster caption). Read by handleComment when it fires the cross-posts.
+  const igPublishRef = useRef<{ igCaption: string; collaborators: string[]; farcasterCaption: string } | null>(null);
+
   // Cached IG handle status. 'unknown' until first lookup; 'present' means
   // the server already has a tag-able value (DB or Hive metadata); 'absent'
   // means we should prompt the user when they enable cross-post.
@@ -344,46 +359,20 @@ const SnapComposer = React.memo(function SnapComposer({
     });
   };
 
-  // Handle video file selection (with duration check for SnapComposer)
+  // Handle video file selection. We DON'T trim/upload here anymore — the raw
+  // clip is held un-uploaded and a local preview is shown. Trim + cover + the
+  // transcoder upload all happen in the "prepare & publish" dialog when the
+  // user posts (so everything is edited in one place before publishing).
   const handleVideoFile = async (file: File) => {
     try {
-      // Clear any previous pending video file to prevent memory leaks
-      if (pendingVideoFile) {
-        setPendingVideoFile(null);
-      }
-      // Reset stale thumbnail from any prior video before we kick off a new one
+      // Revoke any previous local preview URL to avoid leaks.
+      if (videoUrl && videoUrl.startsWith("blob:")) URL.revokeObjectURL(videoUrl);
       setVideoThumbnailUrl(null);
-
-      const duration = await getVideoDuration(file);
-
-      // Always open trim modal for video editing options
-      // Users with >100HP can choose to use original or trim
-      // Users with <100HP must trim if over 15s
-      if (duration > 15 || canBypassLimit) {
-        setPendingVideoFile(file);
-        setIsTrimModalOpen(true);
-        return;
-      }
-
-      // Only for videos under 15s and users without bypass - upload directly.
-      // VideoUploader already owns onUploadStart/onUploadFinish, so do not
-      // double-book upload state here or cancel/retry flows can get stuck.
-      if (videoUploaderRef.current) {
-        await videoUploaderRef.current.handleFile(file);
-        // Fire-and-forget thumbnail capture from the local file so the
-        // snap's OG image / Farcaster frame can show a real preview.
-        // Runs in parallel with the transcode and is best-effort: if it
-        // fails the snap still posts (just without a frame thumbnail).
-        generateThumbnail(file, ffmpegRef, effectiveUser || undefined)
-          .then((thumbUrl) => {
-            if (thumbUrl) setVideoThumbnailUrl(thumbUrl);
-          })
-          .catch((err) =>
-            console.warn("[SnapComposer] Video thumbnail generation failed:", err)
-          );
-      }
+      const localUrl = URL.createObjectURL(file);
+      setPendingVideoFile(file); // raw file → handed to the publish dialog
+      setVideoUrl(localUrl); // local preview; replaced with the hosted URL on publish
     } catch (error) {
-      console.error("Error checking video duration:", error);
+      console.error("Error preparing video:", error);
       alert(
         t('compose.videoProcessFailed') + ": " +
         (error instanceof Error ? error.message : String(error))
@@ -766,6 +755,20 @@ const SnapComposer = React.memo(function SnapComposer({
   }, [effectiveUser, pa, pp]);
 
   const handleComment = useCallback(async () => {
+    // Pre-publish review — open the unified prepare/preview dialog FIRST (before
+    // the empty-caption guard) ONLY when it actually adds value: there's a raw
+    // video to trim/process, OR a genuinely-eligible cross-post target. A plain
+    // Hive image/text post (no eligible cross-post) skips straight to publishing.
+    const igEligibleNow =
+      instagramCrossPost && isMainFeedSnap && canBypassLimit && hasCrossPostMedia;
+    const fcEligibleNow = postToFarcaster && farcasterEligible && !!farcasterLinkage;
+    const needsPrepareDialog = !!videoUrl || igEligibleNow || fcEligibleNow;
+    if (needsPrepareDialog && !publishConfirmedRef.current) {
+      setShowPublishPreview(true);
+      return;
+    }
+    publishConfirmedRef.current = false;
+
     const commentBody = postBodyRef.current?.value?.trim() ?? "";
     if (!commentBody) {
       alert(t('compose.emptyComment'));
@@ -804,7 +807,7 @@ const SnapComposer = React.memo(function SnapComposer({
         const fcUrl = isMainFeedSnap
           ? APP_CONFIG.ORIGIN
           : `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${pa}/${pp}`;
-        const castText = buildSnapCastText(commentBody, fcUrl);
+        const castText = buildSnapCastText(igPublishRef.current?.farcasterCaption || commentBody, fcUrl);
         // Snap → embed media directly (images first, else video). Reply →
         // embed the related post so it doesn't read as a standalone post.
         let embeds: { url: string }[] = [];
@@ -1059,24 +1062,55 @@ const SnapComposer = React.memo(function SnapComposer({
             canBypassLimit &&
             (!!compressedImages[0]?.url || !!videoUrl);
 
-          // Open the IG review dialog IMMEDIATELY (before onClose) so it appears
-          // right after the user clicks Post and so the state update lands while
-          // this component is still mounted. It builds its own caption preview
-          // and publishes from the media URLs directly, so it must NOT wait on
-          // the Hive-confirm / Farcaster orchestration below.
+          // Instagram cross-post is published INLINE here (no second dialog) —
+          // the prepare & publish stepper already collected the IG caption +
+          // collaborators. Keychain signing happens inside publishSnapToInstagram.
           if (willInstagram) {
-            setIgDialog({
+            const igData = igPublishRef.current;
+            const igProgressId = "ig-crosspost-progress";
+            toast({
+              id: igProgressId,
+              title: "Posting to Instagram…",
+              status: "loading",
+              duration: null,
+              isClosable: false,
+            });
+            publishSnapToInstagram({
+              aioha,
+              walletUser: user,
+              requireSignature: !userbaseUser && !!user,
               hiveAuthor: commentAuthor,
               hivePermlink: permlink,
-              title: "",
               body: finalCommentBody,
               tags: snapsTags,
-              imageUrl:
-                compressedImages[0]?.url ||
-                (videoUrl ? videoThumbnailUrl : null),
+              imageUrl: compressedImages[0]?.url || (videoUrl ? videoThumbnailUrl : null),
               videoUrl: videoUrl || null,
               permalinkUrl: snapUrl,
-            });
+              caption: igData?.igCaption || finalCommentBody,
+              collaborators: igData?.collaborators || [],
+            })
+              .then((igResult) => {
+                toast.update(igProgressId, {
+                  title: igResult.success
+                    ? igResult.deduped
+                      ? "Already on Instagram"
+                      : "Posted to @skatehive on Instagram"
+                    : "Instagram cross-post failed",
+                  description: igResult.ig_permalink || igResult.error || undefined,
+                  status: igResult.success ? "success" : "error",
+                  duration: 8000,
+                  isClosable: true,
+                });
+              })
+              .catch((err) => {
+                toast.update(igProgressId, {
+                  title: "Instagram cross-post failed",
+                  description: err instanceof Error ? err.message : "Network or signing error.",
+                  status: "error",
+                  duration: 9000,
+                  isClosable: true,
+                });
+              });
           }
 
           onClose();
@@ -1125,7 +1159,7 @@ const SnapComposer = React.memo(function SnapComposer({
               const farcasterUrl = isMainFeedSnap
                 ? snapUrl
                 : `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${pa}/${pp}`;
-              const castText = buildSnapCastText(commentBody, farcasterUrl);
+              const castText = buildSnapCastText(igPublishRef.current?.farcasterCaption || commentBody, farcasterUrl);
               // Embed selection:
               //   - snap images → embed up to 2 image URLs directly (Warpcast
               //     renders inline image previews — best UX).
@@ -1245,6 +1279,15 @@ const SnapComposer = React.memo(function SnapComposer({
     farcasterEligible,
     farcasterLinkage,
   ]);
+
+  // After the publish dialog hands back processed media + caption, the relevant
+  // state has been set; run the real publish now that it's fresh.
+  useEffect(() => {
+    if (!pendingPublish) return;
+    setPendingPublish(false);
+    publishConfirmedRef.current = true;
+    handleComment();
+  }, [pendingPublish, handleComment]);
 
   // Detect Ctrl+Enter or Command+Enter and submit - memoized
   const handleKeyDown = useCallback(
@@ -1961,6 +2004,49 @@ const SnapComposer = React.memo(function SnapComposer({
           context={igDialog}
           userHandle={user || effectiveUser || null}
           requireSignature={!userbaseUser && !!user}
+        />
+      )}
+
+      {/* Unified pre-publish review — opens on Post when media is attached.
+          Edit the caption once and preview Hive / Instagram / Farcaster, then
+          publish. Confirming re-invokes handleComment to run the real flow. */}
+      {showPublishPreview && (
+        <PublishPreviewDialog
+          isOpen
+          onClose={() => setShowPublishPreview(false)}
+          initialCaption={postBodyRef.current?.value ?? ""}
+          images={compressedImages}
+          videoFile={pendingVideoFile}
+          videoLocalUrl={pendingVideoFile ? videoUrl : null}
+          thumbnailUrl={videoThumbnailUrl}
+          hiveAuthor={user || effectiveUser || "skatehive"}
+          igHandle={igHandleValue}
+          farcasterUsername={farcasterLinkage?.username || null}
+          targets={{
+            hive: postToHive,
+            instagram:
+              instagramCrossPost && isMainFeedSnap && canBypassLimit && hasCrossPostMedia,
+            farcaster: postToFarcaster && farcasterEligible && !!farcasterLinkage,
+          }}
+          maxVideoDuration={15}
+          canBypassTrim={canBypassLimit}
+          username={effectiveUser || user || "anonymous"}
+          userHP={hivePower ?? undefined}
+          onPublish={(result) => {
+            if (postBodyRef.current) postBodyRef.current.value = result.caption;
+            igPublishRef.current = {
+              igCaption: result.igCaption,
+              collaborators: result.collaborators,
+              farcasterCaption: result.farcasterCaption,
+            };
+            if (result.videoUrl) {
+              setVideoUrl(result.videoUrl);
+              setPendingVideoFile(null);
+            }
+            if (result.thumbnailUrl) setVideoThumbnailUrl(result.thumbnailUrl);
+            setShowPublishPreview(false);
+            setPendingPublish(true);
+          }}
         />
       )}
 

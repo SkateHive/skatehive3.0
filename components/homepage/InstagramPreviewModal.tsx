@@ -28,6 +28,7 @@ import {
   Button,
   Center,
   HStack,
+  Icon,
   Image as ChakraImage,
   Input,
   Spinner,
@@ -43,6 +44,7 @@ import {
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
 import { FaInstagram, FaPlus } from "react-icons/fa";
+import { FiHeart, FiMessageCircle, FiSend, FiBookmark, FiMoreHorizontal } from "react-icons/fi";
 import SkateModal from "@/components/shared/SkateModal";
 import { suggestCaptionCTAs, appendSuggestion } from "@/lib/instagram/captionSuggestions";
 import type { CarouselMediaItem } from "@/lib/instagram/extractPostMedia";
@@ -737,6 +739,228 @@ function VStackLike({ children }: { children: React.ReactNode }) {
   return (
     <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
       {children}
+    </Box>
+  );
+}
+
+/* ───────────────────────── Live Instagram preview ─────────────────────────
+ * Authentic Instagram colors. The preview deliberately breaks from the app's
+ * dark terminal theme and renders as a real (light) Instagram post, so it's
+ * instantly recognizable that the user is publishing to Instagram. Exported so
+ * the unified "prepare & publish" stepper can reuse it.
+ */
+const IG = {
+  bg: "#ffffff",
+  text: "#262626",
+  sub: "#8e8e8e",
+  link: "#00376b",
+  border: "#dbdbdb",
+  sans: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`,
+};
+
+/** Render a caption Instagram-style: @mentions and #hashtags tinted blue. */
+function renderIgCaption(text: string): React.ReactNode {
+  return text.split(/(@[A-Za-z0-9._]+|#[A-Za-z0-9_]+)/g).map((part, i) =>
+    /^[@#]/.test(part) ? (
+      <Text as="span" key={i} color={IG.link}>
+        {part}
+      </Text>
+    ) : (
+      <React.Fragment key={i}>{part}</React.Fragment>
+    )
+  );
+}
+
+/**
+ * A compact, faithful mockup of how the post will read on Instagram: round
+ * @skatehive avatar, the media (with a Fit/Fill toggle), the action bar, and
+ * the live caption with the username bolded — Instagram-style.
+ */
+export function InstagramPostPreview({
+  targetAccount,
+  mediaType,
+  mediaUrl,
+  carouselItems,
+  caption,
+  collaborators,
+}: {
+  targetAccount: string;
+  mediaType: "IMAGE" | "REELS" | "CAROUSEL";
+  mediaUrl: string | null;
+  carouselItems: CarouselMediaItem[];
+  caption: string;
+  collaborators: string[];
+}) {
+  // Default to "Fill" (cover) so the frame reads like a real IG post (edge to
+  // edge, no letterbox); "Fit" lets the user check the whole frame.
+  const [fit, setFit] = useState<"contain" | "cover">("cover");
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  const handle = (targetAccount || "@skatehive").replace(/^@/, "");
+  const isCarousel = mediaType === "CAROUSEL" && carouselItems.length >= 2;
+  const isReel = mediaType === "REELS";
+  const typeLabel = isCarousel ? "Carousel" : isReel ? "Reel" : "Photo";
+
+  // Instagram-style collab credit shown next to the account in the header:
+  // "skatehive and skate.mkv" (or "and N others" for multiple).
+  const collabLabel =
+    collaborators.length === 0
+      ? null
+      : collaborators.length === 1
+        ? collaborators[0]
+        : `${collaborators.length} others`;
+
+  const idx = isCarousel ? Math.min(activeIdx, carouselItems.length - 1) : 0;
+  const current = isCarousel ? carouselItems[idx] : null;
+  const srcUrl = isCarousel ? current?.url ?? null : mediaUrl;
+  const showVideo = isReel || current?.type === "video";
+
+  return (
+    <Box
+      borderRadius="8px"
+      border="1px solid"
+      borderColor={IG.border}
+      bg={IG.bg}
+      color={IG.text}
+      fontFamily={IG.sans}
+      overflow="hidden"
+      w="full"
+      boxShadow="0 1px 2px rgba(0,0,0,0.15)"
+    >
+      {/* Header */}
+      <HStack px={3} py={2} spacing={2.5}>
+        <ChakraImage
+          src="/logos/skatehive-logo-rounded.png"
+          alt="@skatehive"
+          w="30px"
+          h="30px"
+          borderRadius="full"
+          flex="0 0 auto"
+          objectFit="cover"
+        />
+        <Box flex="1" minW={0}>
+          <Text fontSize="13px" color={IG.text} lineHeight="1.2" noOfLines={1}>
+            <Text as="span" fontWeight="600" color={IG.text}>
+              {handle}
+            </Text>
+            {collabLabel && (
+              <>
+                <Text as="span" color={IG.text} fontWeight="400">
+                  {" "}and{" "}
+                </Text>
+                <Text as="span" fontWeight="600" color={IG.text}>
+                  {collabLabel}
+                </Text>
+              </>
+            )}
+          </Text>
+          <Text fontSize="11px" color={IG.sub} lineHeight="1.2">
+            {typeLabel}
+          </Text>
+        </Box>
+        <Icon as={FiMoreHorizontal} color={IG.text} boxSize="18px" />
+      </HStack>
+
+      {/* Media */}
+      <Box position="relative" bg="#000">
+        <AspectRatio ratio={isReel ? 4 / 5 : 1}>
+          {showVideo && srcUrl ? (
+            <video src={srcUrl} controls playsInline style={{ objectFit: fit, background: "#000" }} />
+          ) : srcUrl ? (
+            <ChakraImage src={srcUrl} alt={`@${handle} Instagram preview`} objectFit={fit} bg="#000" />
+          ) : (
+            <Center>
+              <Text fontSize="13px" color="whiteAlpha.700">
+                no media
+              </Text>
+            </Center>
+          )}
+        </AspectRatio>
+
+        {/* Fit/Fill toggle — overlay so the header stays IG-clean */}
+        {srcUrl && (
+          <Box
+            as="button"
+            position="absolute"
+            top="8px"
+            left="8px"
+            bg="blackAlpha.700"
+            color="white"
+            fontFamily={IG.sans}
+            fontSize="11px"
+            fontWeight="600"
+            px={2}
+            py={0.5}
+            borderRadius="full"
+            onClick={() => setFit((f) => (f === "cover" ? "contain" : "cover"))}
+          >
+            {fit === "cover" ? "Fill" : "Fit"}
+          </Box>
+        )}
+
+        {isCarousel && (
+          <>
+            <Box
+              position="absolute"
+              top="8px"
+              right="8px"
+              bg="blackAlpha.700"
+              color="white"
+              fontSize="11px"
+              fontWeight="600"
+              px={2}
+              py={0.5}
+              borderRadius="full"
+            >
+              {idx + 1}/{carouselItems.length}
+            </Box>
+            <HStack position="absolute" bottom="8px" left="0" right="0" justify="center" spacing={1.5}>
+              {carouselItems.map((_, i) => (
+                <Box
+                  key={i}
+                  as="button"
+                  onClick={() => setActiveIdx(i)}
+                  w="6px"
+                  h="6px"
+                  borderRadius="full"
+                  transition="background 0.15s"
+                  bg={i === idx ? "#0095f6" : "whiteAlpha.700"}
+                  aria-label={`preview item ${i + 1}`}
+                />
+              ))}
+            </HStack>
+          </>
+        )}
+      </Box>
+
+      {/* Action bar */}
+      <HStack px={3} pt={2} pb={0.5} justify="space-between">
+        <HStack spacing={4} color={IG.text}>
+          <Icon as={FiHeart} boxSize="24px" />
+          <Icon as={FiMessageCircle} boxSize="24px" />
+          <Icon as={FiSend} boxSize="24px" />
+        </HStack>
+        <Icon as={FiBookmark} boxSize="24px" color={IG.text} />
+      </HStack>
+
+      {/* Caption */}
+      <Box px={3} pb={3} pt={1}>
+        <Text fontSize="13px" color={IG.text} lineHeight="1.4" whiteSpace="pre-wrap" wordBreak="break-word">
+          <Text as="span" fontWeight="600" color={IG.text}>
+            {handle}
+          </Text>{" "}
+          {caption ? (
+            renderIgCaption(caption)
+          ) : (
+            <Text as="span" color={IG.sub}>
+              Your caption preview will appear here…
+            </Text>
+          )}
+        </Text>
+        <Text fontSize="11px" color={IG.sub} mt={1.5} textTransform="uppercase" letterSpacing="0.02em">
+          Just now
+        </Text>
+      </Box>
     </Box>
   );
 }

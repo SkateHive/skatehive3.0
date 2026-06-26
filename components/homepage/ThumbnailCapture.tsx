@@ -5,25 +5,41 @@ interface ThumbnailCaptureProps {
   thumbnailUrl: string | null;
   isGeneratingThumbnail: boolean;
   onCaptureFrame: () => void;
+  /** Open the crop/position editor on the current frame (optional). */
+  onCropFrame?: () => void;
 }
 
 const ThumbnailCapture: React.FC<ThumbnailCaptureProps> = ({
   thumbnailUrl,
   isGeneratingThumbnail,
   onCaptureFrame,
+  onCropFrame,
 }) => {
   return (
     <VStack width="100%" spacing={4}>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={onCaptureFrame}
-        colorScheme="green"
-        isLoading={isGeneratingThumbnail}
-        loadingText="Capturing..."
-      >
-        {thumbnailUrl ? "Update Frame" : "Capture Frame"}
-      </Button>
+      <HStack spacing={2}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onCaptureFrame}
+          colorScheme="green"
+          isLoading={isGeneratingThumbnail}
+          loadingText="Capturing..."
+        >
+          {thumbnailUrl ? "Update Frame" : "Capture Frame"}
+        </Button>
+        {onCropFrame && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onCropFrame}
+            colorScheme="green"
+            isDisabled={isGeneratingThumbnail}
+          >
+            Crop & position
+          </Button>
+        )}
+      </HStack>
 
       {/* Thumbnail Preview */}
       {thumbnailUrl ? (

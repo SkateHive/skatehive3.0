@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   Modal,
   ModalOverlay,
@@ -10,6 +10,7 @@ import {
   Button,
   Box,
   Text,
+  HStack,
   VStack,
   Slider,
   SliderTrack,
@@ -18,14 +19,28 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import Cropper from "react-easy-crop";
-import type { Point, Area } from "react-easy-crop";
+import type { Point, Area, MediaSize } from "react-easy-crop";
+import { computeCropOutput } from "@/lib/media/cropDimensions";
+
+/** An aspect-ratio preset. `value` is width/height; `null` = Original (no fixed ratio). */
+export interface AspectOption {
+  label: string;
+  value: number | null;
+}
 
 interface ImageCropperProps {
   isOpen: boolean;
   onClose: () => void;
   imageSrc: string;
-  onCropComplete: (croppedImage: File) => Promise<void>;
-  aspectRatio?: number; // Magazine cover ratio: ~0.77 (1000x1300)
+  onCropComplete: (croppedImage: File) => Promise<void> | void;
+  /** Fixed aspect ratio (width/height). Used when `aspectOptions` is not provided. */
+  aspectRatio?: number;
+  /** When provided, renders a preset selector. `null` value = Original (image's own aspect). */
+  aspectOptions?: AspectOption[];
+  /** Long-side cap for the output canvas. Default 1080 (Instagram-friendly). */
+  outputMaxDimension?: number;
+  /** Output filename. Default "crop.jpg". */
+  outputFileName?: string;
   title?: string;
 }
 
@@ -39,19 +54,17 @@ const createImage = (url: string): Promise<HTMLImageElement> =>
 
 async function getCroppedImg(
   imageSrc: string,
-  pixelCrop: Area
+  pixelCrop: Area,
+  outWidth: number,
+  outHeight: number
 ): Promise<Blob | null> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
 
-  if (!ctx) {
-    return null;
-  }
-
-  // Set canvas size to desired output size
-  canvas.width = 1000;
-  canvas.height = 1300;
+  canvas.width = outWidth;
+  canvas.height = outHeight;
 
   ctx.drawImage(
     image,
@@ -61,18 +74,12 @@ async function getCroppedImg(
     pixelCrop.height,
     0,
     0,
-    1000,
-    1300
+    outWidth,
+    outHeight
   );
 
   return new Promise((resolve) => {
-    canvas.toBlob(
-      (blob) => {
-        resolve(blob);
-      },
-      "image/jpeg",
-      0.95
-    );
+    canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.92);
   });
 }
 
@@ -81,34 +88,50 @@ export default function ImageCropper({
   onClose,
   imageSrc,
   onCropComplete,
-  aspectRatio = 1000 / 1300, // Default to magazine cover dimensions
-  title = "Crop Magazine Cover",
+  aspectRatio = 1000 / 1300,
+  aspectOptions,
+  outputMaxDimension = 1080,
+  outputFileName = "crop.jpg",
+  title = "Crop image",
 }: ImageCropperProps) {
   const toast = useToast();
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  // Image's natural aspect, learned on load — used for the "Original" preset.
+  const [naturalAspect, setNaturalAspect] = useState<number | null>(null);
+  // Index into aspectOptions of the selected preset (when presets are used).
+  const [selectedAspectIdx, setSelectedAspectIdx] = useState(0);
 
-  const onCropCompleteCallback = useCallback(
-    (croppedArea: Area, croppedAreaPixels: Area) => {
-      setCroppedAreaPixels(croppedAreaPixels);
-    },
-    []
-  );
+  const onCropCompleteCallback = useCallback((_: Area, areaPixels: Area) => {
+    setCroppedAreaPixels(areaPixels);
+  }, []);
+
+  const onMediaLoaded = useCallback((mediaSize: MediaSize) => {
+    if (mediaSize.naturalHeight > 0) {
+      setNaturalAspect(mediaSize.naturalWidth / mediaSize.naturalHeight);
+    }
+  }, []);
+
+  // The aspect handed to react-easy-crop. With presets: the selected value, or
+  // the image's own aspect for "Original". Otherwise the fixed aspectRatio.
+  const effectiveAspect = useMemo(() => {
+    if (aspectOptions && aspectOptions.length > 0) {
+      const opt = aspectOptions[Math.min(selectedAspectIdx, aspectOptions.length - 1)];
+      return opt.value ?? naturalAspect ?? aspectRatio;
+    }
+    return aspectRatio;
+  }, [aspectOptions, selectedAspectIdx, naturalAspect, aspectRatio]);
 
   const handleCrop = useCallback(async () => {
     if (!croppedAreaPixels) return;
-
     setIsProcessing(true);
-
     try {
-      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
-
+      const { width, height } = computeCropOutput(effectiveAspect, outputMaxDimension);
+      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels, width, height);
       if (croppedBlob) {
-        const file = new File([croppedBlob], "magazine-cover.jpg", {
-          type: "image/jpeg",
-        });
+        const file = new File([croppedBlob], outputFileName, { type: "image/jpeg" });
         await onCropComplete(file);
         onClose();
       } else {
@@ -124,16 +147,14 @@ export default function ImageCropper({
       toast({
         title: "Error",
         description:
-          error instanceof Error
-            ? error.message
-            : "An error occurred while processing the image.",
+          error instanceof Error ? error.message : "An error occurred while processing the image.",
         status: "error",
         duration: 5000,
       });
     } finally {
       setIsProcessing(false);
     }
-  }, [croppedAreaPixels, imageSrc, onCropComplete, onClose, toast]);
+  }, [croppedAreaPixels, effectiveAspect, outputMaxDimension, imageSrc, outputFileName, onCropComplete, onClose, toast]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="xl">
@@ -142,31 +163,42 @@ export default function ImageCropper({
         <ModalHeader>{title}</ModalHeader>
         <ModalBody>
           <VStack spacing={4}>
-            <Text fontSize="sm" color="gray.500">
-              Recommended dimensions: 1000x1300px (magazine cover aspect ratio)
-            </Text>
+            {aspectOptions && aspectOptions.length > 0 && (
+              <HStack spacing={2} w="100%" justify="center" flexWrap="wrap">
+                {aspectOptions.map((opt, i) => (
+                  <Button
+                    key={opt.label}
+                    size="sm"
+                    variant={i === selectedAspectIdx ? "solid" : "outline"}
+                    colorScheme="green"
+                    onClick={() => {
+                      setSelectedAspectIdx(i);
+                      setCrop({ x: 0, y: 0 });
+                      setZoom(1);
+                    }}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </HStack>
+            )}
             <Box width="100%" height="500px" position="relative">
               <Cropper
                 image={imageSrc}
                 crop={crop}
                 zoom={zoom}
-                aspect={aspectRatio}
+                aspect={effectiveAspect}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
                 onCropComplete={onCropCompleteCallback}
+                onMediaLoaded={onMediaLoaded}
               />
             </Box>
             <Box width="100%">
               <Text fontSize="sm" mb={2}>
                 Zoom
               </Text>
-              <Slider
-                min={1}
-                max={3}
-                step={0.1}
-                value={zoom}
-                onChange={setZoom}
-              >
+              <Slider min={1} max={3} step={0.1} value={zoom} onChange={setZoom}>
                 <SliderTrack>
                   <SliderFilledTrack />
                 </SliderTrack>
@@ -183,7 +215,7 @@ export default function ImageCropper({
             colorScheme="green"
             onClick={handleCrop}
             isLoading={isProcessing}
-            loadingText="Uploading to IPFS..."
+            loadingText="Uploading..."
           >
             Crop & Upload
           </Button>
