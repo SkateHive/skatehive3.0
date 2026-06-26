@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getProfile, getAccountWithPower } from "@/lib/hive/client-functions";
 import type { ProfileData } from "../components/profile/ProfilePage";
 import { VideoPart } from "@/types/VideoPart";
@@ -42,9 +42,15 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
         setProfileData((prev: ProfileData) => ({ ...prev, ...newData }));
     }, []);
 
+    // Tracks the username that the most-recently-started Phase 2 fetch belongs to.
+    // Updated synchronously at the start of each effect run so any in-flight IIFE
+    // from a previous username can detect it is stale before calling setState.
+    const currentUsernameRef = useRef(username);
+
     useEffect(() => {
         if (!username || !hasHiveAccount) return;
 
+        currentUsernameRef.current = username;
         let cancelled = false;
         let profileImage = "";
         let coverImage = "";
@@ -107,7 +113,7 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
                 const profileInfo = await getProfile(username);
                 const powerInfo = await getAccountWithPower(username);
 
-                if (cancelled) return;
+                if (cancelled || currentUsernameRef.current !== username) return;
                 updateProfileData({
                     name: profileInfo?.metadata?.profile?.name || username,
                     followers: profileInfo?.stats?.followers || 0,
