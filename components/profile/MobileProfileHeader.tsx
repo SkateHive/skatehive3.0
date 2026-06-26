@@ -33,6 +33,8 @@ interface MobileProfileHeaderProps {
   isLiteUser?: boolean;
   /** If true, follow actions can use the viewer DB-stored posting key */
   useStoredPostingKey?: boolean;
+  /** Called after follow/unfollow is confirmed so follower counts can be refreshed */
+  onFollowConfirmed?: () => void;
 }
 
 const MobileProfileHeader = memo(function MobileProfileHeader({
@@ -48,6 +50,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
   onEditModalOpen,
   isLiteUser = false,
   useStoredPostingKey = false,
+  onFollowConfirmed,
 }: MobileProfileHeaderProps) {
   const router = useRouter();
   const { aioha } = useAioha();
@@ -105,6 +108,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
         // Keep optimistic state
       }
       onLoadingChange(false);
+      onFollowConfirmed?.();
     } catch (error) {
       console.error("Follow action failed:", error);
       // Revert on error
@@ -118,6 +122,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
     isFollowLoading,
     onFollowingChange,
     onLoadingChange,
+    onFollowConfirmed,
     isLiteUser,
     useStoredPostingKey,
   ]);

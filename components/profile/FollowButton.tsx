@@ -15,6 +15,8 @@ interface FollowButtonProps {
   isLiteUser?: boolean;
   /** If true, broadcast follow through the server with the DB-stored posting key */
   useStoredPostingKey?: boolean;
+  /** Called after a follow/unfollow is confirmed so the parent can refresh follower counts */
+  onFollowConfirmed?: () => void;
 }
 
 export default function FollowButton({
@@ -26,6 +28,7 @@ export default function FollowButton({
   onLoadingChange,
   isLiteUser = false,
   useStoredPostingKey = false,
+  onFollowConfirmed,
 }: FollowButtonProps) {
   const toast = useToast();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -57,6 +60,7 @@ export default function FollowButton({
         }
         onFollowingChange(Boolean(data?.isFollowing));
         onLoadingChange(false);
+        onFollowConfirmed?.();
         return;
       }
 
@@ -70,6 +74,7 @@ export default function FollowButton({
         if (backendState === next) {
           onFollowingChange(next);
           onLoadingChange(false);
+          onFollowConfirmed?.();
         } else if (tries < maxTries) {
           setTimeout(poll, 1000);
         } else {
@@ -109,6 +114,7 @@ export default function FollowButton({
     toast,
     isLiteUser,
     useStoredPostingKey,
+    onFollowConfirmed,
   ]);
 
   // Show button for lite users (to trigger upgrade modal) or for logged in users

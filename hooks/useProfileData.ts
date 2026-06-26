@@ -131,5 +131,26 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
         return () => { cancelled = true; };
     }, [username, hasHiveAccount, postingMetadata, jsonMetadata]);
 
-    return { profileData, updateProfileData };
+    // Re-runs Phase 2 on demand (e.g. after follow/unfollow) so the displayed
+    // follower/following counts reflect the latest blockchain state.
+    const refetchBridgeData = useCallback(async () => {
+        if (!username || !hasHiveAccount) return;
+        try {
+            const profileInfo = await getProfile(username);
+            const powerInfo = await getAccountWithPower(username);
+            updateProfileData({
+                name: profileInfo?.metadata?.profile?.name || username,
+                followers: profileInfo?.stats?.followers || 0,
+                following: profileInfo?.stats?.following || 0,
+                location: profileInfo?.metadata?.profile?.location || "",
+                about: profileInfo?.metadata?.profile?.about || "",
+                vp_percent: powerInfo?.data?.vp_percent || "0%",
+                rc_percent: powerInfo?.data?.rc_percent || "0%",
+            });
+        } catch (err) {
+            console.error("Failed to refetch bridge profile info", err);
+        }
+    }, [username, hasHiveAccount, updateProfileData]);
+
+    return { profileData, updateProfileData, refetchBridgeData };
 }

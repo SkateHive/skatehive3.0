@@ -24,6 +24,8 @@ interface HiveProfileHeaderProps {
   isLiteUser?: boolean;
   /** If true, follow actions can use the viewer DB-stored posting key */
   useStoredPostingKey?: boolean;
+  /** Called after follow/unfollow is confirmed so follower counts can be refreshed */
+  onFollowConfirmed?: () => void;
 }
 
 const HiveProfileHeader = function HiveProfileHeader({
@@ -40,6 +42,7 @@ const HiveProfileHeader = function HiveProfileHeader({
   integrations,
   isLiteUser = false,
   useStoredPostingKey = false,
+  onFollowConfirmed,
 }: HiveProfileHeaderProps) {
   // Fetch voting power value in dollars
   const [voteValue, setVoteValue] = useState<number | null>(null);
@@ -141,6 +144,7 @@ const HiveProfileHeader = function HiveProfileHeader({
         onLoadingChange={onLoadingChange}
         isLiteUser={isLiteUser && !useStoredPostingKey}
         useStoredPostingKey={useStoredPostingKey}
+        onFollowConfirmed={onFollowConfirmed}
       />
     ) : null;
 

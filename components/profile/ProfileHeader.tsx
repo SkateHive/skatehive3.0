@@ -63,6 +63,8 @@ interface ProfileHeaderProps {
   userbaseUserId?: string | null;
   viewerHiveUsername?: string | null;
   useStoredPostingKey?: boolean;
+  /** Called after follow/unfollow is confirmed so follower counts can be refreshed */
+  onFollowConfirmed?: () => void;
 }
 
 const ProfileHeader = function ProfileHeader({
@@ -88,6 +90,7 @@ const ProfileHeader = function ProfileHeader({
   userbaseUserId = null,
   viewerHiveUsername = null,
   useStoredPostingKey = false,
+  onFollowConfirmed,
 }: ProfileHeaderProps) {
   useProfileDebug("ProfileHeader");
   const { connections } = useLinkedIdentities();
@@ -370,6 +373,7 @@ const ProfileHeader = function ProfileHeader({
         onEditModalOpen={activeEditHandler}
         isLiteUser={isViewerLiteUser}
         useStoredPostingKey={useStoredPostingKey}
+        onFollowConfirmed={onFollowConfirmed}
       />
 
       {/* Desktop Layout */}
@@ -420,6 +424,7 @@ const ProfileHeader = function ProfileHeader({
                 integrations={networkButtons}
                 isLiteUser={isViewerLiteUser}
                 useStoredPostingKey={useStoredPostingKey}
+                onFollowConfirmed={onFollowConfirmed}
               />
             </Box>
           )}
@@ -470,6 +475,7 @@ export default memo(ProfileHeader, (prevProps, nextProps) => {
     prevProps.farcasterProfile?.custody ===
       nextProps.farcasterProfile?.custody &&
     prevProps.farcasterProfile?.verifications ===
-      nextProps.farcasterProfile?.verifications
+      nextProps.farcasterProfile?.verifications &&
+    prevProps.onFollowConfirmed === nextProps.onFollowConfirmed
   );
 });
