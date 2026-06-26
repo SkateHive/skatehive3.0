@@ -15,7 +15,7 @@ import {
   IconButton,
   Fade,
 } from "@chakra-ui/react";
-import { InfoOutlineIcon, ArrowBackIcon } from "@chakra-ui/icons";
+import { InfoOutlineIcon, ArrowBackIcon, SmallCloseIcon } from "@chakra-ui/icons";
 
 import { keyframes } from "@emotion/react";
 import SkateModal from "@/components/shared/SkateModal";
@@ -240,7 +240,7 @@ export default function ConnectionModal({
   actualFarcasterConnection,
 }: ConnectionModalProps) {
   const isMobile = useIsMobile();
-  const { user, aioha } = useAioha();
+  const { user, aioha, provider: activeProvider, otherUsers } = useAioha();
   const { user: userbaseUser, signOut: signOutUserbase } = useUserbaseAuth();
   const { disconnect: disconnectEth } = useDisconnect();
   const router = useRouter();
@@ -299,6 +299,22 @@ export default function ConnectionModal({
   const handleHiveLogout = async () => {
     await aioha.logout();
     toast({ status: "success", title: "disconnected: hive" });
+  };
+
+  // Multi-account (PeakD-style) handlers — operate on the aioha account axis.
+  const handleSwitchUser = (username: string) => {
+    if (username === user) return;
+    const ok = aioha.switchUser(username);
+    toast(
+      ok
+        ? { status: "success", title: `switched: ${username}` }
+        : { status: "error", title: `could not switch to ${username}` }
+    );
+  };
+
+  const handleRemoveOtherLogin = (username: string) => {
+    aioha.removeOtherLogin(username);
+    toast({ status: "info", title: `removed: ${username}` });
   };
 
   const handleFarcasterDisconnect = async () => {
@@ -405,6 +421,176 @@ export default function ConnectionModal({
                     PROFILE →
                   </Text>
                 </HStack>
+
+                {/* Hive accounts switcher (PeakD-style) — only when a Hive session is active */}
+                {user && (
+                  <Box pt={1}>
+                    <HStack spacing={2} mb={2} align="center">
+                      <Box flex={1} h="1px" bg="whiteAlpha.100" />
+                      <Text
+                        fontFamily="mono"
+                        fontSize="2xs"
+                        color="gray.600"
+                        textTransform="lowercase"
+                        flexShrink={0}
+                      >
+                        hive accounts
+                      </Text>
+                      <Box flex={1} h="1px" bg="whiteAlpha.100" />
+                    </HStack>
+                    <VStack spacing={1} align="stretch">
+                      {[
+                        { username: user, provider: activeProvider, active: true },
+                        ...Object.entries(otherUsers || {}).map(
+                          ([username, prov]) => ({
+                            username,
+                            provider: prov,
+                            active: false,
+                          })
+                        ),
+                      ].map((account) => (
+                        <HStack
+                          key={account.username}
+                          spacing={3}
+                          py={2}
+                          px={2}
+                          borderRadius="sm"
+                          border="1px solid"
+                          borderColor={account.active ? "primary" : "whiteAlpha.100"}
+                          bg={account.active ? "whiteAlpha.50" : "transparent"}
+                          cursor={account.active ? "default" : "pointer"}
+                          onClick={
+                            account.active
+                              ? undefined
+                              : () => handleSwitchUser(account.username)
+                          }
+                          role={account.active ? undefined : "button"}
+                          tabIndex={account.active ? undefined : 0}
+                          aria-label={
+                            account.active
+                              ? `${account.username} (active)`
+                              : `switch to ${account.username}`
+                          }
+                          onKeyDown={(e) => {
+                            if (
+                              !account.active &&
+                              (e.key === "Enter" || e.key === " ")
+                            )
+                              handleSwitchUser(account.username);
+                          }}
+                          transition="border-color 0.15s, background-color 0.15s"
+                          _hover={
+                            account.active
+                              ? undefined
+                              : { borderColor: "primary", bg: "whiteAlpha.50" }
+                          }
+                          _focusVisible={{
+                            outline: "2px solid",
+                            outlineColor: "primary",
+                            outlineOffset: "2px",
+                          }}
+                        >
+                          <Image
+                            src={`https://images.hive.blog/u/${account.username}/avatar/small`}
+                            boxSize={8}
+                            borderRadius="sm"
+                            alt=""
+                            flexShrink={0}
+                          />
+                          <VStack align="start" spacing={0} flex={1} minW={0}>
+                            <Text
+                              fontFamily="mono"
+                              fontSize="sm"
+                              color={account.active ? "primary" : "gray.300"}
+                              noOfLines={1}
+                            >
+                              @{account.username}
+                            </Text>
+                            {account.provider && (
+                              <Text
+                                fontFamily="mono"
+                                fontSize="2xs"
+                                color="gray.600"
+                                textTransform="lowercase"
+                              >
+                                {account.provider}
+                              </Text>
+                            )}
+                          </VStack>
+
+                          {account.active ? (
+                            <HStack
+                              spacing={1.5}
+                              px={2}
+                              py={0.5}
+                              borderRadius="sm"
+                              border="1px solid"
+                              borderColor="primary"
+                              bg="whiteAlpha.100"
+                              flexShrink={0}
+                            >
+                              <Circle
+                                size="6px"
+                                bg="primary"
+                                boxShadow="0 0 4px var(--chakra-colors-primary)"
+                                animation={`${pulse} 2s ease-in-out infinite`}
+                              />
+                              <Text
+                                fontSize="2xs"
+                                fontFamily="mono"
+                                color="primary"
+                                lineHeight={1}
+                              >
+                                active
+                              </Text>
+                            </HStack>
+                          ) : (
+                            <HStack spacing={1} flexShrink={0}>
+                              <Text
+                                fontFamily="mono"
+                                fontSize="2xs"
+                                color="gray.500"
+                              >
+                                switch
+                              </Text>
+                              <Tooltip label="remove account" placement="top" hasArrow>
+                                <IconButton
+                                  aria-label={`remove ${account.username}`}
+                                  icon={<SmallCloseIcon />}
+                                  size="xs"
+                                  variant="ghost"
+                                  color="gray.600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveOtherLogin(account.username);
+                                  }}
+                                  _hover={{ color: "red.400", bg: "whiteAlpha.100" }}
+                                />
+                              </Tooltip>
+                            </HStack>
+                          )}
+                        </HStack>
+                      ))}
+
+                      {/* Add another Hive account */}
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        fontFamily="mono"
+                        color="gray.400"
+                        justifyContent="flex-start"
+                        leftIcon={<Icon as={FaHive} boxSize={3} color="red.400" />}
+                        border="1px dashed"
+                        borderColor="whiteAlpha.200"
+                        py={4}
+                        onClick={onHiveLogin}
+                        _hover={{ color: "primary", borderColor: "primary", bg: "whiteAlpha.50" }}
+                      >
+                        + add hive account
+                      </Button>
+                    </VStack>
+                  </Box>
+                )}
 
                 {/* Linking prompt - show when there are unlinked opportunities */}
                 {hasUnlinkedOpportunities && !isLoading && (
