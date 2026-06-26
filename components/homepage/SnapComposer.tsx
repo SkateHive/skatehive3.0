@@ -38,6 +38,7 @@ import {
   InputGroup,
   InputLeftAddon,
   useToast,
+  useBreakpointValue,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { ChevronDownIcon } from "@chakra-ui/icons";
@@ -60,6 +61,9 @@ import type { CrossPostContext } from "./InstagramPreviewModal";
 // Unified pre-publish review dialog (caption + Hive/Instagram/Farcaster previews).
 const PublishPreviewDialog = dynamic(() => import("./PublishPreviewDialog"), { ssr: false });
 import { publishSnapToInstagram } from "@/lib/instagram/publishSnap";
+import { createTrimmedVideo } from "@/lib/utils/videoTrim";
+import { uploadThumbnail } from "@/lib/utils/videoThumbnailUtils";
+import { processVideoOnServer } from "@/lib/utils/videoProcessing";
 import { IGif } from "@giphy/js-types";
 import { FaImage } from "react-icons/fa";
 import { FaInstagram } from "react-icons/fa";
@@ -119,6 +123,60 @@ interface SnapComposerProps {
   buttonSize?: "sm" | "md" | "lg";
 }
 
+/** Rich progress toast for background video publishing: cover thumb + bar. */
+function PublishProgressToast({
+  cover,
+  title,
+  stage,
+  progress,
+  tone = "loading",
+}: {
+  cover: string | null;
+  title: string;
+  stage: string;
+  progress: number;
+  tone?: "loading" | "success" | "error";
+}) {
+  const accent = tone === "error" ? "red.400" : tone === "success" ? "green.400" : "primary";
+  return (
+    <Box
+      bg="background"
+      border="1px solid"
+      borderColor={accent}
+      borderRadius="md"
+      p={3}
+      boxShadow="lg"
+      minW="300px"
+      maxW="360px"
+    >
+      <HStack spacing={3} align="center">
+        {cover ? (
+          <Image src={cover} alt="" boxSize="46px" borderRadius="md" objectFit="cover" flexShrink={0} />
+        ) : (
+          <Box boxSize="46px" borderRadius="md" bg="muted" flexShrink={0} />
+        )}
+        <Box flex="1" minW={0}>
+          <Text fontFamily="mono" fontSize="sm" color="text" fontWeight="bold" noOfLines={1}>
+            {title}
+          </Text>
+          <Text fontFamily="mono" fontSize="2xs" color="dim" noOfLines={1}>
+            {stage}
+          </Text>
+          <Progress
+            value={progress}
+            size="xs"
+            colorScheme={tone === "error" ? "red" : "green"}
+            borderRadius="full"
+            mt={2}
+            hasStripe={tone === "loading"}
+            isAnimated={tone === "loading"}
+          />
+        </Box>
+      </HStack>
+    </Box>
+  );
+}
+
 const SnapComposer = React.memo(function SnapComposer({
   pa,
   pp,
@@ -163,6 +221,12 @@ const SnapComposer = React.memo(function SnapComposer({
     "skateboard"
   );
   const toast = useToast();
+  // Publishing progress shows as a top banner on mobile (Instagram-style pinned
+  // row) and a bottom-right toast on desktop.
+  const publishToastPosition = useBreakpointValue<"top" | "bottom-right">({
+    base: "top",
+    md: "bottom-right",
+  });
   const t = useTranslations();
   const { prompt, SkateDialogComponent } = useSkateDialog();
   const postBodyRef = useRef<HTMLTextAreaElement>(null);
@@ -218,6 +282,10 @@ const SnapComposer = React.memo(function SnapComposer({
   // Set true after the dialog processes media + sets final URLs; an effect then
   // runs handleComment on the next render so it reads the fresh state.
   const [pendingPublish, setPendingPublish] = useState(false);
+  // True while a publish is processing in the background (video prep + posting).
+  // The composer hides its attached media while this is on, so the post "leaves"
+  // the composer and lives in the progress toast instead.
+  const [isPublishing, setIsPublishing] = useState(false);
   // Per-network content the publish dialog collected (IG caption + collaborators,
   // Farcaster caption). Read by handleComment when it fires the cross-posts.
   const igPublishRef = useRef<{ igCaption: string; collaborators: string[]; farcasterCaption: string } | null>(null);
@@ -816,7 +884,9 @@ const SnapComposer = React.memo(function SnapComposer({
         } else if (compressedImages.length > 0) {
           embeds = compressedImages.slice(0, 2).map((img) => ({ url: img.url }));
         } else if (videoUrl) {
-          embeds = [{ url: videoUrl }];
+          // Farcaster can't inline-play an IPFS video → embed the SkateHive URL
+          // (Mini App) instead of the raw video, which only shows a broken card.
+          embeds = [{ url: fcUrl }];
         }
         const res = await fetch("/api/farcaster/cast", {
           method: "POST",
@@ -860,6 +930,8 @@ const SnapComposer = React.memo(function SnapComposer({
         setSelectedGif(null);
         setVideoUrl(null);
         setVideoThumbnailUrl(null);
+        setPendingVideoFile(null);
+        setIsPublishing(false);
         onClose();
       } catch (err: any) {
         toast({
@@ -1036,6 +1108,8 @@ const SnapComposer = React.memo(function SnapComposer({
           setSelectedGif(null);
           setVideoUrl(null);
           setVideoThumbnailUrl(null);
+          setPendingVideoFile(null);
+          setIsPublishing(false);
 
           setIsProcessingGif(false);
 
@@ -1286,8 +1360,116 @@ const SnapComposer = React.memo(function SnapComposer({
     if (!pendingPublish) return;
     setPendingPublish(false);
     publishConfirmedRef.current = true;
-    handleComment();
+    // Whatever happens (success, failure, early-return), stop hiding the
+    // composer media so a failed post's video reappears for retry.
+    Promise.resolve(handleComment()).finally(() => setIsPublishing(false));
   }, [pendingPublish, handleComment]);
+
+  // Background video prep for the publish dialog: trim → cover → transcode,
+  // shown as a progress toast (top banner on mobile, bottom-right on desktop)
+  // so the dialog can close immediately instead of blocking. On success it sets
+  // the final media URLs and hands off to handleComment for the actual posting.
+  const runVideoPrep = useCallback(
+    async (result: { trim: { start: number; end: number } | null; coverBlob: Blob | null }) => {
+      const raw = pendingVideoFile;
+      if (!raw) {
+        setPendingPublish(true);
+        return;
+      }
+      const id = "publish-prep";
+      // Cover thumbnail for the toast — prefer the freshly captured frame.
+      const coverThumb = result.coverBlob
+        ? URL.createObjectURL(result.coverBlob)
+        : videoThumbnailUrl;
+
+      // Drive a fake-but-smooth progress bar; real transcode % overrides it.
+      let progress = 0;
+      let stage = "Trimming clip…";
+      let tone: "loading" | "success" | "error" = "loading";
+      let title = "Publishing your snap";
+      const paint = () =>
+        toast.update(id, {
+          render: () => (
+            <PublishProgressToast cover={coverThumb} title={title} stage={stage} progress={progress} tone={tone} />
+          ),
+        });
+      toast({
+        id,
+        duration: null,
+        isClosable: false,
+        position: publishToastPosition,
+        render: () => (
+          <PublishProgressToast cover={coverThumb} title={title} stage={stage} progress={progress} tone={tone} />
+        ),
+      });
+      const creep = setInterval(() => {
+        if (progress < 90) {
+          progress = Math.min(90, progress + 4);
+          paint();
+        }
+      }, 450);
+
+      const cleanup = () => {
+        clearInterval(creep);
+        if (coverThumb && coverThumb.startsWith("blob:")) URL.revokeObjectURL(coverThumb);
+      };
+
+      try {
+        const blob = result.trim
+          ? await createTrimmedVideo(raw, result.trim.start, result.trim.end)
+          : raw;
+        const uploadFile =
+          blob instanceof File ? blob : new File([blob], "clip.webm", { type: "video/webm" });
+
+        let cover = videoThumbnailUrl;
+        if (result.coverBlob) {
+          stage = "Uploading cover…";
+          progress = Math.max(progress, 20);
+          paint();
+          try {
+            const url = await uploadThumbnail(result.coverBlob, effectiveUser || undefined);
+            if (url) cover = url;
+          } catch (err) {
+            console.warn("[SnapComposer] cover upload failed:", err);
+          }
+        }
+
+        stage = "Uploading & transcoding video…";
+        paint();
+        const res = await processVideoOnServer(uploadFile, effectiveUser || "anonymous", {
+          userHP: hivePower ?? undefined,
+          onProgress: (p: number, s?: string) => {
+            progress = Math.max(progress, 30 + Math.round((p / 100) * 60));
+            if (s) stage = s;
+            paint();
+          },
+        });
+        if (!res.success || !res.url) throw new Error(res.error || "Video upload failed");
+
+        setVideoUrl(res.url);
+        setVideoThumbnailUrl(cover);
+        setPendingVideoFile(null);
+        cleanup();
+        progress = 100;
+        tone = "success";
+        title = "Video ready — publishing…";
+        stage = "Posting to your networks";
+        paint();
+        toast.update(id, { duration: 2500, isClosable: true });
+        setPendingPublish(true);
+      } catch (err) {
+        cleanup();
+        tone = "error";
+        title = "Couldn't prepare the video";
+        stage = err instanceof Error ? err.message : String(err);
+        paint();
+        toast.update(id, { duration: 9000, isClosable: true });
+        // Restore the composer's media so the user can retry.
+        setIsPublishing(false);
+      }
+    },
+    [pendingVideoFile, videoThumbnailUrl, effectiveUser, hivePower, toast, publishToastPosition]
+  );
 
   // Detect Ctrl+Enter or Command+Enter and submit - memoized
   const handleKeyDown = useCallback(
@@ -1589,7 +1771,7 @@ const SnapComposer = React.memo(function SnapComposer({
           />
 
           {/* Media Preview Section - Videos and images side by side */}
-          {(compressedImages.length > 0 || selectedGif || videoUrl) && (
+          {!isPublishing && (compressedImages.length > 0 || selectedGif || videoUrl) && (
             <HStack spacing={3} mb={3} align="stretch" width="100%">
               {/* Video preview - equal width distribution */}
               {videoUrl && (
@@ -2030,8 +2212,6 @@ const SnapComposer = React.memo(function SnapComposer({
           }}
           maxVideoDuration={15}
           canBypassTrim={canBypassLimit}
-          username={effectiveUser || user || "anonymous"}
-          userHP={hivePower ?? undefined}
           onPublish={(result) => {
             if (postBodyRef.current) postBodyRef.current.value = result.caption;
             igPublishRef.current = {
@@ -2039,13 +2219,15 @@ const SnapComposer = React.memo(function SnapComposer({
               collaborators: result.collaborators,
               farcasterCaption: result.farcasterCaption,
             };
-            if (result.videoUrl) {
-              setVideoUrl(result.videoUrl);
-              setPendingVideoFile(null);
-            }
-            if (result.thumbnailUrl) setVideoThumbnailUrl(result.thumbnailUrl);
             setShowPublishPreview(false);
-            setPendingPublish(true);
+            // Video: process in the background (progress toast), then publish.
+            // Image/text: publish immediately (dialog already closed).
+            if (pendingVideoFile) {
+              setIsPublishing(true); // hide the video in the composer; toast owns it now
+              void runVideoPrep({ trim: result.trim, coverBlob: result.coverBlob });
+            } else {
+              setPendingPublish(true);
+            }
           }}
         />
       )}

@@ -26,7 +26,6 @@ import {
   HStack,
   Image as ChakraImage,
   Input,
-  Progress,
   Tag,
   TagCloseButton,
   TagLabel,
@@ -35,7 +34,6 @@ import {
   Wrap,
   WrapItem,
   AspectRatio,
-  useToast,
 } from "@chakra-ui/react";
 import { FaInstagram, FaHive, FaPlus } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
@@ -43,9 +41,6 @@ import SkateModal from "@/components/shared/SkateModal";
 import VideoTimeline from "./VideoTimeline";
 import { InstagramPostPreview } from "./InstagramPreviewModal";
 import type { CarouselMediaItem } from "@/lib/instagram/extractPostMedia";
-import { createTrimmedVideo } from "@/lib/utils/videoTrim";
-import { uploadThumbnail } from "@/lib/utils/videoThumbnailUtils";
-import { processVideoOnServer } from "@/lib/utils/videoProcessing";
 
 export interface PublishImage {
   url: string;
@@ -68,10 +63,10 @@ export interface PublishResult {
   igCaption: string;
   /** Instagram collaborator handles (co-author invites). */
   collaborators: string[];
-  /** Final hosted video URL after trim + transcode (video posts only). */
-  videoUrl?: string;
-  /** Final hosted cover/thumbnail URL. */
-  thumbnailUrl?: string;
+  /** Trim range to apply (null = use the full clip). The composer does the trim. */
+  trim: { start: number; end: number } | null;
+  /** Captured cover frame to upload as the thumbnail (video posts). */
+  coverBlob: Blob | null;
 }
 
 interface PublishPreviewDialogProps {
@@ -88,8 +83,6 @@ interface PublishPreviewDialogProps {
   targets: PublishTargets;
   maxVideoDuration: number;
   canBypassTrim: boolean;
-  username: string;
-  userHP?: number;
   onPublish: (result: PublishResult) => void;
 }
 
@@ -126,11 +119,8 @@ export default function PublishPreviewDialog({
   targets,
   maxVideoDuration,
   canBypassTrim,
-  username,
-  userHP,
   onPublish,
 }: PublishPreviewDialogProps) {
-  const toast = useToast();
   const hasRawVideo = !!videoFile && !!videoLocalUrl;
 
   // ── Step model ──────────────────────────────────────────────────────
@@ -240,79 +230,25 @@ export default function PublishPreviewDialog({
 
   const isValidSelection = !hasRawVideo || (endTime > startTime && (canBypassTrim || endTime - startTime <= maxVideoDuration + 0.05));
 
-  // ── Processing + publish ────────────────────────────────────────────
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [stage, setStage] = useState("");
-
-  const handlePublish = useCallback(async () => {
+  // ── Publish ─────────────────────────────────────────────────────────
+  // The dialog only COLLECTS inputs. The composer processes the video and
+  // publishes in the background (with a progress toast) so this dialog can
+  // close immediately instead of holding a loading state.
+  const handlePublish = useCallback(() => {
     if (!masterCaption.trim()) {
       goToStep(targets.hive ? "hive" : steps.find((s) => s !== "trim") ?? "hive");
       return;
     }
-
-    const finalize = (videoUrl?: string, thumb?: string) =>
-      onPublish({
-        caption: masterCaption,
-        farcasterCaption: effFarcaster,
-        igCaption: effIg,
-        collaborators,
-        videoUrl,
-        thumbnailUrl: thumb,
-      });
-
-    if (!hasRawVideo) {
-      finalize(undefined, coverUrl ?? undefined);
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      setStage("Trimming…");
-      setProgress(5);
-      const needsTrim = startTime > 0.05 || endTime < duration - 0.05;
-      const mediaBlob = needsTrim ? await createTrimmedVideo(videoFile as File, startTime, endTime) : (videoFile as File);
-      const uploadFile = mediaBlob instanceof File ? mediaBlob : new File([mediaBlob], "clip.webm", { type: "video/webm" });
-
-      let finalCover: string | undefined = coverUrl ?? undefined;
-      if (coverBlobRef.current) {
-        setStage("Uploading cover…");
-        setProgress(20);
-        try {
-          const url = await uploadThumbnail(coverBlobRef.current, username);
-          if (url) finalCover = url;
-        } catch (err) {
-          console.warn("[PublishPreviewDialog] cover upload failed:", err);
-        }
-      }
-
-      setStage("Uploading video…");
-      setProgress(30);
-      const result = await processVideoOnServer(uploadFile, username, {
-        userHP,
-        onProgress: (p: number, s?: string) => {
-          setProgress(30 + Math.round((p / 100) * 65));
-          if (s) setStage(s);
-        },
-      });
-      if (!result.success || !result.url) throw new Error(result.error || "Video upload failed");
-
-      setProgress(100);
-      setStage("Publishing…");
-      finalize(result.url, finalCover);
-    } catch (err) {
-      setIsProcessing(false);
-      setProgress(0);
-      setStage("");
-      toast({
-        title: "Couldn't prepare the video",
-        description: err instanceof Error ? err.message : String(err),
-        status: "error",
-        duration: 8000,
-        isClosable: true,
-      });
-    }
-  }, [masterCaption, effFarcaster, effIg, collaborators, hasRawVideo, coverUrl, videoFile, startTime, endTime, duration, username, userHP, onPublish, toast, goToStep, targets.hive, steps]);
+    const needsTrim = hasRawVideo && (startTime > 0.05 || endTime < duration - 0.05);
+    onPublish({
+      caption: masterCaption,
+      farcasterCaption: effFarcaster,
+      igCaption: effIg,
+      collaborators,
+      trim: needsTrim ? { start: startTime, end: endTime } : null,
+      coverBlob: coverBlobRef.current,
+    });
+  }, [masterCaption, effFarcaster, effIg, collaborators, hasRawVideo, startTime, endTime, duration, onPublish, goToStep, targets.hive, steps]);
 
   // ── Media shape for preview cards ───────────────────────────────────
   const carouselItems = useMemo<CarouselMediaItem[]>(() => images.map((img) => ({ url: img.url, type: "image" as const })), [images]);
@@ -324,20 +260,18 @@ export default function PublishPreviewDialog({
   return (
     <SkateModal
       isOpen={isOpen}
-      onClose={isProcessing ? () => {} : onClose}
+      onClose={onClose}
       title="prepare & publish"
       size={{ base: "full", md: "5xl" }}
       footer={
         <HStack spacing={3} justify="space-between" w="full">
-          <Button variant="ghost" color="text" onClick={idx === 0 ? onClose : goBack} isDisabled={isProcessing} fontFamily="mono" size="sm">
+          <Button variant="ghost" color="text" onClick={idx === 0 ? onClose : goBack} fontFamily="mono" size="sm">
             {idx === 0 ? "Cancel" : "← Back"}
           </Button>
           <Button
             bg="primary"
             color="background"
             onClick={hasForwardNext ? goNext : handlePublish}
-            isLoading={isProcessing}
-            loadingText={stage || "Publishing…"}
             isDisabled={!isValidSelection || (!hasForwardNext && !masterCaption.trim())}
             fontFamily="mono"
             size="sm"
@@ -449,7 +383,6 @@ export default function PublishPreviewDialog({
                   label="Caption"
                   value={masterCaption}
                   onChange={setMasterCaption}
-                  disabled={isProcessing}
                   placeholder="Write your caption…"
                 />
                 {targets.farcaster && (
@@ -472,7 +405,6 @@ export default function PublishPreviewDialog({
                   label="Cast text"
                   value={effFarcaster}
                   onChange={setFarcasterCaption}
-                  disabled={isProcessing}
                   placeholder="Cast text…"
                 />
               </>
@@ -487,7 +419,6 @@ export default function PublishPreviewDialog({
                   label="Caption"
                   value={effIg}
                   onChange={setIgCaption}
-                  disabled={isProcessing}
                   limit={IG_CAPTION_LIMIT}
                   placeholder="Instagram caption…"
                 />
@@ -537,14 +468,6 @@ export default function PublishPreviewDialog({
               </>
             )}
 
-            {isProcessing && (
-              <Box>
-                <Text fontFamily="mono" fontSize="2xs" color="dim" mb={1}>
-                  {stage}
-                </Text>
-                <Progress value={progress} size="sm" colorScheme="green" borderRadius="full" hasStripe isAnimated />
-              </Box>
-            )}
           </Box>
 
           {/* ── RIGHT: live preview for this step ───────────────────── */}
