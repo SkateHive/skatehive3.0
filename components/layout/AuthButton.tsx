@@ -38,7 +38,7 @@ interface ConnectionStatus {
 }
 
 export default function AuthButton() {
-  const { user, aioha } = useAioha();
+  const { user } = useAioha();
   const { user: userbaseUser } = useUserbaseAuth();
   const { colorMode } = useColorMode();
   const [modalDisplayed, setModalDisplayed] = useState(false);
@@ -285,10 +285,13 @@ export default function AuthButton() {
 
   // Connection handlers - Memoized with useCallback
   const handleHiveLogin = useCallback(async () => {
+    // Do NOT log out the current account here: aioha.login() preserves the
+    // previously active account as an "other login", so opening the login modal
+    // while already authenticated becomes "add another Hive account" (PeakD-style).
+    // When no session exists, this is just a regular first login.
     setIsConnectionModalOpen(false);
-    await aioha.logout();
     setModalDisplayed(true);
-  }, [aioha]);
+  }, []);
 
   const handleFarcasterConnect = useCallback(() => {
     if (isFarcasterAuthInProgress || isFarcasterConnected) return;
