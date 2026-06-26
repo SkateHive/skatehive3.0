@@ -117,6 +117,13 @@ export async function POST(request: NextRequest) {
     typeof body?.avatar_url === "string" ? body.avatar_url : null;
   const metadata =
     body?.metadata && typeof body.metadata === "object" ? body.metadata : {};
+  // Native clients (React Native) can't read the httpOnly cookie, so they opt
+  // in to also receive the refresh token in the JSON body and send it back as a
+  // `Cookie: userbase_refresh=…` header on subsequent calls. Browsers omit this
+  // flag and keep the cookie httpOnly.
+  const returnToken =
+    body?.return_token === true ||
+    request.headers.get("x-client")?.toLowerCase() === "mobile";
 
   if (!type || !["hive", "evm", "farcaster"].includes(type)) {
     return NextResponse.json(
@@ -391,6 +398,8 @@ export async function POST(request: NextRequest) {
     identity_id: identityId,
     created_user: createdUser,
     expires_at: sessionResult.expiresAt,
+    // Only returned to opt-in native clients (see returnToken above).
+    ...(returnToken ? { refresh_token: sessionResult.refreshToken } : {}),
   });
 
   response.cookies.set("userbase_refresh", sessionResult.refreshToken, {
