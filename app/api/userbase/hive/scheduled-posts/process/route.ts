@@ -19,13 +19,13 @@ const supabase =
       })
     : null;
 
-function isAuthorized(request: NextRequest): boolean {
+function isAuthorized(request: NextRequest): "ok" | "unauthorized" | "not_configured" {
   const expected = process.env.USERBASE_INTERNAL_TOKEN;
-  if (!expected) return true;
+  if (!expected) return "not_configured";
   const token = request.headers.get("x-userbase-token") ?? "";
   const expectedHash = crypto.createHash("sha256").update(expected).digest();
   const providedHash = crypto.createHash("sha256").update(token).digest();
-  return crypto.timingSafeEqual(expectedHash, providedHash);
+  return crypto.timingSafeEqual(expectedHash, providedHash) ? "ok" : "unauthorized";
 }
 
 async function notifyAlert(payload: Record<string, any>) {
@@ -50,7 +50,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!isAuthorized(request)) {
+  const authResult = isAuthorized(request);
+  if (authResult === "not_configured") {
+    return NextResponse.json(
+      { error: "Scheduled posting is not configured on this server" },
+      { status: 503 }
+    );
+  }
+  if (authResult === "unauthorized") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -156,6 +163,22 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             {
               error: "Scheduled post service is not configured",
+              broadcasted,
+              cancelled,
+              failed,
+            },
+            { status: 503 }
+          );
+        }
+        if (err.code === "CONFIG_INVALID") {
+          await notifyAlert({
+            type: "scheduled_posts_config_invalid",
+            severity: "critical",
+            message: "DEFAULT_HIVE_POSTING_KEY is malformed. Scheduled post processing halted.",
+          });
+          return NextResponse.json(
+            {
+              error: "Scheduled post service is misconfigured",
               broadcasted,
               cancelled,
               failed,

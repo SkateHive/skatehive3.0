@@ -124,9 +124,7 @@ function makeAccount(
 }
 
 const SERVICE_ACCOUNT = "skateuser";
-// Minimal valid WIF-format key (not a real secret — used only to construct
-// a PrivateKey in tests without hitting the blockchain)
-const SERVICE_KEY = "5JNNBjHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH";
+const SERVICE_KEY = "mock-posting-key-not-real";
 
 const MOCK_TX: any = {
   id: "abc123",

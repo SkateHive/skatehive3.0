@@ -60,7 +60,7 @@ async function getSessionUserId(
 // DELETE — cancel a pending scheduled post (only by its owner)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSessionUserId(request);
   if ("error" in session) return session.error;
@@ -69,7 +69,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Missing Supabase configuration" }, { status: 500 });
   }
 
-  const { id } = params;
+  const { id } = await params;
   if (!id || typeof id !== "string") {
     return NextResponse.json({ error: "Missing post id" }, { status: 400 });
   }
@@ -98,13 +98,22 @@ export async function DELETE(
     );
   }
 
-  const { error: updateError } = await supabase
+  const { data: updated, error: updateError } = await supabase
     .from("userbase_scheduled_posts")
     .update({ status: "cancelled", updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("status", "pending")
+    .select("id");
 
   if (updateError) {
     return NextResponse.json({ error: "Failed to cancel scheduled post" }, { status: 500 });
+  }
+
+  if (!updated || updated.length === 0) {
+    return NextResponse.json(
+      { error: "Post is no longer pending and cannot be cancelled", code: "NOT_PENDING" },
+      { status: 409 }
+    );
   }
 
   return NextResponse.json({ success: true });

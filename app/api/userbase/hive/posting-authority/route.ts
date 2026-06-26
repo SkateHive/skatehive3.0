@@ -82,13 +82,21 @@ export async function GET(request: NextRequest) {
   }
 
   // Derive the Hive identity from the authenticated session.
-  const { data: identityRows } = await supabase
+  const { data: identityRows, error: identityError } = await supabase
     .from("userbase_identities")
     .select("handle")
     .eq("user_id", session.userId)
     .eq("type", "hive")
     .order("is_primary", { ascending: false })
     .limit(1);
+
+  if (identityError) {
+    console.error("Failed to look up Hive identity:", identityError);
+    return NextResponse.json(
+      { error: "Failed to look up Hive identity" },
+      { status: 500 }
+    );
+  }
 
   const hiveAuthor = identityRows?.[0]?.handle ?? null;
   if (!hiveAuthor) {

@@ -1289,6 +1289,7 @@ export const lg = {
     revokeSuccess: 'Obuyinza bwaddibwamu. Posts ezigereddwako ez\'okukusubirako zaakusubiddwa.',
     grantError: 'Kifo mu kuwayo obuyinza. Kkiriza okuzzyako.',
     revokeError: 'Kifo mu kuddamu obuyinza. Kkiriza okuzzyako.',
+    revokeCleanupError: 'Obuyinza bwaddibwamu, naye posts ezigereddwako tekisubizibwako. Kenenya posts zo ezigereddwako.',
     needsKeychain: 'Hive Keychain yetaagibwa okuwayo oba okuddamu obuyinza bwa posting.',
     scheduledPostsTitle: 'Posts Ezigereddwako',
     noScheduledPosts: 'Tewali posts zigereddwako.',

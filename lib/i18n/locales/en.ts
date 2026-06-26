@@ -1273,6 +1273,7 @@ export const en = {
     revokeSuccess: 'Authority revoked. Pending scheduled posts cancelled.',
     grantError: 'Failed to grant authority. Please try again.',
     revokeError: 'Failed to revoke authority. Please try again.',
+    revokeCleanupError: 'Authority revoked, but pending scheduled posts could not be cancelled. Please check your scheduled posts.',
     needsKeychain: 'Hive Keychain is required to grant or revoke posting authority.',
     scheduledPostsTitle: 'Scheduled Posts',
     noScheduledPosts: 'No scheduled posts.',

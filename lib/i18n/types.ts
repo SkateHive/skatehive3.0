@@ -824,6 +824,7 @@ export interface TranslationSchema {
     revokeSuccess: string;
     grantError: string;
     revokeError: string;
+    revokeCleanupError: string;
     needsKeychain: string;
     scheduledPostsTitle: string;
     noScheduledPosts: string;

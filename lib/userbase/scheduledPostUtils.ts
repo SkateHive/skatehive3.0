@@ -51,14 +51,19 @@ export function buildScheduledPostOps(post: ScheduledPostRow): Operation[] {
     ],
   ];
 
-  const validBeneficiaries = post.beneficiaries.filter((b) => {
-    if (!b?.account || typeof b.account !== "string") return false;
-    if (!b?.weight || Number(b.weight) <= 0) return false;
-    return validateHiveUsernameFormat(b.account).isValid;
-  });
+  const normalizedBeneficiaries = post.beneficiaries
+    .map((b) => ({
+      account: typeof b?.account === "string" ? b.account.trim().toLowerCase() : "",
+      weight: Math.trunc(Number(b?.weight)),
+    }))
+    .filter((b) => {
+      if (!b.account) return false;
+      if (!(b.weight > 0)) return false;
+      return validateHiveUsernameFormat(b.account).isValid;
+    });
 
-  if (validBeneficiaries.length > 0) {
-    const totalWeight = validBeneficiaries.reduce((sum, b) => sum + Number(b.weight), 0);
+  if (normalizedBeneficiaries.length > 0) {
+    const totalWeight = normalizedBeneficiaries.reduce((sum, b) => sum + b.weight, 0);
     if (totalWeight <= 10000) {
       ops.push([
         "comment_options",
@@ -73,10 +78,7 @@ export function buildScheduledPostOps(post: ScheduledPostRow): Operation[] {
             [
               0,
               {
-                beneficiaries: validBeneficiaries.map((b) => ({
-                  account: b.account,
-                  weight: b.weight,
-                })),
+                beneficiaries: normalizedBeneficiaries,
               },
             ],
           ],

@@ -96,7 +96,7 @@ async function withEnv<T>(
 
 // Ensure env vars are set for authority-check tests
 process.env.DEFAULT_HIVE_POSTING_ACCOUNT = "skateuser";
-process.env.DEFAULT_HIVE_POSTING_KEY = "5JNNBjHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH";
+process.env.DEFAULT_HIVE_POSTING_KEY = "mock-posting-key-not-real";
 
 // ---------------------------------------------------------------------------
 describe("validateScheduledAt", () => {

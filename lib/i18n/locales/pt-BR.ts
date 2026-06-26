@@ -1291,6 +1291,7 @@ export const ptBR = {
     revokeSuccess: 'Autoridade revogada. Posts agendados pendentes cancelados.',
     grantError: 'Falha ao conceder autoridade. Por favor, tente novamente.',
     revokeError: 'Falha ao revogar autoridade. Por favor, tente novamente.',
+    revokeCleanupError: 'Autoridade revogada, mas os posts agendados pendentes não puderam ser cancelados. Por favor, verifique seus posts agendados.',
     needsKeychain: 'O Hive Keychain é necessário para conceder ou revogar a autoridade de postagem.',
     scheduledPostsTitle: 'Posts Agendados',
     noScheduledPosts: 'Nenhum post agendado.',

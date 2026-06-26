@@ -4,7 +4,7 @@ import HiveClient from "@/lib/hive/hiveclient";
 export class PostingAuthorityError extends Error {
   constructor(
     message: string,
-    public readonly code: "NOT_GRANTED" | "CONFIG_MISSING" | "BROADCAST_FAILED"
+    public readonly code: "NOT_GRANTED" | "CONFIG_MISSING" | "CONFIG_INVALID" | "BROADCAST_FAILED"
   ) {
     super(message);
     this.name = "PostingAuthorityError";
@@ -57,8 +57,9 @@ export async function hasGrantedPostingAuthority(
  * only signs and broadcasts; it does not modify the operations.
  *
  * Throws PostingAuthorityError with:
- *   code "NOT_GRANTED"    — authority not present on-chain; nothing was broadcast
- *   code "CONFIG_MISSING" — env vars absent; nothing was broadcast
+ *   code "NOT_GRANTED"      — authority not present on-chain; nothing was broadcast
+ *   code "CONFIG_MISSING"   — env vars absent; nothing was broadcast
+ *   code "CONFIG_INVALID"   — env var present but key is malformed; nothing was broadcast
  *   code "BROADCAST_FAILED" — dhive rejected the transaction
  */
 export async function broadcastAsUserViaAuthority(
@@ -81,8 +82,17 @@ export async function broadcastAsUserViaAuthority(
     );
   }
 
+  let privateKey;
   try {
-    const privateKey = PrivateKey.fromString(service.key);
+    privateKey = PrivateKey.fromString(service.key);
+  } catch (error: any) {
+    throw new PostingAuthorityError(
+      `DEFAULT_HIVE_POSTING_KEY is malformed: ${error?.message ?? "invalid key"}`,
+      "CONFIG_INVALID"
+    );
+  }
+
+  try {
     return await HiveClient.broadcast.sendOperations(ops, privateKey);
   } catch (error: any) {
     throw new PostingAuthorityError(

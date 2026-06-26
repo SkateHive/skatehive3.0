@@ -98,7 +98,20 @@ export async function GET(request: NextRequest) {
           body: JSON.stringify({ limit: 50 }),
         }
       );
-      scheduledPosts = await scheduledPostsResponse.json().catch(() => null);
+      const scheduledPostsData = await scheduledPostsResponse.json().catch(() => null);
+      if (!scheduledPostsResponse.ok) {
+        console.error(
+          "Cron scheduled-posts process returned non-OK:",
+          scheduledPostsResponse.status,
+          scheduledPostsData
+        );
+        scheduledPosts = {
+          error: `process endpoint returned ${scheduledPostsResponse.status}`,
+          details: scheduledPostsData,
+        };
+      } else {
+        scheduledPosts = scheduledPostsData;
+      }
     } catch (err) {
       console.error("Cron scheduled posts processing failed:", err);
       scheduledPosts = {

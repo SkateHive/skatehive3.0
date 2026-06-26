@@ -1290,6 +1290,7 @@ export const es = {
     revokeSuccess: 'Autoridad revocada. Posts programados pendientes cancelados.',
     grantError: 'Error al conceder autoridad. Por favor, inténtalo de nuevo.',
     revokeError: 'Error al revocar autoridad. Por favor, inténtalo de nuevo.',
+    revokeCleanupError: 'Autoridad revocada, pero los posts programados pendientes no pudieron cancelarse. Por favor, revisa tus posts programados.',
     needsKeychain: 'Hive Keychain es necesario para conceder o revocar la autoridad de publicación.',
     scheduledPostsTitle: 'Posts Programados',
     noScheduledPosts: 'No hay posts programados.',

@@ -197,7 +197,17 @@ export default function HiveSettingsPage() {
 
       // Auto-cancel all pending scheduled posts so they don't accumulate
       if (userbaseUser) {
-        await fetch("/api/userbase/hive/scheduled-posts", { method: "DELETE" });
+        const cleanupRes = await fetch("/api/userbase/hive/scheduled-posts", { method: "DELETE" });
+        if (!cleanupRes.ok) {
+          toast({
+            title: t("hiveSettings.revokeCleanupError"),
+            status: "warning",
+            duration: 8000,
+            isClosable: true,
+          });
+          await fetchAuthorityStatus();
+          return;
+        }
         await fetchPosts();
       }
 
