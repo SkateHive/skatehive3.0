@@ -9,6 +9,7 @@ import {
   useToast,
   Tooltip,
   Image,
+  Avatar,
   Box,
   Circle,
   Badge,
@@ -304,6 +305,9 @@ export default function ConnectionModal({
   // Multi-account (PeakD-style) handlers — operate on the aioha account axis.
   const handleSwitchUser = (username: string) => {
     if (username === user) return;
+    // switchUser only restores the local session; non-Keychain providers
+    // (HiveAuth/Ledger) may still require re-authentication on the next
+    // broadcast even when this returns true.
     const ok = aioha.switchUser(username);
     toast(
       ok
@@ -313,8 +317,14 @@ export default function ConnectionModal({
   };
 
   const handleRemoveOtherLogin = (username: string) => {
-    aioha.removeOtherLogin(username);
-    toast({ status: "info", title: `removed: ${username}` });
+    try {
+      // removeOtherLogin throws if the account is already gone (e.g. a double
+      // click, or an account_changed re-render landing between render and click).
+      aioha.removeOtherLogin(username);
+      toast({ status: "info", title: `removed: ${username}` });
+    } catch {
+      toast({ status: "error", title: `could not remove ${username}` });
+    }
   };
 
   const handleFarcasterDisconnect = async () => {
@@ -490,11 +500,11 @@ export default function ConnectionModal({
                             outlineOffset: "2px",
                           }}
                         >
-                          <Image
+                          <Avatar
                             src={`https://images.hive.blog/u/${account.username}/avatar/small`}
+                            name={account.username}
                             boxSize={8}
                             borderRadius="sm"
-                            alt=""
                             flexShrink={0}
                           />
                           <VStack align="start" spacing={0} flex={1} minW={0}>
