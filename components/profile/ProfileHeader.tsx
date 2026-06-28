@@ -456,6 +456,15 @@ export default memo(ProfileHeader, (prevProps, nextProps) => {
       nextProps.profileData.ethereum_address &&
     prevProps.profileData.profileImage === nextProps.profileData.profileImage &&
     prevProps.hiveProfileData?.profileImage === nextProps.hiveProfileData?.profileImage &&
+    // Phase 2 bridge fields — written async by useProfileData after hiveAccount resolves.
+    // Without these, ProfileHeader's memo blocks re-renders when the bridge API
+    // returns, leaving follower counts, bio, name, and VP% stale.
+    prevProps.hiveProfileData?.followers === nextProps.hiveProfileData?.followers &&
+    prevProps.hiveProfileData?.following === nextProps.hiveProfileData?.following &&
+    prevProps.hiveProfileData?.name === nextProps.hiveProfileData?.name &&
+    prevProps.hiveProfileData?.about === nextProps.hiveProfileData?.about &&
+    prevProps.hiveProfileData?.vp_percent === nextProps.hiveProfileData?.vp_percent &&
+    prevProps.hiveProfileData?.location === nextProps.hiveProfileData?.location &&
     prevProps.isOwner === nextProps.isOwner &&
     prevProps.isUserbaseOwner === nextProps.isUserbaseOwner &&
     prevProps.user === nextProps.user &&
