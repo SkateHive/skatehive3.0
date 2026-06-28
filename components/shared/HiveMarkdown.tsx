@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import markdownRenderer from "@/lib/markdown/MarkdownRenderer";
+import { getYouTubePlaceholder } from "@/lib/markdown/MarkdownRenderer";
 import SkateErrorBoundary from "./SkateErrorBoundary";
 import { Skeleton } from "@chakra-ui/react";
 import { observeHeicImages } from "@/lib/utils/heicImageFallback";
@@ -84,12 +85,12 @@ const HiveMarkdown: React.FC<HiveMarkdownProps> = ({
         // mount the YouTubeLite component (high-res poster + click-to-play).
         const processYouTubeEmbeds = (html: string) => {
           let out = html.replace(
-            /<div class=["']videoWrapper["'][^>]*>\s*<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})[^"']*["'][^>]*><\/iframe>\s*<\/div>/gi,
-            (_m, videoId) => `[[YOUTUBE:${videoId}]]`
+            /<div class=["']videoWrapper["'][^>]*>\s*<iframe[^>]*src=["']([^"']+)["'][^>]*><\/iframe>\s*<\/div>/gi,
+            (match, src) => getYouTubePlaceholder(src) ?? match
           );
           out = out.replace(
-            /<iframe[^>]*src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})[^"']*["'][^>]*><\/iframe>/gi,
-            (_m, videoId) => `[[YOUTUBE:${videoId}]]`
+            /<iframe[^>]*src=["']([^"']+)["'][^>]*><\/iframe>/gi,
+            (match, src) => getYouTubePlaceholder(src) ?? match
           );
           return out;
         };

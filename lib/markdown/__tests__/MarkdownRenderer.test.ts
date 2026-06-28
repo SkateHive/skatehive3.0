@@ -78,6 +78,15 @@ describe("processMediaContent YouTube autoembed", () => {
 
     assertIncludes(result, "[[YOUTUBE:s:dQw4w9WgXcQ]]");
   });
+
+  it("keeps markdown-linked shorts tagged for vertical rendering", () => {
+    const result = processMediaContent(
+      "[short](https://www.youtube.com/shorts/dQw4w9WgXcQ?feature=share)"
+    );
+
+    assertIncludes(result, "[[YOUTUBE:s:dQw4w9WgXcQ]]");
+    assertNotIncludes(result, "[short]");
+  });
 });
 
 Promise.all(tests.map((test) => test())).then(() => {
