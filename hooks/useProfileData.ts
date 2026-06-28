@@ -135,8 +135,8 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
         return () => { cancelled = true; };
     }, [username, hasHiveAccount, postingMetadata, jsonMetadata]);
 
-    // Re-runs Phase 2 on demand (e.g. after follow/unfollow) so the displayed
-    // follower/following counts reflect the latest blockchain state.
+    // Re-runs Phase 2 on demand (manual reconciliation — not called after follow
+    // actions, which use adjustFollowerCount for an immediate optimistic update).
     const refetchBridgeData = useCallback(async () => {
         if (!username || !hasHiveAccount) return;
         try {
@@ -156,5 +156,19 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
         }
     }, [username, hasHiveAccount, updateProfileData]);
 
-    return { profileData, updateProfileData, refetchBridgeData };
+    // Applies a +1/-1 follower count delta immediately after a confirmed
+    // follow/unfollow, without waiting for the bridge API (which has indexing
+    // lag and would return the pre-action count for several seconds).
+    // The currentUsernameRef guard prevents a stale in-flight confirmation
+    // (user navigated to a different profile mid-action) from landing on the
+    // wrong profile's count.
+    const adjustFollowerCount = useCallback((delta: number) => {
+        if (currentUsernameRef.current !== username) return;
+        setProfileData((prev) => ({
+            ...prev,
+            followers: Math.max(0, prev.followers + delta),
+        }));
+    }, [username]);
+
+    return { profileData, updateProfileData, refetchBridgeData, adjustFollowerCount };
 }

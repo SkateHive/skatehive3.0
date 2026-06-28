@@ -506,7 +506,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   >(null);
 
   // Custom hooks
-  const { profileData, updateProfileData, refetchBridgeData } = useProfileData(
+  const { profileData, updateProfileData, refetchBridgeData, adjustFollowerCount } = useProfileData(
     hiveLookupHandle,
     hiveAccount
   );
@@ -893,7 +893,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               debugPayload={debugPayloadRef.current}
               hasHiveProfile={isHiveProfile || !!hiveIdentityHandle}
               hasUserbaseProfile={!!userbaseUser}
-              onFollowConfirmed={refetchBridgeData}
+              onFollowConfirmed={adjustFollowerCount}
               farcasterProfile={farcasterProfileData}
               userbaseUserId={userbaseUser?.id}
             />

@@ -24,8 +24,8 @@ interface HiveProfileHeaderProps {
   isLiteUser?: boolean;
   /** If true, follow actions can use the viewer DB-stored posting key */
   useStoredPostingKey?: boolean;
-  /** Called after follow/unfollow is confirmed so follower counts can be refreshed */
-  onFollowConfirmed?: () => void;
+  /** Called after follow/unfollow is confirmed with the follower-count delta (+1 or -1) */
+  onFollowConfirmed?: (delta: number) => void;
 }
 
 const HiveProfileHeader = function HiveProfileHeader({

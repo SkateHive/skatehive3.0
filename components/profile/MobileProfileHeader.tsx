@@ -33,8 +33,8 @@ interface MobileProfileHeaderProps {
   isLiteUser?: boolean;
   /** If true, follow actions can use the viewer DB-stored posting key */
   useStoredPostingKey?: boolean;
-  /** Called after follow/unfollow is confirmed so follower counts can be refreshed */
-  onFollowConfirmed?: () => void;
+  /** Called after follow/unfollow is confirmed with the follower-count delta (+1 or -1) */
+  onFollowConfirmed?: (delta: number) => void;
 }
 
 const MobileProfileHeader = memo(function MobileProfileHeader({
@@ -91,6 +91,9 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
     onFollowingChange(next);
     onLoadingChange(true);
 
+    // For the stored-key path, use the server-confirmed follow state.
+    // For the Keychain path, keep the optimistic `next` value.
+    let confirmedFollowing = next;
     try {
       if (useStoredPostingKey) {
         const response = await fetch("/api/userbase/hive/follow", {
@@ -102,13 +105,14 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
         if (!response.ok) {
           throw new Error(data?.error || "Failed to update follow status");
         }
-        onFollowingChange(Boolean(data?.isFollowing));
+        confirmedFollowing = Boolean(data?.isFollowing);
+        onFollowingChange(confirmedFollowing);
       } else {
         await changeFollow(user, username);
         // Keep optimistic state
       }
       onLoadingChange(false);
-      onFollowConfirmed?.();
+      onFollowConfirmed?.(confirmedFollowing ? +1 : -1);
     } catch (error) {
       console.error("Follow action failed:", error);
       // Revert on error

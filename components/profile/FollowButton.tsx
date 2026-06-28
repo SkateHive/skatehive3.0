@@ -15,8 +15,8 @@ interface FollowButtonProps {
   isLiteUser?: boolean;
   /** If true, broadcast follow through the server with the DB-stored posting key */
   useStoredPostingKey?: boolean;
-  /** Called after a follow/unfollow is confirmed so the parent can refresh follower counts */
-  onFollowConfirmed?: () => void;
+  /** Called after a follow/unfollow is confirmed with the follower-count delta (+1 or -1) */
+  onFollowConfirmed?: (delta: number) => void;
 }
 
 export default function FollowButton({
@@ -58,9 +58,10 @@ export default function FollowButton({
         if (!response.ok) {
           throw new Error(data?.error || "Failed to update follow status");
         }
-        onFollowingChange(Boolean(data?.isFollowing));
+        const confirmedFollowing = Boolean(data?.isFollowing);
+        onFollowingChange(confirmedFollowing);
         onLoadingChange(false);
-        onFollowConfirmed?.();
+        onFollowConfirmed?.(confirmedFollowing ? +1 : -1);
         return;
       }
 
@@ -74,7 +75,7 @@ export default function FollowButton({
         if (backendState === next) {
           onFollowingChange(next);
           onLoadingChange(false);
-          onFollowConfirmed?.();
+          onFollowConfirmed?.(next ? +1 : -1);
         } else if (tries < maxTries) {
           setTimeout(poll, 1000);
         } else {

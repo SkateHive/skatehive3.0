@@ -63,8 +63,8 @@ interface ProfileHeaderProps {
   userbaseUserId?: string | null;
   viewerHiveUsername?: string | null;
   useStoredPostingKey?: boolean;
-  /** Called after follow/unfollow is confirmed so follower counts can be refreshed */
-  onFollowConfirmed?: () => void;
+  /** Called after follow/unfollow is confirmed with the follower-count delta (+1 or -1) */
+  onFollowConfirmed?: (delta: number) => void;
 }
 
 const ProfileHeader = function ProfileHeader({
