@@ -114,12 +114,16 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
                 const powerInfo = await getAccountWithPower(username);
 
                 if (cancelled || currentUsernameRef.current !== username) return;
+                if (!profileInfo) {
+                    console.warn(`Bridge profile fetch failed after retries for ${username}`);
+                    return;
+                }
                 updateProfileData({
-                    name: profileInfo?.metadata?.profile?.name || username,
-                    followers: profileInfo?.stats?.followers || 0,
-                    following: profileInfo?.stats?.following || 0,
-                    location: profileInfo?.metadata?.profile?.location || "",
-                    about: profileInfo?.metadata?.profile?.about || "",
+                    name: profileInfo.metadata?.profile?.name || username,
+                    followers: profileInfo.stats?.followers || 0,
+                    following: profileInfo.stats?.following || 0,
+                    location: profileInfo.metadata?.profile?.location || "",
+                    about: profileInfo.metadata?.profile?.about || "",
                     vp_percent: powerInfo?.data?.vp_percent || "0%",
                     rc_percent: powerInfo?.data?.rc_percent || "0%",
                 });
