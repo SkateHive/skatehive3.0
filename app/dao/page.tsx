@@ -32,6 +32,8 @@ export const metadata: Metadata = {
   },
 };
 
+export const revalidate = 300; // ISR: render once, refresh every 5 min (static-safe page)
+
 export default function DAOPage() {
   return <DAOPageClient />;
 }

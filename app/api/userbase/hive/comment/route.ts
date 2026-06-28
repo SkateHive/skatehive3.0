@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { proxyUserbaseHive } from "@/lib/userbase/proxyToApi";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 // Proxied to api.skatehive.app — the single owner of the comment broadcast +
 // soft-post (Phase 2 userbase unification). The full body (parent_author/permlink,

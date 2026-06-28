@@ -144,6 +144,8 @@ async function fetchPostsForTrick(tags: string[]): Promise<number> {
     }
 }
 
+export const revalidate = 300; // ISR: render once, refresh every 5 min (static-safe page)
+
 export default async function TricksPage() {
     const jsonLd = {
         "@context": "https://schema.org",
