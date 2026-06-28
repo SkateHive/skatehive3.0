@@ -6,3 +6,5 @@
 export { useHiveActions } from './useHiveActions';
 export { useHBDActions } from './useHBDActions';
 export { useBankActions } from './useBankActions';
+export { useSavingsJars } from './useSavingsJars';
+export type { SavingsJar, JarsSummary, JarInput } from './useSavingsJars';
