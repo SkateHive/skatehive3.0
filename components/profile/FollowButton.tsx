@@ -58,7 +58,11 @@ export default function FollowButton({
         if (!response.ok) {
           throw new Error(data?.error || "Failed to update follow status");
         }
-        const confirmedFollowing = Boolean(data?.isFollowing);
+        // Trust the server's explicit boolean when present; fall back to `next`
+        // (the action that was actually performed) when the upstream doesn't
+        // return isFollowing (e.g. a raw Hive broadcast result).
+        const confirmedFollowing =
+          typeof data?.isFollowing === "boolean" ? data.isFollowing : next;
         onFollowingChange(confirmedFollowing);
         onLoadingChange(false);
         onFollowConfirmed?.(confirmedFollowing ? +1 : -1);

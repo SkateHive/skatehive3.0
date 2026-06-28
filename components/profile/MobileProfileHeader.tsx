@@ -105,7 +105,10 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
         if (!response.ok) {
           throw new Error(data?.error || "Failed to update follow status");
         }
-        confirmedFollowing = Boolean(data?.isFollowing);
+        // Same guard as FollowButton: fall back to `next` when upstream
+        // doesn't return isFollowing (raw Hive broadcast result).
+        confirmedFollowing =
+          typeof data?.isFollowing === "boolean" ? data.isFollowing : next;
         onFollowingChange(confirmedFollowing);
       } else {
         await changeFollow(user, username);
