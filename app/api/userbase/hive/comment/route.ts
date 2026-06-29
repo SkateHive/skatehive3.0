@@ -249,7 +249,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const hiveIdentity = await getHiveIdentity(session.userId);
+  // force_soft_post: ignore the user's own Hive identity and post via the shared
+  // @skateuser account (masked soft-post). Used by the Farcaster-only flow so a
+  // SkateHive post page always exists for the cast / Mini App, regardless of
+  // whether the user has their own Hive account.
+  const forceSoftPost = body?.force_soft_post === true;
+  const hiveIdentity = forceSoftPost ? null : await getHiveIdentity(session.userId);
   let author = hiveIdentity?.handle || null;
   let postingKey: string | null = null;
   let userKeyId: string | null = null;
