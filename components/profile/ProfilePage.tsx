@@ -501,6 +501,28 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const tCommon = useTranslations("common");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUserbaseEditModalOpen, setIsUserbaseEditModalOpen] = useState(false);
+
+  // Auto-open the edit profile modal when arriving with ?edit=1 (used by the
+  // profile-setup CTA toasts), but only for the profile owner. Reads the query
+  // from window.location (client-only) to avoid a useSearchParams Suspense
+  // requirement on this ISR route.
+  const viewerHiveUsername = useViewerHiveIdentity();
+  const editParamHandledRef = useRef(false);
+  useEffect(() => {
+    if (editParamHandledRef.current) return;
+    if (typeof window === "undefined") return;
+    const wantsEdit =
+      new URLSearchParams(window.location.search).get("edit") === "1";
+    if (!wantsEdit) return;
+    const isOwner =
+      !!viewerHiveUsername &&
+      !!hiveLookupHandle &&
+      viewerHiveUsername.toLowerCase() === hiveLookupHandle.toLowerCase();
+    if (isOwner) {
+      editParamHandledRef.current = true;
+      setIsEditModalOpen(true);
+    }
+  }, [viewerHiveUsername, hiveLookupHandle]);
   const [activeProfileView, setActiveProfileView] = useState<
     "hive" | "skate" | "zora" | "farcaster" | null
   >(null);
