@@ -249,6 +249,10 @@ export interface TranslationSchema {
     compressionError: string;
     unsupportedFileType: string;
     videoProcessFailed: string;
+    snapTabCompose: string;
+    snapTabDrafts: string;
+    snapNoDraft: string;
+    snapDiscardDraft: string;
   };
   createWorkspace: {
     title: string;

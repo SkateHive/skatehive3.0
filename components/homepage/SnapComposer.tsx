@@ -6,6 +6,9 @@ import { useTranslations } from "@/contexts/LocaleContext";
 import { useSkateDialog } from "@/hooks/useSkateDialog";
 import {
   Box,
+  Tabs,
+  TabList,
+  Tab,
   Textarea,
   HStack,
   Button,
@@ -41,7 +44,7 @@ import {
   useBreakpointValue,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
-import { ChevronDownIcon } from "@chakra-ui/icons";
+import { ChevronDownIcon, DeleteIcon } from "@chakra-ui/icons";
 import { SiFarcaster } from "react-icons/si";
 import { useAioha } from "@aioha/react-ui";
 import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
@@ -99,6 +102,7 @@ import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { buildSnapCastText, buildSnapCastEmbeds } from "@/lib/crosspost/snapCast";
+import { getSnapDraft, saveSnapDraft, clearSnapDraft, type SnapDraft } from "@/lib/compose/snapDraft";
 
 // Channels enabled for Farcaster cross-posting. Mirrors the server-side
 // whitelist in /api/farcaster/cast/route.ts — keep them in sync.
@@ -251,6 +255,7 @@ const SnapComposer = React.memo(function SnapComposer({
   >([]);
 
   const imageUploadInputRef = useRef<HTMLInputElement>(null);
+  const snapDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // GIF maker state and refs (direct integration)
   const [isGifMakerOpen, setGifMakerOpen] = useState(false);
@@ -286,6 +291,9 @@ const SnapComposer = React.memo(function SnapComposer({
   // The composer hides its attached media while this is on, so the post "leaves"
   // the composer and lives in the progress toast instead.
   const [isPublishing, setIsPublishing] = useState(false);
+  // Snap draft tab — only active in the main feed instance
+  const [activeSnapTab, setActiveSnapTab] = useState<'compose' | 'drafts'>('compose');
+  const [savedDraft, setSavedDraft] = useState<SnapDraft | null>(null);
   // Per-network content the publish dialog collected (IG caption + collaborators,
   // Farcaster caption). Read by handleComment when it fires the cross-posts.
   const igPublishRef = useRef<{ igCaption: string; collaborators: string[]; farcasterCaption: string } | null>(null);
@@ -363,6 +371,67 @@ const SnapComposer = React.memo(function SnapComposer({
       cancelled = true;
     };
   }, [isMainFeedSnap, canBypassLimit, igHandleStatus]);
+
+  // Restore snap draft on mount — main feed instance only (silent, no indicator)
+  useEffect(() => {
+    if (!isMainFeedSnap) return;
+    const draft = getSnapDraft();
+    setSavedDraft(draft);
+    if (!draft) return;
+    if (draft.body && postBodyRef.current) {
+      postBodyRef.current.value = draft.body;
+    }
+    if (draft.images.length > 0) {
+      setCompressedImages(
+        draft.images.map(({ url, caption }) => ({
+          url,
+          fileName: url.split("/").pop()?.split("?")[0] || "image",
+          caption,
+        }))
+      );
+    }
+    if (draft.videoUrl) {
+      setVideoUrl(draft.videoUrl);
+    }
+    // gifUrl: not restored — selectedGif requires a full IGif object and Giphy
+    // GIFs are preview-only (they don't make it into post bodies), so nothing is lost
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Autosave: debounced save after body/image/gif/video changes — main feed only
+  const doSaveSnapDraft = useCallback(() => {
+    if (!isMainFeedSnap) return;
+    const body = postBodyRef.current?.value || "";
+    const images = compressedImages.map((img) => ({ url: img.url, caption: img.caption }));
+    const gifUrl = selectedGif?.images?.downsized_medium?.url ?? null;
+    // blob: URLs are session-only local previews; only persist hosted URLs
+    const persistedVideoUrl = videoUrl?.startsWith("blob:") ? null : videoUrl;
+    saveSnapDraft({ body, images, gifUrl, videoUrl: persistedVideoUrl });
+    setSavedDraft({ body, images, gifUrl, videoUrl: persistedVideoUrl, savedAt: new Date().toISOString() });
+  }, [isMainFeedSnap, compressedImages, selectedGif, videoUrl]);
+
+  const scheduleSnapDraftSave = useCallback(() => {
+    if (!isMainFeedSnap) return;
+    if (snapDraftTimerRef.current) clearTimeout(snapDraftTimerRef.current);
+    snapDraftTimerRef.current = setTimeout(doSaveSnapDraft, 1000);
+  }, [isMainFeedSnap, doSaveSnapDraft]);
+
+  // Fire debounced save when media state changes (main feed only)
+  useEffect(() => {
+    if (!isMainFeedSnap) return;
+    scheduleSnapDraftSave();
+  }, [isMainFeedSnap, scheduleSnapDraftSave]);
+
+  const handleDiscardDraft = useCallback(() => {
+    clearSnapDraft();
+    setSavedDraft(null);
+    if (postBodyRef.current) postBodyRef.current.value = "";
+    setCompressedImages([]);
+    setSelectedGif(null);
+    setVideoUrl(null);
+    setVideoThumbnailUrl(null);
+    setPendingVideoFile(null);
+    setActiveSnapTab('compose');
+  }, []);
 
   const buttonText = useMemo(
     () => submitLabel || (post ? "Reply" : "Post"),
@@ -925,6 +994,10 @@ const SnapComposer = React.memo(function SnapComposer({
           duration: 3000,
           isClosable: true,
         });
+        if (isMainFeedSnap) {
+          clearSnapDraft();
+          setSavedDraft(null);
+        }
         postBodyRef.current!.value = "";
         setCompressedImages([]);
         setSelectedGif(null);
@@ -1103,6 +1176,10 @@ const SnapComposer = React.memo(function SnapComposer({
             throw new Error("Unable to determine comment author");
           }
 
+          if (isMainFeedSnap) {
+            clearSnapDraft();
+            setSavedDraft(null);
+          }
           postBodyRef.current!.value = "";
           setCompressedImages([]);
           setSelectedGif(null);
@@ -1747,7 +1824,101 @@ const SnapComposer = React.memo(function SnapComposer({
             </Box>
           </Box>
         )}
+        {/* Compose / Drafts tab bar — main feed instance only */}
+        {isMainFeedSnap && (
+          <Box mb={3}>
+            <Tabs
+              index={activeSnapTab === 'compose' ? 0 : 1}
+              onChange={(i) => setActiveSnapTab(i === 0 ? 'compose' : 'drafts')}
+              variant="unstyled"
+              size="sm"
+            >
+              <TabList border="none">
+                {(['compose', 'drafts'] as const).map((tab) => {
+                  const isActive = activeSnapTab === tab;
+                  return (
+                    <Tab
+                      key={tab}
+                      color={isActive ? 'primary' : 'dim'}
+                      bg="transparent"
+                      _hover={{ color: 'primary' }}
+                      _selected={{ color: 'primary' }}
+                      transition="color 0.15s"
+                      fontFamily="mono"
+                      fontSize="xs"
+                      fontWeight={isActive ? 'bold' : 'normal'}
+                      textTransform="uppercase"
+                      borderRadius="none"
+                      px={4}
+                      py={2}
+                    >
+                      <Box
+                        as="span"
+                        borderBottom={isActive ? '2px solid' : 'none'}
+                        borderColor="primary"
+                        pb="2px"
+                        transition="border-color 0.15s"
+                      >
+                        {tab === 'compose' ? t('compose.snapTabCompose') : t('compose.snapTabDrafts')}
+                      </Box>
+                    </Tab>
+                  );
+                })}
+              </TabList>
+            </Tabs>
+          </Box>
+        )}
+
+        {/* Drafts panel — only when Drafts tab is active */}
+        {isMainFeedSnap && activeSnapTab === 'drafts' && (
+          <Box p={4} borderBottom="1px solid" borderColor="muted">
+            {savedDraft && (savedDraft.body || savedDraft.images.length > 0) ? (
+              <HStack justify="space-between" align="center" spacing={3}>
+                <Box flex={1} minW={0}>
+                  {savedDraft.body && (
+                    <Text fontFamily="mono" fontSize="sm" color="text" noOfLines={3}>
+                      {savedDraft.body}
+                    </Text>
+                  )}
+                  {savedDraft.images.length > 0 && (
+                    <HStack mt={savedDraft.body ? 2 : 0} spacing={2}>
+                      {savedDraft.images.slice(0, 3).map((img, i) => (
+                        <Image
+                          key={i}
+                          src={img.url}
+                          alt={img.caption}
+                          boxSize="56px"
+                          objectFit="cover"
+                          borderRadius="none"
+                          border="1px solid"
+                          borderColor="muted"
+                        />
+                      ))}
+                    </HStack>
+                  )}
+                </Box>
+                <IconButton
+                  aria-label={t('compose.snapDiscardDraft')}
+                  icon={<DeleteIcon />}
+                  size="sm"
+                  variant="ghost"
+                  color="dim"
+                  borderRadius="none"
+                  onClick={handleDiscardDraft}
+                  _hover={{ color: 'error' }}
+                  flexShrink={0}
+                />
+              </HStack>
+            ) : (
+              <Text fontFamily="mono" fontSize="sm" color="dim">
+                {t('compose.snapNoDraft')}
+              </Text>
+            )}
+          </Box>
+        )}
+
         <Box
+          display={isMainFeedSnap && activeSnapTab === 'drafts' ? 'none' : undefined}
           p={4}
           mb={1}
           borderRadius="base"
@@ -1767,6 +1938,8 @@ const SnapComposer = React.memo(function SnapComposer({
             isDisabled={isLoading}
             onKeyDown={handleKeyDown} // Attach the keydown handler
             onPaste={handlePaste}
+            onChange={() => scheduleSnapDraftSave()}
+            onBlur={() => doSaveSnapDraft()}
             _focusVisible={{ border: "tb1" }}
           />
 

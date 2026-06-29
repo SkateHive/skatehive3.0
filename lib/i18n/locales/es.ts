@@ -349,6 +349,10 @@ export const es = {
     compressionError: 'Error al comprimir imagen',
     unsupportedFileType: 'Tipo de archivo no compatible',
     videoProcessFailed: 'Error al procesar archivo de video',
+    snapTabCompose: 'Componer',
+    snapTabDrafts: 'Borradores',
+    snapNoDraft: 'Sin borrador guardado',
+    snapDiscardDraft: 'Descartar',
   },
   createWorkspace: {
     title: 'Espacio de Creación',
