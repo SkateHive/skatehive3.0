@@ -17,6 +17,11 @@ export function getSnapDraft(): SnapDraft | null {
     if (
       typeof parsed?.body !== "string" ||
       !Array.isArray(parsed?.images) ||
+      !(parsed.images as unknown[]).every(
+        (item) =>
+          typeof (item as any)?.url === "string" &&
+          typeof (item as any)?.caption === "string"
+      ) ||
       typeof parsed?.savedAt !== "string"
     )
       return null;

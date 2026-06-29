@@ -405,15 +405,27 @@ const SnapComposer = React.memo(function SnapComposer({
     const gifUrl = selectedGif?.images?.downsized_medium?.url ?? null;
     // blob: URLs are session-only local previews; only persist hosted URLs
     const persistedVideoUrl = videoUrl?.startsWith("blob:") ? null : videoUrl;
+    if (!body.trim() && images.length === 0 && !gifUrl && !persistedVideoUrl) {
+      clearSnapDraft();
+      setSavedDraft(null);
+      return;
+    }
     saveSnapDraft({ body, images, gifUrl, videoUrl: persistedVideoUrl });
     setSavedDraft({ body, images, gifUrl, videoUrl: persistedVideoUrl, savedAt: new Date().toISOString() });
   }, [isMainFeedSnap, compressedImages, selectedGif, videoUrl]);
 
+  const cancelSnapDraftSave = useCallback(() => {
+    if (snapDraftTimerRef.current) {
+      clearTimeout(snapDraftTimerRef.current);
+      snapDraftTimerRef.current = null;
+    }
+  }, []);
+
   const scheduleSnapDraftSave = useCallback(() => {
     if (!isMainFeedSnap) return;
-    if (snapDraftTimerRef.current) clearTimeout(snapDraftTimerRef.current);
+    cancelSnapDraftSave();
     snapDraftTimerRef.current = setTimeout(doSaveSnapDraft, 1000);
-  }, [isMainFeedSnap, doSaveSnapDraft]);
+  }, [isMainFeedSnap, cancelSnapDraftSave, doSaveSnapDraft]);
 
   // Fire debounced save when media state changes (main feed only)
   useEffect(() => {
@@ -422,6 +434,7 @@ const SnapComposer = React.memo(function SnapComposer({
   }, [isMainFeedSnap, scheduleSnapDraftSave]);
 
   const handleDiscardDraft = useCallback(() => {
+    cancelSnapDraftSave();
     clearSnapDraft();
     setSavedDraft(null);
     if (postBodyRef.current) postBodyRef.current.value = "";
@@ -995,6 +1008,7 @@ const SnapComposer = React.memo(function SnapComposer({
           isClosable: true,
         });
         if (isMainFeedSnap) {
+          cancelSnapDraftSave();
           clearSnapDraft();
           setSavedDraft(null);
         }
@@ -1177,6 +1191,7 @@ const SnapComposer = React.memo(function SnapComposer({
           }
 
           if (isMainFeedSnap) {
+            cancelSnapDraftSave();
             clearSnapDraft();
             setSavedDraft(null);
           }
