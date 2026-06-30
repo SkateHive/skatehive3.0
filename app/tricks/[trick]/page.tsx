@@ -183,7 +183,7 @@ async function fetchTrickPosts(tags: string[]): Promise<HivePost[]> {
             HiveClient.call("bridge", "get_ranked_posts", {
                 sort: "created",
                 tag,
-                limit: 30,
+                limit: 20,
                 observer: "",
             })
         )
