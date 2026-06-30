@@ -1,9 +1,12 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { APP_CONFIG } from "@/config/app.config";
+import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import HiveClient from "@/lib/hive/hiveclient";
 import TricksPageWrapper from "@/components/tricks/TricksPageWrapper";
+import TrickCard from "@/components/tricks/TrickCard";
+import CoachFred from "@/components/tricks/CoachFred";
+import { extractPostThumbnail } from "@/lib/utils/postThumbnail";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 const ogImageUrl = `${BASE_URL}/api/og/page?title=Skate%20Tricks&subtitle=Learn%20tricks%20from%20the%20community`;
@@ -65,7 +68,6 @@ export const metadata: Metadata = {
 const TRICK_CATEGORIES = [
     {
         name: "Flip Tricks",
-        emoji: "🔄",
         tricks: [
             { name: "Kickflip", slug: "kickflip", tags: ["kickflip"] },
             { name: "Heelflip", slug: "heelflip", tags: ["heelflip"] },
@@ -77,7 +79,6 @@ const TRICK_CATEGORIES = [
     },
     {
         name: "Flatground",
-        emoji: "🛹",
         tricks: [
             { name: "Ollie", slug: "ollie", tags: ["ollie"] },
             { name: "Nollie", slug: "nollie", tags: ["nollie"] },
@@ -89,7 +90,6 @@ const TRICK_CATEGORIES = [
     },
     {
         name: "Grinds & Slides",
-        emoji: "⚡",
         tricks: [
             { name: "50-50 Grind", slug: "50-50", tags: ["5050", "grind"] },
             { name: "Boardslide", slug: "boardslide", tags: ["boardslide"] },
@@ -103,7 +103,6 @@ const TRICK_CATEGORIES = [
     },
     {
         name: "Transition",
-        emoji: "🌊",
         tricks: [
             { name: "Drop In", slug: "drop-in", tags: ["dropin"] },
             { name: "Rock to Fakie", slug: "rock-to-fakie", tags: ["rocktofakie", "rock"] },
@@ -120,33 +119,51 @@ type HivePost = {
     title?: string;
     created?: string;
     body?: string;
+    json_metadata?: unknown;
+    category?: string;
 };
 
-async function fetchPostsForTrick(tags: string[]): Promise<number> {
+async function fetchFirstPostForTrick(tags: string[]): Promise<HivePost | null> {
     try {
         const results = await Promise.allSettled(
             tags.map((tag) =>
                 HiveClient.call("bridge", "get_ranked_posts", {
                     sort: "created",
                     tag,
-                    limit: 1,
+                    limit: 10,
                     observer: "",
                 })
             )
         );
-        let count = 0;
         for (const r of results) {
-            if (r.status === "fulfilled" && r.value?.length) count += r.value.length;
+            if (r.status !== "fulfilled" || !r.value?.length) continue;
+            const community = (r.value as HivePost[]).find(
+                (p) => p.category === HIVE_CONFIG.COMMUNITY_TAG
+            );
+            if (community) return community;
         }
-        return count;
+        return null;
     } catch {
-        return 0;
+        return null;
     }
 }
 
 export const revalidate = 300; // ISR: render once, refresh every 5 min (static-safe page)
 
 export default async function TricksPage() {
+    // Fetch one representative post per trick in parallel to extract a thumbnail URL.
+    // Uses the same limit:1 pattern already established in fetchFirstPostForTrick.
+    const allTricks = TRICK_CATEGORIES.flatMap((cat) => cat.tricks);
+    const postResults = await Promise.allSettled(
+        allTricks.map((trick) => fetchFirstPostForTrick(trick.tags))
+    );
+    const thumbnailMap = new Map<string, string | null>();
+    allTricks.forEach((trick, i) => {
+        const result = postResults[i];
+        const post = result.status === "fulfilled" ? result.value : null;
+        thumbnailMap.set(trick.slug, post ? extractPostThumbnail(post) : null);
+    });
+
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -236,50 +253,22 @@ export default async function TricksPage() {
                                 paddingBottom: "8px",
                             }}
                         >
-                            {category.emoji} {category.name}
+                            {category.name}
                         </h2>
                         <div
                             style={{
                                 display: "grid",
                                 gridTemplateColumns:
-                                    "repeat(auto-fill, minmax(180px, 1fr))",
+                                    "repeat(auto-fill, minmax(200px, 1fr))",
                                 gap: "12px",
                             }}
                         >
                             {category.tricks.map((trick) => (
-                                <Link
+                                <TrickCard
                                     key={trick.slug}
-                                    href={`/tricks/${trick.slug}`}
-                                    style={{
-                                        display: "block",
-                                        padding: "16px",
-                                        background: "rgba(167, 255, 0, 0.05)",
-                                        border: "1px solid rgba(167, 255, 0, 0.2)",
-                                        borderRadius: "12px",
-                                        textDecoration: "none",
-                                        transition: "all 0.2s",
-                                    }}
-                                >
-                                    <span
-                                        style={{
-                                            display: "block",
-                                            fontSize: "1.1rem",
-                                            color: "#a7ff00",
-                                            fontWeight: "600",
-                                            marginBottom: "4px",
-                                        }}
-                                    >
-                                        {trick.name}
-                                    </span>
-                                    <span
-                                        style={{
-                                            fontSize: "0.8rem",
-                                            color: "#888",
-                                        }}
-                                    >
-                                        View clips →
-                                    </span>
-                                </Link>
+                                    trick={trick}
+                                    thumbnailUrl={thumbnailMap.get(trick.slug) ?? null}
+                                />
                             ))}
                         </div>
                     </section>
@@ -319,6 +308,7 @@ export default async function TricksPage() {
                     </p>
                 </section>
             </div>
+            <CoachFred />
             </TricksPageWrapper>
         </>
     );

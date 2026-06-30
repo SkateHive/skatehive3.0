@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { APP_CONFIG } from "@/config/app.config";
+import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import HiveClient from "@/lib/hive/hiveclient";
 
@@ -143,6 +143,7 @@ type HivePost = {
     body?: string;
     net_votes?: number;
     children?: number;
+    category?: string;
 };
 
 interface Props {
@@ -182,7 +183,7 @@ async function fetchTrickPosts(tags: string[]): Promise<HivePost[]> {
             HiveClient.call("bridge", "get_ranked_posts", {
                 sort: "created",
                 tag,
-                limit: 20,
+                limit: 30,
                 observer: "",
             })
         )
@@ -192,6 +193,7 @@ async function fetchTrickPosts(tags: string[]): Promise<HivePost[]> {
         if (result.status === "fulfilled" && Array.isArray(result.value)) {
             for (const post of result.value) {
                 if (!post?.author || !post?.permlink) continue;
+                if (post.category !== HIVE_CONFIG.COMMUNITY_TAG) continue;
                 const key = `${post.author}/${post.permlink}`;
                 if (seen.has(key)) continue;
                 seen.add(key);

@@ -29,7 +29,8 @@ import { getPayoutValue } from "@/lib/hive/client-functions";
 import {
   extractYoutubeLinks,
   extractImageUrls,
-} from "@/lib/utils/extractImageUrls"; // Import YouTube extraction function
+} from "@/lib/utils/extractImageUrls";
+import { normalizeMetadataImages } from "@/lib/utils/postThumbnail";
 import useHivePower from "@/hooks/useHivePower";
 import { useVoteWeightContext } from "@/contexts/VoteWeightContext";
 import { parseJsonMetadata } from "@/lib/hive/metadata-utils";
@@ -165,12 +166,6 @@ export default function PostCard({
   }, [body, listView]);
 
   const mediaData = useMemo(() => {
-    const metadataImages = metadata.image
-      ? Array.isArray(metadata.image)
-        ? metadata.image
-        : [metadata.image]
-      : [];
-
     const optimize = (imgs: string[]) =>
       Array.from(new Set(imgs))
         .filter((img) => typeof img === "string" && img.length > 0 && !failedImages.has(img))
@@ -178,20 +173,18 @@ export default function PostCard({
           optimizeImageUrl(img, IMAGE_SIZES.SIDEBAR_THUMB.w, IMAGE_SIZES.SIDEBAR_THUMB.h)
         );
 
+    // Priority chain mirrors extractPostThumbnail in lib/utils/postThumbnail.ts
     const validMarkdownImages = optimize(extractImageUrls(body));
     if (validMarkdownImages.length > 0) {
       return { imageUrls: validMarkdownImages };
     }
 
-    const validMetadataImages = optimize(metadataImages);
+    const validMetadataImages = optimize(normalizeMetadataImages(json_metadata));
     if (validMetadataImages.length > 0) {
       return { imageUrls: validMetadataImages };
     }
 
-    // No images anywhere — if the post embeds a YouTube video, use the video's
-    // thumbnail frame as the card thumbnail. mqdefault is already 320x180, so it
-    // is served directly (no proxy), and it also covers the list view, which
-    // only renders images.
+    // No images — use YouTube thumbnail frame if available (mqdefault = 320x180, no proxy needed)
     const ytThumbs = Array.from(
       new Set(
         extractYoutubeLinks(body)
@@ -204,7 +197,7 @@ export default function PostCard({
     }
 
     return { imageUrls: [default_thumbnail] };
-  }, [body, metadata.image, failedImages, default_thumbnail]);
+  }, [body, json_metadata, failedImages, default_thumbnail]);
 
   const { imageUrls } = mediaData;
   const hasMultipleImages = imageUrls.length > 1;
