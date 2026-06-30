@@ -246,8 +246,8 @@ export default async function TricksPage() {
                             lineHeight: 1.6,
                         }}
                     >
-                        Browse trick clips filmed by real skaters from the Skatehive
-                        community. Click any trick to see GIFs, videos, and posts.
+                        Learn tricks and browse clips filmed by real skaters from the Skatehive
+                        community. Click any trick for tutorials, GIFs, videos, and posts.
                     </p>
                 </header>
 
