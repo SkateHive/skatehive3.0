@@ -2,7 +2,13 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
 import TrickTutorial from "@/components/tricks/TrickTutorial";
+import TrickCard from "@/components/tricks/TrickCard";
 import { TRICK_TUTORIALS } from "@/lib/utils/trickTutorials";
+
+function extractYouTubeId(url: string): string | null {
+    const match = url.match(/(?:[?&]v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return match ? match[1] : null;
+}
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import HiveClient from "@/lib/hive/hiveclient";
 
@@ -427,7 +433,6 @@ export default async function TrickPage({ params }: Props) {
                                         display: "block",
                                         background: "rgba(255,255,255,0.03)",
                                         border: "1px solid rgba(255,255,255,0.1)",
-                                        borderRadius: "12px",
                                         overflow: "hidden",
                                         textDecoration: "none",
                                         transition: "border-color 0.2s",
@@ -475,7 +480,6 @@ export default async function TrickPage({ params }: Props) {
                             textAlign: "center",
                             color: "#888",
                             border: "1px dashed #333",
-                            borderRadius: "12px",
                             marginBottom: "32px",
                         }}
                     >
@@ -492,38 +496,27 @@ export default async function TrickPage({ params }: Props) {
                     </div>
                 )}
 
-                {/* Related Tricks Cross-Links */}
-                <div style={{ 
-                    marginBottom: "32px", 
-                    padding: "20px", 
-                    background: "rgba(20,20,20,0.4)", 
-                    borderRadius: "12px",
-                    border: "1px solid rgba(255,255,255,0.1)"
-                }}>
+                {/* Related Tricks */}
+                <div style={{ marginBottom: "32px" }}>
                     <h2 style={{ fontSize: "1.2rem", color: "#a7ff00", marginBottom: "16px" }}>
                         Related Tricks
                     </h2>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "12px" }}>
-                        {getRelatedTricks(trickSlug).map((relatedTrick) => (
-                            <Link
-                                key={relatedTrick.slug}
-                                href={`/tricks/${relatedTrick.slug}`}
-                                style={{
-                                    padding: "12px",
-                                    background: "rgba(0,0,0,0.3)",
-                                    borderRadius: "8px",
-                                    border: "1px solid rgba(167,255,0,0.2)",
-                                    color: "#fff",
-                                    textDecoration: "none",
-                                    transition: "all 0.3s",
-                                    textAlign: "center",
-                                    fontSize: "0.9rem",
-                                }}
-
-                            >
-                                {relatedTrick.name}
-                            </Link>
-                        ))}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
+                        {getRelatedTricks(trickSlug).map((relatedTrick) => {
+                            const tutUrl = TRICK_TUTORIALS[relatedTrick.slug];
+                            const tutId = tutUrl ? extractYouTubeId(tutUrl) : null;
+                            const tutorialThumbnailUrl = tutId
+                                ? `https://img.youtube.com/vi/${tutId}/hqdefault.jpg`
+                                : undefined;
+                            return (
+                                <TrickCard
+                                    key={relatedTrick.slug}
+                                    trick={relatedTrick}
+                                    tutorialThumbnailUrl={tutorialThumbnailUrl}
+                                    thumbnailUrl={null}
+                                />
+                            );
+                        })}
                     </div>
                 </div>
 
