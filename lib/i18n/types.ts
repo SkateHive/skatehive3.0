@@ -276,6 +276,9 @@ export interface TranslationSchema {
     prompt1: string;
     prompt2: string;
   };
+  trickTutorial: {
+    sectionTitle: string;
+  };
   createWorkspace: {
     title: string;
     subtitle: string;

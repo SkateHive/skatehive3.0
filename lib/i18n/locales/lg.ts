@@ -349,6 +349,9 @@ export const lg = {
     unsupportedFileType: 'Unsupported file type',
     videoProcessFailed: 'Kifo mu kutegeeza video file',
   },
+  trickTutorial: {
+    sectionTitle: 'Tutorial',
+  },
   skateDice: {
     title: 'Skate or Dice',
     coachAlt: 'Musomesa Fred, omukuumi wa Skatehive',

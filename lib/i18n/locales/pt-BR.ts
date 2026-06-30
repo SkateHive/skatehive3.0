@@ -350,6 +350,9 @@ export const ptBR = {
     unsupportedFileType: 'Tipo de arquivo não suportado',
     videoProcessFailed: 'Falha ao processar arquivo de vídeo',
   },
+  trickTutorial: {
+    sectionTitle: 'Tutorial',
+  },
   skateDice: {
     title: 'Skate or Dice',
     coachAlt: 'Treinador Fred, mascote do Skatehive',

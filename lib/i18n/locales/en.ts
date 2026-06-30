@@ -333,6 +333,9 @@ export const en = {
     unsupportedFileType: 'Unsupported file type',
     videoProcessFailed: 'Failed to process video file',
   },
+  trickTutorial: {
+    sectionTitle: 'Tutorial',
+  },
   skateDice: {
     title: 'Skate or Dice',
     coachAlt: 'Coach Fred, Skatehive mascot',

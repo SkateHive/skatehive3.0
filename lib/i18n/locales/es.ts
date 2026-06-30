@@ -350,6 +350,9 @@ export const es = {
     unsupportedFileType: 'Tipo de archivo no compatible',
     videoProcessFailed: 'Error al procesar archivo de video',
   },
+  trickTutorial: {
+    sectionTitle: 'Tutorial',
+  },
   skateDice: {
     title: 'Skate or Dice',
     coachAlt: 'Entrenador Fred, mascota de Skatehive',

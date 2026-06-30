@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
+import TrickTutorial from "@/components/tricks/TrickTutorial";
+import { TRICK_TUTORIALS } from "@/lib/utils/trickTutorials";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import HiveClient from "@/lib/hive/hiveclient";
 
@@ -98,10 +100,10 @@ const TRICK_MAP: Record<string, { name: string; tags: string[]; description: str
         tags: ["crooks", "crookedgrind", "crooked"],
         description: "The crooked grind (or crooks) is a nosegrind at an angle, with the nose of the board pressing into the ledge.",
     },
-    "blunt-stall": {
-        name: "Blunt Stall",
-        tags: ["bluntstall", "blunt"],
-        description: "A blunt stall involves riding up a ramp, locking the back trucks on the coping with the board vertical, and coming back in.",
+    "blunt-to-fakie": {
+        name: "Blunt to Fakie",
+        tags: ["blunttofakie", "blunt", "bluntfakie"],
+        description: "A blunt to fakie involves riding up a ramp, locking the tail on the coping with the board tilted back, then pumping back in fakie.",
     },
     wallride: {
         name: "Wallride",
@@ -133,6 +135,51 @@ const TRICK_MAP: Record<string, { name: string; tags: string[]; description: str
         tags: ["backsideair"],
         description: "A backside air is an aerial trick on a ramp where the skater turns backside while grabbing the board.",
     },
+    "frontside-flip": {
+        name: "Frontside Flip",
+        tags: ["frontsideflip", "fsflip"],
+        description: "A frontside flip combines a frontside 180 body rotation with a kickflip. The skater turns their chest toward the direction of travel while the board flips.",
+    },
+    "backside-bigspin": {
+        name: "Backside Bigspin",
+        tags: ["backsidebigspin", "bsbigspin", "bigspin"],
+        description: "A backside bigspin combines a 360 backside pop shove-it with a 180 backside body rotation. The skater and board rotate in the same direction.",
+    },
+    "varial-heelflip": {
+        name: "Varial Heelflip",
+        tags: ["varialheel", "varialheeflip"],
+        description: "A varial heelflip combines a backside pop shove-it with a heelflip. The board spins backside while flipping toward the rider.",
+    },
+    "backside-flip": {
+        name: "Backside Flip",
+        tags: ["backsideflip", "bsflip"],
+        description: "A backside flip combines a backside 180 body rotation with a kickflip. One of the most stylish street tricks.",
+    },
+    "backside-180": {
+        name: "Backside 180",
+        tags: ["backside180", "bs180"],
+        description: "A backside 180 is a 180-degree rotation where the skater turns their back toward the direction of travel. A core flatground and park trick.",
+    },
+    "frontside-180": {
+        name: "Frontside 180",
+        tags: ["frontside180", "fs180"],
+        description: "A frontside 180 is a 180-degree rotation where the skater turns their chest toward the direction of travel. A fundamental foundation trick.",
+    },
+    "360-pop-shuvit": {
+        name: "360 Pop Shuvit",
+        tags: ["360shove", "3shove", "360popshove"],
+        description: "A 360 pop shove-it (3 shove) spins the board a full 360 degrees under the skater's feet with a backside scoop of the tail.",
+    },
+    "one-foot-ollie": {
+        name: "One-Foot Ollie",
+        tags: ["onefootollie", "onefoot"],
+        description: "A one-foot ollie is an ollie where the front foot kicks out to the side mid-air, fully leaving the board, then returns to land.",
+    },
+    "frontside-shuvit": {
+        name: "Frontside Shuvit",
+        tags: ["frontsideshove", "fsshoveit", "frontsideshoveit"],
+        description: "A frontside shove-it spins the board 180 degrees in the frontside direction under the skater's feet without a kickflip.",
+    },
 };
 
 type HivePost = {
@@ -152,10 +199,10 @@ interface Props {
 
 // Helper to get related tricks based on category
 function getRelatedTricks(currentTrick: string): Array<{ slug: string; name: string }> {
-    const flipTricks = ["kickflip", "heelflip", "varial-kickflip", "tre-flip", "hardflip", "laser-flip"];
-    const flatgroundTricks = ["ollie", "pop-shove-it", "nollie", "manual", "no-comply", "boneless"];
+    const flipTricks = ["kickflip", "heelflip", "varial-kickflip", "tre-flip", "hardflip", "laser-flip", "frontside-flip", "varial-heelflip", "backside-flip"];
+    const flatgroundTricks = ["ollie", "pop-shove-it", "nollie", "manual", "no-comply", "boneless", "backside-180", "frontside-180", "360-pop-shuvit", "one-foot-ollie", "frontside-shuvit", "backside-bigspin"];
     const grindTricks = ["50-50", "boardslide", "nosegrind", "smith-grind", "feeble", "crooked-grind"];
-    const transitionTricks = ["blunt-stall", "wallride", "drop-in", "rock-to-fakie", "axle-stall", "frontside-air", "backside-air"];
+    const transitionTricks = ["blunt-to-fakie", "wallride", "drop-in", "rock-to-fakie", "axle-stall", "frontside-air", "backside-air"];
 
     let relatedSlugs: string[] = [];
     if (flipTricks.includes(currentTrick)) {
@@ -271,6 +318,8 @@ export default async function TrickPage({ params }: Props) {
     const description = trickData?.description || `Browse ${displayName} clips from the skateboarding community.`;
     const tags = trickData?.tags || [trickSlug.replace(/-/g, "")];
 
+    const tutorialUrl = TRICK_TUTORIALS[trickSlug];
+
     // Fetch real posts from Hive
     const posts = await fetchTrickPosts(tags);
 
@@ -355,6 +404,8 @@ export default async function TrickPage({ params }: Props) {
                         {description}
                     </p>
                 </header>
+
+                <TrickTutorial url={tutorialUrl} />
 
                 {/* Posts grid */}
                 {posts.length > 0 ? (
