@@ -7,6 +7,7 @@ import { useState } from "react";
 
 type Props = {
   trick: { name: string; slug: string };
+  tutorialThumbnailUrl?: string;
   thumbnailUrl: string | null;
 };
 
@@ -37,7 +38,7 @@ function PlaceholderBox({
   );
 }
 
-export default function TrickCard({ trick, thumbnailUrl }: Props) {
+export default function TrickCard({ trick, tutorialThumbnailUrl, thumbnailUrl }: Props) {
   const router = useRouter();
   const [imgError, setImgError] = useState(false);
 
@@ -47,51 +48,74 @@ export default function TrickCard({ trick, thumbnailUrl }: Props) {
     router.push("/compose");
   };
 
+  const showTutorial = !!tutorialThumbnailUrl && !imgError;
+
   return (
     <Box
       as={NextLink}
       href={`/tricks/${trick.slug}`}
       display="block"
-      p={4}
       bg="panel"
       border="1px solid"
       borderColor="muted"
       borderRadius="none"
+      overflow="hidden"
       _hover={{ borderColor: "primary", bg: "panelHover", textDecoration: "none" }}
       transition="all 0.15s"
       textDecoration="none"
     >
-      <HStack spacing={3} align="center">
-        {thumbnailUrl && !imgError ? (
-          <Image
-            src={thumbnailUrl}
-            alt={trick.name}
-            boxSize="64px"
-            objectFit="cover"
-            borderRadius="none"
-            flexShrink={0}
-            loading="lazy"
-            decoding="async"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <PlaceholderBox onClick={handleCompose} />
-        )}
-        <VStack align="start" spacing={0} flex={1} minW={0}>
-          <Text
-            color="primary"
-            fontWeight="bold"
-            fontSize="md"
-            noOfLines={1}
-            _hover={{ textDecoration: "none" }}
-          >
-            {trick.name}
-          </Text>
-          <Text fontSize="xs" color="dim">
-            View clips →
-          </Text>
-        </VStack>
-      </HStack>
+      {showTutorial ? (
+        <>
+          <Box w="100%" sx={{ aspectRatio: "16 / 9" }} overflow="hidden">
+            <Image
+              src={tutorialThumbnailUrl}
+              alt={trick.name}
+              w="100%"
+              h="100%"
+              objectFit="cover"
+              borderRadius="none"
+              loading="lazy"
+              decoding="async"
+              onError={() => setImgError(true)}
+            />
+          </Box>
+          <Box p={3}>
+            <Text color="primary" fontWeight="bold" fontSize="md" noOfLines={1}>
+              {trick.name}
+            </Text>
+            <Text fontSize="xs" color="dim">
+              View clips →
+            </Text>
+          </Box>
+        </>
+      ) : (
+        <Box p={4}>
+          <HStack spacing={3} align="center">
+            {thumbnailUrl ? (
+              <Image
+                src={thumbnailUrl}
+                alt={trick.name}
+                boxSize="64px"
+                objectFit="cover"
+                borderRadius="none"
+                flexShrink={0}
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              <PlaceholderBox onClick={handleCompose} />
+            )}
+            <VStack align="start" spacing={0} flex={1} minW={0}>
+              <Text color="primary" fontWeight="bold" fontSize="md" noOfLines={1}>
+                {trick.name}
+              </Text>
+              <Text fontSize="xs" color="dim">
+                View clips →
+              </Text>
+            </VStack>
+          </HStack>
+        </Box>
+      )}
     </Box>
   );
 }

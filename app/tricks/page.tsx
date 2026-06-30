@@ -7,6 +7,12 @@ import TricksPageWrapper from "@/components/tricks/TricksPageWrapper";
 import TrickCard from "@/components/tricks/TrickCard";
 import CoachFred from "@/components/tricks/CoachFred";
 import { extractPostThumbnail } from "@/lib/utils/postThumbnail";
+import { TRICK_TUTORIALS } from "@/lib/utils/trickTutorials";
+
+function extractYouTubeId(url: string): string | null {
+    const match = url.match(/(?:[?&]v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return match ? match[1] : null;
+}
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 const ogImageUrl = `${BASE_URL}/api/og/page?title=Skate%20Tricks&subtitle=Learn%20tricks%20from%20the%20community`;
@@ -173,6 +179,15 @@ export default async function TricksPage() {
         thumbnailMap.set(trick.slug, post ? extractPostThumbnail(post) : null);
     });
 
+    const tutorialThumbnailMap = new Map<string, string>();
+    allTricks.forEach((trick) => {
+        const url = TRICK_TUTORIALS[trick.slug];
+        if (url) {
+            const id = extractYouTubeId(url);
+            if (id) tutorialThumbnailMap.set(trick.slug, `https://img.youtube.com/vi/${id}/hqdefault.jpg`);
+        }
+    });
+
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -276,6 +291,7 @@ export default async function TricksPage() {
                                 <TrickCard
                                     key={trick.slug}
                                     trick={trick}
+                                    tutorialThumbnailUrl={tutorialThumbnailMap.get(trick.slug)}
                                     thumbnailUrl={thumbnailMap.get(trick.slug) ?? null}
                                 />
                             ))}
