@@ -502,7 +502,7 @@ export default async function TrickPage({ params }: Props) {
                         Related Tricks
                     </h2>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
-                        {getRelatedTricks(trickSlug).map((relatedTrick) => {
+                        {getRelatedTricks(trickSlug).slice(0, 4).map((relatedTrick) => {
                             const tutUrl = TRICK_TUTORIALS[relatedTrick.slug];
                             const tutId = tutUrl ? extractYouTubeId(tutUrl) : null;
                             const tutorialThumbnailUrl = tutId
