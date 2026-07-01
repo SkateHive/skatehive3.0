@@ -525,7 +525,6 @@ export default async function TrickPage({ params }: Props) {
                     <h2 style={{ fontSize: "1.2rem", color: "#fff", marginBottom: "12px" }}>
                         About the {displayName}
                     </h2>
-                    <p style={{ marginBottom: "12px" }}>{description}</p>
                     <p>
                         Want to see your {displayName.toLowerCase()} clip here? Post it on Skatehive
                         with the tag <code style={{ color: "#a7ff00" }}>#{tags[0]}</code> and
