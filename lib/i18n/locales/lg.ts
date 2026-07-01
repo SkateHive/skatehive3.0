@@ -356,6 +356,7 @@ export const lg = {
     title: 'Skate or Dice',
     coachAlt: 'Musomesa Fred, omukuumi wa Skatehive',
     wannaPlay: 'Oyagala okunnywa omucinnyiro?',
+    instructions: 'Kuba emikondo — tera trick, oba ogwe ng’ogezaako.',
     play: 'KUBA',
     rollAgain: 'Tonya Nate',
     skatersChoice: 'Skater azisalawo!',
@@ -977,6 +978,13 @@ export const lg = {
     pending: 'Okiraatira',
     completed: 'Okumala',
     failed: 'Byetagganya',
+  },
+  tricks: {
+    title: 'Amagezi g\'Okusika',
+    subtitle: 'Yiga amagezi olabe clips ezikubiddwa abaasika ba mazima okuva mu bantu ba Skatehive. Nyiga trick yonna okulaba tutorials, GIFs, vidiyo, ne posts.',
+    diceAriaLabel: 'Kuba Skate oba Dice',
+    diceImageAlt: 'Nyiga okuzannya Skate oba Dice',
+    viewClips: 'Laba clips →',
   },
   bounties: {
     title: 'Entuzza',

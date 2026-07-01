@@ -82,7 +82,7 @@ const TRICK_CATEGORIES = [
             { name: "Hardflip", slug: "hardflip", tags: ["hardflip"] },
             { name: "Frontside Flip", slug: "frontside-flip", tags: ["frontsideflip", "fsflip"] },
             { name: "Backside Flip", slug: "backside-flip", tags: ["backsideflip", "bsflip"] },
-            { name: "Varial Heelflip", slug: "varial-heelflip", tags: ["varialheel", "varialheeflip"] },
+            { name: "Varial Heelflip", slug: "varial-heelflip", tags: ["varialheel", "varialheelflip"] },
             { name: "Laser Flip", slug: "laser-flip", tags: ["laserflip"] },
         ],
     },

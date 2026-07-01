@@ -254,6 +254,7 @@ export interface TranslationSchema {
     title: string;
     coachAlt: string;
     wannaPlay: string;
+    instructions: string;
     play: string;
     rollAgain: string;
     skatersChoice: string;
@@ -823,5 +824,12 @@ export interface TranslationSchema {
     pending: string;
     completed: string;
     failed: string;
+  };
+  tricks: {
+    title: string;
+    subtitle: string;
+    diceAriaLabel: string;
+    diceImageAlt: string;
+    viewClips: string;
   };
 }

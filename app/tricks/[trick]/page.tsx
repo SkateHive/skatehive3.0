@@ -108,7 +108,7 @@ const TRICK_MAP: Record<string, { name: string; tags: string[]; description: str
     },
     "blunt-to-fakie": {
         name: "Blunt to Fakie",
-        tags: ["blunttofakie", "blunt", "bluntfakie"],
+        tags: ["blunttofakie", "blunt", "bluntfakie", "blunt-to-fakie"],
         description: "A blunt to fakie involves riding up a ramp, locking the tail on the coping with the board tilted back, then pumping back in fakie.",
     },
     wallride: {
@@ -143,47 +143,47 @@ const TRICK_MAP: Record<string, { name: string; tags: string[]; description: str
     },
     "frontside-flip": {
         name: "Frontside Flip",
-        tags: ["frontsideflip", "fsflip"],
+        tags: ["frontsideflip", "fsflip", "frontside-flip"],
         description: "A frontside flip combines a frontside 180 body rotation with a kickflip. The skater turns their chest toward the direction of travel while the board flips.",
     },
     "backside-bigspin": {
         name: "Backside Bigspin",
-        tags: ["backsidebigspin", "bsbigspin", "bigspin"],
+        tags: ["backsidebigspin", "bsbigspin", "bigspin", "backside-bigspin"],
         description: "A backside bigspin combines a 360 backside pop shove-it with a 180 backside body rotation. The skater and board rotate in the same direction.",
     },
     "varial-heelflip": {
         name: "Varial Heelflip",
-        tags: ["varialheel", "varialheeflip"],
+        tags: ["varialheel", "varialheelflip", "varial-heelflip"],
         description: "A varial heelflip combines a backside pop shove-it with a heelflip. The board spins backside while flipping toward the rider.",
     },
     "backside-flip": {
         name: "Backside Flip",
-        tags: ["backsideflip", "bsflip"],
+        tags: ["backsideflip", "bsflip", "backside-flip"],
         description: "A backside flip combines a backside 180 body rotation with a kickflip. One of the most stylish street tricks.",
     },
     "backside-180": {
         name: "Backside 180",
-        tags: ["backside180", "bs180"],
+        tags: ["backside180", "bs180", "backside-180"],
         description: "A backside 180 is a 180-degree rotation where the skater turns their back toward the direction of travel. A core flatground and park trick.",
     },
     "frontside-180": {
         name: "Frontside 180",
-        tags: ["frontside180", "fs180"],
+        tags: ["frontside180", "fs180", "frontside-180"],
         description: "A frontside 180 is a 180-degree rotation where the skater turns their chest toward the direction of travel. A fundamental foundation trick.",
     },
     "360-pop-shuvit": {
         name: "360 Pop Shuvit",
-        tags: ["360shove", "3shove", "360popshove"],
+        tags: ["360shove", "3shove", "360popshove", "360-pop-shuvit"],
         description: "A 360 pop shove-it (3 shove) spins the board a full 360 degrees under the skater's feet with a backside scoop of the tail.",
     },
     "one-foot-ollie": {
         name: "One-Foot Ollie",
-        tags: ["onefootollie", "onefoot"],
+        tags: ["onefootollie", "onefoot", "one-foot-ollie"],
         description: "A one-foot ollie is an ollie where the front foot kicks out to the side mid-air, fully leaving the board, then returns to land.",
     },
     "frontside-shuvit": {
         name: "Frontside Shuvit",
-        tags: ["frontsideshove", "fsshoveit", "frontsideshoveit"],
+        tags: ["frontsideshove", "fsshoveit", "frontsideshoveit", "frontside-shuvit"],
         description: "A frontside shove-it spins the board 180 degrees in the frontside direction under the skater's feet without a kickflip.",
     },
 };

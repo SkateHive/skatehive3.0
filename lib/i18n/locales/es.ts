@@ -357,6 +357,7 @@ export const es = {
     title: 'Skate or Dice',
     coachAlt: 'Entrenador Fred, mascota de Skatehive',
     wannaPlay: '¿Quieres jugar?',
+    instructions: 'Tira los dados — aterriza un truco, o cae intentándolo.',
     play: 'JUGAR',
     rollAgain: 'Tirar de Nuevo',
     skatersChoice: '¡Elección del skater!',
@@ -978,6 +979,13 @@ export const es = {
     pending: 'Pendiente',
     completed: 'Completado',
     failed: 'Fallido',
+  },
+  tricks: {
+    title: 'Trucos de Skate',
+    subtitle: 'Aprende trucos y mira clips filmados por skaters reales de la comunidad Skatehive. Haz clic en cualquier truco para tutoriales, GIFs, videos y publicaciones.',
+    diceAriaLabel: 'Jugar Skate o Dado',
+    diceImageAlt: 'Haz clic para jugar Skate o Dado',
+    viewClips: 'Ver clips →',
   },
   bounties: {
     title: 'Recompensas',

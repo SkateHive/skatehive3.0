@@ -2,6 +2,7 @@
 
 import {
   Box,
+  Button,
   Image,
   Modal,
   ModalContent,
@@ -10,10 +11,12 @@ import {
   useDisclosure,
 } from "@chakra-ui/react";
 import { motion } from "framer-motion";
+import { useTranslations } from "@/contexts/LocaleContext";
 import SkateDiceGame from "./SkateDiceGame";
 
 export default function TricksHeader() {
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const t = useTranslations("tricks");
 
   return (
     <>
@@ -36,7 +39,7 @@ export default function TricksHeader() {
             mb={3}
             lineHeight={1.1}
           >
-            Skateboard Tricks
+            {t("title")}
           </Text>
 
           <Text
@@ -45,18 +48,20 @@ export default function TricksHeader() {
             maxW="560px"
             lineHeight={1.6}
           >
-            Learn tricks and browse clips filmed by real skaters from the Skatehive
-            community. Click any trick for tutorials, GIFs, videos, and posts.
+            {t("subtitle")}
           </Text>
         </Box>
 
         {/* Right: animated dice — click opens Skate or Dice game */}
-        <Box
+        <Button
+          variant="unstyled"
+          onClick={onOpen}
+          aria-label={t("diceAriaLabel")}
           flexShrink={0}
           cursor="pointer"
-          onClick={onOpen}
-          role="button"
-          aria-label="Play Skate or Dice"
+          display="flex"
+          h="auto"
+          minW="auto"
           sx={{ userSelect: "none" }}
         >
           <motion.div
@@ -67,14 +72,14 @@ export default function TricksHeader() {
           >
             <Image
               src="/images/skate-dice.png"
-              alt="Click to play Skate or Dice"
+              alt={t("diceImageAlt")}
               h="64px"
               w="auto"
               objectFit="contain"
               draggable={false}
             />
           </motion.div>
-        </Box>
+        </Button>
       </Box>
 
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="sm">

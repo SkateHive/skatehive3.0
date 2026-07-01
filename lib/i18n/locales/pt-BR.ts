@@ -357,6 +357,7 @@ export const ptBR = {
     title: 'Skate or Dice',
     coachAlt: 'Treinador Fred, mascote do Skatehive',
     wannaPlay: 'Quer jogar?',
+    instructions: 'Jogue os dados — manda uma manobra ou cai tentando.',
     play: 'JOGAR',
     rollAgain: 'Jogar de Novo',
     skatersChoice: 'Escolha do skater!',
@@ -978,6 +979,13 @@ export const ptBR = {
     pending: 'Pendente',
     completed: 'Concluído',
     failed: 'Falhou',
+  },
+  tricks: {
+    title: 'Manobras de Skate',
+    subtitle: 'Aprenda manobras e veja clipes filmados por skatistas de verdade da comunidade Skatehive. Clique em qualquer manobra para tutoriais, GIFs, vídeos e posts.',
+    diceAriaLabel: 'Jogar Skate ou Dado',
+    diceImageAlt: 'Clique para jogar Skate ou Dado',
+    viewClips: 'Ver clipes →',
   },
   bounties: {
     title: 'Desafios',

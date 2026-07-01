@@ -14,7 +14,7 @@ import {
 } from "@chakra-ui/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "@/contexts/LocaleContext";
-import { SKATE_DICE, randomFace, trickFromFaces } from "@/lib/utils/skateDiceData";
+import { SKATE_DICE, randomFace, trickFromFaces, SKATERS_CHOICE_SENTINEL } from "@/lib/utils/skateDiceData";
 import { SENTENCE_COUNT, splitTemplate } from "@/lib/utils/skateSentences";
 
 const SPIN_MS = 800;
@@ -107,7 +107,8 @@ export default function SkateDiceGame({ onClose }: Props) {
     timeoutsRef.current.push(rid);
   };
 
-  const renderTaunt = (trickName: string, sentenceIdx: number) => {
+  const renderTaunt = (trick: string, sentenceIdx: number) => {
+    const trickName = trick === SKATERS_CHOICE_SENTINEL ? t("skateDice.skatersChoice") : trick;
     const template = t(`skateDice.sentence${sentenceIdx}`);
     const { before, after } = splitTemplate(template);
     return (
@@ -217,7 +218,7 @@ export default function SkateDiceGame({ onClose }: Props) {
         {!result && (
           <>
             <Text fontSize="xs" color="dim" textAlign="center" mb={4}>
-              Roll the dice — land a trick, or bail trying.
+              {t("skateDice.instructions")}
             </Text>
             <Button
               onClick={roll}

@@ -29,9 +29,11 @@ export const SKATE_DICE: SkateDie[] = [
 
 export const isWildcard = (face: string) => WILDCARDS.includes(face);
 
+export const SKATERS_CHOICE_SENTINEL = "__SKATERS_CHOICE__";
+
 export function trickFromFaces(faces: string[]): string {
   const words = faces.filter((f) => !isWildcard(f));
-  return words.length === 0 ? "Skater's choice!" : words.join(" ");
+  return words.length === 0 ? SKATERS_CHOICE_SENTINEL : words.join(" ");
 }
 
 export function randomFace(die: SkateDie): string {

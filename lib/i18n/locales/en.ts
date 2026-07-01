@@ -340,6 +340,7 @@ export const en = {
     title: 'Skate or Dice',
     coachAlt: 'Coach Fred, Skatehive mascot',
     wannaPlay: 'Wanna play a game?',
+    instructions: 'Roll the dice — land a trick, or bail trying.',
     play: 'PLAY',
     rollAgain: 'Roll Again',
     skatersChoice: "Skater's choice!",
@@ -961,6 +962,13 @@ export const en = {
     pending: 'Pending',
     completed: 'Completed',
     failed: 'Failed',
+  },
+  tricks: {
+    title: 'Skateboard Tricks',
+    subtitle: 'Learn tricks and browse clips filmed by real skaters from the Skatehive community. Click any trick for tutorials, GIFs, videos, and posts.',
+    diceAriaLabel: 'Play Skate or Dice',
+    diceImageAlt: 'Click to play Skate or Dice',
+    viewClips: 'View clips →',
   },
   bounties: {
     title: 'Bounties',
