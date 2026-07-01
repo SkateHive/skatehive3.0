@@ -8,7 +8,6 @@ import {
   Image,
   ModalBody,
   ModalCloseButton,
-  ModalFooter,
   ModalHeader,
   Text,
   VStack,
@@ -16,7 +15,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { SKATE_DICE, randomFace, trickFromFaces } from "@/lib/utils/skateDiceData";
-import { PROMPT_COUNT, SENTENCE_COUNT, splitTemplate } from "@/lib/utils/skateSentences";
+import { SENTENCE_COUNT, splitTemplate } from "@/lib/utils/skateSentences";
 
 const SPIN_MS = 800;
 const STAGGER_MS = 400;
@@ -39,9 +38,7 @@ export default function SkateDiceGame({ onClose }: Props) {
     trick: string;
     sentenceIdx: number;
   } | null>(null);
-  const [promptIdx] = useState(() => Math.floor(Math.random() * PROMPT_COUNT));
 
-  // Refs to avoid stale closures inside setInterval / setTimeout
   const finalFacesRef = useRef<string[]>(SKATE_DICE.map((d) => d.faces[0]));
   const landedRef = useRef<boolean[]>([true, true, true, true]);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -53,7 +50,6 @@ export default function SkateDiceGame({ onClose }: Props) {
     []
   );
 
-  // Rapidly cycle non-landed die faces while rolling
   useEffect(() => {
     if (!isRolling) return;
     const id = setInterval(() => {
@@ -83,7 +79,6 @@ export default function SkateDiceGame({ onClose }: Props) {
     setResult(null);
     setRollCount((c) => c + 1);
 
-    // Land each die in sequence with STAGGER_MS offset
     SKATE_DICE.forEach((_, i) => {
       const tid = setTimeout(() => {
         landedRef.current[i] = true;
@@ -101,7 +96,6 @@ export default function SkateDiceGame({ onClose }: Props) {
       timeoutsRef.current.push(tid);
     });
 
-    // Show result after the last die lands
     const resultDelay = SPIN_MS + (SKATE_DICE.length - 1) * STAGGER_MS + 300;
     const rid = setTimeout(() => {
       setIsRolling(false);
@@ -137,23 +131,25 @@ export default function SkateDiceGame({ onClose }: Props) {
         pt={4}
         px={4}
       >
-        <HStack spacing={2}>
-          <Image
-            src="/images/skatehive-coach.png"
-            alt=""
-            boxSize="26px"
-            objectFit="contain"
-          />
+        <HStack spacing={2} align="center">
           <Text color="primary" fontWeight="bold" fontSize="md">
             {t("skateDice.title")}
           </Text>
+          <Image
+            src="/images/skate-dice.png"
+            alt=""
+            h="28px"
+            w="auto"
+            objectFit="contain"
+          />
         </HStack>
       </ModalHeader>
       <ModalCloseButton color="dim" onClick={onClose} />
 
-      {/* ── Body: reels + result ────────────────────────────────────────────── */}
-      <ModalBody px={4} py={5}>
-        {/* Dice reels */}
+      {/* ── Body ────────────────────────────────────────────────────────────── */}
+      <ModalBody px={4} pt={5} pb={5}>
+
+        {/* Dice reels: STANCE / SIDE / SPIN / FLIP */}
         <HStack spacing={2} justify="center" mb={5}>
           {SKATE_DICE.map((die, i) => {
             const isActive = isRolling && !landed[i];
@@ -168,7 +164,6 @@ export default function SkateDiceGame({ onClose }: Props) {
                   {die.key}
                 </Text>
 
-                {/* Landing pop: new key per land event triggers the scale keyframe */}
                 <motion.div
                   key={`${die.key}-${rollCount}-${landed[i] ? "l" : "s"}`}
                   animate={
@@ -190,7 +185,6 @@ export default function SkateDiceGame({ onClose }: Props) {
                     p={1}
                     transition="border-color 0.15s"
                   >
-                    {/* Shake while spinning */}
                     <motion.div
                       animate={isActive ? { y: [-3, 3, -3] } : { y: 0 }}
                       transition={{
@@ -219,69 +213,29 @@ export default function SkateDiceGame({ onClose }: Props) {
           })}
         </HStack>
 
-        {/* Result speech bubble or idle prompt */}
-        <AnimatePresence exitBeforeEnter>
-          {result ? (
-            <motion.div
-              key={`result-${rollCount}`}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.25 }}
+        {/* PRE-ROLL: instruction then PLAY */}
+        {!result && (
+          <>
+            <Text fontSize="xs" color="dim" textAlign="center" mb={4}>
+              Roll the dice — land a trick, or bail trying.
+            </Text>
+            <Button
+              onClick={roll}
+              isDisabled={isRolling}
+              bg="primary"
+              color="background"
+              borderRadius="none"
+              _hover={{ opacity: 0.85 }}
+              _disabled={{ opacity: 0.5 }}
+              w="full"
             >
-              <Box
-                border="1px solid"
-                borderColor="muted"
-                borderRadius="none"
-                p={4}
-                textAlign="center"
-              >
-                <Text fontSize="lg" fontWeight="bold" color="primary" mb={2}>
-                  {result.trick}
-                </Text>
-                <Text fontSize="sm" color="text">
-                  {renderTaunt(result.trick, result.sentenceIdx)}
-                </Text>
-              </Box>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="prompt"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Text fontSize="sm" color="dim" textAlign="center" px={2}>
-                {t(`skateDice.prompt${promptIdx}`)}
-              </Text>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </ModalBody>
+              {t("skateDice.play")}
+            </Button>
+          </>
+        )}
 
-      {/* ── Footer: action buttons ──────────────────────────────────────────── */}
-      <ModalFooter
-        borderTop="1px solid"
-        borderColor="muted"
-        px={4}
-        py={3}
-        gap={2}
-      >
-        {result ? (
-          <Button
-            onClick={roll}
-            isDisabled={isRolling}
-            variant="outline"
-            borderRadius="none"
-            borderColor="muted"
-            color="text"
-            _hover={{ borderColor: "primary", color: "primary" }}
-            flex={1}
-          >
-            {t("skateDice.rollAgain")}
-          </Button>
-        ) : (
+        {/* POST-ROLL: ROLL AGAIN — same styling as PLAY */}
+        {result && (
           <Button
             onClick={roll}
             isDisabled={isRolling}
@@ -290,12 +244,58 @@ export default function SkateDiceGame({ onClose }: Props) {
             borderRadius="none"
             _hover={{ opacity: 0.85 }}
             _disabled={{ opacity: 0.5 }}
-            flex={1}
+            w="full"
           >
-            {t("skateDice.play")}
+            {t("skateDice.rollAgain")}
           </Button>
         )}
-      </ModalFooter>
+
+        {/* POST-ROLL: Fred + taunt — fixed-height wrapper */}
+        <AnimatePresence exitBeforeEnter>
+          {result && (
+            <motion.div
+              key={`result-${rollCount}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.25 }}
+            >
+              <Box
+                height="150px"
+                position="relative"
+                overflow="hidden"
+                mx={-6}
+                mb={-5}
+                mt={4}
+              >
+                {/* Taunt text — upper third */}
+                <Box
+                  position="absolute"
+                  left={4}
+                  right="140px"
+                  top="30%"
+                >
+                  <Text fontSize="xs" color="text" lineHeight={1.4}>
+                    {renderTaunt(result.trick, result.sentenceIdx)}
+                  </Text>
+                </Box>
+
+                {/* Fred — bottom-right corner */}
+                <Image
+                  src="/images/skatehive-coach.png"
+                  alt={t("skateDice.coachAlt")}
+                  position="absolute"
+                  bottom={0}
+                  right={0}
+                  h="150px"
+                  w="auto"
+                  objectFit="contain"
+                />
+              </Box>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </ModalBody>
     </>
   );
 }

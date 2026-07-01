@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
+import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
+import HiveClient from "@/lib/hive/hiveclient";
 import TrickTutorial from "@/components/tricks/TrickTutorial";
 import TrickCard from "@/components/tricks/TrickCard";
 import { TRICK_TUTORIALS } from "@/lib/utils/trickTutorials";
@@ -9,8 +11,6 @@ function extractYouTubeId(url: string): string | null {
     const match = url.match(/(?:[?&]v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
     return match ? match[1] : null;
 }
-import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
-import HiveClient from "@/lib/hive/hiveclient";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 

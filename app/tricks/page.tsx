@@ -5,7 +5,7 @@ import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import HiveClient from "@/lib/hive/hiveclient";
 import TricksPageWrapper from "@/components/tricks/TricksPageWrapper";
 import TrickCard from "@/components/tricks/TrickCard";
-import CoachFred from "@/components/tricks/CoachFred";
+import TricksHeader from "@/components/tricks/TricksHeader";
 import { extractPostThumbnail } from "@/lib/utils/postThumbnail";
 import { TRICK_TUTORIALS } from "@/lib/utils/trickTutorials";
 
@@ -241,31 +241,7 @@ export default async function TricksPage() {
                         minHeight: "100vh",
                     }}
                 >
-                <header style={{ textAlign: "center", marginBottom: "32px" }}>
-                    <h1
-                        style={{
-                            fontSize: "2.2rem",
-                            fontWeight: "bold",
-                            color: "var(--chakra-colors-primary)",
-                            marginBottom: "12px",
-                        }}
-                    >
-                        Skateboard Tricks
-                    </h1>
-                    <p
-                        style={{
-                            fontSize: "1.1rem",
-                            fontWeight: "bold",
-                            color: "var(--chakra-colors-primary)",
-                            maxWidth: "600px",
-                            margin: "0 auto",
-                            lineHeight: 1.6,
-                        }}
-                    >
-                        Learn tricks and browse clips filmed by real skaters from the Skatehive
-                        community. Click any trick for tutorials, GIFs, videos, and posts.
-                    </p>
-                </header>
+                <TricksHeader />
 
                 {TRICK_CATEGORIES.map((category) => (
                     <section key={category.name} style={{ marginBottom: "40px" }}>
@@ -335,7 +311,6 @@ export default async function TricksPage() {
                     </p>
                 </section>
             </div>
-            <CoachFred />
             </TricksPageWrapper>
         </>
     );
