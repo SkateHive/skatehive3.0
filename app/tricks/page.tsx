@@ -246,7 +246,7 @@ export default async function TricksPage() {
                         style={{
                             fontSize: "2.2rem",
                             fontWeight: "bold",
-                            color: "#a7ff00",
+                            color: "var(--chakra-colors-primary)",
                             marginBottom: "12px",
                         }}
                     >
@@ -255,7 +255,8 @@ export default async function TricksPage() {
                     <p
                         style={{
                             fontSize: "1.1rem",
-                            color: "#ccc",
+                            fontWeight: "bold",
+                            color: "var(--chakra-colors-primary)",
                             maxWidth: "600px",
                             margin: "0 auto",
                             lineHeight: 1.6,
@@ -271,7 +272,8 @@ export default async function TricksPage() {
                         <h2
                             style={{
                                 fontSize: "1.4rem",
-                                color: "#fff",
+                                fontWeight: "bold",
+                                color: "var(--chakra-colors-primary)",
                                 marginBottom: "16px",
                                 borderBottom: "1px solid #333",
                                 paddingBottom: "8px",
