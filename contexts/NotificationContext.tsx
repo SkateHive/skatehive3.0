@@ -54,7 +54,9 @@ export const NotificationProvider = ({
         getLastReadNotificationDate(effectiveUser),
       ]);
       setNotifications(notifs);
-      setLastReadDate(lastRead);
+      setLastReadDate((prev) =>
+        new Date(lastRead) > new Date(prev) ? lastRead : prev
+      );
     } catch (error) {
       // Error handled silently for production
     } finally {
