@@ -332,6 +332,10 @@ export const en = {
     compressionError: 'Error compressing image',
     unsupportedFileType: 'Unsupported file type',
     videoProcessFailed: 'Failed to process video file',
+    snapTabCompose: 'Compose',
+    snapTabDrafts: 'Drafts',
+    snapNoDraft: 'No draft saved',
+    snapDiscardDraft: 'Discard',
   },
   createWorkspace: {
     title: 'Create Workspace',
