@@ -96,7 +96,6 @@ const nextConfig = {
         // into direct subpath imports. These libs all have large index.ts
         // re-exports that defeat tree-shaking otherwise.
         optimizePackageImports: [
-            '@chakra-ui/react',
             '@chakra-ui/icons',
             'react-icons',
             'wagmi',
