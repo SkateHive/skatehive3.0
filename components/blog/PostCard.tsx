@@ -477,7 +477,7 @@ export default function PostCard({
                   </Box>
                 ) : (
                   <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                    <LuArrowUp size={18} color="white" />
+                    <LuArrowUp size={18} color="var(--chakra-colors-text)" />
                   </Box>
                 )}
                 <Text
@@ -922,7 +922,7 @@ export default function PostCard({
                       </Box>
                     ) : (
                       <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                        <LuArrowUp size={18} color="white" />
+                        <LuArrowUp size={18} color="var(--chakra-colors-text)" />
                       </Box>
                     )}
                     <Text

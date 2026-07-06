@@ -499,6 +499,8 @@ const Snap = React.memo(function Snap({
                 px={2}
                 py={1}
                 cursor="pointer"
+                role="button"
+                tabIndex={0}
                 onClick={() => {
                   if (!voted && !isVoting) {
                     if (disableSlider) {
@@ -507,6 +509,19 @@ const Snap = React.memo(function Snap({
                     } else {
                       // Show slider for vote weight selection
                       setShowSlider(true);
+                    }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    if (!voted && !isVoting) {
+                      if (disableSlider) {
+                        // Slider disabled - vote directly with default weight
+                        handleDirectVote();
+                      } else {
+                        // Show slider for vote weight selection
+                        setShowSlider(true);
+                      }
                     }
                   }
                 }}
@@ -521,7 +536,7 @@ const Snap = React.memo(function Snap({
                     </Box>
                   ) : (
                     <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                      <LuArrowUp size={18} color="white" />
+                      <LuArrowUp size={18} color="var(--chakra-colors-text)" />
                     </Box>
                   )}
                   {activeVotes.length > 0 && (
@@ -543,9 +558,17 @@ const Snap = React.memo(function Snap({
                 px={2}
                 py={1}
                 cursor="pointer"
+                role="button"
+                tabIndex={0}
                 onClick={() => {
                   // Always open inline composer for replies
                   handleReplyButtonClick(discussion.permlink);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    // Always open inline composer for replies
+                    handleReplyButtonClick(discussion.permlink);
+                  }
                 }}
                 opacity={0.9}
                 _hover={{ opacity: 0.7 }}
@@ -555,7 +578,7 @@ const Snap = React.memo(function Snap({
                   <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
                     <FaRegComment
                       size={18}
-                      color={voted ? "var(--chakra-colors-primary)" : "white"}
+                      color={voted ? "var(--chakra-colors-primary)" : "var(--chakra-colors-text)"}
                     />
                   </Box>
                   <Text
@@ -581,14 +604,21 @@ const Snap = React.memo(function Snap({
                     py={1}
                     borderRadius="md"
                     cursor="pointer"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setIsSponsorModalOpen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        setIsSponsorModalOpen(true);
+                      }
+                    }}
                     opacity={0.9}
                     _hover={{ opacity: 0.7 }}
                     transition="opacity 0.2s"
                   >
                     <HStack spacing={1.5}>
                       <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                        <FaGift size={18} color="var(--chakra-colors-green-500)" />
+                        <FaGift size={18} color="var(--chakra-colors-primary)" />
                       </Box>
                       <Text
                         fontSize="sm"

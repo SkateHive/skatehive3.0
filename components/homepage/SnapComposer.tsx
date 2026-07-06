@@ -121,9 +121,9 @@ interface SnapComposerProps {
   onClose: () => void;
   submitLabel?: string;
   buttonSize?: "sm" | "md" | "lg";
-  /** Renders the redesigned inline-reply footer (simplified media buttons,
-   *  Farcaster crosspost toggle) instead of the original DestinationMenu
-   *  footer. Only the Snap.tsx inline reply composer opts into this. */
+  /** When true, renders the reply-specific media button styles
+   *  (plain buttons, no hover effects). DestinationMenu renders in both modes.
+   *  Only the Snap.tsx inline reply composer opts into this. */
   isReply?: boolean;
 }
 
