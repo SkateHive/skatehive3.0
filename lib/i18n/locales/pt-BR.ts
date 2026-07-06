@@ -331,6 +331,7 @@ export const ptBR = {
     selectThumbnailFirst: 'Por favor, selecione uma miniatura primeiro',
     addTitleFirst: 'Por favor, adicione um título primeiro',
     placeholder: 'Escreva aqui',
+    replyPlaceholder: 'Publique sua resposta...',
     dropFiles: 'Solte arquivos para carregar',
     enterCaption: 'Digite a legenda',
     uploadMedia: 'Carregar Mídia',

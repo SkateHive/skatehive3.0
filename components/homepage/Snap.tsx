@@ -18,7 +18,7 @@ import dynamic from "next/dynamic";
 import { DeleteIcon } from "@chakra-ui/icons";
 import { Discussion } from "@hiveio/dhive";
 import { FaRegComment } from "react-icons/fa";
-import { LuArrowUp, LuArrowDown, LuDollarSign } from "react-icons/lu";
+import { LuArrowUp, LuCheck } from "react-icons/lu";
 import { useAioha } from "@aioha/react-ui";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { getPayoutValue } from "@/lib/hive/client-functions";
@@ -251,8 +251,6 @@ const Snap = React.memo(function Snap({
   );
   const [votedOverride, setVotedOverride] = useState(false);
   const voted = votedOverride || derivedVoted;
-
-  const [isHovered, setIsHovered] = useState(false);
 
   // Direct vote handler for when slider is disabled
   async function handleDirectVote() {
@@ -489,120 +487,121 @@ const Snap = React.memo(function Snap({
         />
 
         {!showSlider && (
-          <HStack 
-            justify="center" 
-            spacing={6}
-            mt={3} 
+          <HStack
+            justify="space-between"
+            mt={3}
             w="100%"
+            px={4}
           >
-            <HStack
-              minW="72px"
-              justify="center"
-              px={2}
-              py={1}
-              borderRadius="md"
-              cursor="pointer"
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-              onClick={() => {
-                if (!voted && !isVoting) {
-                  if (disableSlider) {
-                    // Slider disabled - vote directly with default weight
-                    handleDirectVote();
-                  } else {
-                    // Show slider for vote weight selection
-                    setShowSlider(true);
+            <HStack spacing={6}>
+              <HStack
+                justify="center"
+                px={2}
+                py={1}
+                cursor="pointer"
+                onClick={() => {
+                  if (!voted && !isVoting) {
+                    if (disableSlider) {
+                      // Slider disabled - vote directly with default weight
+                      handleDirectVote();
+                    } else {
+                      // Show slider for vote weight selection
+                      setShowSlider(true);
+                    }
                   }
-                }
-              }}
-              opacity={isVoting ? 0.5 : 0.9}
-              _hover={{ opacity: 0.7 }}
-              transition="opacity 0.2s"
-            >
-              <HStack spacing={1.5}>
-                {voted || isHovered ? (
-                  <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                    <LuArrowUp size={18} color="var(--chakra-colors-primary)" />
-                  </Box>
-                ) : (
-                  <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                    <LuArrowDown size={18} color="var(--chakra-colors-primary)" />
-                  </Box>
-                )}
-                {activeVotes.length > 0 && (
-                  <Text 
-                    fontSize="sm" 
-                    fontWeight="medium"
-                    color="primary"
-                  >
-                    {activeVotes.length}
-                  </Text>
-                )}
-              </HStack>
-            </HStack>
-
-            <HStack
-              minW="72px"
-              justify="center"
-              px={2}
-              py={1}
-              borderRadius="md"
-              cursor="pointer"
-              onClick={() => {
-                // Always open inline composer for replies
-                handleReplyButtonClick(discussion.permlink);
-              }}
-              opacity={0.9}
-              _hover={{ opacity: 0.7 }}
-              transition="opacity 0.2s"
-            >
-              <HStack spacing={1.5}>
-                <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                  <FaRegComment size={18} color="var(--chakra-colors-primary)" />
-                </Box>
-                <Text 
-                  fontSize="sm" 
-                  fontWeight="medium"
-                  color="primary"
-                >
-                  {commentCount}
-                </Text>
-              </HStack>
-            </HStack>
-
-            {showSponsorCTA && (
-              <Tooltip
-                label="Sponsor this user to create their Hive account"
-                hasArrow
-                placement="top"
+                }}
+                opacity={isVoting ? 0.5 : 0.9}
+                _hover={{ opacity: 0.7 }}
+                transition="opacity 0.2s"
               >
-                <HStack
-                  minW="72px"
-                  justify="center"
-                  px={2}
-                  py={1}
-                  borderRadius="md"
-                  cursor="pointer"
-                  onClick={() => setIsSponsorModalOpen(true)}
-                  opacity={0.9}
-                  _hover={{ opacity: 0.7 }}
-                  transition="opacity 0.2s"
-                >
-                  <HStack spacing={1.5}>
+                <HStack spacing={1}>
+                  {voted ? (
                     <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                      <FaGift size={18} color="var(--chakra-colors-green-500)" />
+                      <LuCheck size={18} color="var(--chakra-colors-primary)" />
                     </Box>
+                  ) : (
+                    <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
+                      <LuArrowUp size={18} color="white" />
+                    </Box>
+                  )}
+                  {activeVotes.length > 0 && (
                     <Text
                       fontSize="sm"
                       fontWeight="medium"
-                      color="green.500"
+                      color={voted ? "primary" : "white"}
                     >
-                      Sponsor
+                      {activeVotes.length}
                     </Text>
-                  </HStack>
+                  )}
                 </HStack>
-              </Tooltip>
-            )}
+              </HStack>
+
+              <Box color="gray.600" fontSize="sm" userSelect="none">|</Box>
+
+              <HStack
+                justify="center"
+                px={2}
+                py={1}
+                cursor="pointer"
+                onClick={() => {
+                  // Always open inline composer for replies
+                  handleReplyButtonClick(discussion.permlink);
+                }}
+                opacity={0.9}
+                _hover={{ opacity: 0.7 }}
+                transition="opacity 0.2s"
+              >
+                <HStack spacing={1.5}>
+                  <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
+                    <FaRegComment
+                      size={18}
+                      color={voted ? "var(--chakra-colors-primary)" : "white"}
+                    />
+                  </Box>
+                  <Text
+                    fontSize="sm"
+                    fontWeight="medium"
+                    color={voted ? "primary" : "white"}
+                  >
+                    {commentCount}
+                  </Text>
+                </HStack>
+              </HStack>
+
+              {showSponsorCTA && (
+                <Tooltip
+                  label="Sponsor this user to create their Hive account"
+                  hasArrow
+                  placement="top"
+                >
+                  <HStack
+                    minW="72px"
+                    justify="center"
+                    px={2}
+                    py={1}
+                    borderRadius="md"
+                    cursor="pointer"
+                    onClick={() => setIsSponsorModalOpen(true)}
+                    opacity={0.9}
+                    _hover={{ opacity: 0.7 }}
+                    transition="opacity 0.2s"
+                  >
+                    <HStack spacing={1.5}>
+                      <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
+                        <FaGift size={18} color="var(--chakra-colors-green-500)" />
+                      </Box>
+                      <Text
+                        fontSize="sm"
+                        fontWeight="medium"
+                        color="green.500"
+                      >
+                        Sponsor
+                      </Text>
+                    </HStack>
+                  </HStack>
+                </Tooltip>
+              )}
+            </HStack>
 
             <Tooltip
               label={
@@ -622,24 +621,26 @@ const Snap = React.memo(function Snap({
                 <VoteListPopover
                   trigger={
                     <HStack
-                      minW="72px"
                       justify="center"
                       px={2}
                       py={1}
-                      borderRadius="md"
                       cursor="pointer"
                       opacity={0.9}
                       _hover={{ opacity: 0.7 }}
                       transition="opacity 0.2s"
                     >
-                      <HStack spacing={1.5}>
-                        <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                          <LuDollarSign size={18} color="var(--chakra-colors-primary)" />
-                        </Box>
-                        <Text 
-                          fontSize="sm" 
+                      <HStack spacing={0.5}>
+                        <Text
+                          fontSize="sm"
                           fontWeight="medium"
-                          color="primary"
+                          color={voted ? "primary" : "white"}
+                        >
+                          $
+                        </Text>
+                        <Text
+                          fontSize="sm"
+                          fontWeight="medium"
+                          color={voted ? "primary" : "white"}
                         >
                           {rewardAmount.toFixed(2)}
                         </Text>
@@ -692,6 +693,7 @@ const Snap = React.memo(function Snap({
                 }))
               }
               post
+              isReply
             />
             {inlineRepliesMap[discussion.permlink] &&
               inlineRepliesMap[discussion.permlink].length > 0 && (

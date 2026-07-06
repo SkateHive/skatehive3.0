@@ -232,6 +232,7 @@ export interface TranslationSchema {
     selectThumbnailFirst: string;
     addTitleFirst: string;
     placeholder: string;
+    replyPlaceholder: string;
     dropFiles: string;
     enterCaption: string;
     uploadMedia: string;

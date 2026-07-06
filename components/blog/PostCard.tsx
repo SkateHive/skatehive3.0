@@ -39,7 +39,7 @@ import { UpvoteButton } from "@/components/shared";
 import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
 import { BiDotsHorizontal } from "react-icons/bi";
 import ShareMenuButtons from "@/components/homepage/ShareMenuButtons";
-import { LuArrowUp, LuArrowDown, LuDollarSign } from "react-icons/lu";
+import { LuArrowUp, LuCheck } from "react-icons/lu";
 import VoteListPopover from "@/components/blog/VoteListModal";
 
 interface PostJsonMetadata {
@@ -106,7 +106,6 @@ export default function PostCard({
         (item) => item.voter.toLowerCase() === effectiveUser?.toLowerCase()
       )
   );
-  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     setActiveVotes(post.active_votes || []);
@@ -452,14 +451,10 @@ export default function PostCard({
             flexShrink={0}
           >
             <HStack
-              minW="72px"
               justify="center"
               px={2}
               py={1}
-              borderRadius="md"
               cursor="pointer"
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
               onClick={() => {
                 if (!voted && !isVoting) {
                   if (disableSlider) {
@@ -476,19 +471,19 @@ export default function PostCard({
               transition="opacity 0.2s"
             >
               <HStack spacing={1.5}>
-                {voted || isHovered ? (
+                {voted ? (
                   <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                    <LuArrowUp size={18} color="var(--chakra-colors-primary)" />
+                    <LuCheck size={18} color="var(--chakra-colors-primary)" />
                   </Box>
                 ) : (
                   <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                    <LuArrowDown size={18} color="var(--chakra-colors-primary)" />
+                    <LuArrowUp size={18} color="white" />
                   </Box>
                 )}
-                <Text 
-                  fontSize="sm" 
+                <Text
+                  fontSize="sm"
                   fontWeight="medium"
-                  color="primary"
+                  color={voted ? "primary" : "white"}
                 >
                   {activeVotes.length}
                 </Text>
@@ -513,24 +508,26 @@ export default function PostCard({
                 <VoteListPopover
                   trigger={
                     <HStack
-                      minW="72px"
                       justify="center"
                       px={2}
                       py={1}
-                      borderRadius="md"
                       cursor="pointer"
                       opacity={0.9}
                       _hover={{ opacity: 0.7 }}
                       transition="opacity 0.2s"
                     >
-                      <HStack spacing={1.5}>
-                        <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                          <LuDollarSign size={18} color="var(--chakra-colors-primary)" />
-                        </Box>
-                        <Text 
-                          fontSize="sm" 
+                      <HStack spacing={0.5}>
+                        <Text
+                          fontSize="sm"
                           fontWeight="medium"
-                          color="primary"
+                          color={voted ? "primary" : "white"}
+                        >
+                          $
+                        </Text>
+                        <Text
+                          fontSize="sm"
+                          fontWeight="medium"
+                          color={voted ? "primary" : "white"}
                         >
                           {payoutValue.toFixed(2)}
                         </Text>
@@ -899,14 +896,10 @@ export default function PostCard({
                 w="100%"
               >
                 <HStack
-                  minW="72px"
                   justify="center"
                   px={2}
                   py={1}
-                  borderRadius="md"
                   cursor="pointer"
-                  onMouseEnter={() => setIsHovered(true)}
-                  onMouseLeave={() => setIsHovered(false)}
                   onClick={() => {
                     if (!voted && !isVoting) {
                       if (disableSlider) {
@@ -923,19 +916,19 @@ export default function PostCard({
                   transition="opacity 0.2s"
                 >
                   <HStack spacing={1.5}>
-                    {voted || isHovered ? (
+                    {voted ? (
                       <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                        <LuArrowUp size={18} color="var(--chakra-colors-primary)" />
+                        <LuCheck size={18} color="var(--chakra-colors-primary)" />
                       </Box>
                     ) : (
                       <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                        <LuArrowDown size={18} color="var(--chakra-colors-primary)" />
+                        <LuArrowUp size={18} color="white" />
                       </Box>
                     )}
-                    <Text 
-                      fontSize="sm" 
+                    <Text
+                      fontSize="sm"
                       fontWeight="medium"
-                      color="primary"
+                      color={voted ? "primary" : "white"}
                     >
                       {activeVotes.length}
                     </Text>
@@ -960,24 +953,26 @@ export default function PostCard({
                     <VoteListPopover
                       trigger={
                         <HStack
-                          minW="72px"
                           justify="center"
                           px={2}
                           py={1}
-                          borderRadius="md"
                           cursor="pointer"
                           opacity={0.9}
                           _hover={{ opacity: 0.7 }}
                           transition="opacity 0.2s"
                         >
-                          <HStack spacing={1.5}>
-                            <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                              <LuDollarSign size={18} color="var(--chakra-colors-primary)" />
-                            </Box>
-                            <Text 
-                              fontSize="sm" 
+                          <HStack spacing={0.5}>
+                            <Text
+                              fontSize="sm"
                               fontWeight="medium"
-                              color="primary"
+                              color={voted ? "primary" : "white"}
+                            >
+                              $
+                            </Text>
+                            <Text
+                              fontSize="sm"
+                              fontWeight="medium"
+                              color={voted ? "primary" : "white"}
                             >
                               {payoutValue.toFixed(2)}
                             </Text>

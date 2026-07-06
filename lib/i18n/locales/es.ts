@@ -331,6 +331,7 @@ export const es = {
     selectThumbnailFirst: 'Por favor, selecciona una miniatura primero',
     addTitleFirst: 'Por favor, agrega un título primero',
     placeholder: 'Escribe aquí',
+    replyPlaceholder: 'Publica tu respuesta...',
     dropFiles: 'Suelta archivos para subir',
     enterCaption: 'Ingresa el pie de foto',
     uploadMedia: 'Subir Medios',

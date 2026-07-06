@@ -121,6 +121,10 @@ interface SnapComposerProps {
   onClose: () => void;
   submitLabel?: string;
   buttonSize?: "sm" | "md" | "lg";
+  /** Renders the redesigned inline-reply footer (simplified media buttons,
+   *  Farcaster crosspost toggle) instead of the original DestinationMenu
+   *  footer. Only the Snap.tsx inline reply composer opts into this. */
+  isReply?: boolean;
 }
 
 /** Rich progress toast for background video publishing: cover thumb + bar. */
@@ -185,6 +189,7 @@ const SnapComposer = React.memo(function SnapComposer({
   onClose,
   submitLabel,
   buttonSize = "lg",
+  isReply = false,
 }: SnapComposerProps) {
   const { user, aioha } = useAioha();
   const { handle: effectiveUser, canUseAppFeatures } = useEffectiveHiveUser();
@@ -1757,7 +1762,7 @@ const SnapComposer = React.memo(function SnapComposer({
           <Textarea
             id="snap-composer-textarea"
             data-testid="snap-composer-textarea"
-            placeholder={t('compose.placeholder')}
+            placeholder={isReply ? t('compose.replyPlaceholder') : t('compose.placeholder')}
             bg="background"
             borderRadius={"base"}
             mb={3}
@@ -1900,31 +1905,55 @@ const SnapComposer = React.memo(function SnapComposer({
             <HStack spacing={3} align="center" wrap="nowrap">
               {/* Media Upload Button */}
               <Box position="relative">
-                <IconButton
-                  id="snap-composer-media-upload-btn"
-                  data-testid="snap-composer-media-upload"
-                  aria-label={t('compose.uploadMedia')}
-                  icon={
-                    <FaImage color="var(--chakra-colors-primary)" size={22} />
-                  }
-                  variant="ghost"
-                  isDisabled={isLoading}
-                  border="2px solid transparent"
-                  borderRadius="full"
-                  height="48px"
-                  width="48px"
-                  p={0}
-                  mr={0}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  _hover={{
-                    borderColor: "primary",
-                    boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
-                  }}
-                  _active={{ borderColor: "accent" }}
-                  onClick={() => imageUploadInputRef.current?.click()}
-                />
+                {isReply ? (
+                  <IconButton
+                    id="snap-composer-media-upload-btn"
+                    data-testid="snap-composer-media-upload"
+                    aria-label={t('compose.uploadMedia')}
+                    icon={
+                      <FaImage color="var(--chakra-colors-primary)" size={22} />
+                    }
+                    isDisabled={isLoading}
+                    background="none"
+                    border="none"
+                    color="primary"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{ opacity: 0.7 }}
+                    onClick={() => imageUploadInputRef.current?.click()}
+                  />
+                ) : (
+                  <IconButton
+                    id="snap-composer-media-upload-btn"
+                    data-testid="snap-composer-media-upload"
+                    aria-label={t('compose.uploadMedia')}
+                    icon={
+                      <FaImage color="var(--chakra-colors-primary)" size={22} />
+                    }
+                    variant="ghost"
+                    isDisabled={isLoading}
+                    border="2px solid transparent"
+                    borderRadius="full"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{
+                      borderColor: "primary",
+                      boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
+                    }}
+                    _active={{ borderColor: "accent" }}
+                    onClick={() => imageUploadInputRef.current?.click()}
+                  />
+                )}
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.heic,.gif,.webp,video/*"
@@ -1951,31 +1980,59 @@ const SnapComposer = React.memo(function SnapComposer({
               </Box>
               {/* Giphy Button (only in reply modal) */}
               {post && (
-                <IconButton
-                  id="snap-composer-giphy-btn"
-                  data-testid="snap-composer-giphy"
-                  aria-label={t('compose.addGif')}
-                  icon={
-                    <TbGif size={22} color="var(--chakra-colors-primary)" />
-                  }
-                  variant="ghost"
-                  isDisabled={isLoading}
-                  border="2px solid transparent"
-                  borderRadius="full"
-                  height="48px"
-                  width="48px"
-                  p={0}
-                  mr={0}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  _hover={{
-                    borderColor: "primary",
-                    boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
-                  }}
-                  _active={{ borderColor: "accent" }}
-                  onClick={() => setGiphyModalOpen((open) => !open)}
-                />
+                isReply ? (
+                  <IconButton
+                    id="snap-composer-giphy-btn"
+                    data-testid="snap-composer-giphy"
+                    aria-label={t('compose.addGif')}
+                    icon={
+                      <TbGif size={22} color="var(--chakra-colors-primary)" />
+                    }
+                    isDisabled={isLoading}
+                    background="none"
+                    border="none"
+                    boxShadow="none"
+                    outline="none"
+                    color="primary"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{ opacity: 0.7 }}
+                    _active={{ background: "none", boxShadow: "none" }}
+                    _focus={{ boxShadow: "none" }}
+                    onClick={() => setGiphyModalOpen((open) => !open)}
+                  />
+                ) : (
+                  <IconButton
+                    id="snap-composer-giphy-btn"
+                    data-testid="snap-composer-giphy"
+                    aria-label={t('compose.addGif')}
+                    icon={
+                      <TbGif size={22} color="var(--chakra-colors-primary)" />
+                    }
+                    variant="ghost"
+                    isDisabled={isLoading}
+                    border="2px solid transparent"
+                    borderRadius="full"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{
+                      borderColor: "primary",
+                      boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
+                    }}
+                    _active={{ borderColor: "accent" }}
+                    onClick={() => setGiphyModalOpen((open) => !open)}
+                  />
+                )
               )}
               <Box display="none">
                 <ImageCompressor
@@ -1985,44 +2042,41 @@ const SnapComposer = React.memo(function SnapComposer({
                 />
               </Box>
               {/* GIF Maker Button */}
-              <IconButton
-                id="snap-composer-gif-maker-btn"
-                data-testid="snap-composer-gif-maker"
-                aria-label={t('compose.gifMaker')}
-                icon={<TbGif color="var(--chakra-colors-primary)" size={22} />}
-                variant="ghost"
-                isDisabled={isLoading}
-                border="2px solid transparent"
-                borderRadius="full"
-                height="48px"
-                width="48px"
-                p={0}
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                _hover={{
-                  borderColor: "primary",
-                  boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
-                }}
-                _active={{ borderColor: "accent" }}
-                onClick={() => {
-                  // Reset the GIF maker before opening
-                  gifMakerWithSelectorRef.current?.reset();
-                  setGifMakerOpen(true);
-                }}
-              />
-              {/* Instagram Button - Always show, health check happens in modal */}
-              <Tooltip label={t('compose.importFromInstagram')} placement="top">
+              {isReply ? (
+                <Button
+                  id="snap-composer-gif-maker-btn"
+                  data-testid="snap-composer-gif-maker"
+                  aria-label={t('compose.gifMaker')}
+                  leftIcon={<TbGif color="var(--chakra-colors-primary)" size={22} />}
+                  isDisabled={isLoading}
+                  background="none"
+                  border="none"
+                  boxShadow="none"
+                  outline="none"
+                  color="primary"
+                  fontWeight="normal"
+                  height="48px"
+                  px={2}
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  _hover={{ opacity: 0.7 }}
+                  _active={{ background: "none", boxShadow: "none" }}
+                  _focus={{ boxShadow: "none" }}
+                  onClick={() => {
+                    // Reset the GIF maker before opening
+                    gifMakerWithSelectorRef.current?.reset();
+                    setGifMakerOpen(true);
+                  }}
+                >
+                  <Text as="span" fontSize="sm">+</Text>
+                </Button>
+              ) : (
                 <IconButton
-                  id="snap-composer-instagram-btn"
-                  data-testid="snap-composer-instagram"
-                  aria-label={t('compose.importFromInstagram')}
-                  icon={
-                    <FaInstagram
-                      color="var(--chakra-colors-primary)"
-                      size={22}
-                    />
-                  }
+                  id="snap-composer-gif-maker-btn"
+                  data-testid="snap-composer-gif-maker"
+                  aria-label={t('compose.gifMaker')}
+                  icon={<TbGif color="var(--chakra-colors-primary)" size={22} />}
                   variant="ghost"
                   isDisabled={isLoading}
                   border="2px solid transparent"
@@ -2038,8 +2092,68 @@ const SnapComposer = React.memo(function SnapComposer({
                     boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
                   }}
                   _active={{ borderColor: "accent" }}
-                  onClick={() => setInstagramModalOpen(true)}
+                  onClick={() => {
+                    // Reset the GIF maker before opening
+                    gifMakerWithSelectorRef.current?.reset();
+                    setGifMakerOpen(true);
+                  }}
                 />
+              )}
+              {/* Instagram Button - Always show, health check happens in modal */}
+              <Tooltip label={t('compose.importFromInstagram')} placement="top">
+                {isReply ? (
+                  <IconButton
+                    id="snap-composer-instagram-btn"
+                    data-testid="snap-composer-instagram"
+                    aria-label={t('compose.importFromInstagram')}
+                    icon={
+                      <FaInstagram
+                        color="var(--chakra-colors-primary)"
+                        size={22}
+                      />
+                    }
+                    isDisabled={isLoading}
+                    background="none"
+                    border="none"
+                    color="primary"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{ opacity: 0.7 }}
+                    onClick={() => setInstagramModalOpen(true)}
+                  />
+                ) : (
+                  <IconButton
+                    id="snap-composer-instagram-btn"
+                    data-testid="snap-composer-instagram"
+                    aria-label={t('compose.importFromInstagram')}
+                    icon={
+                      <FaInstagram
+                        color="var(--chakra-colors-primary)"
+                        size={22}
+                      />
+                    }
+                    variant="ghost"
+                    isDisabled={isLoading}
+                    border="2px solid transparent"
+                    borderRadius="full"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{
+                      borderColor: "primary",
+                      boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
+                    }}
+                    _active={{ borderColor: "accent" }}
+                    onClick={() => setInstagramModalOpen(true)}
+                  />
+                )}
               </Tooltip>
             </HStack>
             <Box display={buttonSize === "sm" ? "inline-block" : undefined}>
