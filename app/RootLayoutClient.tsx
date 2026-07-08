@@ -11,7 +11,7 @@ import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useReport } from "@/contexts/ReportContext";
 import Sidebar from "@/components/layout/Sidebar";
-import FooterNavButtons from "@/components/layout/FooterNavButtons";
+import MobileTabBar from "@/components/layout/MobileTabBar";
 import FooterLinks from "@/components/layout/FooterLinks";
 import SplashScreen from "@/components/layout/SplashScreen";
 import { Providers } from "./providers";
@@ -242,6 +242,7 @@ function InnerLayout({
           overflowY="auto"
           overflowX="hidden"
           height="100vh"
+          pb={{ base: "calc(60px + env(safe-area-inset-bottom))", md: 0 }}
           sx={{
             scrollbarWidth: "none",
             "&::-webkit-scrollbar": {
@@ -253,7 +254,7 @@ function InnerLayout({
           {!isMobile && !hasInfiniteScroll && <FooterLinks />}
         </Box>
       </Flex>
-      {isMobile && <FooterNavButtons />}
+      {isMobile && <MobileTabBar />}
     </Container>
   );
 }
