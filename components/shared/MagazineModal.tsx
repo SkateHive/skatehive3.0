@@ -10,6 +10,7 @@ import {
 } from "@chakra-ui/react";
 import Magazine from "./Magazine";
 import { Discussion } from "@hiveio/dhive";
+import { useCuratedMagazine } from "@/hooks/useCuratedMagazine";
 
 interface MagazineModalProps {
   isOpen: boolean;
@@ -76,8 +77,13 @@ const MagazineModal = React.memo(function MagazineModal({
       : magazineTag || []; // Bridge API max limit is 20
   }, [hiveUsername, magazineTag]);
 
-  // If posts are provided (profile view), use them directly
-  // Otherwise, let Magazine component fetch posts using tag/query (blog view)
+  // Community/blog magazine (no explicit posts, no profile user): show the
+  // curated edition the ops portal published, falling back to the live feed.
+  const isCommunity = posts === undefined && !hiveUsername;
+  const { curated, loaded } = useCuratedMagazine(isCommunity);
+
+  // If posts are provided (profile view), use them directly.
+  // Community view → curated edition (or fallback). Otherwise tag/query.
   const magazineProps = useMemo(() => {
     if (posts !== undefined) {
       // Don't pass tag/query when providing posts directly
@@ -91,6 +97,11 @@ const MagazineModal = React.memo(function MagazineModal({
         displayName,
         userLocation,
       };
+    }
+    if (isCommunity) {
+      if (!loaded) return { posts: [], isLoading: true };
+      if (curated && curated.length > 0) return { posts: curated, preserveOrder: true };
+      // no published edition → fall back to the live community feed below
     }
     return {
       tag,
@@ -106,6 +117,9 @@ const MagazineModal = React.memo(function MagazineModal({
     userProfileImage,
     displayName,
     userLocation,
+    isCommunity,
+    curated,
+    loaded,
   ]);
 
   if (!isOpen) return null;
