@@ -15,7 +15,7 @@ import {
 import TopBar from "@/components/blog/TopBar";
 import MagazineModal from "@/components/shared/MagazineModal";
 import { HIVE_CONFIG } from "@/config/app.config";
-import { useMagazineIssues, fetchMagazineIssuePosts } from "@/hooks/useCuratedMagazine";
+import { useMagazineIssues, fetchMagazineIssue } from "@/hooks/useCuratedMagazine";
 
 // The magazine route is a COVER SELECTOR: the accumulating archive of published
 // editions (from the ops portal) shown as covers → click one to flip through it
@@ -25,14 +25,18 @@ const DEFAULT_COVER = "/images/covers/nogenta_cover.png";
 export default function MagazinePage() {
   const { issues, loaded } = useMagazineIssues();
   const [openPosts, setOpenPosts] = useState<Discussion[] | null>(null);
+  const [openCover, setOpenCover] = useState<string | null>(null);
   const [loadingIssue, setLoadingIssue] = useState<number | null>(null);
   const [communityOpen, setCommunityOpen] = useState(false);
 
   async function openIssue(number: number) {
     setLoadingIssue(number);
-    const posts = await fetchMagazineIssuePosts(number);
+    const { posts, coverUrl } = await fetchMagazineIssue(number);
     setLoadingIssue(null);
-    if (posts.length > 0) setOpenPosts(posts);
+    if (posts.length > 0) {
+      setOpenCover(coverUrl);
+      setOpenPosts(posts);
+    }
   }
 
   return (
@@ -111,7 +115,15 @@ export default function MagazinePage() {
       </Box>
 
       {/* Fullscreen flipbook of the chosen edition */}
-      {openPosts && <MagazineModal isOpen onClose={() => setOpenPosts(null)} posts={openPosts} preserveOrder />}
+      {openPosts && (
+        <MagazineModal
+          isOpen
+          onClose={() => setOpenPosts(null)}
+          posts={openPosts}
+          preserveOrder
+          zineCover={openCover ?? undefined}
+        />
+      )}
       {/* Fallback: community magazine when no edition is published */}
       {communityOpen && (
         <MagazineModal
