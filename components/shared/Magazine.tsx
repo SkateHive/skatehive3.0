@@ -147,6 +147,10 @@ export interface MagazineProps {
   userProfileImage?: string;
   displayName?: string;
   userLocation?: string;
+  // When the posts are an editorial pick (e.g. the curated magazine issue from
+  // the ops portal), keep the given selection + order as-is: skip the quality
+  // filter and the payout re-sort.
+  preserveOrder?: boolean;
 }
 
 export default function Magazine(props: MagazineProps) {
@@ -224,6 +228,9 @@ export default function Magazine(props: MagazineProps) {
   const filteredPosts = useMemo(() => {
     if (!posts || !isInitialized) return [];
 
+    // Editorial issue: trust the curator's selection + order verbatim.
+    if (props.preserveOrder) return posts;
+
     // First apply quality filters (reputation and downvote filtering)
     const qualityFilteredPosts = filterAutoComments(posts);
 
@@ -234,7 +241,7 @@ export default function Magazine(props: MagazineProps) {
     );
 
     return sortedPosts;
-  }, [posts, isInitialized]);
+  }, [posts, isInitialized, props.preserveOrder]);
 
   const playSound = () => {
     if (audioRef.current) {
