@@ -57,7 +57,7 @@ export default function MobileTabBar() {
   const { openReport } = useReport();
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useAioha();
+  const { user, aioha } = useAioha();
   const [modalDisplayed, setModalDisplayed] = useState(false);
   const toast = useToast();
   const t = useTranslations("navigation");
@@ -248,6 +248,7 @@ export default function MobileTabBar() {
 
       if (isInMiniapp && !miniappUser) {
         clearAuthTimeout();
+        setIsFarcasterAuthInProgress(false);
         toast({
           title: tAuth("authenticationFailed"),
           description: "Please ensure you're signed into Farcaster",
@@ -303,6 +304,9 @@ export default function MobileTabBar() {
   const handleLogout = async () => {
     setIsDrawerOpen(false);
     try {
+      if (user) {
+        await aioha.logout();
+      }
       if (isFarcasterConnected && clearSession) {
         clearSession();
       }
@@ -315,10 +319,10 @@ export default function MobileTabBar() {
   // Quick-access tabs shown in the fixed bar
   const tabs = [
     { icon: FiHome, href: "/", name: t("home") },
-    { icon: FiVideo, href: "/videos", name: "Videos" },
-    { icon: FiPlus, href: "/compose", name: "Create", center: true },
+    { icon: FiVideo, href: "/videos", name: t("videos") },
+    { icon: FiPlus, href: "/compose", name: t("create"), center: true },
     { icon: FiAward, href: "/leaderboard", name: t("leaderboard") },
-    { icon: FiMenu, name: "Menu", menu: true, badge: newNotificationCount },
+    { icon: FiMenu, name: t("menu"), menu: true, badge: newNotificationCount },
   ] as const;
 
   // Full navigation lives in the Menu drawer (grouped like the sidebar)
@@ -410,7 +414,7 @@ export default function MobileTabBar() {
         bg="background"
         borderTop="1px solid"
         borderColor="border"
-        h="60px"
+        h="calc(60px + env(safe-area-inset-bottom))"
         align="center"
         justify="space-around"
         sx={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -440,14 +444,18 @@ export default function MobileTabBar() {
                 h="52px"
                 mb="18px"
                 borderRadius="full"
-                bg="background"
+                bg={active ? "primary" : "background"}
                 border="3px solid"
                 borderColor="primary"
                 boxShadow="0 0 8px var(--chakra-colors-primary)"
                 _active={{ transform: "scale(0.94)" }}
                 transition="transform 0.15s ease"
               >
-                <Icon as={tab.icon} boxSize={6} color="primary" />
+                <Icon
+                  as={tab.icon}
+                  boxSize={6}
+                  color={active ? "background" : "primary"}
+                />
               </Box>
             );
           }
@@ -528,6 +536,10 @@ export default function MobileTabBar() {
                       return (
                         <Box
                           key={item.href || item.name}
+                          as="button"
+                          type="button"
+                          w="full"
+                          textAlign="left"
                           display="flex"
                           alignItems="center"
                           pl={4}
@@ -572,6 +584,10 @@ export default function MobileTabBar() {
               {/* Report Bug */}
               <Box pt={2}>
                 <Box
+                  as="button"
+                  type="button"
+                  w="full"
+                  textAlign="left"
                   display="flex"
                   alignItems="center"
                   pl={4}
@@ -596,6 +612,10 @@ export default function MobileTabBar() {
                 <Box pt={2}>
                   <DrawerSectionLabel label="" />
                   <Box
+                    as="button"
+                    type="button"
+                    w="full"
+                    textAlign="left"
                     display="flex"
                     alignItems="center"
                     pl={4}

@@ -9,6 +9,8 @@ export const en = {
     wallet: 'Wallet',
     settings: 'Settings',
     invite: 'Invite',
+    videos: 'Videos',
+    create: 'Create',
     menu: 'Menu',
     profile: 'Profile',
     auction: 'Auction',

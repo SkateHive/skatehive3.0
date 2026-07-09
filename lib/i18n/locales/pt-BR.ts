@@ -9,6 +9,8 @@ export const ptBR = {
     wallet: 'Carteira',
     settings: 'Configurações',
     invite: 'Convidar',
+    videos: 'Vídeos',
+    create: 'Criar',
     menu: 'Menu',
     profile: 'Perfil',
     auction: 'Leilão',

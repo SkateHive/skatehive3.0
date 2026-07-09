@@ -10,6 +10,11 @@ export interface TranslationSchema {
     wallet: string;
     settings: string;
     invite: string;
+    menu: string;
+    profile: string;
+    auction: string;
+    videos: string;
+    create: string;
   };
   common: {
     loading: string;
