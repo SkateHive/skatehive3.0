@@ -489,7 +489,8 @@ const Snap = React.memo(function Snap({
         {!showSlider && (
           <HStack
             justify="space-between"
-            mt={3}
+            // Tighter above the action bar on nested comments; posts keep the original spacing
+            mt={effectiveDepth > 1 ? 1 : 3}
             w="100%"
             px={4}
           >
@@ -536,7 +537,7 @@ const Snap = React.memo(function Snap({
                     </Box>
                   ) : (
                     <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                      <LuArrowUp size={18} color="var(--chakra-colors-text)" />
+                      <LuArrowUp size={18} color="white" />
                     </Box>
                   )}
                   {activeVotes.length > 0 && (
@@ -578,7 +579,7 @@ const Snap = React.memo(function Snap({
                   <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
                     <FaRegComment
                       size={18}
-                      color={voted ? "var(--chakra-colors-primary)" : "var(--chakra-colors-text)"}
+                      color={voted ? "var(--chakra-colors-primary)" : "white"}
                     />
                   </Box>
                   <Text
@@ -712,22 +713,9 @@ const Snap = React.memo(function Snap({
         )}
         {inlineComposerStates[discussion.permlink] && (
           <Box mt={2}>
-            <SnapComposer
-              pa={discussion.author}
-              pp={discussion.permlink}
-              onNewComment={handleInlineNewReply}
-              onClose={() =>
-                setInlineComposerStates((prev: Record<string, boolean>) => ({
-                  ...prev,
-                  [discussion.permlink]: false,
-                }))
-              }
-              post
-              isReply
-            />
             {inlineRepliesMap[discussion.permlink] &&
               inlineRepliesMap[discussion.permlink].length > 0 && (
-                <VStack spacing={2} align="stretch" mt={2}>
+                <VStack spacing={2} align="stretch" mt={3} mb={2} pl={2}>
                   {inlineRepliesMap[discussion.permlink].map(
                     (reply: Discussion) => {
                       const nextDepth = effectiveDepth + 1;
@@ -745,6 +733,19 @@ const Snap = React.memo(function Snap({
                   )}
                 </VStack>
               )}
+            <SnapComposer
+              pa={discussion.author}
+              pp={discussion.permlink}
+              onNewComment={handleInlineNewReply}
+              onClose={() =>
+                setInlineComposerStates((prev: Record<string, boolean>) => ({
+                  ...prev,
+                  [discussion.permlink]: false,
+                }))
+              }
+              post
+              isReply
+            />
           </Box>
         )}
 

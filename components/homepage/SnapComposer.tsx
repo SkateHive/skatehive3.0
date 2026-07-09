@@ -1756,7 +1756,7 @@ const SnapComposer = React.memo(function SnapComposer({
           p={4}
           mb={1}
           borderRadius="base"
-          borderBottom={"1px"}
+          borderBottom={isReply ? "none" : "1px"}
           borderColor="muted"
         >
           <Textarea
@@ -2041,37 +2041,8 @@ const SnapComposer = React.memo(function SnapComposer({
                   isProcessing={isLoading}
                 />
               </Box>
-              {/* GIF Maker Button */}
-              {isReply ? (
-                <Button
-                  id="snap-composer-gif-maker-btn"
-                  data-testid="snap-composer-gif-maker"
-                  aria-label={t('compose.gifMaker')}
-                  leftIcon={<TbGif color="var(--chakra-colors-primary)" size={22} />}
-                  isDisabled={isLoading}
-                  background="none"
-                  border="none"
-                  boxShadow="none"
-                  outline="none"
-                  color="primary"
-                  fontWeight="normal"
-                  height="48px"
-                  px={2}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  _hover={{ opacity: 0.7 }}
-                  _active={{ background: "none", boxShadow: "none" }}
-                  _focus={{ boxShadow: "none" }}
-                  onClick={() => {
-                    // Reset the GIF maker before opening
-                    gifMakerWithSelectorRef.current?.reset();
-                    setGifMakerOpen(true);
-                  }}
-                >
-                  <Text as="span" fontSize="sm">+</Text>
-                </Button>
-              ) : (
+              {/* GIF Maker Button — in reply mode it lives inside the Giphy panel instead */}
+              {!isReply && (
                 <IconButton
                   id="snap-composer-gif-maker-btn"
                   data-testid="snap-composer-gif-maker"
@@ -2254,6 +2225,16 @@ const SnapComposer = React.memo(function SnapComposer({
                   setSelectedGif(gif);
                   setGiphyModalOpen(false); // Close modal after selecting a GIF
                 }}
+                onCreateGif={
+                  isReply
+                    ? () => {
+                        setGiphyModalOpen(false);
+                        // Reset the GIF maker before opening
+                        gifMakerWithSelectorRef.current?.reset();
+                        setGifMakerOpen(true);
+                      }
+                    : undefined
+                }
               />
             </Box>
           )}
