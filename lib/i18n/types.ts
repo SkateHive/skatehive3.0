@@ -5,11 +5,17 @@ export interface TranslationSchema {
     magazine: string;
     leaderboard: string;
     skatespots: string;
+    map: string;
     bounties: string;
     notifications: string;
     wallet: string;
     settings: string;
     invite: string;
+    menu: string;
+    profile: string;
+    auction: string;
+    videos: string;
+    create: string;
   };
   common: {
     loading: string;
