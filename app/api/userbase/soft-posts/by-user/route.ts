@@ -40,10 +40,11 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from("userbase_soft_posts")
       .select(
-        "id, author, permlink, title, type, status, metadata, created_at, updated_at"
+        "id, author, permlink, title, type, status, metadata, created_at, updated_at, userbase_users!inner(moderation_status)"
       )
       .eq("user_id", userId)
       .in("status", ["queued", "broadcasted"])
+      .not("userbase_users.moderation_status", "in", "(suspicious,blocked)")
       .order("created_at", { ascending: false })
       .limit(limit);
 

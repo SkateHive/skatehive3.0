@@ -923,6 +923,15 @@ const SnapComposer = React.memo(function SnapComposer({
           metadata.thumbnail = [videoThumbnailUrl];
         }
 
+        if (videoUrl) {
+          metadata.videos = [videoUrl];
+          metadata.video = {
+            url: videoUrl,
+            type: "ipfs",
+            ...(videoThumbnailUrl ? { thumbnail: videoThumbnailUrl } : {}),
+          };
+        }
+
         // Cross-post linkage: store the Farcaster fid + username on the Hive
         // snap so the connection is durable and queryable later. The cast
         // hash isn't known yet (cast is fired after Hive succeeds).

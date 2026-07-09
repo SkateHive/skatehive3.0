@@ -6,10 +6,10 @@
  * (people can copy-paste; we also expect bio-link strategy long-term).
  */
 
-const IG_CAPTION_LIMIT = 2200;
-const IG_HASHTAG_LIMIT = 30;
+export const IG_CAPTION_LIMIT = 2200;
+export const IG_HASHTAG_LIMIT = 30;
 
-const DEFAULT_HASHTAGS = [
+export const DEFAULT_INSTAGRAM_HASHTAGS = [
   "skatehive",
   "skateboarding",
   "skate",
@@ -57,7 +57,7 @@ export function buildInstagramCaption(input: BuildCaptionInput): string {
   const excerpt = markdownToPlainText(input.body);
 
   const tagSet = new Set<string>();
-  for (const t of DEFAULT_HASHTAGS) {
+  for (const t of DEFAULT_INSTAGRAM_HASHTAGS) {
     const n = normalizeTag(t);
     if (n) tagSet.add(n);
   }

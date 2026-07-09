@@ -22,7 +22,9 @@ export default function UserbaseWalletBootstrapper() {
   } = useFarcasterSession();
   const { user: userbaseUser, refresh } = useUserbaseAuth();
   const [isBootstrapping, setIsBootstrapping] = useState(false);
+  const [isSyncingProfile, setIsSyncingProfile] = useState(false);
   const attemptedRef = useRef<Map<string, number>>(new Map());
+  const syncedProfileRef = useRef<Map<string, number>>(new Map());
   const lastUserIdRef = useRef<string | null>(null);
 
   const hiveHandle =
@@ -71,6 +73,9 @@ export default function UserbaseWalletBootstrapper() {
           metadata: {
             custody: farcasterCustody,
             verifications: farcasterVerifications,
+            display_name: farcasterDisplayName,
+            pfp_url: farcasterAvatar,
+            bio: farcasterProfileSafe?.bio || null,
           },
         },
       };
@@ -87,6 +92,7 @@ export default function UserbaseWalletBootstrapper() {
           avatar_url: ensAvatar || null,
           metadata: {
             ens_name: ensName || null,
+            ens_avatar: ensAvatar || null,
           },
         },
       };
@@ -155,6 +161,130 @@ export default function UserbaseWalletBootstrapper() {
     bootstrapCandidate,
     isBootstrapping,
     isRestoring,
+    refresh,
+  ]);
+
+  useEffect(() => {
+    if (!userbaseUser?.id || !isFarcasterConnected || !farcasterProfileSafe) return;
+    if (isSyncingProfile) return;
+
+    const missingDisplayName =
+      !userbaseUser.display_name ||
+      userbaseUser.display_name === "Skater" ||
+      /^Wallet 0x/i.test(userbaseUser.display_name);
+    const missingAvatar =
+      !userbaseUser.avatar_url ||
+      userbaseUser.avatar_url.startsWith("https://api.dicebear.com/");
+
+    if (!missingDisplayName && !missingAvatar) return;
+
+    const syncKey = `${userbaseUser.id}:${farcasterFid || "nofid"}`;
+    const lastAttempt = syncedProfileRef.current.get(syncKey);
+    if (lastAttempt && Date.now() - lastAttempt < 60_000) return;
+    syncedProfileRef.current.set(syncKey, Date.now());
+
+    const updates: Record<string, string> = {};
+    if (missingDisplayName) {
+      const nextDisplayName =
+        farcasterProfileSafe.displayName || farcasterProfileSafe.username || "";
+      if (nextDisplayName) {
+        updates.display_name = nextDisplayName;
+      }
+    }
+    if (missingAvatar && farcasterProfileSafe.pfpUrl) {
+      updates.avatar_url = farcasterProfileSafe.pfpUrl;
+    }
+
+    if (Object.keys(updates).length === 0) return;
+
+    const syncProfile = async () => {
+      try {
+        setIsSyncingProfile(true);
+        const response = await fetch("/api/userbase/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          throw new Error(data?.error || "Failed to sync Farcaster profile");
+        }
+        await refresh();
+      } catch (error) {
+        console.error("Farcaster profile sync failed:", error);
+      } finally {
+        setIsSyncingProfile(false);
+      }
+    };
+
+    syncProfile();
+  }, [
+    userbaseUser,
+    isFarcasterConnected,
+    farcasterProfileSafe,
+    farcasterFid,
+    isSyncingProfile,
+    refresh,
+  ]);
+
+  useEffect(() => {
+    if (!userbaseUser?.id || !isEvmConnected || !evmAddress) return;
+    if (isSyncingProfile) return;
+
+    const missingDisplayName =
+      !userbaseUser.display_name ||
+      userbaseUser.display_name === "Skater" ||
+      /^Wallet 0x/i.test(userbaseUser.display_name);
+    const missingAvatar =
+      !userbaseUser.avatar_url ||
+      userbaseUser.avatar_url.startsWith("https://api.dicebear.com/");
+
+    if (!missingDisplayName && !missingAvatar) return;
+    if (!ensName && !ensAvatar) return;
+
+    const syncKey = `${userbaseUser.id}:evm:${evmAddress}`;
+    const lastAttempt = syncedProfileRef.current.get(syncKey);
+    if (lastAttempt && Date.now() - lastAttempt < 60_000) return;
+    syncedProfileRef.current.set(syncKey, Date.now());
+
+    const updates: Record<string, string> = {};
+    if (missingDisplayName && ensName) {
+      updates.display_name = ensName;
+    }
+    if (missingAvatar && ensAvatar) {
+      updates.avatar_url = ensAvatar;
+    }
+
+    if (Object.keys(updates).length === 0) return;
+
+    const syncProfile = async () => {
+      try {
+        setIsSyncingProfile(true);
+        const response = await fetch("/api/userbase/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          throw new Error(data?.error || "Failed to sync ENS profile");
+        }
+        await refresh();
+      } catch (error) {
+        console.error("ENS profile sync failed:", error);
+      } finally {
+        setIsSyncingProfile(false);
+      }
+    };
+
+    syncProfile();
+  }, [
+    userbaseUser,
+    isEvmConnected,
+    evmAddress,
+    ensName,
+    ensAvatar,
+    isSyncingProfile,
     refresh,
   ]);
 

@@ -74,6 +74,31 @@ async function getSessionUserId(request: NextRequest) {
     };
   }
 
+  const { data: userRow, error: userError } = await supabase
+    .from("userbase_users")
+    .select("moderation_status")
+    .eq("id", session.user_id)
+    .single();
+
+  if (userError) {
+    console.error("Userbase moderation lookup failed:", userError);
+    return {
+      error: NextResponse.json(
+        { error: "Failed to validate user status" },
+        { status: 500 }
+      ),
+    };
+  }
+
+  if (["suspicious", "blocked"].includes(userRow?.moderation_status)) {
+    return {
+      error: NextResponse.json(
+        { error: "Account is under moderation review" },
+        { status: 403 }
+      ),
+    };
+  }
+
   return { userId: session.user_id };
 }
 

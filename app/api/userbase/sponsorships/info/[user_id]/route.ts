@@ -38,16 +38,19 @@ export async function GET(
   }
 
   try {
-    // Check if user has a sponsored Hive identity
-    const { data: identity, error: identityError } = await supabase
+    // Fetch the best Hive identity we have for this user.
+    // Any Hive identity means the account is no longer "lite", even if it
+    // was linked manually instead of being created through sponsorship.
+    const { data: identityRows, error: identityError } = await supabase
       .from("userbase_identities")
-      .select("handle, is_sponsored, sponsor_user_id, metadata")
+      .select("handle, is_primary, is_sponsored, sponsor_user_id, metadata")
       .eq("user_id", userId)
       .eq("type", "hive")
-      .eq("is_sponsored", true)
-      .single();
+      .order("is_sponsored", { ascending: false })
+      .order("is_primary", { ascending: false })
+      .limit(1);
 
-    // PGRST116 = "no rows found" - expected when user has no sponsored identity
+    // PGRST116 = "no rows found" - expected when user has no Hive identity
     if (identityError && identityError.code !== "PGRST116") {
       return NextResponse.json(
         { error: "Database error", details: identityError.message },
@@ -55,15 +58,19 @@ export async function GET(
       );
     }
 
+    const identity = identityRows?.[0] || null;
+
     if (!identity) {
       return NextResponse.json({
         sponsored: false,
+        has_hive_identity: false,
+        is_lite: true,
       });
     }
 
     // Get sponsor username
     let sponsorUsername = null;
-    if (identity.sponsor_user_id) {
+    if (identity.is_sponsored && identity.sponsor_user_id) {
       const { data: sponsorIdentity } = await supabase
         .from("userbase_identities")
         .select("handle")
@@ -76,7 +83,9 @@ export async function GET(
     }
 
     return NextResponse.json({
-      sponsored: true,
+      sponsored: Boolean(identity.is_sponsored),
+      has_hive_identity: true,
+      is_lite: false,
       hive_username: identity.handle,
       sponsor_username: sponsorUsername,
     });

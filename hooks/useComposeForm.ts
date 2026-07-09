@@ -10,7 +10,11 @@ import { HIVE_CONFIG } from "@/config/app.config";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 
-export const useComposeForm = () => {
+type UseComposeFormOptions = {
+    onPublished?: () => void;
+};
+
+export const useComposeForm = (options: UseComposeFormOptions = {}) => {
     const [markdown, setMarkdown] = useState("");
     const [title, setTitle] = useState("");
     const [hashtagInput, setHashtagInput] = useState("");
@@ -216,6 +220,7 @@ export const useComposeForm = () => {
                 setBeneficiaries([]);
                 setSelectedThumbnail(null);
                 setUploadedThumbnail(null);
+                options.onPublished?.();
 
                 // Wait a moment for the user to see the success message, then redirect
                 setTimeout(() => {

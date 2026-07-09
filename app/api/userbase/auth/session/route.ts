@@ -79,6 +79,27 @@ function getAvatarUrl(seed: string | null) {
   return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${safeSeed}`;
 }
 
+function isPlaceholderDisplayName(value: string | null | undefined) {
+  if (!value) return true;
+  const trimmed = value.trim();
+  return trimmed === "" || trimmed === "Skater" || /^Wallet 0x/i.test(trimmed);
+}
+
+function isPlaceholderAvatarUrl(value: string | null | undefined) {
+  if (!value) return true;
+  return value.startsWith("https://api.dicebear.com/");
+}
+
+function getIdentityMetadataString(
+  metadata: Record<string, unknown> | null | undefined,
+  key: string
+) {
+  const value = metadata?.[key];
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!supabase) {
@@ -320,7 +341,48 @@ export async function GET(request: NextRequest) {
     // userbase_users is returned as an array from the join, take the first element
     const userbaseUsers = session.userbase_users;
     let user = Array.isArray(userbaseUsers) ? userbaseUsers[0] ?? null : userbaseUsers ?? null;
-    if (user && (!user.display_name || !user.avatar_url)) {
+    if (user && (isPlaceholderDisplayName(user.display_name) || isPlaceholderAvatarUrl(user.avatar_url))) {
+      const { data: farcasterRows } = await supabase
+        .from("userbase_identities")
+        .select("handle, metadata")
+        .eq("user_id", user.id)
+        .eq("type", "farcaster")
+        .order("is_primary", { ascending: false })
+        .limit(1);
+      const farcasterIdentity = farcasterRows?.[0] ?? null;
+      const farcasterDisplayName = getIdentityMetadataString(
+        farcasterIdentity?.metadata,
+        "display_name"
+      );
+      const farcasterAvatarUrl = getIdentityMetadataString(
+        farcasterIdentity?.metadata,
+        "pfp_url"
+      );
+      const { data: evmRows } = await supabase
+        .from("userbase_identities")
+        .select("metadata")
+        .eq("user_id", user.id)
+        .eq("type", "evm")
+        .order("is_primary", { ascending: false })
+        .limit(1);
+      const evmIdentity = evmRows?.[0] ?? null;
+      const evmFarcasterDisplayName = getIdentityMetadataString(
+        evmIdentity?.metadata,
+        "farcaster_display_name"
+      );
+      const evmFarcasterUsername = getIdentityMetadataString(
+        evmIdentity?.metadata,
+        "farcaster_username"
+      );
+      const evmFarcasterAvatarUrl = getIdentityMetadataString(
+        evmIdentity?.metadata,
+        "farcaster_pfp_url"
+      );
+      const ensName = getIdentityMetadataString(evmIdentity?.metadata, "ens_name");
+      const ensAvatarUrl = getIdentityMetadataString(
+        evmIdentity?.metadata,
+        "ens_avatar"
+      );
       const { data: authRows } = await supabase
         .from("userbase_auth_methods")
         .select("identifier")
@@ -330,11 +392,21 @@ export async function GET(request: NextRequest) {
       const identifier = authRows?.[0]?.identifier || null;
       const updates: Record<string, any> = {};
 
-      if (!user.display_name) {
-        updates.display_name = deriveDisplayName(identifier, user.handle || null);
+      if (isPlaceholderDisplayName(user.display_name)) {
+        updates.display_name =
+          farcasterDisplayName ||
+          evmFarcasterDisplayName ||
+          evmFarcasterUsername ||
+          ensName ||
+          farcasterIdentity?.handle ||
+          deriveDisplayName(identifier, user.handle || null);
       }
-      if (!user.avatar_url) {
-        updates.avatar_url = getAvatarUrl(user.handle || identifier);
+      if (isPlaceholderAvatarUrl(user.avatar_url)) {
+        updates.avatar_url =
+          farcasterAvatarUrl ||
+          evmFarcasterAvatarUrl ||
+          ensAvatarUrl ||
+          getAvatarUrl(farcasterIdentity?.handle || user.handle || identifier);
       }
 
       if (Object.keys(updates).length > 0) {

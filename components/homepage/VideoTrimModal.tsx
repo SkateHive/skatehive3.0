@@ -445,149 +445,62 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
       setIsDragging(false);
     }, []);
 
-    // Optimized video trimming with better memory management
+    // Trim with FFmpeg so the selected video keeps its audio stream. The old
+    // canvas recorder path captured pixels only, which silently produced mute clips.
     const createTrimmedVideo = useCallback(
       async (file: File, start: number, end: number): Promise<Blob> => {
         console.log(`🎬 Creating trimmed video: ${start}s to ${end}s`);
 
-        return new Promise((resolve, reject) => {
-          const video = document.createElement("video");
-          const videoUrl = URL.createObjectURL(file);
-          video.src = videoUrl;
-          video.muted = true;
-          video.playsInline = true;
+        const duration = end - start;
+        if (duration <= 0) {
+          throw new Error("Invalid trim range");
+        }
 
-          video.onloadedmetadata = () => {
-            const duration = end - start;
+        const [{ FFmpeg }, { fetchFile }] = await Promise.all([
+          import("@ffmpeg/ffmpeg"),
+          import("@ffmpeg/util"),
+        ]);
 
-            if (duration <= 0 || start >= video.duration) {
-              URL.revokeObjectURL(videoUrl);
-              reject(new Error("Invalid trim range"));
-              return;
-            }
+        const ffmpeg = new FFmpeg();
+        await ffmpeg.load();
 
-            // Create canvas for recording with optimized settings
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d", {
-              alpha: false,
-              desynchronized: true,
-            });
+        const sourceExt = file.name.split(".").pop()?.toLowerCase() || "mp4";
+        const inputName = `input.${sourceExt}`;
+        const outputName = "trimmed.mp4";
 
-            if (!ctx) {
-              URL.revokeObjectURL(videoUrl);
-              reject(new Error("Failed to get canvas context"));
-              return;
-            }
+        try {
+          await ffmpeg.writeFile(inputName, await fetchFile(file));
+          await ffmpeg.exec([
+            "-ss",
+            start.toFixed(3),
+            "-i",
+            inputName,
+            "-t",
+            duration.toFixed(3),
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a?",
+            "-c",
+            "copy",
+            "-avoid_negative_ts",
+            "make_zero",
+            outputName,
+          ]);
 
-            // Preserve original aspect ratio while limiting max resolution
-            const originalWidth = video.videoWidth;
-            const originalHeight = video.videoHeight;
-            const aspectRatio = originalWidth / originalHeight;
-
-            // Calculate dimensions maintaining aspect ratio
-            let canvasWidth = originalWidth;
-            let canvasHeight = originalHeight;
-
-            // Scale down if video is too large, maintaining aspect ratio
-            const maxWidth = 1920;
-            const maxHeight = 1080;
-
-            if (canvasWidth > maxWidth) {
-              canvasWidth = maxWidth;
-              canvasHeight = Math.round(maxWidth / aspectRatio);
-            }
-
-            if (canvasHeight > maxHeight) {
-              canvasHeight = maxHeight;
-              canvasWidth = Math.round(maxHeight * aspectRatio);
-            }
-
-            canvas.width = canvasWidth;
-            canvas.height = canvasHeight;
-
-            // Create MediaRecorder with optimized settings
-            const stream = canvas.captureStream(30);
-            const mediaRecorder = new MediaRecorder(stream, {
-              mimeType: "video/webm;codecs=vp9",
-              videoBitsPerSecond: 2500000, // 2.5 Mbps for good quality/size balance
-            });
-
-            const chunks: Blob[] = [];
-
-            mediaRecorder.ondataavailable = (event) => {
-              if (event.data.size > 0) {
-                chunks.push(event.data);
-              }
-            };
-
-            mediaRecorder.onstop = () => {
-              const blob = new Blob(chunks, { type: "video/webm" });
-              URL.revokeObjectURL(videoUrl);
-              resolve(blob);
-            };
-
-            mediaRecorder.onerror = (event) => {
-              console.error("MediaRecorder error:", event);
-              URL.revokeObjectURL(videoUrl);
-              reject(new Error("Recording failed"));
-            };
-
-            // Position video at start time
-            video.currentTime = start;
-
-            video.onseeked = () => {
-              console.log(
-                `🎯 Video positioned at ${video.currentTime}s, starting recording`
-              );
-
-              // Start recording
-              mediaRecorder.start(100); // Record in 100ms chunks
-
-              // Play video at normal speed
-              video.play().catch((error) => {
-                console.error("Video play error:", error);
-                URL.revokeObjectURL(videoUrl);
-                reject(new Error("Video playback failed"));
-              });
-
-              // Set up timer to stop at exact duration
-              setTimeout(() => {
-                console.log(`⏹️ Stopping recording after ${duration}s`);
-                video.pause();
-                mediaRecorder.stop();
-              }, duration * 1000);
-            };
-
-            // Optimized frame drawing with requestAnimationFrame
-            let animationId: number;
-            const drawFrame = () => {
-              if (!video.paused && !video.ended && video.currentTime < end) {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                animationId = requestAnimationFrame(drawFrame);
-              }
-            };
-
-            video.onplay = () => {
-              drawFrame();
-            };
-
-            video.onpause = () => {
-              if (animationId) {
-                cancelAnimationFrame(animationId);
-              }
-            };
-
-            video.onerror = () => {
-              URL.revokeObjectURL(videoUrl);
-              reject(new Error("Video playback error"));
-            };
-          };
-
-          video.onerror = () => {
-            URL.revokeObjectURL(videoUrl);
-            reject(new Error("Failed to load video"));
-          };
-        });
+          const data = await ffmpeg.readFile(outputName);
+          const blobPart: BlobPart =
+            typeof data === "string"
+              ? data
+              : new Uint8Array(Array.from(data));
+          return new Blob([blobPart], { type: "video/mp4" });
+        } finally {
+          await Promise.allSettled([
+            ffmpeg.deleteFile(inputName),
+            ffmpeg.deleteFile(outputName),
+          ]);
+          ffmpeg.terminate();
+        }
       },
       []
     );
@@ -618,9 +531,9 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
 
         const trimmedFile = new File(
           [trimmedBlob],
-          `trimmed_${videoFile.name}`,
+          `trimmed_${videoFile.name.replace(/\.[^.]+$/, "")}.mp4`,
           {
-            type: "video/webm",
+            type: "video/mp4",
           }
         );
 

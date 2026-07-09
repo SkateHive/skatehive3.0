@@ -16,6 +16,7 @@ const supabase =
     : null;
 
 type PostKey = { author: string; permlink: string; safe_user?: string | null };
+const HIDDEN_MODERATION_STATUSES = new Set(["suspicious", "blocked"]);
 
 export async function POST(request: NextRequest) {
   if (!supabase) {
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
   const { data: primaryData, error: primaryError } = await supabase
     .from("userbase_soft_posts")
     .select(
-      "author, permlink, type, metadata, user_id, safe_user, userbase_users(display_name, handle, avatar_url)"
+      "author, permlink, type, metadata, user_id, safe_user, userbase_users(display_name, handle, avatar_url, moderation_status)"
     )
     .in("author", authorSet)
     .in("permlink", permlinkSet);
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
     const { data: safeData, error: safeError } = await supabase
       .from("userbase_soft_posts")
       .select(
-        "author, permlink, type, metadata, user_id, safe_user, userbase_users(display_name, handle, avatar_url)"
+        "author, permlink, type, metadata, user_id, safe_user, userbase_users(display_name, handle, avatar_url, moderation_status)"
       )
       .in("safe_user", safeUserSet)
       .in("permlink", permlinkSet);
@@ -97,18 +98,29 @@ export async function POST(request: NextRequest) {
       seen.add(key);
       return true;
     })
-    .map((row: any) => ({
+    .filter((row: any) => {
+      const user = Array.isArray(row.userbase_users)
+        ? row.userbase_users[0]
+        : row.userbase_users;
+      return !HIDDEN_MODERATION_STATUSES.has(user?.moderation_status);
+    })
+    .map((row: any) => {
+      const user = Array.isArray(row.userbase_users)
+        ? row.userbase_users[0]
+        : row.userbase_users;
+      return {
       author: row.author,
       permlink: row.permlink,
       type: row.type,
       metadata: row.metadata,
       user: {
         id: row.user_id,
-        display_name: row.userbase_users?.display_name || null,
-        handle: row.userbase_users?.handle || null,
-        avatar_url: row.userbase_users?.avatar_url || null,
+        display_name: user?.display_name || null,
+        handle: user?.handle || null,
+        avatar_url: user?.avatar_url || null,
       },
-    }));
+      };
+    });
 
   return NextResponse.json({ items });
 }

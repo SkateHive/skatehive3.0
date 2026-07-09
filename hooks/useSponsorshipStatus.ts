@@ -45,7 +45,10 @@ export function useSponsorshipStatus(userId: string | null): SponsorshipStatus {
           const data = await sponsorResponse.json();
           setStatus({
             isSponsored: data.sponsored || false,
-            isLite: !data.sponsored,
+            isLite:
+              typeof data.is_lite === "boolean"
+                ? data.is_lite
+                : !data.sponsored,
             sponsorUsername: data.sponsor_username,
             hiveUsername: data.hive_username,
             loading: false,

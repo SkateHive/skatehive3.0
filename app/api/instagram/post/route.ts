@@ -7,10 +7,21 @@ import {
   publishImageToInstagram,
   publishReelToInstagram,
 } from "@/lib/instagram/graph";
-import { buildInstagramCaption } from "@/lib/instagram/caption";
+import {
+  buildInstagramCaption,
+  DEFAULT_INSTAGRAM_HASHTAGS,
+  IG_CAPTION_LIMIT,
+  IG_HASHTAG_LIMIT,
+} from "@/lib/instagram/caption";
 import { getHivePowerForAccount } from "@/lib/hive/serverHivePower";
 import { resolveIgHandleForCaption } from "@/lib/instagram/resolveIgHandle";
 import fetchAccount from "@/lib/hive/fetchAccount";
+import {
+  getInstagramCrossPostContract,
+  INSTAGRAM_MIN_HIVE_POWER_TO_CROSSPOST,
+  INSTAGRAM_PER_USER_24H_LIMIT,
+  INSTAGRAM_RETRYABLE_QUEUE_WINDOW_MS,
+} from "@/lib/instagram/spec";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,15 +37,6 @@ const supabase =
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
-
-// Per-user 24h cap. No app-level global cap — Meta enforces its own
-// 25/account/24h ceiling, and surfacing that error organically is fine.
-const PER_USER_24H_LIMIT = 7;
-
-// Trusted-user gate: cross-posting publishes to the shared @skatehive IG, so
-// only Hive accounts with enough stake are allowed. Matches the threshold used
-// elsewhere in the app (SnapComposer's video-length bypass).
-const MIN_HIVE_POWER_TO_CROSSPOST = 100;
 
 async function resolveSessionUserId(request: NextRequest): Promise<string | null> {
   if (!supabase) return null;
@@ -183,6 +185,7 @@ async function resolveSignatureUserId(payload: {
  *   - image_url?: string    publicly hosted JPEG (required if no video_url)
  *   - video_url?: string    publicly hosted MP4 for Reels (optional)
  *   - permalink_url: string web URL the user can visit on skatehive.app
+ *   - preview?: boolean     true => validate/auth/render caption, skip DB + Meta publish
  */
 export async function POST(request: NextRequest) {
   if (!supabase) {
@@ -204,6 +207,7 @@ export async function POST(request: NextRequest) {
 
   const hiveAuthor = typeof body?.hive_author === "string" ? body.hive_author.trim() : "";
   const hivePermlink = typeof body?.hive_permlink === "string" ? body.hive_permlink.trim() : "";
+  const isPreview = body?.preview === true;
 
   // Auth: prefer the userbase session cookie (email / wallet / Farcaster
   // login). Fall back to a fresh Hive posting-key signature for Keychain-
@@ -254,10 +258,10 @@ export async function POST(request: NextRequest) {
     );
   }
   const hivePower = await getHivePowerForAccount(hiveHandleForHpCheck);
-  if (hivePower === null || hivePower < MIN_HIVE_POWER_TO_CROSSPOST) {
+  if (hivePower === null || hivePower < INSTAGRAM_MIN_HIVE_POWER_TO_CROSSPOST) {
     return NextResponse.json(
       {
-        error: `Cross-posting to Instagram requires at least ${MIN_HIVE_POWER_TO_CROSSPOST} HP on your linked Hive account.`,
+        error: `Cross-posting to Instagram requires at least ${INSTAGRAM_MIN_HIVE_POWER_TO_CROSSPOST} HP on your linked Hive account.`,
         hive_power: hivePower,
       },
       { status: 403 }
@@ -329,7 +333,10 @@ export async function POST(request: NextRequest) {
   let existingRetryableId: string | null = null;
   if (existing) {
     const ageMs = Date.now() - new Date(existing.created_at).getTime();
-    if (existing.status === "failed" || (existing.status === "queued" && ageMs > 10 * 60 * 1000)) {
+    if (
+      existing.status === "failed" ||
+      (existing.status === "queued" && ageMs > INSTAGRAM_RETRYABLE_QUEUE_WINDOW_MS)
+    ) {
       existingRetryableId = existing.id as string;
     } else {
       // status=queued and fresh: another request is mid-flight.
@@ -352,10 +359,10 @@ export async function POST(request: NextRequest) {
     .eq("status", "published")
     .gte("created_at", since);
 
-  if ((userCount ?? 0) >= PER_USER_24H_LIMIT) {
+  if ((userCount ?? 0) >= INSTAGRAM_PER_USER_24H_LIMIT) {
     return NextResponse.json(
       {
-        error: `You've already cross-posted to Instagram ${PER_USER_24H_LIMIT} times in the last 24 hours. Try again later.`,
+        error: `You've already cross-posted to Instagram ${INSTAGRAM_PER_USER_24H_LIMIT} times in the last 24 hours. Try again later.`,
       },
       { status: 429 }
     );
@@ -377,6 +384,36 @@ export async function POST(request: NextRequest) {
   });
 
   const mediaType: "IMAGE" | "REELS" = videoUrl ? "REELS" : "IMAGE";
+
+  if (isPreview) {
+    return NextResponse.json({
+      success: true,
+      preview: true,
+      media_type: mediaType,
+      caption,
+      collaborator_handle: igHandle || null,
+      payload: {
+        hive_author: hiveAuthor,
+        hive_permlink: hivePermlink,
+        title,
+        body: markdown,
+        tags,
+        image_url: imageUrl || null,
+        video_url: videoUrl || null,
+        permalink_url: permalinkUrl,
+      },
+      contract: {
+        ...getInstagramCrossPostContract(),
+        caption: {
+          max_length: IG_CAPTION_LIMIT,
+          hashtag_limit: IG_HASHTAG_LIMIT,
+          default_hashtags: DEFAULT_INSTAGRAM_HASHTAGS,
+          backlink_strategy:
+            "Always include the SkateHive permalink in the caption body even though Instagram will not make it clickable.",
+        },
+      },
+    });
+  }
 
   // Insert (or update, on retry) a row in queued state so failures are
   // recorded and dedupe works on subsequent attempts.
