@@ -250,6 +250,36 @@ export interface TranslationSchema {
     unsupportedFileType: string;
     videoProcessFailed: string;
   };
+  skateDice: {
+    title: string;
+    coachAlt: string;
+    wannaPlay: string;
+    instructions: string;
+    play: string;
+    rollAgain: string;
+    skatersChoice: string;
+    sentence0: string;
+    sentence1: string;
+    sentence2: string;
+    sentence3: string;
+    sentence4: string;
+    sentence5: string;
+    sentence6: string;
+    sentence7: string;
+    sentence8: string;
+    sentence9: string;
+    sentence10: string;
+    sentence11: string;
+    sentence12: string;
+    sentence13: string;
+    sentence14: string;
+    prompt0: string;
+    prompt1: string;
+    prompt2: string;
+  };
+  trickTutorial: {
+    sectionTitle: string;
+  };
   createWorkspace: {
     title: string;
     subtitle: string;
@@ -794,5 +824,12 @@ export interface TranslationSchema {
     pending: string;
     completed: string;
     failed: string;
+  };
+  tricks: {
+    title: string;
+    subtitle: string;
+    diceAriaLabel: string;
+    diceImageAlt: string;
+    viewClips: string;
   };
 }
