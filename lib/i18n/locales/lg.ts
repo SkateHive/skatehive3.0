@@ -4,6 +4,7 @@ export const lg = {
     magazine: 'Maggazini',
     leaderboard: 'Olukalala lw\'Okusinga',
     skatespots: 'Emiwendo gy\'Okusika',
+    map: 'Maapu',
     bounties: 'Entuzza',
     notifications: 'Obubaka',
     wallet: 'Ekilinja kyo',

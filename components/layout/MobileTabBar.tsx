@@ -319,9 +319,9 @@ export default function MobileTabBar() {
   // Quick-access tabs shown in the fixed bar
   const tabs = [
     { icon: FiHome, href: "/", name: t("home") },
-    { icon: FiVideo, href: "/videos", name: t("videos") },
+    { icon: FiTarget, href: "/bounties", name: t("bounties") },
     { icon: FiPlus, href: "/compose", name: t("create"), center: true },
-    { icon: FiAward, href: "/leaderboard", name: t("leaderboard") },
+    { icon: FiMap, href: "/map", name: t("map") },
     { icon: FiMenu, name: t("menu"), menu: true, badge: newNotificationCount },
   ] as const;
 

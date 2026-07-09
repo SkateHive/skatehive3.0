@@ -5,6 +5,7 @@ export interface TranslationSchema {
     magazine: string;
     leaderboard: string;
     skatespots: string;
+    map: string;
     bounties: string;
     notifications: string;
     wallet: string;

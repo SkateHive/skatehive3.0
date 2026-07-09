@@ -4,6 +4,7 @@ export const en = {
     magazine: 'Magazine',
     leaderboard: 'Leaderboard',
     skatespots: 'Skatespots',
+    map: 'Map',
     bounties: 'Bounties',
     notifications: 'Notifications',
     wallet: 'Wallet',

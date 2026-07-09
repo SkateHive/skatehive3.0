@@ -4,6 +4,7 @@ export const ptBR = {
     magazine: 'Revista',
     leaderboard: 'Placar',
     skatespots: 'Picos',
+    map: 'Mapa',
     bounties: 'Desafios',
     notifications: 'Notificações',
     wallet: 'Carteira',

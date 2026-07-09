@@ -4,6 +4,7 @@ export const es = {
     magazine: 'Revista',
     leaderboard: 'Tabla de clasificación',
     skatespots: 'Spots',
+    map: 'Mapa',
     bounties: 'Recompensas',
     notifications: 'Notificaciones',
     wallet: 'Billetera',
