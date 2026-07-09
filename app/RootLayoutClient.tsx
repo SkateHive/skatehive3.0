@@ -185,6 +185,13 @@ function InnerLayout({
     openReport();
   };
 
+  // The media-magazine homepage is full-bleed: it owns its own sticky nav and
+  // scroll container (globals force html,body{overflow:hidden} on desktop), so
+  // render it directly without the app chrome (sidebar / footer / tab bar).
+  if (pathname === "/home") {
+    return <>{children}</>;
+  }
+
   return (
     <Container
       maxW={{ base: "100%", md: "container.xl" }}
