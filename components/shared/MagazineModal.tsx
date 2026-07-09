@@ -19,6 +19,8 @@ interface MagazineModalProps {
   hiveUsername?: string;
   posts?: Discussion[];
   isLoading?: boolean;
+  // Keep the given posts' selection + order verbatim (editorial edition).
+  preserveOrder?: boolean;
   // For tag-based magazine (blog view)
   magazineTag?: { tag: string; limit: number }[];
   magazineQuery?: string;
@@ -45,6 +47,7 @@ const MagazineModal = React.memo(function MagazineModal({
   hiveUsername,
   posts,
   isLoading,
+  preserveOrder,
   magazineTag,
   magazineQuery = "created",
   zineCover,
@@ -90,6 +93,7 @@ const MagazineModal = React.memo(function MagazineModal({
       return {
         posts,
         isLoading,
+        preserveOrder,
         error: null,
         zineCover,
         hiveUsername,
@@ -110,6 +114,7 @@ const MagazineModal = React.memo(function MagazineModal({
   }, [
     posts,
     isLoading,
+    preserveOrder,
     tag,
     currentQuery,
     zineCover,
