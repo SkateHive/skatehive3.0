@@ -249,6 +249,15 @@ export interface TranslationSchema {
     compressionError: string;
     unsupportedFileType: string;
     videoProcessFailed: string;
+    trimButton: string;
+    trimProcessing: string;
+    trimEngineLoading: string;
+    trimEngineLoadFailed: string;
+    trimApplied: string;
+    trimFailed: string;
+    trimDragHandles: string;
+    trimStartHandle: string;
+    trimEndHandle: string;
   };
   createWorkspace: {
     title: string;

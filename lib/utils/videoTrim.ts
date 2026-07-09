@@ -5,6 +5,11 @@
  * Trims the selected [start, end] range with stream copy (`-c copy`) — no
  * re-encode, so it's fast and lossless. Returns an MP4 Blob used by the
  * media-prepare flow before the trimmed clip is uploaded to the transcoder.
+ *
+ * ponytail: copy mode is keyframe-bound (the cut snaps to the nearest
+ * keyframe before `start`); frame-accurate cuts need a re-encode, which is
+ * far too slow in single-threaded WASM. Switch to re-encode server-side if
+ * exact cuts ever matter.
  */
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
@@ -37,28 +42,46 @@ export function loadFFmpeg(): Promise<FFmpeg> {
   return ffmpegPromise;
 }
 
-export async function createTrimmedVideo(
+// The shared FFmpeg instance can only run one exec at a time, so trims are
+// serialized through this promise chain; unique filenames keep a queued
+// call's files safe from the previous call's cleanup.
+let trimQueue: Promise<unknown> = Promise.resolve();
+let trimSeq = 0;
+
+export function createTrimmedVideo(
   file: File,
   start: number,
   end: number
 ): Promise<Blob> {
-  if (end - start <= 0) throw new Error("Invalid trim range");
+  if (end - start <= 0) return Promise.reject(new Error("Invalid trim range"));
 
-  const ffmpeg = await loadFFmpeg();
-  await ffmpeg.writeFile("input.mp4", await fetchFile(file));
-  try {
-    const exitCode = await ffmpeg.exec([
-      "-i", "input.mp4",
-      "-ss", String(start),
-      "-to", String(end),
-      "-c", "copy",
-      "output.mp4",
-    ]);
-    if (exitCode !== 0) throw new Error(`FFmpeg exited with code ${exitCode}`);
-    const data = await ffmpeg.readFile("output.mp4");
-    return new Blob([data as BlobPart], { type: "video/mp4" });
-  } finally {
-    await ffmpeg.deleteFile("input.mp4").catch(() => {});
-    await ffmpeg.deleteFile("output.mp4").catch(() => {});
-  }
+  const run = async (): Promise<Blob> => {
+    const ffmpeg = await loadFFmpeg();
+    const id = ++trimSeq;
+    const inputName = `input-${id}.mp4`;
+    const outputName = `output-${id}.mp4`;
+    await ffmpeg.writeFile(inputName, await fetchFile(file));
+    try {
+      const exitCode = await ffmpeg.exec([
+        "-i", inputName,
+        "-ss", String(start),
+        "-to", String(end),
+        "-c", "copy",
+        // Copy-mode cuts can leave negative timestamps; shift them to zero so
+        // players don't show a frozen first frame or wrong duration.
+        "-avoid_negative_ts", "make_zero",
+        outputName,
+      ]);
+      if (exitCode !== 0) throw new Error(`FFmpeg exited with code ${exitCode}`);
+      const data = await ffmpeg.readFile(outputName);
+      return new Blob([data as BlobPart], { type: "video/mp4" });
+    } finally {
+      await ffmpeg.deleteFile(inputName).catch(() => {});
+      await ffmpeg.deleteFile(outputName).catch(() => {});
+    }
+  };
+
+  const result = trimQueue.then(run, run);
+  trimQueue = result.catch(() => {});
+  return result;
 }

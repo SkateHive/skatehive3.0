@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Box, Text, Flex } from "@chakra-ui/react";
 import { formatTime } from "@/lib/utils/timeUtils";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 interface VideoTimelineProps {
   duration: number;
@@ -25,6 +26,7 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   onDragStart,
   onDragEnd,
 }) => {
+  const t = useTranslations();
   const trackRef = useRef<HTMLDivElement>(null);
   // Live position of the handle being dragged. Visual-only: committed to the
   // parent via onStart/EndTimeChange on mouseup, so parent re-renders don't
@@ -115,12 +117,46 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
     };
   };
 
+  // Keyboard slider behavior: arrows nudge by 1s, Home/End jump to the
+  // handle's min/max, clamped to keep the 0.5s minimum selection.
+  const createKeyHandler = (
+    isStartHandle: boolean,
+    onChange: (time: number) => void
+  ) => {
+    return (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const current = isStartHandle ? startTime : endTime;
+      const min = isStartHandle ? 0 : startTime + 0.5;
+      const max = isStartHandle ? endTime - 0.5 : duration;
+      let next: number;
+      switch (e.key) {
+        case "ArrowLeft":
+        case "ArrowDown":
+          next = current - 1;
+          break;
+        case "ArrowRight":
+        case "ArrowUp":
+          next = current + 1;
+          break;
+        case "Home":
+          next = min;
+          break;
+        case "End":
+          next = max;
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+      onChange(Math.max(min, Math.min(max, next)));
+    };
+  };
+
   return (
     <Box width="100%" display="flex" flexDirection="column" alignItems="center">
       {/* Timeline Trimmer */}
       <Box width="100%" px={2}>
         <Text fontSize="xs" mb={3} textAlign="center" color="dim">
-          Drag the handles to trim your video
+          {t("compose.trimDragHandles")}
         </Text>
         {/* Timeline Track */}
         <Box
@@ -175,8 +211,19 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
             _active={{ opacity: 0.85 }}
             // Only animate hover scale/opacity — transitioning `left` would lag the drag
             transition="transform 0.1s ease, opacity 0.1s ease"
+            role="slider"
+            tabIndex={0}
+            aria-label={t("compose.trimStartHandle")}
+            aria-valuemin={0}
+            aria-valuemax={Math.round((endTime - 0.5) * 10) / 10}
+            aria-valuenow={Math.round(visStart * 10) / 10}
+            aria-valuetext={formatTime(visStart)}
+            _focusVisible={{ outline: "2px solid", outlineColor: "accent" }}
+            onKeyDown={createKeyHandler(true, onStartTimeChange)}
             onMouseDown={createDragHandler(true, onStartTimeChange)}
             onTouchStart={createDragHandler(true, onStartTimeChange)}
+            // A click on the handle must not bubble to the track's seek handler
+            onClick={(e) => e.stopPropagation()}
             // Touch-friendly styles
             style={{
               touchAction: "none",
@@ -213,8 +260,19 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
             _active={{ opacity: 0.85 }}
             // Only animate hover scale/opacity — transitioning `left` would lag the drag
             transition="transform 0.1s ease, opacity 0.1s ease"
+            role="slider"
+            tabIndex={0}
+            aria-label={t("compose.trimEndHandle")}
+            aria-valuemin={Math.round((startTime + 0.5) * 10) / 10}
+            aria-valuemax={Math.round(duration * 10) / 10}
+            aria-valuenow={Math.round(visEnd * 10) / 10}
+            aria-valuetext={formatTime(visEnd)}
+            _focusVisible={{ outline: "2px solid", outlineColor: "accent" }}
+            onKeyDown={createKeyHandler(false, onEndTimeChange)}
             onMouseDown={createDragHandler(false, onEndTimeChange)}
             onTouchStart={createDragHandler(false, onEndTimeChange)}
+            // A click on the handle must not bubble to the track's seek handler
+            onClick={(e) => e.stopPropagation()}
             // Touch-friendly styles
             style={{
               touchAction: "none",

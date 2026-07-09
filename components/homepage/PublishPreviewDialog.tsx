@@ -43,6 +43,7 @@ import VideoTimeline from "./VideoTimeline";
 import { InstagramPostPreview } from "./InstagramPreviewModal";
 import type { CarouselMediaItem } from "@/lib/instagram/extractPostMedia";
 import { createTrimmedVideo, loadFFmpeg } from "@/lib/utils/videoTrim";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 export interface PublishImage {
   url: string;
@@ -123,6 +124,7 @@ export default function PublishPreviewDialog({
   canBypassTrim,
   onPublish,
 }: PublishPreviewDialogProps) {
+  const t = useTranslations();
   const hasRawVideo = !!videoFile && !!videoLocalUrl;
 
   // ── Step model ──────────────────────────────────────────────────────
@@ -220,8 +222,8 @@ export default function PublishPreviewDialog({
     if (!hasRawVideo) return;
     loadFFmpeg()
       .then(() => setFfmpegReady(true))
-      .catch(() => setTrimError("Failed to load trim engine"));
-  }, [hasRawVideo]);
+      .catch(() => setTrimError(t("compose.trimEngineLoadFailed")));
+  }, [hasRawVideo, t]);
 
   const handleStartTimeChange = useCallback((time: number) => {
     hasUserTrimmedRef.current = true;
@@ -289,11 +291,11 @@ export default function PublishPreviewDialog({
         return URL.createObjectURL(blob);
       });
     } catch (err) {
-      setTrimError(err instanceof Error ? err.message : "Failed to trim video");
+      setTrimError(err instanceof Error ? err.message : t("compose.trimFailed"));
     } finally {
       setIsTrimming(false);
     }
-  }, [videoFile, startTime, endTime]);
+  }, [videoFile, startTime, endTime, t]);
 
   // ── Publish ─────────────────────────────────────────────────────────
   // The dialog only COLLECTS inputs. The composer processes the video and
@@ -417,7 +419,7 @@ export default function PublishPreviewDialog({
                           alignItems: "center",
                           justifyContent: "center",
                           background: "var(--chakra-colors-primary)",
-                          color: "black",
+                          color: "var(--chakra-colors-background)",
                           border: "1px solid transparent",
                           borderRadius: 0,
                           fontWeight: "bold",
@@ -435,23 +437,23 @@ export default function PublishPreviewDialog({
                         isDisabled={isTrimming || !ffmpegReady}
                         fontFamily="mono"
                       >
-                        TRIM
+                        {t("compose.trimButton")}
                       </Button>
                       {(isTrimming || (!ffmpegReady && !trimError)) && (
                         <HStack spacing={2}>
                           <Spinner size="xs" color="primary" />
                           <Text fontFamily="mono" fontSize="2xs" color="dim">
-                            {isTrimming ? "Processing…" : "Loading trim engine…"}
+                            {isTrimming ? t("compose.trimProcessing") : t("compose.trimEngineLoading")}
                           </Text>
                         </HStack>
                       )}
                       {!isTrimming && trimmedPreviewUrl && (
-                        <Text fontFamily="mono" fontSize="2xs" color="green.400">✓ Trim applied to preview</Text>
+                        <Text fontFamily="mono" fontSize="2xs" color="success">{t("compose.trimApplied")}</Text>
                       )}
                     </>
                   )}
                   {trimError && (
-                    <Text fontFamily="mono" fontSize="2xs" color="red.400">{trimError}</Text>
+                    <Text fontFamily="mono" fontSize="2xs" color="error">{trimError}</Text>
                   )}
                 </Box>
               </>
