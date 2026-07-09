@@ -83,7 +83,7 @@ const MagazineModal = React.memo(function MagazineModal({
   // Community/blog magazine (no explicit posts, no profile user): show the
   // curated edition the ops portal published, falling back to the live feed.
   const isCommunity = posts === undefined && !hiveUsername;
-  const { curated, loaded } = useCuratedMagazine(isCommunity);
+  const { curated, coverUrl: curatedCover, loaded } = useCuratedMagazine(isCommunity);
 
   // If posts are provided (profile view), use them directly.
   // Community view → curated edition (or fallback). Otherwise tag/query.
@@ -104,7 +104,7 @@ const MagazineModal = React.memo(function MagazineModal({
     }
     if (isCommunity) {
       if (!loaded) return { posts: [], isLoading: true };
-      if (curated && curated.length > 0) return { posts: curated, preserveOrder: true };
+      if (curated && curated.length > 0) return { posts: curated, preserveOrder: true, zineCover: curatedCover ?? undefined };
       // no published edition → fall back to the live community feed below
     }
     return {
@@ -124,6 +124,7 @@ const MagazineModal = React.memo(function MagazineModal({
     userLocation,
     isCommunity,
     curated,
+    curatedCover,
     loaded,
   ]);
 

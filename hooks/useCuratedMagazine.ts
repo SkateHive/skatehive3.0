@@ -7,7 +7,7 @@ import { Discussion } from "@hiveio/dhive";
 //     flipbook's Discussion shape. Used by the blog MagazineModal + as the
 //     default preview. Falls back to the community feed when nothing published.
 //   useMagazineIssues() — the accumulating archive (covers) for the selector.
-//   fetchMagazineIssuePosts(number) — one edition's posts (for opening a cover).
+//   fetchMagazineIssue(number) — one edition (posts + cover) for opening it.
 const MAGAZINE_API =
   process.env.NEXT_PUBLIC_MAGAZINE_API || "https://skatehive.reelflip.com";
 
@@ -47,8 +47,9 @@ function mapPortalPosts(raw: unknown): Discussion[] {
   );
 }
 
-export function useCuratedMagazine(enabled: boolean = true): { curated: Discussion[] | null; loaded: boolean } {
+export function useCuratedMagazine(enabled: boolean = true): { curated: Discussion[] | null; coverUrl: string | null; loaded: boolean } {
   const [curated, setCurated] = useState<Discussion[] | null>(null);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -62,7 +63,10 @@ export function useCuratedMagazine(enabled: boolean = true): { curated: Discussi
       .then((data) => {
         if (!live) return;
         const mapped = mapPortalPosts(data?.posts);
-        if (mapped.length > 0) setCurated(mapped);
+        if (mapped.length > 0) {
+          setCurated(mapped);
+          setCoverUrl(data?.issue?.coverUrl ?? null);
+        }
         setLoaded(true);
       })
       .catch(() => {
@@ -73,7 +77,7 @@ export function useCuratedMagazine(enabled: boolean = true): { curated: Discussi
     };
   }, [enabled]);
 
-  return { curated, loaded };
+  return { curated, coverUrl, loaded };
 }
 
 /** The accumulating published-edition archive (newest first) for the cover selector. */
@@ -101,14 +105,14 @@ export function useMagazineIssues(): { issues: MagazineIssueSummary[]; loaded: b
   return { issues, loaded };
 }
 
-/** Posts of a specific published edition (for opening a chosen cover). */
-export async function fetchMagazineIssuePosts(number: number): Promise<Discussion[]> {
+/** Posts + cover of a specific published edition (for opening a chosen cover). */
+export async function fetchMagazineIssue(number: number): Promise<{ posts: Discussion[]; coverUrl: string | null }> {
   try {
     const r = await fetch(`${MAGAZINE_API}/api/magazine/issue?project=skatehive&number=${number}`);
-    if (!r.ok) return [];
+    if (!r.ok) return { posts: [], coverUrl: null };
     const data = await r.json();
-    return mapPortalPosts(data?.posts);
+    return { posts: mapPortalPosts(data?.posts), coverUrl: data?.issue?.coverUrl ?? null };
   } catch {
-    return [];
+    return { posts: [], coverUrl: null };
   }
 }
