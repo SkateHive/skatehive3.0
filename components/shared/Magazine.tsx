@@ -485,7 +485,7 @@ export default function Magazine(props: MagazineProps) {
               )}
             </Box>
           </Box>
-          {filteredPosts.map((post: Discussion, index) => {
+          {[...filteredPosts.map((post: Discussion, index) => {
             const isLeftPage = index % 2 === 0;
             const pageBorderRadius = isLeftPage
               ? "16px 0 0 0px"
@@ -587,17 +587,20 @@ export default function Magazine(props: MagazineProps) {
                 </Box>
               </Box>
             );
-          })}
-          {/* Even-ize the page count (cover + posts + back cover) so the back
-              cover is always the BACK face of the last sheet — an odd count
-              left it dangling and broke the flip animation. */}
-          {(filteredPosts.length + 2) % 2 === 1 && (
-            <Box sx={fillerPageStyles(theme)}>
+          }),
+          // Even-ize the page count (cover + posts + back cover) so the back
+          // cover is the BACK face of the last sheet. Kept INSIDE the array and
+          // filtered — never a bare `&&`/falsy child, because the flip engine
+          // clones every child and React.Children.map hands cloneElement(null)
+          // for a null/false child, which throws.
+          (filteredPosts.length + 2) % 2 === 1 ? (
+            <Box key="filler" sx={fillerPageStyles(theme)}>
               <Text color={theme.colors.muted} fontSize="sm">
                 — fim da edição —
               </Text>
             </Box>
-          )}
+          ) : null,
+          ].filter(Boolean)}
           <Box sx={backCoverStyles(theme)}>
             <Heading color={theme.colors.primary}>Back Cover</Heading>
             <Text color={theme.colors.text}>Last Page</Text>
