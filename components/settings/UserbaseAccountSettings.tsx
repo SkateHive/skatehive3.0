@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import NextLink from "next/link";
 import {
   Box,
   Button,
@@ -130,6 +131,33 @@ export default function UserbaseAccountSettings() {
         p={4}
       >
         <UserbasePostingKeyPanel />
+      </Box>
+
+      <Box border="1px solid" borderColor="muted" p={4}>
+        <VStack align="stretch" spacing={3}>
+          <Box>
+            <Heading size="sm" color="primary" mb={1}>
+              {t("settings.postingAuthorityCardTitle")}
+            </Heading>
+            <Text fontSize="sm" color="dim">
+              {t("settings.postingAuthorityCardDescription")}
+            </Text>
+          </Box>
+          <Box>
+            <Button
+              as={NextLink}
+              href="/settings/hive"
+              size="sm"
+              variant="outline"
+              borderColor="border"
+              color="primary"
+              borderRadius="none"
+              _hover={{ borderColor: "primary" }}
+            >
+              {t("settings.postingAuthorityCardCta")}
+            </Button>
+          </Box>
+        </VStack>
       </Box>
 
       <Box border="1px solid" borderColor="muted" p={4}>

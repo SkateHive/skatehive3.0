@@ -202,7 +202,29 @@ userbase_soft_posts:
 
 ---
 
-## Database Tables (10 total)
+## Scheduled Posts via Posting Authority
+
+Added for issue #130. A separate mechanism from soft-posts — the user grants the shared service account **Posting Authority on-chain** (via Keychain, Active key, `account_update` operation). The service account then broadcasts on the user's behalf, but the **user is the real on-chain author**. Only available to users with a linked Hive identity.
+
+**Flow:**
+
+1. User grants posting authority to the service account in `/settings/hive` (requires Keychain)
+2. User schedules a post in `/compose` — picks a future datetime
+3. A row is inserted into `userbase_scheduled_posts` with `status = pending`
+4. Daily cron fires: `/api/cron` → calls `/api/userbase/hive/scheduled-posts/process`
+5. Processor finds all pending rows where `scheduled_at <= now()`
+6. Broadcasts each as a signed `comment` operation using `DEFAULT_HIVE_POSTING_KEY`, with `author = user's real Hive handle`
+7. Row flips to `broadcasted` (success) or `failed` (with `last_error`)
+
+**Revoking authority** in `/settings/hive` immediately cancels all pending scheduled posts for that user.
+
+**Known limitation — daily granularity:** The cron schedule is `0 0 * * *` (midnight UTC, once per day) in `vercel.json`. Posts are published at the next daily run, not at the exact minute the user picked. This was intentionally left as-is: upgrading to hourly (`0 * * * *`) requires leaving the Vercel Hobby plan.
+
+**Not related to `userbase_soft_posts`:** Soft-posts (shared `@skateuser` account, no Hive identity required) are a completely separate mechanism and are unchanged.
+
+---
+
+## Database Tables (11 total)
 
 | Table | Purpose |
 |-------|---------|
@@ -216,6 +238,7 @@ userbase_soft_posts:
 | `userbase_soft_posts` | Attribution for shared account posts |
 | `userbase_soft_votes` | Attribution for shared account votes |
 | `userbase_sponsorships` | Hive account sponsorship records |
+| `userbase_scheduled_posts` | Posts queued for future broadcast via Posting Authority |
 
 ---
 
@@ -252,7 +275,7 @@ JWT_SECRET=xxx
 2. **Complexity is hidden** - Users don't see blockchain mechanics
 3. **Upgrade is optional** - Lite accounts work forever, sponsorship is a bonus
 4. **Soft posts are attribution, not queuing** - Broadcast is immediate
-5. **No cron jobs needed** - Everything is synchronous in API routes
+5. **No cron jobs needed for soft-posts** - Those stay synchronous in API routes. The one exception is scheduled posts (Posting Authority), which inherently need a deferred broadcast.
 6. **Works on Vercel free tier** - No background workers required
 7. **Farcaster login = verification** - No additional challenge needed
 8. **Merge preserves everything** - All identities and data combined
@@ -263,4 +286,4 @@ JWT_SECRET=xxx
 
 **Status:** Production ready, testing in progress
 
-**Last Updated:** 2026-01-31
+**Last Updated:** 2026-06-25

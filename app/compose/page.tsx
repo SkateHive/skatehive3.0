@@ -14,6 +14,8 @@ import {
   Alert,
   AlertIcon,
   Tooltip,
+  Switch,
+  Link,
   useToast,
 } from "@chakra-ui/react";
 import ImageCompressor, {
@@ -28,9 +30,9 @@ import ThumbnailPicker from "@/components/compose/ThumbnailPicker";
 import MarkdownEditor from "@/components/compose/MarkdownEditor";
 import { useComposeForm } from "@/hooks/useComposeForm";
 import { useImageUpload, useVideoUpload, useFileDropUpload } from "@/hooks/useFileUpload";
-import { generateVideoIframeMarkdown } from "@/lib/markdown/composeUtils";
+import { generateVideoIframeMarkdown, prepareImageArray } from "@/lib/markdown/composeUtils";
 import { useDropzone } from "react-dropzone";
-import { APP_CONFIG } from "@/config/app.config";
+import { HIVE_CONFIG } from "@/config/app.config";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
 import { useSkateDialog } from "@/hooks/useSkateDialog";
@@ -83,6 +85,87 @@ export default function Composer() {
   const [hasLoadedInitialDraft, setHasLoadedInitialDraft] = useState(false);
 
   const handleSubmit = originalHandleSubmit;
+
+  const [schedulingEnabled, setSchedulingEnabled] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleNeedsAuthority, setScheduleNeedsAuthority] = useState(false);
+
+  const handleScheduleSubmit = async () => {
+    setScheduleError(null);
+    setScheduleNeedsAuthority(false);
+
+    if (!scheduledAt || new Date(scheduledAt).getTime() <= Date.now()) {
+      setScheduleError(t("compose.scheduleDateInPast"));
+      return;
+    }
+
+    setIsScheduling(true);
+    try {
+      const imageArray = prepareImageArray(markdown, selectedThumbnail ?? "");
+      const response = await fetch("/api/userbase/hive/scheduled-posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          parent_permlink: HIVE_CONFIG.COMMUNITY_TAG,
+          title,
+          body: markdown,
+          json_metadata: {
+            tags: hashtags,
+            app: "Skatehive App 3.0",
+            image: imageArray,
+          },
+          beneficiaries,
+          scheduled_at: new Date(scheduledAt).toISOString(),
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 403) {
+        setScheduleNeedsAuthority(true);
+        return;
+      }
+      if (response.status === 400 && (data as any)?.code === "HIVE_IDENTITY_NOT_LINKED") {
+        setScheduleError(t("compose.scheduleNoHiveIdentity"));
+        return;
+      }
+      if (!response.ok) {
+        setScheduleError(t("compose.scheduleError"));
+        return;
+      }
+
+      const formattedDate = new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(scheduledAt));
+
+      toast({
+        title: t("compose.scheduleSuccess"),
+        description: formattedDate,
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+      });
+
+      setMarkdown("");
+      setTitle("");
+      setHashtags([]);
+      setHashtagInput("");
+      setBeneficiaries([]);
+      setSelectedThumbnail(null);
+      setUploadedThumbnail(null);
+      setSchedulingEnabled(false);
+      setScheduledAt("");
+
+      setTimeout(() => router.push("/"), 1500);
+    } finally {
+      setIsScheduling(false);
+    }
+  };
 
   React.useEffect(() => {}, [
     beneficiaries,
@@ -253,12 +336,10 @@ export default function Composer() {
     fileName?: string,
     originalFile?: File
   ) => {
-    console.log("🔍 handleImageUploadWithCaption called:", { url, fileName, hasOriginalFile: !!originalFile });
     setIsImageUploading(true);
     setUploadError(null);
     if (url) {
       try {
-        console.log("📤 Fetching blob and uploading to IPFS...");
         const blob = await fetch(url).then((res) => {
           if (!res.ok) throw new Error(`Failed to fetch blob: ${res.status}`);
           return res.blob();
@@ -268,19 +349,14 @@ export default function Composer() {
           blob,
           fileName || "compressed-image.jpg"
         );
-        console.log("✅ IPFS upload successful:", ipfsUrl);
-
-        console.log("📝 Inserting at cursor...");
         insertAtCursorWrapper(`\n![](${ipfsUrl})\n`);
-        console.log("✅ Insert complete!");
       } catch (error) {
-        console.error("❌ Error uploading image:", error);
+        console.error("Error uploading image:", error);
         setUploadError(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setIsImageUploading(false);
       }
     } else {
-      console.warn("⚠️ No URL provided to handleImageUploadWithCaption");
       setUploadError("Image upload failed. No URL received from compressor.");
       setIsImageUploading(false);
     }
@@ -452,7 +528,6 @@ export default function Composer() {
               setVideoError(error);
             }}
             onUpload={(result: { url?: string; hash?: string } | null) => {
-              console.log("Video upload result:", result);
               if (result?.url) {
                 // Insert iframe into markdown body using utility function
                 insertAtCursorWrapper(generateVideoIframeMarkdown(result.url));
@@ -721,43 +796,139 @@ export default function Composer() {
           </Button>
           </Flex>
         </VStack>
-        <Tooltip
-          label={
-            !selectedThumbnail
-              ? t('compose.selectThumbnailFirst')
-              : !title.trim()
-              ? t('compose.addTitleFirst')
-              : ""
-          }
-          isDisabled={!!selectedThumbnail && !!title.trim() && !isSubmitting}
-          hasArrow
-          bg="error"
-          color="white"
-          placement="top"
-        >
-          <Button
-            size="md"
-            bg="primary"
-            color="background"
-            fontWeight="bold"
-            onClick={() => {
-              if (!selectedThumbnail) {
-                setShowThumbnailWarning(true);
-                return;
-              }
-              handleSubmit();
-            }}
-            isLoading={isSubmitting}
-            loadingText={t('compose.publishing')}
-            isDisabled={isSubmitting || !title.trim() || !selectedThumbnail}
-            px={10}
-            h="44px"
-            width={{ base: "100%", md: "auto" }}
-            _hover={{ bg: "accent" }}
+        <VStack align={{ base: "stretch", md: "end" }} spacing={3}>
+          <HStack justify={{ base: "flex-start", md: "flex-end" }} spacing={3}>
+            <Switch
+              id="schedule-toggle"
+              isChecked={schedulingEnabled}
+              size="sm"
+              onChange={(e) => {
+                setSchedulingEnabled(e.target.checked);
+                if (!e.target.checked) {
+                  setScheduledAt("");
+                  setScheduleError(null);
+                  setScheduleNeedsAuthority(false);
+                }
+              }}
+            />
+            <Text
+              as="label"
+              htmlFor="schedule-toggle"
+              fontSize="sm"
+              color="dim"
+              cursor="pointer"
+              userSelect="none"
+            >
+              {t("compose.scheduleForLater")}
+            </Text>
+          </HStack>
+
+          {schedulingEnabled && (
+            <VStack align={{ base: "stretch", md: "end" }} spacing={2}>
+              <Input
+                type="datetime-local"
+                value={scheduledAt}
+                onChange={(e) => {
+                  setScheduledAt(e.target.value);
+                  setScheduleError(null);
+                  setScheduleNeedsAuthority(false);
+                }}
+                min={(() => {
+                  const d = new Date(Date.now() + 60_000);
+                  const off = d.getTimezoneOffset() * 60_000;
+                  return new Date(d.getTime() - off).toISOString().slice(0, 16);
+                })()}
+                size="sm"
+                border="1px solid"
+                borderColor={scheduleError ? "error" : "inputBorder"}
+                color="inputText"
+                bg="inputBg"
+                borderRadius="none"
+                _hover={{ borderColor: "primary" }}
+                _focus={{
+                  borderColor: "primary",
+                  boxShadow: "0 0 0 1px var(--chakra-colors-primary)",
+                }}
+                maxWidth={{ base: "100%", md: "240px" }}
+                aria-label={t("compose.scheduleDateTimeLabel")}
+              />
+              {scheduleError && (
+                <Text fontSize="xs" color="error">
+                  {scheduleError}
+                </Text>
+              )}
+              {scheduleNeedsAuthority && (
+                <Text fontSize="xs" color="warning" maxWidth={{ base: "100%", md: "240px" }}>
+                  {t("compose.scheduleAuthorityNeeded")}{" "}
+                  <Link href="/settings/hive" color="primary" textDecoration="underline">
+                    {t("compose.scheduleAuthoritySettingsLink")}
+                  </Link>
+                </Text>
+              )}
+            </VStack>
+          )}
+
+          <Tooltip
+            label={
+              schedulingEnabled && !scheduledAt
+                ? t("compose.selectDateTime")
+                : !selectedThumbnail
+                ? t("compose.selectThumbnailFirst")
+                : !title.trim()
+                ? t("compose.addTitleFirst")
+                : ""
+            }
+            isDisabled={
+              !!selectedThumbnail &&
+              !!title.trim() &&
+              !isSubmitting &&
+              !isScheduling &&
+              (!schedulingEnabled || !!scheduledAt)
+            }
+            hasArrow
+            bg="error"
+            color="white"
+            placement="top"
           >
-            {t('compose.publish')}
-          </Button>
-        </Tooltip>
+            <Button
+              size="md"
+              bg="primary"
+              color="background"
+              fontWeight="bold"
+              borderRadius="none"
+              onClick={() => {
+                if (!selectedThumbnail) {
+                  setShowThumbnailWarning(true);
+                  return;
+                }
+                if (schedulingEnabled) {
+                  handleScheduleSubmit();
+                } else {
+                  handleSubmit();
+                }
+              }}
+              isLoading={isSubmitting || isScheduling}
+              loadingText={
+                schedulingEnabled
+                  ? t("compose.scheduling")
+                  : t("compose.publishing")
+              }
+              isDisabled={
+                isSubmitting ||
+                isScheduling ||
+                !title.trim() ||
+                !selectedThumbnail ||
+                (schedulingEnabled && !scheduledAt)
+              }
+              px={10}
+              h="44px"
+              width={{ base: "100%", md: "auto" }}
+              _hover={{ bg: "accent" }}
+            >
+              {schedulingEnabled ? t("compose.schedulePost") : t("compose.publish")}
+            </Button>
+          </Tooltip>
+        </VStack>
       </Flex>
       <SkateDialogComponent />
     </Flex>
