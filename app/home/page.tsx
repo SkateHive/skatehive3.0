@@ -4,23 +4,31 @@ import type { HomepageConfigDoc } from "@/types/homepage-config";
 
 // The curated media-magazine homepage. Renders entirely from the portal-managed
 // HomepageConfig (draft→preview→publish). SSR-fetches the config for first
-// paint: published (revalidated) or, with ?preview=<token>, the draft (no
-// store). Nothing published + no preview → fall back to the classic feed.
+// paint: published or, with ?preview=<token>, the draft. Only when the portal
+// CONFIRMS nothing is published (and we're not previewing) do we fall back to
+// the classic feed — a transient fetch error renders the client, which retries.
 export const dynamic = "force-dynamic";
 
 const HOMEPAGE_API = process.env.NEXT_PUBLIC_MAGAZINE_API || "https://skatehive.reelflip.com";
 
-async function fetchConfig(previewToken?: string): Promise<HomepageConfigDoc | null> {
+type FetchResult =
+  | { status: "ok"; config: HomepageConfigDoc }
+  | { status: "empty" } // portal answered: nothing published
+  | { status: "error" }; // couldn't reach / parse the portal
+
+async function fetchConfig(previewToken?: string): Promise<FetchResult> {
   try {
     const url = previewToken
       ? `${HOMEPAGE_API}/api/homepage/draft?token=${encodeURIComponent(previewToken)}`
       : `${HOMEPAGE_API}/api/homepage/current?project=skatehive`;
-    const res = await fetch(url, previewToken ? { cache: "no-store" } : { next: { revalidate: 120 } });
-    if (!res.ok) return null;
+    // no-store: publishing in the portal must reflect on /home immediately, not
+    // after a CDN window (the client hook refetches anyway).
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return { status: "error" };
     const data = (await res.json()) as { config?: HomepageConfigDoc | null };
-    return data?.config ?? null;
+    return data?.config ? { status: "ok", config: data.config } : { status: "empty" };
   } catch {
-    return null;
+    return { status: "error" };
   }
 }
 
@@ -30,10 +38,13 @@ export default async function HomePage({
   searchParams: Promise<{ preview?: string }>;
 }) {
   const { preview } = await searchParams;
-  const config = await fetchConfig(preview);
+  const result = await fetchConfig(preview);
 
-  // No published config and not previewing → send public users to the feed.
-  if (!config && !preview) redirect("/");
+  // Only bounce to the feed when the portal CONFIRMS nothing is published and
+  // we're not previewing. On a fetch error, render the client and let it retry
+  // (a portal hiccup shouldn't eject visitors).
+  if (result.status === "empty" && !preview) redirect("/");
 
-  return <HomeMagazineClient initialConfig={config} previewToken={preview ?? null} />;
+  const initialConfig = result.status === "ok" ? result.config : null;
+  return <HomeMagazineClient initialConfig={initialConfig} previewToken={preview ?? null} />;
 }
