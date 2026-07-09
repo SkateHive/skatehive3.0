@@ -1419,7 +1419,7 @@ const SnapComposer = React.memo(function SnapComposer({
           ? await createTrimmedVideo(raw, result.trim.start, result.trim.end)
           : raw;
         const uploadFile =
-          blob instanceof File ? blob : new File([blob], "clip.webm", { type: "video/webm" });
+          blob instanceof File ? blob : new File([blob], "clip.mp4", { type: "video/mp4" });
 
         let cover = videoThumbnailUrl;
         if (result.coverBlob) {

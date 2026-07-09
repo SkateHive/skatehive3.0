@@ -1,5 +1,5 @@
-import React from "react";
-import { Box, VStack, Text, Flex } from "@chakra-ui/react";
+import React, { useRef, useState } from "react";
+import { Box, Text, Flex } from "@chakra-ui/react";
 import { formatTime } from "@/lib/utils/timeUtils";
 
 interface VideoTimelineProps {
@@ -7,11 +7,7 @@ interface VideoTimelineProps {
   currentTime: number;
   startTime: number;
   endTime: number;
-  isValidSelection: boolean;
-  maxDuration: number;
-  canBypass?: boolean;
   onSeek: (time: number) => void;
-  onSeekDuringDrag?: (time: number) => void;
   onStartTimeChange: (time: number) => void;
   onEndTimeChange: (time: number) => void;
   onDragStart: () => void;
@@ -23,17 +19,21 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   currentTime,
   startTime,
   endTime,
-  isValidSelection,
-  maxDuration,
-  canBypass = false,
   onSeek,
-  onSeekDuringDrag,
   onStartTimeChange,
   onEndTimeChange,
   onDragStart,
   onDragEnd,
 }) => {
-  const selectedDuration = endTime - startTime;
+  const trackRef = useRef<HTMLDivElement>(null);
+  // Live position of the handle being dragged. Visual-only: committed to the
+  // parent via onStart/EndTimeChange on mouseup, so parent re-renders don't
+  // run on every mousemove and the drag stays smooth.
+  const [dragPreview, setDragPreview] = useState<{ isStart: boolean; time: number } | null>(null);
+
+  const visStart = dragPreview?.isStart ? dragPreview.time : startTime;
+  const visEnd = dragPreview && !dragPreview.isStart ? dragPreview.time : endTime;
+  const selectedDuration = visEnd - visStart;
 
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -53,14 +53,13 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
       e.stopPropagation();
       onDragStart();
 
-      // Get the timeline track element
-      const timelineElement = e.currentTarget.parentElement;
-      if (!timelineElement) {
-        console.error("Timeline element not found");
-        return;
-      }
+      const track = trackRef.current;
+      if (!track) return;
 
-      // Helper function to get X coordinate from mouse or touch event
+      // Latest drag position; applied visually via rAF, committed on release.
+      let latestTime = isStartHandle ? startTime : endTime;
+      let rafId: number | null = null;
+
       const getEventX = (event: MouseEvent | TouchEvent): number => {
         if ("touches" in event) {
           return (
@@ -70,13 +69,18 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
         return event.clientX;
       };
 
+      const applyPreview = () => {
+        rafId = null;
+        setDragPreview({ isStart: isStartHandle, time: latestTime });
+      };
+
       const handleMove = (moveEvent: MouseEvent | TouchEvent) => {
         // Prevent default behavior for touch events to avoid scrolling
         if ("touches" in moveEvent) {
           moveEvent.preventDefault();
         }
 
-        const rect = timelineElement.getBoundingClientRect();
+        const rect = track.getBoundingClientRect();
         const newX = getEventX(moveEvent) - rect.left;
         let newTime = (newX / rect.width) * duration;
 
@@ -87,12 +91,9 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
           newTime = Math.min(duration, Math.max(newTime, startTime + 0.5));
         }
 
-        onChange(newTime);
-
-        // Seek video to the new position during dragging
-        if (onSeekDuringDrag) {
-          onSeekDuringDrag(newTime);
-        }
+        latestTime = newTime;
+        // Throttle visual updates to one per frame
+        if (rafId === null) rafId = requestAnimationFrame(applyPreview);
       };
 
       const handleEnd = () => {
@@ -100,6 +101,9 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
         document.removeEventListener("mouseup", handleEnd);
         document.removeEventListener("touchmove", handleMove);
         document.removeEventListener("touchend", handleEnd);
+        if (rafId !== null) cancelAnimationFrame(rafId);
+        setDragPreview(null);
+        onChange(latestTime); // single committed update
         onDragEnd();
       };
 
@@ -112,22 +116,22 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   };
 
   return (
-    <VStack spacing={{ base: 3, md: 4 }}>
-      {/* Timeline Trimmer with Play Button */}
+    <Box width="100%" display="flex" flexDirection="column" alignItems="center">
+      {/* Timeline Trimmer */}
       <Box width="100%" px={2}>
-        <Text fontSize="xs" mb={3} textAlign="center" color="gray.400">
-          Drag the yellow handles to trim your video
+        <Text fontSize="xs" mb={3} textAlign="center" color="dim">
+          Drag the handles to trim your video
         </Text>
         {/* Timeline Track */}
         <Box
+          ref={trackRef}
           width="100%"
           height="50px"
-          bg="gray.700"
-          borderRadius="8px"
+          bg="background"
           position="relative"
           cursor="pointer"
           border="1px solid"
-          borderColor="gray.600"
+          borderColor="border"
           onClick={handleTimelineClick}
         >
           {/* Current Time Indicator */}
@@ -137,46 +141,40 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
             top="0"
             bottom="0"
             width="3px"
-            bg="blue.400"
+            bg="accent"
             zIndex={4}
             transition="left 0.1s ease"
-            borderRadius="1px"
           />
 
           {/* Selected Region */}
           <Box
             position="absolute"
-            left={`${(startTime / duration) * 100}%`}
-            width={`${((endTime - startTime) / duration) * 100}%`}
+            left={`${(visStart / duration) * 100}%`}
+            width={`${((visEnd - visStart) / duration) * 100}%`}
             height="100%"
             bg="primary"
             opacity={0.8}
-            borderRadius="6px"
-            border="2px solid"
-            borderColor="yellow"
             zIndex={1}
           />
 
           {/* Start Handle */}
           <Box
             position="absolute"
-            left={`${(startTime / duration) * 100}%`}
+            left={`${(visStart / duration) * 100}%`}
             top="50%"
             transform="translate(-50%, -50%)"
             width="24px"
             height="40px"
-            bg="yellow.400"
-            borderRadius="6px"
-            border="3px solid white"
+            bg="black"
+            border="3px solid"
+            borderColor="primary"
             cursor="ew-resize"
             zIndex={5}
             boxShadow="0 3px 6px rgba(0,0,0,0.4)"
-            _hover={{
-              bg: "yellow.300",
-              transform: "translate(-50%, -50%) scale(1.1)",
-            }}
-            _active={{ bg: "yellow.500" }}
-            transition="all 0.1s ease"
+            _hover={{ transform: "translate(-50%, -50%) scale(1.1)" }}
+            _active={{ opacity: 0.85 }}
+            // Only animate hover scale/opacity — transitioning `left` would lag the drag
+            transition="transform 0.1s ease, opacity 0.1s ease"
             onMouseDown={createDragHandler(true, onStartTimeChange)}
             onTouchStart={createDragHandler(true, onStartTimeChange)}
             // Touch-friendly styles
@@ -189,34 +187,32 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
           >
             {/* Handle Visual Indicator */}
             <Flex align="center" justify="center" height="100%">
-              <VStack spacing="2px">
-                <Box width="2px" height="6px" bg="white" borderRadius="1px" />
-                <Box width="2px" height="6px" bg="white" borderRadius="1px" />
-                <Box width="2px" height="6px" bg="white" borderRadius="1px" />
-              </VStack>
+              <Flex direction="column" gap="2px">
+                <Box width="2px" height="6px" bg="primary" />
+                <Box width="2px" height="6px" bg="primary" />
+                <Box width="2px" height="6px" bg="primary" />
+              </Flex>
             </Flex>
           </Box>
 
           {/* End Handle */}
           <Box
             position="absolute"
-            left={`${(endTime / duration) * 100}%`}
+            left={`${(visEnd / duration) * 100}%`}
             top="50%"
             transform="translate(-50%, -50%)"
             width="24px"
             height="40px"
-            bg="yellow.400"
-            borderRadius="6px"
-            border="3px solid white"
+            bg="black"
+            border="3px solid"
+            borderColor="primary"
             cursor="ew-resize"
             zIndex={5}
             boxShadow="0 3px 6px rgba(0,0,0,0.4)"
-            _hover={{
-              bg: "yellow.300",
-              transform: "translate(-50%, -50%) scale(1.1)",
-            }}
-            _active={{ bg: "yellow.500" }}
-            transition="all 0.1s ease"
+            _hover={{ transform: "translate(-50%, -50%) scale(1.1)" }}
+            _active={{ opacity: 0.85 }}
+            // Only animate hover scale/opacity — transitioning `left` would lag the drag
+            transition="transform 0.1s ease, opacity 0.1s ease"
             onMouseDown={createDragHandler(false, onEndTimeChange)}
             onTouchStart={createDragHandler(false, onEndTimeChange)}
             // Touch-friendly styles
@@ -229,28 +225,22 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
           >
             {/* Handle Visual Indicator */}
             <Flex align="center" justify="center" height="100%">
-              <VStack spacing="2px">
-                <Box width="2px" height="6px" bg="white" borderRadius="1px" />
-                <Box width="2px" height="6px" bg="white" borderRadius="1px" />
-                <Box width="2px" height="6px" bg="white" borderRadius="1px" />
-              </VStack>
+              <Flex direction="column" gap="2px">
+                <Box width="2px" height="6px" bg="primary" />
+                <Box width="2px" height="6px" bg="primary" />
+                <Box width="2px" height="6px" bg="primary" />
+              </Flex>
             </Flex>
           </Box>
         </Box>
         {/* Time Labels */}
-        <Flex
-          justify="space-between"
-          width="100%"
-          fontSize="xs"
-          color="gray.400"
-          mt={2}
-        >
-          <Text>{formatTime(startTime)}</Text>
-          <Text color="blue.400">{formatTime(selectedDuration)}</Text>
-          <Text>{formatTime(duration)}</Text>
-        </Flex>{" "}
+        <Flex justify="space-between" width="100%" fontSize="xs" mt={2}>
+          <Text color="text">{formatTime(visStart)}</Text>
+          <Text color="primary">{formatTime(selectedDuration)}</Text>
+          <Text color="text">{formatTime(duration)}</Text>
+        </Flex>
       </Box>
-    </VStack>
+    </Box>
   );
 };
 

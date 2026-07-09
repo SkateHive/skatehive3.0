@@ -1,135 +1,64 @@
 /**
- * Client-side video trimming via canvas + MediaRecorder.
+ * Client-side video trimming via FFmpeg.wasm (single-threaded 0.12 build,
+ * no SharedArrayBuffer / COOP-COEP headers needed).
  *
- * Re-encodes the selected [start, end] range of a video File into a WebM Blob,
- * preserving aspect ratio and capping at 1920x1080. Used by the media-prepare
- * flow before the trimmed clip is uploaded to the transcoder.
- *
- * Extracted from VideoTrimModal so the same logic can run at publish time
- * (trim is applied when the user confirms, not at file-selection time).
+ * Trims the selected [start, end] range with stream copy (`-c copy`) — no
+ * re-encode, so it's fast and lossless. Returns an MP4 Blob used by the
+ * media-prepare flow before the trimmed clip is uploaded to the transcoder.
  */
+import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { fetchFile, toBlobURL } from "@ffmpeg/util";
+
+const CORE_BASE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
+
+let ffmpegPromise: Promise<FFmpeg> | null = null;
+
+/**
+ * Lazily load the FFmpeg WASM engine (singleton — loaded once, reused across
+ * calls). Call this early so the UI can show a "loading trim engine" state
+ * before the first trim; createTrimmedVideo awaits it internally either way.
+ */
+export function loadFFmpeg(): Promise<FFmpeg> {
+  if (!ffmpegPromise) {
+    ffmpegPromise = (async () => {
+      const ffmpeg = new FFmpeg();
+      // Serve core through blob URLs so the worker loads cross-origin-safely.
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.js`, "text/javascript"),
+        wasmURL: await toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.wasm`, "application/wasm"),
+      });
+      return ffmpeg;
+    })();
+    // A failed load (offline, CDN blocked) shouldn't poison the singleton.
+    ffmpegPromise.catch(() => {
+      ffmpegPromise = null;
+    });
+  }
+  return ffmpegPromise;
+}
+
 export async function createTrimmedVideo(
   file: File,
   start: number,
   end: number
 ): Promise<Blob> {
-  console.log(`🎬 Creating trimmed video: ${start}s to ${end}s`);
+  if (end - start <= 0) throw new Error("Invalid trim range");
 
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    const videoUrl = URL.createObjectURL(file);
-    video.src = videoUrl;
-    video.muted = true;
-    video.playsInline = true;
-
-    video.onloadedmetadata = () => {
-      const duration = end - start;
-
-      if (duration <= 0 || start >= video.duration) {
-        URL.revokeObjectURL(videoUrl);
-        reject(new Error("Invalid trim range"));
-        return;
-      }
-
-      // Create canvas for recording with optimized settings
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d", {
-        alpha: false,
-        desynchronized: true,
-      });
-
-      if (!ctx) {
-        URL.revokeObjectURL(videoUrl);
-        reject(new Error("Failed to get canvas context"));
-        return;
-      }
-
-      // Preserve original aspect ratio while limiting max resolution
-      const originalWidth = video.videoWidth;
-      const originalHeight = video.videoHeight;
-      const aspectRatio = originalWidth / originalHeight;
-
-      let canvasWidth = originalWidth;
-      let canvasHeight = originalHeight;
-
-      const maxWidth = 1920;
-      const maxHeight = 1080;
-
-      if (canvasWidth > maxWidth) {
-        canvasWidth = maxWidth;
-        canvasHeight = Math.round(maxWidth / aspectRatio);
-      }
-
-      if (canvasHeight > maxHeight) {
-        canvasHeight = maxHeight;
-        canvasWidth = Math.round(maxHeight * aspectRatio);
-      }
-
-      canvas.width = canvasWidth;
-      canvas.height = canvasHeight;
-
-      const stream = canvas.captureStream(30);
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "video/webm;codecs=vp9",
-        videoBitsPerSecond: 2500000, // 2.5 Mbps — quality/size balance
-      });
-
-      const chunks: Blob[] = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunks.push(event.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "video/webm" });
-        URL.revokeObjectURL(videoUrl);
-        resolve(blob);
-      };
-
-      mediaRecorder.onerror = (event) => {
-        console.error("MediaRecorder error:", event);
-        URL.revokeObjectURL(videoUrl);
-        reject(new Error("Recording failed"));
-      };
-
-      video.currentTime = start;
-
-      video.onseeked = () => {
-        mediaRecorder.start(100); // 100ms chunks
-
-        video.play().catch((error) => {
-          console.error("Video play error:", error);
-          URL.revokeObjectURL(videoUrl);
-          reject(new Error("Video playback failed"));
-        });
-
-        setTimeout(() => {
-          video.pause();
-          mediaRecorder.stop();
-        }, duration * 1000);
-      };
-
-      let animationId: number;
-      const drawFrame = () => {
-        if (!video.paused && !video.ended && video.currentTime < end) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          animationId = requestAnimationFrame(drawFrame);
-        }
-      };
-
-      video.onplay = () => drawFrame();
-      video.onpause = () => {
-        if (animationId) cancelAnimationFrame(animationId);
-      };
-      video.onerror = () => {
-        URL.revokeObjectURL(videoUrl);
-        reject(new Error("Video playback error"));
-      };
-    };
-
-    video.onerror = () => {
-      URL.revokeObjectURL(videoUrl);
-      reject(new Error("Failed to load video"));
-    };
-  });
+  const ffmpeg = await loadFFmpeg();
+  await ffmpeg.writeFile("input.mp4", await fetchFile(file));
+  try {
+    const exitCode = await ffmpeg.exec([
+      "-i", "input.mp4",
+      "-ss", String(start),
+      "-to", String(end),
+      "-c", "copy",
+      "output.mp4",
+    ]);
+    if (exitCode !== 0) throw new Error(`FFmpeg exited with code ${exitCode}`);
+    const data = await ffmpeg.readFile("output.mp4");
+    return new Blob([data as BlobPart], { type: "video/mp4" });
+  } finally {
+    await ffmpeg.deleteFile("input.mp4").catch(() => {});
+    await ffmpeg.deleteFile("output.mp4").catch(() => {});
+  }
 }
