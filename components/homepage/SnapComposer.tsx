@@ -845,6 +845,26 @@ const SnapComposer = React.memo(function SnapComposer({
 
     const wantsSkatehive = postToHive;
     const wantsFarcaster = postToFarcaster;
+    // Farcaster-only main-feed snaps still create a masked @skateuser Hive
+    // soft-post (overlaid with the user's identity) so there's always a
+    // SkateHive post page for the cast / Mini App to open. Replies (non-main-
+    // feed) keep the cast-only behavior in the branch below.
+    //
+    // The @skateuser soft-post is created via the userbase route, which REQUIRES
+    // a userbase session. A Keychain/aioha-only user (no userbase session) would
+    // get a 401 there and be unable to publish — so only force it when a
+    // userbase session exists; otherwise fall back to the cast-only branch.
+    // Only force the masked @skateuser soft-post when the user can ACTUALLY
+    // publish to Farcaster (eligible + linked). Otherwise a non-eligible FC-only
+    // user would create an orphan masked Hive post they can't back with a cast —
+    // instead they fall through to the branch below that prompts them to link.
+    const forceSkateuser =
+      !wantsSkatehive &&
+      wantsFarcaster &&
+      isMainFeedSnap &&
+      !!userbaseUser &&
+      farcasterEligible &&
+      !!farcasterLinkage;
 
     if (!wantsSkatehive && !wantsFarcaster) {
       toast({
@@ -856,8 +876,10 @@ const SnapComposer = React.memo(function SnapComposer({
       return;
     }
 
-    // Farcaster-only: skip Hive entirely, publish a cast directly.
-    if (!wantsSkatehive && wantsFarcaster) {
+    // Farcaster-only WITHOUT a masked Hive post (replies / non-main-feed):
+    // publish a cast directly. Main-feed FC-only snaps fall through to the Hive
+    // flow below to create the @skateuser soft-post (forceSkateuser).
+    if (!wantsSkatehive && wantsFarcaster && !forceSkateuser) {
       if (!farcasterEligible || !farcasterLinkage) {
         toast({
           title: "Link your Farcaster account first.",
@@ -1059,7 +1081,7 @@ const SnapComposer = React.memo(function SnapComposer({
         const permlink = crypto.randomUUID();
         let commentResponse: any = null;
 
-        if (user) {
+        if (user && !forceSkateuser) {
           commentResponse = await aioha.comment(
             pa,
             postPermlink,
@@ -1069,6 +1091,8 @@ const SnapComposer = React.memo(function SnapComposer({
             metadata
           );
         } else {
+          // forceSkateuser (Farcaster-only) → always post via the shared
+          // @skateuser account, even if the user has their own Hive identity.
           const response = await fetch("/api/userbase/hive/comment", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1080,6 +1104,7 @@ const SnapComposer = React.memo(function SnapComposer({
               body: finalCommentBody,
               json_metadata: metadata,
               type: "snap",
+              force_soft_post: forceSkateuser,
             }),
           });
           const data = await response.json();
@@ -1197,13 +1222,24 @@ const SnapComposer = React.memo(function SnapComposer({
           // empty response — breaking the embed preview permanently.
           if (willFarcaster) {
             const progressId = "snap-share-progress";
+            // Custom render (no default Chakra chrome) so the toast paints its
+            // content on the first frame — a default status toast briefly shows
+            // an empty frame before its title/description lay out.
+            const shareCover = videoThumbnailUrl || compressedImages[0]?.url || null;
             toast({
               id: progressId,
-              title: "Sharing snap…",
-              description: "Confirming on Hive…",
-              status: "loading",
               duration: null,
               isClosable: false,
+              position: publishToastPosition,
+              render: () => (
+                <PublishProgressToast
+                  cover={shareCover}
+                  title={t('compose.progress.title')}
+                  stage={t('compose.progress.confirmingHive')}
+                  progress={92}
+                  tone="loading"
+                />
+              ),
             });
 
             const confirmed = await waitForHivePost(commentAuthor, permlink, {
@@ -1216,11 +1252,15 @@ const SnapComposer = React.memo(function SnapComposer({
             }
 
             toast.update(progressId, {
-              title: "Sharing snap…",
-              description: "Posting to Farcaster…",
-              status: "loading",
-              duration: null,
-              isClosable: false,
+              render: () => (
+                <PublishProgressToast
+                  cover={shareCover}
+                  title={t('compose.progress.title')}
+                  stage={t('compose.progress.postingFarcaster')}
+                  progress={96}
+                  tone="loading"
+                />
+              ),
             });
 
             // Farcaster (awaited so the progress toast closes when done)
@@ -1352,6 +1392,7 @@ const SnapComposer = React.memo(function SnapComposer({
     farcasterChannel,
     farcasterEligible,
     farcasterLinkage,
+    publishToastPosition,
   ]);
 
   // After the publish dialog hands back processed media + caption, the relevant
@@ -2213,7 +2254,15 @@ const SnapComposer = React.memo(function SnapComposer({
           maxVideoDuration={15}
           canBypassTrim={canBypassLimit}
           onPublish={(result) => {
-            if (postBodyRef.current) postBodyRef.current.value = result.caption;
+            // The Hive post body is the master caption. For Farcaster-only
+            // posts the user may only have typed in the Farcaster (or IG) step,
+            // so fall back to those to avoid an empty-body post.
+            const hiveBody =
+              result.caption ||
+              result.farcasterCaption ||
+              result.igCaption ||
+              "";
+            if (postBodyRef.current) postBodyRef.current.value = hiveBody;
             igPublishRef.current = {
               igCaption: result.igCaption,
               collaborators: result.collaborators,

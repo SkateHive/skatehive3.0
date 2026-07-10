@@ -1,5 +1,19 @@
 "use client";
 
+/**
+ * ⚠️ SUNSET / DEPRECATED — NOT IN USE (kept intentionally, do not delete yet).
+ *
+ * This recurring toast nudged users to upvote the latest `peak.snaps` snap
+ * container. We've stopped rendering it (see CommunityToasts.tsx) in favor of
+ * profile-setup CTA toasts that prompt the user with actions relevant to their
+ * own account (complete profile, add avatar, increase HP, etc.).
+ *
+ * Left in the tree on purpose as a reference implementation for the recurring
+ * toast pattern (usePeriodicTimer + ToastCard + lastShownTime throttle) and in
+ * case we want to bring it back. If it's still unused after the new CTA toast
+ * system ships and settles, it can be removed.
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@chakra-ui/react";
 import { FaHeart } from "react-icons/fa";

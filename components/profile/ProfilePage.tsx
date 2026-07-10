@@ -501,6 +501,39 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const tCommon = useTranslations("common");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUserbaseEditModalOpen, setIsUserbaseEditModalOpen] = useState(false);
+
+  // Auto-open the edit profile modal when arriving with ?edit=1 (used by the
+  // profile-setup CTA toasts), but only for the profile owner. Reads the query
+  // from window.location (client-only) to avoid a useSearchParams Suspense
+  // requirement on this ISR route.
+  const viewerHiveUsername = useViewerHiveIdentity();
+  const { user: currentUserbaseUser } = useUserbaseAuth();
+  const editParamHandledRef = useRef(false);
+  useEffect(() => {
+    if (editParamHandledRef.current) return;
+    if (typeof window === "undefined") return;
+    const wantsEdit =
+      new URLSearchParams(window.location.search).get("edit") === "1";
+    if (!wantsEdit) return;
+    const isHiveOwner =
+      !!viewerHiveUsername &&
+      !!hiveLookupHandle &&
+      viewerHiveUsername.toLowerCase() === hiveLookupHandle.toLowerCase();
+    // Match ProfilePage's display precedence (app/userbase profile wins): when
+    // the viewer owns the userbase profile shown here, open the userbase editor.
+    // Fall back to the Hive editor for pure-Hive owners.
+    const isUserbaseOwner =
+      !!currentUserbaseUser &&
+      !!userbaseUser &&
+      currentUserbaseUser.id === userbaseUser.id;
+    if (isUserbaseOwner) {
+      editParamHandledRef.current = true;
+      setIsUserbaseEditModalOpen(true);
+    } else if (isHiveOwner) {
+      editParamHandledRef.current = true;
+      setIsEditModalOpen(true);
+    }
+  }, [viewerHiveUsername, hiveLookupHandle, currentUserbaseUser, userbaseUser]);
   const [activeProfileView, setActiveProfileView] = useState<
     "hive" | "skate" | "zora" | "farcaster" | null
   >(null);
