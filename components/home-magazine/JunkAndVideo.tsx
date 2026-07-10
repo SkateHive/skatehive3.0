@@ -40,22 +40,18 @@ export function JunkAndVideo({ items, video }: { items: JunkItem[]; video: Featu
           flexDirection="column"
           gap="20px"
         >
-          {/* TV cabinet — the padded gradient shell that rebuilds the
-              casing the tv-overlay.png crops off on all four sides. */}
+          {/* Tube — aspect-locked box holding the screen hole (video +
+              CRT stack) and the PNG bezel on top. The tv-overlay.png
+              already contains the full cabinet, so we skip the outer
+              CSS gradient shell — a soft drop shadow gives it weight
+              without clipping the PNG's rounded corners. */}
           <Box
             width="100%"
-            p="15px"
-            borderRadius="22px"
-            background="linear-gradient(150deg, #2c2b25 0%, #17170f 60%, #0f0f0a 100%)"
-            boxShadow="inset 0 2px 3px rgba(255,255,255,0.07), inset 0 -4px 10px rgba(0,0,0,0.55), 0 10px 24px rgba(0,0,0,0.35)"
+            filter="drop-shadow(0 10px 24px rgba(0,0,0,0.35))"
           >
-            {/* Tube — the aspect-locked box that holds the screen hole
-                (video/thumbnail + CRT stack) and the PNG bezel on top. */}
             <Box
               position="relative"
               width="100%"
-              overflow="hidden"
-              borderRadius="10px"
               sx={{ aspectRatio: "622 / 350" }}
             >
               {/* Screen hole — coords come from measuring the transparent
