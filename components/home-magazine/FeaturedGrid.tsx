@@ -21,9 +21,16 @@ export function FeaturedGrid({ cards }: { cards: StripCard[] }) {
           return (
             <Flex key={c.id} gap="16px" cursor={href ? "pointer" : "default"} onClick={() => href && router.push(href)} align="flex-start">
               <Image src={c.image} alt="" w="120px" h="90px" objectFit="cover" flexShrink={0} filter="grayscale(10%)" />
-              <Text fontWeight={700} fontSize="16px" color={P.body} lineHeight="1.3" _hover={{ color: P.headline }}>
-                {c.title}
-              </Text>
+              <Box minW={0}>
+                {c.category && (
+                  <Text fontSize="11px" fontWeight={800} letterSpacing="1.5px" textTransform="uppercase" color={P.accent} mb="4px">
+                    {c.category}
+                  </Text>
+                )}
+                <Text fontWeight={700} fontSize="16px" color={P.body} lineHeight="1.3" _hover={{ color: P.headline }}>
+                  {c.title}
+                </Text>
+              </Box>
             </Flex>
           );
         })}
