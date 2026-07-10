@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { checkHiveAccountExists } from "@/lib/utils/hiveAccountUtils";
+import { newsletterPortalRequest } from "@/lib/newsletter/portal";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -113,8 +114,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const exists = Boolean(authRows?.[0]?.user_id);
+
+    // Newsletter status drives whether the login form shows the opt-in checkbox.
+    // Only queried for existing accounts (a new email is definitionally not a
+    // returning subscriber), and fail-open: null means "unknown", so the form
+    // errs toward showing the checkbox rather than hiding a real opt-in chance.
+    let subscribed: boolean | null = null;
+    if (exists && !handle) {
+      const portal = await newsletterPortalRequest(identifier);
+      subscribed = portal.ok ? portal.subscribed : null;
+    }
+
     return NextResponse.json({
-      exists: Boolean(authRows?.[0]?.user_id),
+      exists,
+      subscribed,
       handle_available: handleAvailable,
       handle_lookup_failed: handleLookupFailed || undefined,
     });
