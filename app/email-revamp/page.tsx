@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { buildMagicLinkEmail } from "@/lib/email/magicLinkTemplate";
+import { buildMissYouEmail } from "@/lib/email/missYouTemplate";
 import { buildWelcomeEmail } from "@/lib/email/welcomeTemplate";
 import { buildInviteKeysBackup } from "@/lib/invite/backup";
 import getMailTemplate_Invite from "@/lib/invite/template";
@@ -51,6 +52,11 @@ export default function EmailRevampPage() {
         language
       ),
     [createdby, desiredUsername, masterPassword, language]
+  );
+
+  const missYou = useMemo(
+    () => buildMissYouEmail({ handle: desiredUsername, displayName: null }),
+    [desiredUsername]
   );
 
   const inviteBackup = useMemo(
@@ -138,6 +144,13 @@ export default function EmailRevampPage() {
           subject={welcome.subject}
           html={welcome.html}
           text={welcome.text}
+          file={null}
+        />
+        <EmailPreview
+          title="4. We miss you (winback)"
+          subject={missYou.subject}
+          html={missYou.html}
+          text={missYou.text}
           file={null}
         />
         <EmailPreview
