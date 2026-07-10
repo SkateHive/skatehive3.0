@@ -53,23 +53,78 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
             <Box key={s.id} position="relative" h="100%" flex="0 0 auto" w={`${100 / n}%`}>
               <Image src={s.image} alt="" position="absolute" inset={0} w="100%" h="100%" objectFit="cover" filter="grayscale(15%) contrast(1.05)" />
               <Box position="absolute" inset={0} bg="linear-gradient(180deg, rgba(10,10,10,0.1) 0%, rgba(10,10,10,0.15) 45%, rgba(10,10,10,0.95) 100%)" />
-              <Box position="absolute" left={{ base: "20px", md: "44px" }} bottom={{ base: "24px", md: "44px" }} right={{ base: "20px", md: "44px" }} maxW="1100px">
-                {s.tag && (
-                  <Box display="inline-block" bg="rgba(10,10,10,0.55)" border={`1.5px solid ${P.accent}`} color={P.accent} fontWeight={800} fontSize="13px" letterSpacing="2px" px="14px" py="6px" mb="18px" textTransform="uppercase">
-                    {s.tag}
-                  </Box>
-                )}
-                <Text fontWeight={800} fontSize="clamp(28px,4.6vw,56px)" lineHeight="1.03" color={P.headline} letterSpacing="-1px" textTransform="uppercase">
+
+              {/* Tag — top-left, plain text with a green underline. Sits
+                  separately from the title block so the two anchor to
+                  opposite corners of the hero (editorial-magazine look). */}
+              {s.tag && (
+                <Box
+                  position="absolute"
+                  top={{ base: "22px", md: "44px" }}
+                  left={{ base: "20px", md: "44px" }}
+                  color={P.accent}
+                  fontWeight={700}
+                  fontSize={{ base: "11px", md: "13px" }}
+                  letterSpacing="3px"
+                  textTransform="uppercase"
+                  borderBottom={`2px solid ${P.accent}`}
+                  pb="8px"
+                  pr="4px"
+                  display="inline-block"
+                  zIndex={1}
+                >
+                  {s.tag}
+                </Box>
+              )}
+
+              {/* Title + play + author — bottom-left column. maxW keeps
+                  long titles from crashing into the right-side arrow. */}
+              <Box
+                position="absolute"
+                left={{ base: "20px", md: "44px" }}
+                bottom={{ base: "24px", md: "44px" }}
+                right={{ base: "20px", md: "44px" }}
+                maxW="1100px"
+              >
+                <Text
+                  fontWeight={900}
+                  fontSize="clamp(32px,5.4vw,72px)"
+                  lineHeight="0.98"
+                  color={P.headline}
+                  letterSpacing="-1.5px"
+                  textTransform="uppercase"
+                >
                   {s.title}
                 </Text>
-                {s.subtitle && <Text fontSize={{ base: "14px", md: "17px" }} color={P.bodyMuted} mt="16px" maxW="700px">{s.subtitle}</Text>}
+                {s.subtitle && (
+                  <Text fontSize={{ base: "14px", md: "17px" }} color={P.bodyMuted} mt="16px" maxW="700px">
+                    {s.subtitle}
+                  </Text>
+                )}
                 <Flex align="center" gap="18px" mt="22px">
                   {href && (
-                    <Flex as="button" onClick={() => play(href)} w="56px" h="56px" borderRadius="50%" bg={P.accent} align="center" justify="center" color={P.onAccent} fontSize="22px" _hover={{ bg: P.accentHover }} flexShrink={0}>
+                    <Flex
+                      as="button"
+                      onClick={() => play(href)}
+                      w="56px"
+                      h="56px"
+                      borderRadius="50%"
+                      bg={P.accent}
+                      align="center"
+                      justify="center"
+                      color={P.onAccent}
+                      fontSize="22px"
+                      _hover={{ bg: P.accentHover }}
+                      flexShrink={0}
+                    >
                       &#9654;
                     </Flex>
                   )}
-                  {s.meta && <Text fontSize="13px" color={P.ui} letterSpacing="1px">{s.meta}</Text>}
+                  {s.meta && (
+                    <Text fontSize="13px" color={P.ui} letterSpacing="1px">
+                      {s.meta}
+                    </Text>
+                  )}
                 </Flex>
               </Box>
             </Box>
