@@ -32,6 +32,7 @@ import { useTheme } from "@/app/themeProvider";
 import { useNotifications } from "@/contexts/NotificationContext";
 import SidebarLogo from "../graphics/SidebarLogo";
 import AuthButton from "./AuthButton";
+import { HomeIndexSidebar } from "../home-magazine/HomeIndexSidebar";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useSoundSettings } from "@/contexts/SoundSettingsContext";
 
@@ -267,6 +268,11 @@ export default function Sidebar() {
 
   if (!isClientMounted) {
     return null;
+  }
+
+  // On the curated media homepage, the sidebar IS the magazine index rail.
+  if (pathname === "/home") {
+    return <HomeIndexSidebar />;
   }
 
   return (

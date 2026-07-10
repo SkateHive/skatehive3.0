@@ -21,7 +21,7 @@ export type HeroSlide = {
   postRef?: PostRef;
 };
 
-export type StripCard = { id: string; postRef: PostRef; image: string; title: string };
+export type StripCard = { id: string; postRef: PostRef; image: string; title: string; category?: string };
 export type JunkItem = { id: string; postRef: PostRef; thumb: string; title: string; blurb: string };
 export type FeaturedVideo = { postRef: PostRef; cover: string; title: string; caption: string };
 

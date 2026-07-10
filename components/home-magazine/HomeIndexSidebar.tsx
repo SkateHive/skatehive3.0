@@ -4,13 +4,14 @@ import { useState } from "react";
 import { Box, Button, Flex, Image, Text } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { useCommunityRewards } from "@/hooks/useCommunityRewards";
+import { useHomepageConfig } from "@/hooks/useHomepageConfig";
 import { P, MONO } from "./palette";
 
-// The magazine's fixed 240px index rail (desktop). Logo + vertical section nav
-// (anchor-scrolls the content), a live "paid to skaters" figure, and a Community
-// CTA + socials pinned to the bottom. Sits INSIDE the app chrome, to the right
-// of the original Skatehive sidebar. Hidden on mobile (the app tab bar covers
-// navigation there).
+// The app's Sidebar renders THIS on /home (see components/layout/Sidebar.tsx) —
+// the magazine index rail becomes the sidebar itself (one rail, matching the
+// design), replacing the normal app nav on that route only. Logo + vertical
+// section nav (anchor-scrolls the content) + live "paid to skaters" + Community
+// CTA + socials. Full-height, dark terminal palette, hidden on mobile.
 const NAV = [
   { label: "Featured", id: "featured" },
   { label: "Videos", id: "videos" },
@@ -18,10 +19,12 @@ const NAV = [
   { label: "Leaderboard", id: "rewards" },
 ];
 
-export function SideIndex({ bountyCount }: { bountyCount: number }) {
+export function HomeIndexSidebar() {
   const router = useRouter();
   const [active, setActive] = useState("featured");
   const { totalUsd, loading } = useCommunityRewards();
+  const { config } = useHomepageConfig(); // published config → open-bounty count
+  const bountyCount = config?.bounties.length ?? 0;
 
   const go = (id: string) => {
     setActive(id);
@@ -30,21 +33,17 @@ export function SideIndex({ bountyCount }: { bountyCount: number }) {
 
   return (
     <Flex
-      as="aside"
+      as="nav"
       direction="column"
-      display={{ base: "none", lg: "flex" }}
-      position="sticky"
-      top={0}
-      alignSelf="flex-start"
-      h="100vh"
+      display={{ base: "none", md: "flex" }}
       w="240px"
       flexShrink={0}
+      h="100vh"
       bg={P.bg}
       borderRight={`2px solid ${P.card}`}
       fontFamily={MONO}
       py="20px"
     >
-      {/* Logo */}
       <Flex align="center" gap="12px" px="20px" pb="20px" cursor="pointer" onClick={() => go("featured")}>
         <Image src="/SKATE_HIVE_VECTOR_FIN.svg" alt="Skatehive" boxSize="44px" objectFit="contain" />
         <Text fontSize="11px" color={P.faint} letterSpacing="2px" textTransform="uppercase" lineHeight="1.3">
@@ -52,7 +51,6 @@ export function SideIndex({ bountyCount }: { bountyCount: number }) {
         </Text>
       </Flex>
 
-      {/* Vertical nav */}
       <Flex direction="column" mt="6px">
         {NAV.map((n) => {
           const on = active === n.id;
@@ -79,7 +77,6 @@ export function SideIndex({ bountyCount }: { bountyCount: number }) {
         })}
       </Flex>
 
-      {/* Paid-to-skaters box */}
       <Box mx="20px" mt="24px" p="16px" border={`1px solid ${P.card}`}>
         <Text fontSize="10px" color={P.ui} letterSpacing="1px" textTransform="uppercase" mb="6px">Paid to skaters</Text>
         <Text fontWeight={800} fontSize="24px" color={P.accent} lineHeight="1.1">
@@ -90,7 +87,6 @@ export function SideIndex({ bountyCount }: { bountyCount: number }) {
 
       <Box flex={1} />
 
-      {/* Community CTA + socials */}
       <Box px="20px">
         <Button
           onClick={() => router.push("/")}
