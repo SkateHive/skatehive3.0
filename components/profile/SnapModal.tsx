@@ -118,6 +118,16 @@ const SnapModal = ({
   );
   const currentMedia = allMedia[currentMediaIndex];
   const isVideo = currentSnap.media.videos.includes(currentMedia);
+  // Odysee `$/embed/…` URLs are HTML embed pages — they must be played in an
+  // <iframe>, not the IPFS/MP4 VideoRenderer (which would 404 the poster and
+  // fail to load the source).
+  const isOdyseeEmbed = (() => {
+    try {
+      return /(^|\.)odysee\.com$/i.test(new URL(currentMedia || "").hostname);
+    } catch {
+      return false;
+    }
+  })();
   const { src: mediaSrc, onError: onMediaError } = useHeicFallback(currentMedia || "");
 
   const nextMedia = useCallback(() => {
@@ -334,11 +344,23 @@ const SnapModal = ({
                   },
                 }}
               >
-                <VideoRenderer
-                  src={currentMedia}
-                  loop
-                  skipThumbnailLoad={true}
-                />
+                {isOdyseeEmbed ? (
+                  <Box
+                    as="iframe"
+                    src={currentMedia}
+                    width="100%"
+                    height="100%"
+                    border="none"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <VideoRenderer
+                    src={currentMedia}
+                    loop
+                    skipThumbnailLoad={true}
+                  />
+                )}
               </Box>
             ) : (
               <Image
