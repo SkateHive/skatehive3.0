@@ -25,6 +25,13 @@ export type StripCard = { id: string; postRef: PostRef; image: string; title: st
 export type JunkItem = { id: string; postRef: PostRef; thumb: string; title: string; blurb: string };
 export type FeaturedVideo = { postRef: PostRef; cover: string; title: string; caption: string };
 
+/**
+ * A curated spot the portal editor picks. NOT currently rendered by /home
+ * — the "Discover a spot" card there uses the geolocation-based
+ * `SpotNearYou` widget (see commit 12746faf). Field is kept on the doc
+ * to mirror the portal's schema without drift; safe to delete both here
+ * and in the portal if the composer picker is retired.
+ */
 export type SpotPick = {
   id: string;
   name: string;
