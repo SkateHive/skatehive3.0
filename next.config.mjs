@@ -117,7 +117,7 @@ const nextConfig = {
     // out of the bundler entirely so they're required at runtime from
     // node_modules. Also silences the libheif-js "Critical dependency"
     // warning that adds compile time on every build.
-    serverExternalPackages: ['libheif-js', 'heic-convert', 'heic-decode', 'sharp'],
+    serverExternalPackages: ['libheif-js', 'heic-convert', 'heic-decode', 'sharp', 'jsdom', 'isomorphic-dompurify'],
 
     // ESM-only packages that webpack chokes on inside dynamically-imported chunks
     // (e.g. @aioha/providers exposes "./react" with only an "import" condition,
