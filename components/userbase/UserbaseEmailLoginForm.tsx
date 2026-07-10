@@ -66,6 +66,9 @@ export default function UserbaseEmailLoginForm({
   const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [newsletterOptIn, setNewsletterOptIn] = useState(true);
+  // null = unknown (not looked up yet, or portal unreachable). Only meaningful
+  // for existing accounts; new accounts are definitionally not subscribers.
+  const [subscribed, setSubscribed] = useState<boolean | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Cleanup: abort any in-flight request on unmount
@@ -97,6 +100,12 @@ export default function UserbaseEmailLoginForm({
   const trimmedHandle = handle.trim();
   const isEmailValid = /.+@.+\..+/.test(trimmedEmail);
   const shouldShowHandle = lookupStatus === "new";
+  // Only offer the newsletter once we know the account: new accounts, or
+  // existing ones that aren't already subscribed. Already-subscribed returners
+  // never see it, so a routine login can't become an accidental unsubscribe.
+  const showNewsletter =
+    lookupStatus === "new" ||
+    (lookupStatus === "found" && subscribed !== true);
 
   // Email lookup effect - only triggers on email change
   useEffect(() => {
@@ -104,6 +113,7 @@ export default function UserbaseEmailLoginForm({
       setLookupStatus("idle");
       setLookupError("");
       setHandleAvailable(null);
+      setSubscribed(null);
       return;
     }
 
@@ -129,6 +139,13 @@ export default function UserbaseEmailLoginForm({
 
         const exists = Boolean(data?.exists);
         setLookupStatus(exists ? "found" : "new");
+        // New accounts: fresh opt-in, default the box on. Existing accounts:
+        // default off so hitting authenticate never silently re-subscribes
+        // someone who previously opted out.
+        setSubscribed(
+          typeof data?.subscribed === "boolean" ? data.subscribed : null
+        );
+        setNewsletterOptIn(!exists);
         // Don't set handle availability here - separate effect handles it
       } catch (lookupError: any) {
         if (controller.signal.aborted) return;
@@ -258,7 +275,8 @@ export default function UserbaseEmailLoginForm({
 
       // Fire-and-forget newsletter opt-in — never blocks or fails the login.
       // keepalive lets the POST survive an immediate navigation/teardown.
-      if (newsletterOptIn && NEWSLETTER_SUBSCRIBE_URL) {
+      // Gated on showNewsletter so a hidden (already-subscribed) box can't fire.
+      if (newsletterOptIn && showNewsletter && NEWSLETTER_SUBSCRIBE_URL) {
         fetch(NEWSLETTER_SUBSCRIBE_URL, {
           method: "POST",
           keepalive: true,
@@ -462,17 +480,20 @@ export default function UserbaseEmailLoginForm({
         </FormControl>
       )}
 
-      {/* Newsletter opt-in */}
-      <Checkbox
-        isChecked={newsletterOptIn}
-        onChange={(event) => setNewsletterOptIn(event.target.checked)}
-        size="sm"
-        colorScheme="green"
-      >
-        <Text fontFamily="mono" fontSize="2xs" color="gray.400">
-          {t("newsletterOptIn")}
-        </Text>
-      </Checkbox>
+      {/* Newsletter opt-in — only shown once the account is known and the user
+          isn't already subscribed (see showNewsletter). */}
+      {showNewsletter && (
+        <Checkbox
+          isChecked={newsletterOptIn}
+          onChange={(event) => setNewsletterOptIn(event.target.checked)}
+          size="sm"
+          colorScheme="green"
+        >
+          <Text fontFamily="mono" fontSize="2xs" color="gray.400">
+            {t("newsletterOptIn")}
+          </Text>
+        </Checkbox>
+      )}
 
       {/* Primary action button - EMPHASIZED */}
       <Button

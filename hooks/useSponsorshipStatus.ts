@@ -45,7 +45,9 @@ export function useSponsorshipStatus(userId: string | null): SponsorshipStatus {
           const data = await sponsorResponse.json();
           setStatus({
             isSponsored: data.sponsored || false,
-            isLite: !data.sponsored,
+            // Lite ONLY when the user has no Hive identity at all — a linked or
+            // merge-inherited Hive account (sponsored or not) hides the CTA.
+            isLite: !data.has_hive_identity,
             sponsorUsername: data.sponsor_username,
             hiveUsername: data.hive_username,
             loading: false,

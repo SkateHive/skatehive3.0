@@ -5,6 +5,7 @@ import nodemailer from 'nodemailer';
 import { APP_CONFIG, EMAIL_DEFAULTS } from '@/config/app.config';
 import { checkHiveAccountExists, validateHiveUsernameFormat } from '@/lib/utils/hiveAccountUtils';
 import { buildMagicLinkEmail } from '@/lib/email/magicLinkTemplate';
+import { buildWelcomeEmail } from '@/lib/email/welcomeTemplate';
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -310,6 +311,8 @@ export async function POST(request: NextRequest) {
 
     let userId = existingAuth?.[0]?.user_id ?? null;
     let createdUserId: string | null = null;
+    // Populated only when a brand-new account is created — drives the welcome email.
+    let welcomeRecipient: { handle: string; displayName: string } | null = null;
 
     if (!userId) {
       const baseHandle = handle
@@ -334,6 +337,7 @@ export async function POST(request: NextRequest) {
 
       userId = createdUser.id;
       createdUserId = createdUser.id;
+      welcomeRecipient = { handle: createdUser.handle, displayName };
 
       const { error: authError } = await supabase
         .from('userbase_auth_methods')
@@ -454,6 +458,23 @@ export async function POST(request: NextRequest) {
       text,
       html,
     });
+
+    // Welcome email — only for brand-new accounts. Best-effort: a failure here
+    // must never break the login flow (the magic link already went out).
+    if (welcomeRecipient) {
+      try {
+        const welcome = buildWelcomeEmail(welcomeRecipient);
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER || EMAIL_DEFAULTS.FROM_ADDRESS,
+          to: identifier,
+          subject: welcome.subject,
+          text: welcome.text,
+          html: welcome.html,
+        });
+      } catch (welcomeError) {
+        console.error('Failed to send welcome email:', welcomeError);
+      }
+    }
 
     return NextResponse.json({
       success: true,

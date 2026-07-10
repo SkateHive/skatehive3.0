@@ -512,8 +512,22 @@ export async function convertVestToHive(amount: number) {
 }
 
 export async function getProfile(username: string) {
-  const profile = await HiveClient.call('bridge', 'get_profile', { account: username });
-  return profile
+  const maxAttempts = 3;
+  const delayMs = 500;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const profile = await HiveClient.call('bridge', 'get_profile', { account: username });
+      // A null/undefined response from a known-valid username is a transient bridge
+      // failure (cold node, indexing lag), not a legitimate "no profile" result.
+      if (profile != null) return profile;
+    } catch {
+      // transient RPC error — retry below
+    }
+    if (attempt < maxAttempts) {
+      await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return null;
 }
 
 export async function getAccountWithPower(username: string) {

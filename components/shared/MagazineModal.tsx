@@ -10,6 +10,7 @@ import {
 } from "@chakra-ui/react";
 import Magazine from "./Magazine";
 import { Discussion } from "@hiveio/dhive";
+import { useCuratedMagazine } from "@/hooks/useCuratedMagazine";
 
 interface MagazineModalProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ interface MagazineModalProps {
   hiveUsername?: string;
   posts?: Discussion[];
   isLoading?: boolean;
+  // Keep the given posts' selection + order verbatim (editorial edition).
+  preserveOrder?: boolean;
   // For tag-based magazine (blog view)
   magazineTag?: { tag: string; limit: number }[];
   magazineQuery?: string;
@@ -44,6 +47,7 @@ const MagazineModal = React.memo(function MagazineModal({
   hiveUsername,
   posts,
   isLoading,
+  preserveOrder,
   magazineTag,
   magazineQuery = "created",
   zineCover,
@@ -76,14 +80,20 @@ const MagazineModal = React.memo(function MagazineModal({
       : magazineTag || []; // Bridge API max limit is 20
   }, [hiveUsername, magazineTag]);
 
-  // If posts are provided (profile view), use them directly
-  // Otherwise, let Magazine component fetch posts using tag/query (blog view)
+  // Community/blog magazine (no explicit posts, no profile user): show the
+  // curated edition the ops portal published, falling back to the live feed.
+  const isCommunity = posts === undefined && !hiveUsername;
+  const { curated, coverUrl: curatedCover, loaded } = useCuratedMagazine(isCommunity);
+
+  // If posts are provided (profile view), use them directly.
+  // Community view → curated edition (or fallback). Otherwise tag/query.
   const magazineProps = useMemo(() => {
     if (posts !== undefined) {
       // Don't pass tag/query when providing posts directly
       return {
         posts,
         isLoading,
+        preserveOrder,
         error: null,
         zineCover,
         hiveUsername,
@@ -92,6 +102,11 @@ const MagazineModal = React.memo(function MagazineModal({
         userLocation,
       };
     }
+    if (isCommunity) {
+      if (!loaded) return { posts: [], isLoading: true };
+      if (curated && curated.length > 0) return { posts: curated, preserveOrder: true, zineCover: curatedCover ?? undefined };
+      // no published edition → fall back to the live community feed below
+    }
     return {
       tag,
       query: currentQuery,
@@ -99,6 +114,7 @@ const MagazineModal = React.memo(function MagazineModal({
   }, [
     posts,
     isLoading,
+    preserveOrder,
     tag,
     currentQuery,
     zineCover,
@@ -106,6 +122,10 @@ const MagazineModal = React.memo(function MagazineModal({
     userProfileImage,
     displayName,
     userLocation,
+    isCommunity,
+    curated,
+    curatedCover,
+    loaded,
   ]);
 
   if (!isOpen) return null;

@@ -3,12 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 const API_BASE = "https://api.skatehive.app";
 
 /**
- * Forward a userbase hive write to api.skatehive.app, carrying the caller's
- * userbase_refresh cookie. Returns the upstream response verbatim. The web no
- * longer signs/broadcasts these actions — api owns them (Phase 2 unification).
+ * Forward a userbase hive write to api.skatehive.app. Returns the upstream
+ * response verbatim. The web no longer signs/broadcasts these actions — api
+ * owns them (Phase 2 unification).
  *
- * Only the userbase_refresh cookie is forwarded; api resolves it the same way it
- * resolves a mobile Bearer token (same userbase_sessions row).
+ * The userbase_refresh cookie value is forwarded as an `Authorization: Bearer`
+ * token: api's hive routes authenticate with getBearerUserId (Bearer only), and
+ * the cookie value is the same raw session token that hashes to the same
+ * userbase_sessions row — so Bearer resolves it identically to the mobile app.
  */
 export async function proxyUserbaseHive(
   request: NextRequest,
@@ -31,7 +33,7 @@ export async function proxyUserbaseHive(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Cookie: `userbase_refresh=${refreshToken}`,
+        Authorization: `Bearer ${refreshToken}`,
       },
       body: JSON.stringify(body),
     });

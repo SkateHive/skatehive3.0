@@ -120,6 +120,12 @@ const retroBoxShadow = (theme: any) =>
 
 const backCoverStyles = (theme: any) => ({
   ...pageStyles(theme),
+  // Full-bleed like the front cover — without an explicit size the page-flip
+  // engine measures this page short (minHeight only), so the last page looked
+  // detached/dislocated mid-animation.
+  width: "100%",
+  height: "100%",
+  overflow: "hidden",
   background: `linear-gradient(120deg, ${theme.colors.primary} 60%, ${theme.colors.accent} 100%)`,
   color: theme.colors.text,
   justifyContent: "center",
@@ -127,7 +133,18 @@ const backCoverStyles = (theme: any) => ({
   backgroundImage:
     "url(https://media1.giphy.com/media/9ZsHm0z5QwSYpV7g01/giphy.gif?cid=6c09b952uxaerotyqa9vct5pkiwvar6l6knjgsctieeg0sh1&ep=v1_gifs_search&rid=giphy.gif&ct=g)",
   backgroundSize: "cover",
-  boxShadow: "0 8px 32px 0 rgba(179,18,23,0.25)",
+  // Tight outline like the front cover — a large offset drop-shadow renders
+  // outside the page bounds and reads as a "floating" page during the flip.
+  boxShadow: retroBoxShadow(theme),
+});
+
+// Blank filler page: in landscape (two-page spread) the flip engine needs an
+// EVEN page count — with an odd count the last sheet has only one face and the
+// back cover visibly disconnects while flipping. Inserted before the back cover.
+const fillerPageStyles = (theme: any) => ({
+  ...pageStyles(theme),
+  justifyContent: "center",
+  alignItems: "center",
 });
 
 export interface MagazineProps {
@@ -147,6 +164,10 @@ export interface MagazineProps {
   userProfileImage?: string;
   displayName?: string;
   userLocation?: string;
+  // When the posts are an editorial pick (e.g. the curated magazine issue from
+  // the ops portal), keep the given selection + order as-is: skip the quality
+  // filter and the payout re-sort.
+  preserveOrder?: boolean;
 }
 
 export default function Magazine(props: MagazineProps) {
@@ -224,6 +245,9 @@ export default function Magazine(props: MagazineProps) {
   const filteredPosts = useMemo(() => {
     if (!posts || !isInitialized) return [];
 
+    // Editorial issue: trust the curator's selection + order verbatim.
+    if (props.preserveOrder) return posts;
+
     // First apply quality filters (reputation and downvote filtering)
     const qualityFilteredPosts = filterAutoComments(posts);
 
@@ -234,7 +258,7 @@ export default function Magazine(props: MagazineProps) {
     );
 
     return sortedPosts;
-  }, [posts, isInitialized]);
+  }, [posts, isInitialized, props.preserveOrder]);
 
   const playSound = () => {
     if (audioRef.current) {
@@ -461,7 +485,7 @@ export default function Magazine(props: MagazineProps) {
               )}
             </Box>
           </Box>
-          {filteredPosts.map((post: Discussion, index) => {
+          {[...filteredPosts.map((post: Discussion, index) => {
             const isLeftPage = index % 2 === 0;
             const pageBorderRadius = isLeftPage
               ? "16px 0 0 0px"
@@ -563,7 +587,20 @@ export default function Magazine(props: MagazineProps) {
                 </Box>
               </Box>
             );
-          })}
+          }),
+          // Even-ize the page count (cover + posts + back cover) so the back
+          // cover is the BACK face of the last sheet. Kept INSIDE the array and
+          // filtered — never a bare `&&`/falsy child, because the flip engine
+          // clones every child and React.Children.map hands cloneElement(null)
+          // for a null/false child, which throws.
+          (filteredPosts.length + 2) % 2 === 1 ? (
+            <Box key="filler" sx={fillerPageStyles(theme)}>
+              <Text color={theme.colors.muted} fontSize="sm">
+                — fim da edição —
+              </Text>
+            </Box>
+          ) : null,
+          ].filter(Boolean)}
           <Box sx={backCoverStyles(theme)}>
             <Heading color={theme.colors.primary}>Back Cover</Heading>
             <Text color={theme.colors.text}>Last Page</Text>

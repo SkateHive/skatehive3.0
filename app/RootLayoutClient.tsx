@@ -11,7 +11,7 @@ import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useReport } from "@/contexts/ReportContext";
 import Sidebar from "@/components/layout/Sidebar";
-import FooterNavButtons from "@/components/layout/FooterNavButtons";
+import MobileTabBar from "@/components/layout/MobileTabBar";
 import FooterLinks from "@/components/layout/FooterLinks";
 import SplashScreen from "@/components/layout/SplashScreen";
 import { Providers } from "./providers";
@@ -165,11 +165,14 @@ function InnerLayout({
   // ReportContext lives inside <Providers>, so useReport() is safe here
   const { isOpen: isReportOpen, openReport, closeReport, reportOptions } = useReport();
 
-  // Pages with infinite scroll should not show footer
+  // Pages with infinite scroll should not show footer. /home is the curated
+  // media magazine — it keeps the app sidebar but supplies its own index rail +
+  // footer, so suppress the app FooterLinks there.
   const hasInfiniteScroll =
     pathname === "/" ||
     pathname?.startsWith("/user/") ||
     pathname === "/magazine" ||
+    pathname === "/home" ||
     pathname === "/blog" ||
     pathname?.startsWith("/blog/tag/") ||
     pathname === "/videos" ||
@@ -242,6 +245,7 @@ function InnerLayout({
           overflowY="auto"
           overflowX="hidden"
           height="100vh"
+          pb={{ base: "calc(60px + env(safe-area-inset-bottom))", md: 0 }}
           sx={{
             scrollbarWidth: "none",
             "&::-webkit-scrollbar": {
@@ -253,7 +257,7 @@ function InnerLayout({
           {!isMobile && !hasInfiniteScroll && <FooterLinks />}
         </Box>
       </Flex>
-      {isMobile && <FooterNavButtons />}
+      {isMobile && <MobileTabBar />}
     </Container>
   );
 }

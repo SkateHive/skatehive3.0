@@ -56,7 +56,14 @@ const nextConfig = {
     compress: true,
     poweredByHeader: false,
     reactStrictMode: true,
-    
+
+    // Type-checking and linting run in CI (GitHub Actions), NOT during the
+    // Vercel build. That build-time `tsc` + ESLint pass was the dominant deploy
+    // cost (~10 min of a ~12 min deploy); moving it to CI cuts deploys to ~2 min
+    // without losing the safety net — see .github/workflows/ci.yml.
+    typescript: { ignoreBuildErrors: true },
+    eslint: { ignoreDuringBuilds: true },
+
     // Performance optimizations
     compiler: {
         removeConsole: process.env.NODE_ENV === 'production' ? {
@@ -96,7 +103,6 @@ const nextConfig = {
         // into direct subpath imports. These libs all have large index.ts
         // re-exports that defeat tree-shaking otherwise.
         optimizePackageImports: [
-            '@chakra-ui/react',
             '@chakra-ui/icons',
             'react-icons',
             'wagmi',
