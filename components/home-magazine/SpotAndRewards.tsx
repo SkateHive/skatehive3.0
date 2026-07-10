@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Box, Button, Flex, Grid, Text } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
+import { formatEther } from "viem";
 import type { BountyRef } from "@/types/homepage-config";
 import type { FeaturedSpot } from "@/lib/spotmap/featured";
 import SpotNearYou from "@/components/homepage/SpotNearYou";
@@ -10,12 +12,32 @@ import { P, MONO } from "./palette";
 export function SpotAndRewards({ initialFeaturedSpot, bounties }: { initialFeaturedSpot: FeaturedSpot | null; bounties: BountyRef[] }) {
   const router = useRouter();
 
+  // ETH→USD for per-line poidh bounty values (amount is stored as ETH wei).
+  const [ethUsd, setEthUsd] = useState(0);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/prices")
+      .then((r) => r.json())
+      .then((d) => { if (live) setEthUsd(d?.ethereum?.usd ?? 0); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  const bountyUsd = (b: BountyRef): string | null => {
+    if (b.source !== "poidh" || !b.amount || !ethUsd) return null;
+    try {
+      const usd = parseFloat(formatEther(BigInt(b.amount))) * ethUsd;
+      return usd >= 1 ? `$${Math.round(usd).toLocaleString("en-US")}` : `$${usd.toFixed(2)}`;
+    } catch {
+      return null;
+    }
+  };
+
   return (
-    <Grid id="spots" templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="24px" mt="48px" fontFamily={MONO}>
-      {/* Discover a Spot — the SAME location-based widget as the homepage. */}
-      <Box>
-        <SpotNearYou initialSpot={initialFeaturedSpot} />
-      </Box>
+    <Grid id="spots" templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="24px" mt="48px" fontFamily={MONO} alignItems="stretch">
+      {/* Discover a Spot — the SAME location-based widget as the homepage,
+          stretched to match the bounties card height. */}
+      <SpotNearYou initialSpot={initialFeaturedSpot} fill />
 
       {/* Open Bounties (the rewards total lives in the index rail now) */}
       <Flex id="rewards" direction="column" justify="space-between" border={`2px solid ${P.card}`} p="24px">
@@ -26,8 +48,9 @@ export function SpotAndRewards({ initialFeaturedSpot, bounties }: { initialFeatu
             {bounties.map((b, i) => {
               const title = b.source === "poidh" ? b.name || `Bounty ${b.id}` : b.title;
               const sponsor = b.source === "poidh" ? `@${b.issuer?.slice(0, 8) ?? ""}` : b.sponsor;
+              const value = bountyUsd(b);
               return (
-                <Flex key={i} align="center" justify="space-between" py="10px" borderTop={`1px solid ${P.card}`} fontSize="14px">
+                <Flex key={i} align="center" justify="space-between" gap="12px" py="10px" borderTop={`1px solid ${P.card}`} fontSize="14px">
                   <Flex align="center" gap="10px" minW={0}>
                     <Box w="8px" h="8px" bg={P.accent} flexShrink={0} />
                     <Box minW={0}>
@@ -35,6 +58,7 @@ export function SpotAndRewards({ initialFeaturedSpot, bounties }: { initialFeatu
                       {sponsor && <Text fontSize="11px" color={P.faint} isTruncated>{sponsor}</Text>}
                     </Box>
                   </Flex>
+                  {value && <Text fontWeight={800} color={P.accent} whiteSpace="nowrap" flexShrink={0}>{value}</Text>}
                 </Flex>
               );
             })}

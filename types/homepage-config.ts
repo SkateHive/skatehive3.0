@@ -35,7 +35,7 @@ export type SpotPick = {
 };
 
 export type BountyRef =
-  | { source: "poidh"; id: string; chainId: number; name: string; issuer: string; image?: string }
+  | { source: "poidh"; id: string; chainId: number; name: string; issuer: string; image?: string; amount?: string }
   | { source: "hive"; author: string; permlink: string; title: string; sponsor: string };
 
 export type FeaturedUser = { username: string };

@@ -28,6 +28,12 @@ interface SpotNearYouProps {
    * this just removes the skeleton flash for cold visits.
    */
   initialSpot?: FeaturedSpot | null;
+  /**
+   * Stretch to fill the parent's height (the image grows to consume extra
+   * space). Used on /home so the widget matches the adjacent bounties card
+   * height. Off by default (RightSidebar keeps its natural size).
+   */
+  fill?: boolean;
 }
 
 function readSeen(): string[] {
@@ -60,7 +66,7 @@ function formatDistance(km: number): string {
   return `${Math.round(km)} km`;
 }
 
-export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {}) {
+export default function SpotNearYou({ initialSpot = null, fill = false }: SpotNearYouProps = {}) {
   const router = useRouter();
   const t = useTranslations("spotWidget");
   const [spot, setSpot] = useState<FeaturedSpot | null>(initialSpot);
@@ -168,7 +174,10 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
 
   return (
     <Box
-      mt={3}
+      mt={fill ? 0 : 3}
+      h={fill ? "100%" : undefined}
+      display={fill ? "flex" : undefined}
+      flexDirection={fill ? "column" : undefined}
       borderWidth="1px"
       borderColor="whiteAlpha.200"
       borderRadius="0"
@@ -198,14 +207,17 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
         <Box
           as="a"
           href={spotHref}
-          display="block"
+          display={fill ? "flex" : "block"}
+          flexDirection={fill ? "column" : undefined}
+          flex={fill ? "1" : undefined}
+          minH={0}
           cursor="pointer"
           _hover={{ opacity: 0.92 }}
           transition="opacity 0.15s"
           opacity={isLoading ? 0.6 : 1}
         >
           {spot.thumbnail ? (
-            <Box position="relative" width="100%" height="160px" bg="rgba(255,255,255,0.04)">
+            <Box position="relative" width="100%" height={fill ? "auto" : "160px"} flex={fill ? "1" : undefined} minHeight="160px" bg="rgba(255,255,255,0.04)">
               <Image
                 src={spot.thumbnail}
                 alt={spot.name}
