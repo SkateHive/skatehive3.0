@@ -165,11 +165,14 @@ function InnerLayout({
   // ReportContext lives inside <Providers>, so useReport() is safe here
   const { isOpen: isReportOpen, openReport, closeReport, reportOptions } = useReport();
 
-  // Pages with infinite scroll should not show footer
+  // Pages with infinite scroll should not show footer. /home is the curated
+  // media magazine — it keeps the app sidebar but supplies its own index rail +
+  // footer, so suppress the app FooterLinks there.
   const hasInfiniteScroll =
     pathname === "/" ||
     pathname?.startsWith("/user/") ||
     pathname === "/magazine" ||
+    pathname === "/home" ||
     pathname === "/blog" ||
     pathname?.startsWith("/blog/tag/") ||
     pathname === "/videos" ||
@@ -184,13 +187,6 @@ function InnerLayout({
     if (searchProps) searchProps.setIsSearchOpen(false);
     openReport();
   };
-
-  // The media-magazine homepage is full-bleed: it owns its own sticky nav and
-  // scroll container (globals force html,body{overflow:hidden} on desktop), so
-  // render it directly without the app chrome (sidebar / footer / tab bar).
-  if (pathname === "/home") {
-    return <>{children}</>;
-  }
 
   return (
     <Container

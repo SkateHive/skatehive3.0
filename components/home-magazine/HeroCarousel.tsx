@@ -38,9 +38,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
     <Box
       id="featured"
       position="relative"
-      mx={{ base: "16px", md: "48px" }}
-      mt="24px"
-      h={{ base: "460px", md: "640px" }}
+      h={{ base: "420px", md: "600px" }}
       overflow="hidden"
       border={`2px solid ${P.card}`}
       fontFamily={MONO}

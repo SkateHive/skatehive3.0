@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Box, Button, Flex, Grid, Image, Text } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import type { BountyRef, SpotPick } from "@/types/homepage-config";
-import { useCommunityRewards } from "@/hooks/useCommunityRewards";
 import { P, MONO } from "./palette";
 
 type LiveSpot = { id: string; name: string; image: string | null; coords: string | null };
@@ -15,7 +14,6 @@ export function SpotAndRewards({ spot, bounties }: { spot: SpotPick | null; boun
     spot ? { id: spot.id, name: spot.name, image: spot.image || null, coords: spot.coords } : null,
   );
   const [loadingSpot, setLoadingSpot] = useState(false);
-  const { totalUsd, loading: rewardsLoading } = useCommunityRewards();
 
   async function another() {
     setLoadingSpot(true);
@@ -32,10 +30,8 @@ export function SpotAndRewards({ spot, bounties }: { spot: SpotPick | null; boun
     }
   }
 
-  const rewardsStr = rewardsLoading ? "—" : `$${Math.round(totalUsd).toLocaleString("en-US")}`;
-
   return (
-    <Grid id="spots" templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="24px" mx="32px" mt="48px" fontFamily={MONO}>
+    <Grid id="spots" templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="24px" mt="48px" fontFamily={MONO}>
       {/* Discover a Spot */}
       <Box border={`2px solid ${P.card}`} p="24px">
         <Flex align="center" justify="space-between" mb="16px">
@@ -67,16 +63,12 @@ export function SpotAndRewards({ spot, bounties }: { spot: SpotPick | null; boun
         </Flex>
       </Box>
 
-      {/* Community Rewards */}
+      {/* Open Bounties (the rewards total lives in the index rail now) */}
       <Flex id="rewards" direction="column" justify="space-between" border={`2px solid ${P.card}`} p="24px">
         <Box>
-          <Text fontWeight={800} fontSize="18px" color={P.accent} textTransform="uppercase" mb="10px">Community Rewards</Text>
-          <Text fontWeight={800} fontSize="44px" color={P.headline}>{rewardsStr} <Box as="span" fontSize="20px" color={P.ui}>USD</Box></Text>
-          <Text fontSize="12px" color={P.ui} letterSpacing="1px" textTransform="uppercase" mt="4px">Paid out to skaters</Text>
-        </Box>
-        {bounties.length > 0 && (
-          <Box mt="22px">
-            <Text fontSize="11px" color={P.ui} letterSpacing="1px" textTransform="uppercase" mb="6px">Open Bounties &#127919;</Text>
+          <Text fontWeight={800} fontSize="18px" color={P.accent} textTransform="uppercase" mb="10px">Open Bounties &#127919;</Text>
+          <Box>
+            {bounties.length === 0 && <Text fontSize="13px" color={P.faint}>Sem bounties abertos.</Text>}
             {bounties.map((b, i) => {
               const title = b.source === "poidh" ? b.name || `Bounty ${b.id}` : b.title;
               const sponsor = b.source === "poidh" ? `@${b.issuer?.slice(0, 8) ?? ""}` : b.sponsor;
@@ -93,7 +85,7 @@ export function SpotAndRewards({ spot, bounties }: { spot: SpotPick | null; boun
               );
             })}
           </Box>
-        )}
+        </Box>
         <Button onClick={() => router.push("/bounties")} mt="18px" bg={P.accent} border="none" borderRadius={0} color={P.onAccent} fontFamily={MONO} fontWeight={800} letterSpacing="1px" py="14px" h="auto" _hover={{ bg: P.accentHover }}>
           VIEW ALL BOUNTIES
         </Button>
