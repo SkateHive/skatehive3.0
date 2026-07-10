@@ -504,6 +504,15 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const [activeProfileView, setActiveProfileView] = useState<
     "hive" | "skate" | "zora" | "farcaster" | null
   >(null);
+  // useHiveAccount/useUserbaseProfile default isLoading to false until their
+  // effects fire post-mount, so on the very first render neither hook is
+  // "loading" yet. Without this flag the not-found branch below flashes
+  // before either fetch has actually started. Client-only by design (SSR
+  // and the initial hydration pass both render isMounted=false).
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Custom hooks
   const { profileData, updateProfileData, refetchBridgeData, adjustFollowerCount } = useProfileData(
@@ -828,7 +837,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const isProfileResolved =
     isHiveProfile || Boolean(userbaseUser) || isEvmAddress;
 
-  if (!isProfileResolved && (isLoading || userbaseLoading)) {
+  if (!isProfileResolved && (!isMounted || isLoading || userbaseLoading)) {
     return (
       <Box
         display="flex"
@@ -841,7 +850,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     );
   }
 
-  if (!isProfileResolved && !isLoading && !userbaseLoading) {
+  if (!isProfileResolved && isMounted && !isLoading && !userbaseLoading) {
     return (
       <Box
         display="flex"
