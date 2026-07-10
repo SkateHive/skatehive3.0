@@ -3,17 +3,18 @@
 import { Box, Flex, Spinner } from "@chakra-ui/react";
 import { useHomepageConfig } from "@/hooks/useHomepageConfig";
 import type { HomepageConfigDoc } from "@/types/homepage-config";
-import { P, MONO } from "@/components/home-magazine/palette";
+import { MONO } from "@/components/home-magazine/palette";
 import { HeroCarousel } from "@/components/home-magazine/HeroCarousel";
 import { FeaturedGrid } from "@/components/home-magazine/FeaturedGrid";
 import { JunkAndVideo } from "@/components/home-magazine/JunkAndVideo";
 import { SpotAndRewards } from "@/components/home-magazine/SpotAndRewards";
 import { CommunityBanner, PreviewRibbon } from "@/components/home-magazine/BannerAndFooter";
 
-// Magazine content column. The magazine INDEX rail is the app's own Sidebar on
-// /home (see components/layout/Sidebar.tsx → HomeIndexSidebar), so here we only
-// render the content — it flows inside the app's scroll container, beside that
-// rail. The rail's nav anchor-scrolls to the section ids below.
+// Magazine content. /home uses the SAME chrome as every other page — the normal
+// Skatehive sidebar/navbar, the theme `background`, and the app's Container
+// proportions (RootLayoutClient). This just renders the curated sections inside
+// the standard content area, so /home reads as part of the app, not a bespoke
+// full-bleed page.
 export default function HomeMagazineClient({
   initialConfig,
   previewToken,
@@ -24,12 +25,12 @@ export default function HomeMagazineClient({
   const { config, loaded, preview } = useHomepageConfig(previewToken, initialConfig);
 
   return (
-    <Box bg={P.bg} color={P.body} fontFamily={MONO} minH="100%" px={{ base: "16px", md: "40px" }} pt="24px" pb="56px">
+    <Box bg="background" fontFamily={MONO} minH="100%" px={{ base: "16px", md: "32px" }} pt="20px" pb="48px">
       {preview && <PreviewRibbon label="Preview — rascunho (não publicado)" />}
       {preview && <meta name="referrer" content="no-referrer" />}
 
       {!config && !loaded && (
-        <Flex align="center" justify="center" h="60vh"><Spinner color={P.accent} /></Flex>
+        <Flex align="center" justify="center" h="60vh"><Spinner color="primary" /></Flex>
       )}
       {config && (
         <>
