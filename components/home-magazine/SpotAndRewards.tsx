@@ -46,7 +46,7 @@ export function SpotAndRewards({ initialFeaturedSpot, bounties }: { initialFeatu
       {/* Open Bounties (the rewards total lives in the index rail now) */}
       <Flex id="rewards" direction="column" justify="space-between" border={`2px solid ${P.card}`} p="24px">
         <Box>
-          <Text fontWeight={800} fontSize="18px" color={P.accent} textTransform="uppercase" mb="10px">Open Bounties &#127919;</Text>
+          <Text fontWeight={800} fontSize="18px" color={P.accent} textTransform="uppercase" mb="10px" textAlign="center">Open Bounties &#127919;</Text>
           <Box>
             {bounties.length === 0 && <Text fontSize="13px" color={P.faint}>Sem bounties abertos.</Text>}
             {bounties.map((b, i) => {
