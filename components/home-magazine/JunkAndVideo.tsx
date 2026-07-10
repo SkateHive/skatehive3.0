@@ -9,7 +9,7 @@ export function JunkAndVideo({ items, video }: { items: JunkItem[]; video: Featu
   const router = useRouter();
   if (items.length === 0 && !video) return null;
   return (
-    <Grid id="videos" templateColumns={{ base: "1fr", md: "1fr 1.3fr" }} gap="24px" mx="32px" mt="40px" fontFamily={MONO}>
+    <Grid id="videos" templateColumns={{ base: "1fr", md: "1fr 1.3fr" }} gap="24px" mt="40px" fontFamily={MONO}>
       <Box>
         <Text fontWeight={800} fontSize="26px" letterSpacing="1px" textTransform="uppercase" color={P.accent} mb="18px">
           Junk Drawer

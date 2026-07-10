@@ -7,7 +7,7 @@ import { P, MONO } from "./palette";
 export function CommunityBanner({ headline, subtext, ctaLabel }: { headline: string; subtext: string; ctaLabel: string }) {
   const router = useRouter();
   return (
-    <Flex mx="32px" mt="56px" bg={P.accent} px="44px" py="48px" align="center" justify="space-between" gap="32px" wrap="wrap" fontFamily={MONO}>
+    <Flex mt="56px" bg={P.accent} px="44px" py="48px" align="center" justify="space-between" gap="32px" wrap="wrap" fontFamily={MONO}>
       <Box maxW="640px">
         <Text fontWeight={800} fontSize="32px" color={P.onAccent} textTransform="uppercase" lineHeight="1.15">{headline}</Text>
         {subtext && <Text fontSize="15px" color={P.onAccentSoft} mt="12px">{subtext}</Text>}
