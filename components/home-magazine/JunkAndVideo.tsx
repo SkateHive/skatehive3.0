@@ -11,17 +11,17 @@ export function JunkAndVideo({ items, video }: { items: JunkItem[]; video: Featu
   return (
     <Grid id="videos" templateColumns={{ base: "1fr", md: "1fr 1.3fr" }} gap="24px" mt="40px" fontFamily={MONO}>
       <Box>
-        <Text fontWeight={800} fontSize="26px" letterSpacing="1px" textTransform="uppercase" color={P.accent} mb="18px">
+        <Text fontWeight={800} fontSize={{ base: "20px", md: "26px" }} letterSpacing="1px" textTransform="uppercase" color={P.accent} mb="18px">
           Junk Drawer
         </Text>
         {items.map((j) => {
           const href = postHref(j.postRef);
           return (
-            <Flex key={j.id} className={href ? "cursor-target" : undefined} gap="16px" py="16px" borderTop={`1px solid ${P.card}`} cursor={href ? "pointer" : "default"} onClick={() => href && router.push(href)}>
-              <Image src={j.thumb} alt="" w="100px" h="75px" objectFit="cover" flexShrink={0} filter="grayscale(15%)" />
-              <Box>
-                <Text fontWeight={700} fontSize="16px" color={P.body} mb="6px">{j.title}</Text>
-                <Text fontSize="13px" color={P.ui} lineHeight="1.5">{j.blurb}</Text>
+            <Flex key={j.id} className={href ? "cursor-target" : undefined} gap={{ base: "12px", md: "16px" }} py="16px" borderTop={`1px solid ${P.card}`} cursor={href ? "pointer" : "default"} onClick={() => href && router.push(href)}>
+              <Image src={j.thumb} alt="" w={{ base: "80px", md: "100px" }} h={{ base: "60px", md: "75px" }} objectFit="cover" flexShrink={0} filter="grayscale(15%)" />
+              <Box minW={0}>
+                <Text fontWeight={700} fontSize={{ base: "14px", md: "16px" }} color={P.body} mb="6px">{j.title}</Text>
+                <Text fontSize={{ base: "12px", md: "13px" }} color={P.ui} lineHeight="1.5">{j.blurb}</Text>
               </Box>
             </Flex>
           );
@@ -30,7 +30,7 @@ export function JunkAndVideo({ items, video }: { items: JunkItem[]; video: Featu
 
       {video && (
         <Box className={postHref(video.postRef) ? "cursor-target" : undefined} position="relative" border={`2px solid ${P.card}`} cursor={postHref(video.postRef) ? "pointer" : "default"} onClick={() => { const h = postHref(video.postRef); if (h) router.push(h); }}>
-          <Image src={video.cover} alt="" w="100%" h="100%" objectFit="cover" display="block" minH="420px" />
+          <Image src={video.cover} alt="" w="100%" h="100%" objectFit="cover" display="block" minH={{ base: "260px", md: "420px" }} />
           <Box
             position="absolute"
             inset={0}
@@ -41,9 +41,9 @@ export function JunkAndVideo({ items, video }: { items: JunkItem[]; video: Featu
           <Flex position="absolute" top="50%" left="50%" transform="translate(-50%,-50%)" w="74px" h="74px" borderRadius="50%" bg={P.accent} align="center" justify="center" color={P.onAccent} fontSize="28px">
             &#9654;
           </Flex>
-          <Box position="absolute" left="24px" right="24px" bottom="22px">
-            <Text fontWeight={800} fontSize="22px" color={P.headline} textTransform="uppercase">{video.title}</Text>
-            {video.caption && <Text fontSize="13px" color="#a8a8a8" mt="6px">{video.caption}</Text>}
+          <Box position="absolute" left={{ base: "16px", md: "24px" }} right={{ base: "16px", md: "24px" }} bottom={{ base: "16px", md: "22px" }}>
+            <Text fontWeight={800} fontSize={{ base: "18px", md: "22px" }} color={P.headline} textTransform="uppercase">{video.title}</Text>
+            {video.caption && <Text fontSize="13px" color={P.bodyMuted} mt="6px">{video.caption}</Text>}
           </Box>
         </Box>
       )}

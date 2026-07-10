@@ -7,12 +7,40 @@ import { P, MONO } from "./palette";
 export function CommunityBanner({ headline, subtext, ctaLabel }: { headline: string; subtext: string; ctaLabel: string }) {
   const router = useRouter();
   return (
-    <Flex mt="56px" bg={P.accent} px="44px" py="48px" align="center" justify="space-between" gap="32px" wrap="wrap" fontFamily={MONO}>
+    <Flex
+      mt="56px"
+      bg={P.accent}
+      px={{ base: "20px", md: "44px" }}
+      py={{ base: "28px", md: "48px" }}
+      align={{ base: "flex-start", md: "center" }}
+      justify="space-between"
+      gap={{ base: "20px", md: "32px" }}
+      wrap="wrap"
+      fontFamily={MONO}
+      direction={{ base: "column", md: "row" }}
+    >
       <Box maxW="640px">
-        <Text fontWeight={800} fontSize="32px" color={P.onAccent} textTransform="uppercase" lineHeight="1.15">{headline}</Text>
-        {subtext && <Text fontSize="15px" color={P.onAccentSoft} mt="12px">{subtext}</Text>}
+        <Text fontWeight={800} fontSize={{ base: "22px", md: "32px" }} color={P.onAccent} textTransform="uppercase" lineHeight="1.15">{headline}</Text>
+        {subtext && <Text fontSize={{ base: "13px", md: "15px" }} color={P.onAccentSoft} mt="12px">{subtext}</Text>}
       </Box>
-      <Button className="cursor-target" onClick={() => router.push("/")} bg={P.onAccent} color={P.accent} border="none" borderRadius={0} fontFamily={MONO} fontWeight={800} fontSize="16px" letterSpacing="1px" px="32px" py="18px" h="auto" whiteSpace="nowrap" _hover={{ opacity: 0.9 }}>
+      <Button
+        className="cursor-target"
+        onClick={() => router.push("/")}
+        bg={P.onAccent}
+        color={P.accent}
+        border="none"
+        borderRadius={0}
+        fontFamily={MONO}
+        fontWeight={800}
+        fontSize={{ base: "14px", md: "16px" }}
+        letterSpacing="1px"
+        px={{ base: "20px", md: "32px" }}
+        py={{ base: "14px", md: "18px" }}
+        h="auto"
+        whiteSpace="nowrap"
+        w={{ base: "100%", md: "auto" }}
+        _hover={{ opacity: 0.9 }}
+      >
         {ctaLabel || "ENTER COMMUNITY"} &#8594;
       </Button>
     </Flex>

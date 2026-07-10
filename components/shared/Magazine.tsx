@@ -191,7 +191,29 @@ export default function Magazine(props: MagazineProps) {
   // DEFAULT_POST_PROSE_TWEAKS).
   const { tweaks } = usePostProseTweaks();
   const proseStyleVars = useMemo(
-    () => buildProseStyleVars(tweaks),
+    () => {
+      // Start from the shared prose vars, then LOCK the color + font vars
+      // to paper-mode values. The flipbook has a fixed editorial look
+      // (cream paper, dark ink, readable serif) so it must NOT inherit the
+      // user's active Chakra theme or their custom prose tweaks. Font
+      // stack matches the post page's serif preset so long reads feel like
+      // a magazine, not a UI panel.
+      const base = buildProseStyleVars(tweaks);
+      const READABLE_SERIF =
+        "'Iowan Old Style', 'Charter', 'Palatino', 'Palatino Linotype', 'Georgia', 'Times New Roman', serif";
+      return {
+        ...base,
+        ["--pp-font" as string]: READABLE_SERIF,
+        ["--pp-heading-font" as string]: READABLE_SERIF,
+        ["--pp-color" as string]: "#141414",
+        ["--pp-accent" as string]: "#8b2828",
+        ["--pp-heading-color" as string]: "#0e0d0c",
+        ["--pp-link-color" as string]: "#8b2828",
+        ["--pp-code-accent" as string]: "#8b2828",
+        ["--pp-drop-cap-color" as string]: "#0e0d0c",
+        ["--pp-bg" as string]: "transparent",
+      };
+    },
     [tweaks],
   );
 

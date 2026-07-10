@@ -38,7 +38,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
     <Box
       id="featured"
       position="relative"
-      h={{ base: "420px", md: "600px" }}
+      h={{ base: "320px", md: "460px" }}
       overflow="hidden"
       border={`2px solid ${P.card}`}
       fontFamily={MONO}
@@ -109,7 +109,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
               >
                 <Text
                   fontWeight={900}
-                  fontSize="clamp(32px,5.4vw,72px)"
+                  fontSize="clamp(24px,4.5vw,56px)"
                   lineHeight="0.98"
                   color={P.headline}
                   letterSpacing="-1.5px"
