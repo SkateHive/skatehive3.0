@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import HomeMagazineClient from "./HomeMagazineClient";
 import type { HomepageConfigDoc } from "@/types/homepage-config";
+import { getInitialFeaturedSpot } from "@/lib/spotmap/featured";
 
 // The curated media-magazine homepage. Renders entirely from the portal-managed
 // HomepageConfig (draft→preview→publish). SSR-fetches the config for first
@@ -46,5 +47,14 @@ export default async function HomePage({
   if (result.status === "empty" && !preview) redirect("/");
 
   const initialConfig = result.status === "ok" ? result.config : null;
-  return <HomeMagazineClient initialConfig={initialConfig} previewToken={preview ?? null} />;
+  // SSR the location-based featured spot (same as the classic homepage) so the
+  // "Discover a Spot" widget paints without a skeleton flash.
+  const initialFeaturedSpot = await getInitialFeaturedSpot().catch(() => null);
+  return (
+    <HomeMagazineClient
+      initialConfig={initialConfig}
+      previewToken={preview ?? null}
+      initialFeaturedSpot={initialFeaturedSpot}
+    />
+  );
 }

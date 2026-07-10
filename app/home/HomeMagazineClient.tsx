@@ -3,6 +3,7 @@
 import { Box, Flex, Spinner } from "@chakra-ui/react";
 import { useHomepageConfig } from "@/hooks/useHomepageConfig";
 import type { HomepageConfigDoc } from "@/types/homepage-config";
+import type { FeaturedSpot } from "@/lib/spotmap/featured";
 import { MONO } from "@/components/home-magazine/palette";
 import { HeroCarousel } from "@/components/home-magazine/HeroCarousel";
 import { FeaturedGrid } from "@/components/home-magazine/FeaturedGrid";
@@ -18,9 +19,11 @@ import { CommunityBanner, PreviewRibbon } from "@/components/home-magazine/Banne
 export default function HomeMagazineClient({
   initialConfig,
   previewToken,
+  initialFeaturedSpot = null,
 }: {
   initialConfig: HomepageConfigDoc | null;
   previewToken: string | null;
+  initialFeaturedSpot?: FeaturedSpot | null;
 }) {
   const { config, loaded, preview } = useHomepageConfig(previewToken, initialConfig);
 
@@ -37,7 +40,7 @@ export default function HomeMagazineClient({
           <HeroCarousel slides={config.heroSlides} />
           <FeaturedGrid cards={config.strip} />
           <JunkAndVideo items={config.junkDrawer} video={config.featuredVideo} />
-          <SpotAndRewards spot={config.spot} bounties={config.bounties} />
+          <SpotAndRewards initialFeaturedSpot={initialFeaturedSpot} bounties={config.bounties} />
           <CommunityBanner headline={config.banner.headline} subtext={config.banner.subtext} ctaLabel={config.banner.ctaLabel} />
         </>
       )}
