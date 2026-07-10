@@ -698,36 +698,103 @@ export default function Magazine(props: MagazineProps) {
             contain: layout style paint;
             will-change: transform;
           }
-          /* Paper-mode ink overrides inside the flipbook — this scopes the
-             prose color vars so the body copy renders as near-black on cream
-             regardless of the app's active Chakra theme. Uses !important on
-             --pp-color because the base .post-prose declaration is inline
-             and we need to beat its cascade. */
-          .flipbook .post-prose {
-            --pp-color: #141414;
-            --pp-accent: #8b2828;
-            --pp-heading-color: #0e0d0c;
-            --pp-link-color: #8b2828;
-            --pp-code-accent: #8b2828;
-            --pp-drop-cap-color: #0e0d0c;
-            --pp-bg: transparent;
-          }
+          /* Paper-mode ink overrides inside the flipbook. Everything in
+             here is scoped by .flipbook so it can never bleed into the
+             normal post page. Many rules use !important because the
+             underlying .markdown-body styles hard-code
+             var(--chakra-colors-primary) or use !important themselves
+             (mentions, blockquote borders, list markers, tables). Without
+             matching that specificity the theme color leaks through. */
           .flipbook .post-prose,
           .flipbook .post-prose p,
-          .flipbook .post-prose li {
-            color: #141414;
+          .flipbook .post-prose li,
+          .flipbook .post-prose .markdown-body,
+          .flipbook .post-prose .markdown-body p,
+          .flipbook .post-prose .markdown-body li,
+          .flipbook .post-prose .markdown-body td,
+          .flipbook .post-prose .markdown-body th {
+            color: #141414 !important;
           }
-          .flipbook .post-prose blockquote {
-            border-left-color: rgba(20, 20, 20, 0.4);
-            color: #333;
+          /* Blockquote: cream tint on paper red rule, dark italic text. */
+          .flipbook .post-prose blockquote,
+          .flipbook .post-prose .markdown-body blockquote {
+            border-left: 4px solid #8b2828 !important;
+            background: rgba(139, 40, 40, 0.06) !important;
+            color: #333 !important;
           }
-          .flipbook .post-prose hr {
-            border-color: rgba(20, 20, 20, 0.2);
+          .flipbook .post-prose blockquote p,
+          .flipbook .post-prose .markdown-body blockquote p {
+            color: #333 !important;
           }
+          /* List markers — paper red instead of theme green. */
+          .flipbook .post-prose .markdown-body ul > li::marker,
+          .flipbook .post-prose .markdown-body ol > li::marker {
+            color: #8b2828 !important;
+          }
+          /* Headings — near-black, no theme accent. */
+          .flipbook .post-prose h1,
+          .flipbook .post-prose h2,
+          .flipbook .post-prose h3,
+          .flipbook .post-prose h4,
+          .flipbook .post-prose h5,
+          .flipbook .post-prose h6,
+          .flipbook .post-prose .markdown-body h1,
+          .flipbook .post-prose .markdown-body h2,
+          .flipbook .post-prose .markdown-body h3,
+          .flipbook .post-prose .markdown-body h4,
+          .flipbook .post-prose .markdown-body h5,
+          .flipbook .post-prose .markdown-body h6 {
+            color: #0e0d0c !important;
+            border-color: rgba(20, 20, 20, 0.22) !important;
+          }
+          /* Inline emphasis — strong tags default to --pp-accent (green
+             on stock themes). Force paper red so bold reads as editorial
+             emphasis, not a UI accent. */
+          .flipbook .post-prose .markdown-body strong {
+            color: #8b2828 !important;
+          }
+          /* Regular links + @mentions — both should be paper red. The
+             mention rule in markdown.css uses !important so match it. */
+          .flipbook .post-prose a,
+          .flipbook .post-prose .markdown-body a,
+          .flipbook .post-prose .markdown-body a[href^="/@"] {
+            color: #8b2828 !important;
+          }
+          /* HR — dark hairline instead of green tint. */
+          .flipbook .post-prose hr,
+          .flipbook .post-prose .markdown-body hr {
+            background: rgba(20, 20, 20, 0.22) !important;
+            border-color: rgba(20, 20, 20, 0.22) !important;
+          }
+          /* Tables — ink borders, no green wash. */
+          .flipbook .post-prose .markdown-body table {
+            border-top-color: rgba(20, 20, 20, 0.35) !important;
+            border-bottom-color: rgba(20, 20, 20, 0.35) !important;
+          }
+          .flipbook .post-prose .markdown-body thead {
+            background: rgba(20, 20, 20, 0.06) !important;
+          }
+          .flipbook .post-prose .markdown-body th {
+            color: #0e0d0c !important;
+            border-bottom-color: rgba(20, 20, 20, 0.3) !important;
+          }
+          .flipbook .post-prose .markdown-body td {
+            border-bottom-color: rgba(20, 20, 20, 0.12) !important;
+          }
+          .flipbook .post-prose .markdown-body tbody tr:nth-child(even) {
+            background: rgba(20, 20, 20, 0.03) !important;
+          }
+          .flipbook .post-prose .markdown-body tbody tr:hover {
+            background: rgba(20, 20, 20, 0.06) !important;
+          }
+          /* Code — subtle dark tint, no green accent. */
           .flipbook .post-prose code,
-          .flipbook .post-prose pre {
-            background: rgba(20, 20, 20, 0.06);
-            color: #141414;
+          .flipbook .post-prose pre,
+          .flipbook .post-prose .markdown-body code,
+          .flipbook .post-prose .markdown-body pre {
+            background: rgba(20, 20, 20, 0.06) !important;
+            border-color: rgba(20, 20, 20, 0.15) !important;
+            color: #141414 !important;
           }
           .post-prose iframe {
             max-width: 100%;
