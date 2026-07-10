@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Box, Button, Flex, Grid, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Grid, Text, useBreakpointValue } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { formatEther } from "viem";
 import type { BountyRef } from "@/types/homepage-config";
@@ -11,6 +11,9 @@ import { P, MONO } from "./palette";
 
 export function SpotAndRewards({ initialFeaturedSpot, bounties }: { initialFeaturedSpot: FeaturedSpot | null; bounties: BountyRef[] }) {
   const router = useRouter();
+  // Equal-height only matters side-by-side (md+). On mobile the two cards stack,
+  // so stretching the spot to fill has nothing to match and just distorts it.
+  const fillSpot = useBreakpointValue({ base: false, md: true }, { fallback: "md" }) ?? false;
 
   // ETH→USD for per-line poidh bounty values (amount is stored as ETH wei).
   const [ethUsd, setEthUsd] = useState(0);
@@ -35,9 +38,10 @@ export function SpotAndRewards({ initialFeaturedSpot, bounties }: { initialFeatu
 
   return (
     <Grid id="spots" templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="24px" mt="48px" fontFamily={MONO} alignItems="stretch">
-      {/* Discover a Spot — the SAME location-based widget as the homepage,
-          stretched to match the bounties card height. */}
-      <SpotNearYou initialSpot={initialFeaturedSpot} fill />
+      {/* Discover a Spot — the SAME location-based widget as the homepage.
+          Stretched to match the bounties card height only on md+ (side by side);
+          natural height when stacked on mobile. */}
+      <SpotNearYou initialSpot={initialFeaturedSpot} fill={fillSpot} />
 
       {/* Open Bounties (the rewards total lives in the index rail now) */}
       <Flex id="rewards" direction="column" justify="space-between" border={`2px solid ${P.card}`} p="24px">
