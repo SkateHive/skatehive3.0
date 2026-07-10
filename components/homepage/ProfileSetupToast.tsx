@@ -30,6 +30,7 @@ import { usePeriodicTimer } from "@/hooks/usePeriodicTimer";
 import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
 import useHivePower from "@/hooks/useHivePower";
 import useHiveAccount from "@/hooks/useHiveAccount";
+import useUserbaseProfile from "@/hooks/useUserbaseProfile";
 import { useTranslations, type TranslationFunction } from "@/contexts/LocaleContext";
 import { getHiveLevel } from "@/lib/utils/hiveLevel";
 import { PowerUpModal } from "@/components/wallet/modals";
@@ -191,6 +192,12 @@ export default function ProfileSetupToast() {
   const { handle, isWalletConnected } = useEffectiveHiveUser();
   const { hivePower } = useHivePower(handle || "");
   const { hiveAccount } = useHiveAccount(handle || "");
+  // The app (userbase) profile is what ProfilePage renders first, so CTA
+  // eligibility must read from the same merged source — otherwise a user with a
+  // complete app profile but sparse Hive metadata gets false "add avatar /
+  // complete profile" nudges. See ctx build in show().
+  const { profile: userbaseProfile } = useUserbaseProfile(handle || "");
+  const userbaseUser = userbaseProfile?.user ?? null;
 
   const {
     isOpen: isPowerUpOpen,
@@ -216,17 +223,20 @@ export default function ProfileSetupToast() {
       return;
     }
 
-    const profile =
+    const hiveProfile =
       (hiveAccount as { metadata?: { profile?: Record<string, string> } })
         ?.metadata?.profile || {};
-    const avatar = profile.profile_image || "";
+    // Merge app profile over Hive metadata, mirroring ProfilePage's precedence.
+    const avatar = userbaseUser?.avatar_url || hiveProfile.profile_image || "";
+    const bio = (userbaseUser?.bio ?? hiveProfile.about ?? "").trim();
+    const name = (userbaseUser?.display_name ?? hiveProfile.name ?? "").trim();
 
     const ctx: CtaContext = {
       handle,
       hivePower,
       hasAvatar: !!avatar && !avatar.includes(DEFAULT_AVATAR_MARKER),
-      hasBio: !!profile.about && profile.about.trim().length > 0,
-      hasName: !!profile.name && profile.name.trim().length > 0,
+      hasBio: bio.length > 0,
+      hasName: name.length > 0,
       canSign: isWalletConnected,
     };
 
@@ -281,6 +291,7 @@ export default function ProfileSetupToast() {
     isDesktop,
     handle,
     hiveAccount,
+    userbaseUser,
     hivePower,
     isWalletConnected,
     onPowerUpOpen,

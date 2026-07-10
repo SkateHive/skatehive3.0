@@ -181,6 +181,14 @@ export default function PublishPreviewDialog({
   const effFarcaster = farcasterCaption ?? masterCaption;
   const effIg = igCaption ?? masterCaption + DEFAULT_IG_CTA;
 
+  // One normalized publish caption. In the Farcaster-only masked-post flow the
+  // master (Hive) caption can be blank while the FC/IG caption carries the text,
+  // so fall back to those instead of blocking publish on an empty master.
+  const normalizedPublishCaption =
+    masterCaption.trim() ||
+    (farcasterCaption ?? "").trim() ||
+    (igCaption ?? "").trim();
+
   // ── Instagram collaborators ─────────────────────────────────────────
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [collabInput, setCollabInput] = useState("");
@@ -244,20 +252,20 @@ export default function PublishPreviewDialog({
   // publishes in the background (with a progress toast) so this dialog can
   // close immediately instead of holding a loading state.
   const handlePublish = useCallback(() => {
-    if (!masterCaption.trim()) {
+    if (!normalizedPublishCaption) {
       goToStep(targets.hive ? "hive" : steps.find((s) => s !== "trim") ?? "hive");
       return;
     }
     const needsTrim = hasRawVideo && (startTime > 0.05 || endTime < duration - 0.05);
     onPublish({
-      caption: masterCaption,
+      caption: normalizedPublishCaption,
       farcasterCaption: effFarcaster,
       igCaption: effIg,
       collaborators,
       trim: needsTrim ? { start: startTime, end: endTime } : null,
       coverBlob: coverBlobRef.current,
     });
-  }, [masterCaption, effFarcaster, effIg, collaborators, hasRawVideo, startTime, endTime, duration, onPublish, goToStep, targets.hive, steps]);
+  }, [normalizedPublishCaption, effFarcaster, effIg, collaborators, hasRawVideo, startTime, endTime, duration, onPublish, goToStep, targets.hive, steps]);
 
   // ── Media shape for preview cards ───────────────────────────────────
   const carouselItems = useMemo<CarouselMediaItem[]>(() => images.map((img) => ({ url: img.url, type: "image" as const })), [images]);
@@ -269,7 +277,7 @@ export default function PublishPreviewDialog({
     : `${t("compose.prepare.publishTo")} ${steps
         .filter((s) => s !== "trim" && s !== "farcaster")
         .map((s) => stepLabel(s))
-        .join(" + ")}${targets.farcaster ? " + Farcaster" : ""}`;
+        .join(" + ")}${targets.farcaster ? ` + ${stepLabel("farcaster")}` : ""}`;
 
   return (
     <SkateModal
@@ -286,7 +294,7 @@ export default function PublishPreviewDialog({
             bg="primary"
             color="background"
             onClick={hasForwardNext ? goNext : handlePublish}
-            isDisabled={!isValidSelection || (!hasForwardNext && !masterCaption.trim())}
+            isDisabled={!isValidSelection || (!hasForwardNext && !normalizedPublishCaption)}
             fontFamily="mono"
             size="sm"
             _hover={{ opacity: 0.85 }}

@@ -364,6 +364,11 @@ export const en = {
       collabHint: 'Each gets a co-author invite — the post lands on their feed once they accept.',
       preview: 'Preview',
     },
+    progress: {
+      title: 'Sharing snap 🛹',
+      confirmingHive: 'Confirming on Hive…',
+      postingFarcaster: 'Posting to Farcaster…',
+    },
   },
   trickTutorial: {
     sectionTitle: 'Tutorial',

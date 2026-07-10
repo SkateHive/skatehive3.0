@@ -381,6 +381,11 @@ export const ptBR = {
       collabHint: 'Cada um recebe um convite de coautoria — o post aparece no feed deles assim que aceitarem.',
       preview: 'Pré-visualização',
     },
+    progress: {
+      title: 'Compartilhando snap 🛹',
+      confirmingHive: 'Confirmando no Hive…',
+      postingFarcaster: 'Postando no Farcaster…',
+    },
   },
   trickTutorial: {
     sectionTitle: 'Tutorial',

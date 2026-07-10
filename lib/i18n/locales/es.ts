@@ -381,6 +381,11 @@ export const es = {
       collabHint: 'Cada uno recibe una invitación de coautoría — la publicación aparece en su feed cuando aceptan.',
       preview: 'Vista previa',
     },
+    progress: {
+      title: 'Compartiendo snap 🛹',
+      confirmingHive: 'Confirmando en Hive…',
+      postingFarcaster: 'Publicando en Farcaster…',
+    },
   },
   trickTutorial: {
     sectionTitle: 'Tutorial',

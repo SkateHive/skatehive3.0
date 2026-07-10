@@ -854,8 +854,17 @@ const SnapComposer = React.memo(function SnapComposer({
     // a userbase session. A Keychain/aioha-only user (no userbase session) would
     // get a 401 there and be unable to publish — so only force it when a
     // userbase session exists; otherwise fall back to the cast-only branch.
+    // Only force the masked @skateuser soft-post when the user can ACTUALLY
+    // publish to Farcaster (eligible + linked). Otherwise a non-eligible FC-only
+    // user would create an orphan masked Hive post they can't back with a cast —
+    // instead they fall through to the branch below that prompts them to link.
     const forceSkateuser =
-      !wantsSkatehive && wantsFarcaster && isMainFeedSnap && !!userbaseUser;
+      !wantsSkatehive &&
+      wantsFarcaster &&
+      isMainFeedSnap &&
+      !!userbaseUser &&
+      farcasterEligible &&
+      !!farcasterLinkage;
 
     if (!wantsSkatehive && !wantsFarcaster) {
       toast({
@@ -1225,8 +1234,8 @@ const SnapComposer = React.memo(function SnapComposer({
               render: () => (
                 <PublishProgressToast
                   cover={shareCover}
-                  title="Sharing snap 🛹"
-                  stage="Confirming on Hive…"
+                  title={t('compose.progress.title')}
+                  stage={t('compose.progress.confirmingHive')}
                   progress={92}
                   tone="loading"
                 />
@@ -1246,8 +1255,8 @@ const SnapComposer = React.memo(function SnapComposer({
               render: () => (
                 <PublishProgressToast
                   cover={shareCover}
-                  title="Sharing snap 🛹"
-                  stage="Posting to Farcaster…"
+                  title={t('compose.progress.title')}
+                  stage={t('compose.progress.postingFarcaster')}
                   progress={96}
                   tone="loading"
                 />
