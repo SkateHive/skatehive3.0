@@ -94,7 +94,7 @@ export function MagazineRail() {
             overflow="hidden"
             border={`2px solid ${P.accent}`}
             bg={P.card}
-            boxShadow="0 12px 30px rgba(0,0,0,0.7), 0 0 18px rgba(203,255,62,0.15)"
+            boxShadow="0 12px 30px rgba(0,0,0,0.7), 0 0 18px color-mix(in srgb, var(--chakra-colors-primary) 18%, transparent)"
             sx={{ aspectRatio: "3 / 4" }}
           >
             <Image
@@ -111,7 +111,9 @@ export function MagazineRail() {
               right={0}
               bottom={0}
               h="42%"
-              bg="linear-gradient(180deg, transparent 0%, rgba(10,10,10,0.9) 100%)"
+              bg="linear-gradient(180deg,
+                transparent 0%,
+                color-mix(in srgb, var(--chakra-colors-background) 90%, transparent) 100%)"
               pointerEvents="none"
             />
             <Box position="absolute" left="8px" right="8px" bottom="8px">
@@ -133,7 +135,7 @@ export function MagazineRail() {
               <Box
                 position="absolute"
                 inset={0}
-                bg="rgba(10,10,10,0.7)"
+                bg="color-mix(in srgb, var(--chakra-colors-background) 70%, transparent)"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"

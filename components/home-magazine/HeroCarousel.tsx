@@ -66,7 +66,14 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           return (
             <Box key={s.id} position="relative" h="100%" flex="0 0 auto" w={`${100 / n}%`}>
               <Image src={s.image} alt="" position="absolute" inset={0} w="100%" h="100%" objectFit="cover" filter="grayscale(15%) contrast(1.05)" />
-              <Box position="absolute" inset={0} bg="linear-gradient(180deg, rgba(10,10,10,0.1) 0%, rgba(10,10,10,0.15) 45%, rgba(10,10,10,0.95) 100%)" />
+              <Box
+                position="absolute"
+                inset={0}
+                bg="linear-gradient(180deg,
+                  color-mix(in srgb, var(--chakra-colors-background) 10%, transparent) 0%,
+                  color-mix(in srgb, var(--chakra-colors-background) 15%, transparent) 45%,
+                  color-mix(in srgb, var(--chakra-colors-background) 95%, transparent) 100%)"
+              />
 
               {/* Tag — top-left, plain text with a green underline. Sits
                   separately from the title block so the two anchor to
@@ -174,7 +181,7 @@ function ArrowBtn({ side, onClick, children }: { side: "left" | "right"; onClick
       top="50%"
       transform="translateY(-50%)"
       zIndex={2}
-      bg="rgba(10,10,10,0.6)"
+      bg="color-mix(in srgb, var(--chakra-colors-background) 60%, transparent)"
       border={`2px solid ${P.accent}`}
       color={P.accent}
       w="48px"
@@ -182,7 +189,7 @@ function ArrowBtn({ side, onClick, children }: { side: "left" | "right"; onClick
       align="center"
       justify="center"
       fontSize="22px"
-      _hover={{ bg: "rgba(10,10,10,0.85)" }}
+      _hover={{ bg: "color-mix(in srgb, var(--chakra-colors-background) 85%, transparent)" }}
     >
       {children}
     </Flex>

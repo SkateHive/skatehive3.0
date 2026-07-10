@@ -31,7 +31,13 @@ export function JunkAndVideo({ items, video }: { items: JunkItem[]; video: Featu
       {video && (
         <Box className={postHref(video.postRef) ? "cursor-target" : undefined} position="relative" border={`2px solid ${P.card}`} cursor={postHref(video.postRef) ? "pointer" : "default"} onClick={() => { const h = postHref(video.postRef); if (h) router.push(h); }}>
           <Image src={video.cover} alt="" w="100%" h="100%" objectFit="cover" display="block" minH="420px" />
-          <Box position="absolute" inset={0} bg="linear-gradient(180deg, rgba(10,10,10,0) 55%, rgba(10,10,10,0.92) 100%)" />
+          <Box
+            position="absolute"
+            inset={0}
+            bg="linear-gradient(180deg,
+              transparent 55%,
+              color-mix(in srgb, var(--chakra-colors-background) 92%, transparent) 100%)"
+          />
           <Flex position="absolute" top="50%" left="50%" transform="translate(-50%,-50%)" w="74px" h="74px" borderRadius="50%" bg={P.accent} align="center" justify="center" color={P.onAccent} fontSize="28px">
             &#9654;
           </Flex>
