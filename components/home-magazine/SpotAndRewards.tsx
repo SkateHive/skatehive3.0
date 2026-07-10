@@ -54,15 +54,19 @@ export function SpotAndRewards({ initialFeaturedSpot, bounties }: { initialFeatu
               const sponsor = b.source === "poidh" ? `@${b.issuer?.slice(0, 8) ?? ""}` : b.sponsor;
               const value = bountyUsd(b);
               return (
-                <Flex key={i} align="center" justify="space-between" gap="12px" py="10px" borderTop={`1px solid ${P.card}`} fontSize="14px">
-                  <Flex align="center" gap="10px" minW={0}>
-                    <Box w="8px" h="8px" bg={P.accent} flexShrink={0} />
-                    <Box minW={0}>
-                      <Text fontWeight={700} color={P.body} isTruncated>{title}</Text>
-                      {sponsor && <Text fontSize="11px" color={P.faint} isTruncated>{sponsor}</Text>}
-                    </Box>
-                  </Flex>
-                  {value && <Text fontWeight={800} color={P.accent} whiteSpace="nowrap" flexShrink={0}>{value}</Text>}
+                <Flex key={i} align="center" gap="10px" py="10px" borderTop={`1px solid ${P.card}`} fontSize="14px">
+                  <Box w="8px" h="8px" bg={P.accent} flexShrink={0} />
+                  <Box minW={0} flex="1">
+                    <Text fontWeight={700} color={P.body} isTruncated>
+                      {title}
+                      {value && (
+                        <Text as="span" color={P.accent} ml="8px" fontWeight={800}>
+                          {value}
+                        </Text>
+                      )}
+                    </Text>
+                    {sponsor && <Text fontSize="11px" color={P.faint} isTruncated>{sponsor}</Text>}
+                  </Box>
                 </Flex>
               );
             })}
