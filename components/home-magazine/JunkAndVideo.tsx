@@ -47,7 +47,7 @@ export function JunkAndVideo({ items, video }: { items: JunkItem[]; video: Featu
             p="15px"
             borderRadius="22px"
             background="linear-gradient(150deg, #2c2b25 0%, #17170f 60%, #0f0f0a 100%)"
-            boxShadow="inset 0 2px 3px rgba(255,255,255,0.07), inset 0 -4px 10px rgba(0,0,0,0.65), 0 22px 55px rgba(0,0,0,0.55)"
+            boxShadow="inset 0 2px 3px rgba(255,255,255,0.07), inset 0 -4px 10px rgba(0,0,0,0.55), 0 10px 24px rgba(0,0,0,0.35)"
           >
             {/* Tube — the aspect-locked box that holds the screen hole
                 (video/thumbnail + CRT stack) and the PNG bezel on top. */}
@@ -111,12 +111,13 @@ export function JunkAndVideo({ items, video }: { items: JunkItem[]; video: Featu
                     },
                   }}
                 />
-                {/* Corner vignette. */}
+                {/* Corner vignette — dropped bottom weight so the lower
+                    half of the display reads as clearly as the top. */}
                 <Box
                   position="absolute"
                   inset={0}
                   pointerEvents="none"
-                  background="radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.45) 100%)"
+                  background="radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.22) 100%)"
                 />
                 {/* Play button — centered in the tube. */}
                 <Flex
