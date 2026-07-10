@@ -13,6 +13,15 @@ export interface MissYouEmailParams {
 
 const APP_STORE_URL = 'https://apps.apple.com/br/app/skatehive/id6751173076';
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /**
  * "We miss you" winback email for inactive users.
  * Highlights what changed since they left and invites them back to the crew.
@@ -20,6 +29,8 @@ const APP_STORE_URL = 'https://apps.apple.com/br/app/skatehive/id6751173076';
 export function buildMissYouEmail({ handle, displayName }: MissYouEmailParams): MissYouEmail {
   const fallbackLogo = 'https://docs.skatehive.app/img/skatehive.png';
   const name = (displayName && displayName.trim()) || handle;
+  const safeName = escapeHtml(name);
+  const safeHandle = escapeHtml(handle);
   const homeUrl = `${APP_CONFIG.BASE_URL}/`;
   const mapUrl = `${APP_CONFIG.BASE_URL}/map`;
 
@@ -43,9 +54,9 @@ export function buildMissYouEmail({ handle, displayName }: MissYouEmailParams): 
           </tr>
           <tr>
             <td style="padding:36px 32px 8px;">
-              <h2 style="margin:0 0 12px;font-size:24px;font-weight:700;color:#ffffff;">We miss you, ${name}.</h2>
+              <h2 style="margin:0 0 12px;font-size:24px;font-weight:700;color:#ffffff;">We miss you, ${safeName}.</h2>
               <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#bdbdbd;">
-                It's been a minute since <span style="color:#4caf50;font-weight:600;">@${handle}</span> rolled through the session. While you were away, Skatehive kept growing &mdash; the crew is now <strong style="color:#fff;">over 2000 skaters</strong> strong, and a lot has changed. Here's what you missed:
+                It's been a minute since <span style="color:#4caf50;font-weight:600;">@${safeHandle}</span> rolled through the session. While you were away, Skatehive kept growing &mdash; the crew is now <strong style="color:#fff;">over 2000 skaters</strong> strong, and a lot has changed. Here's what you missed:
               </p>
             </td>
           </tr>
