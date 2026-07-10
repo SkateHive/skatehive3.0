@@ -51,21 +51,17 @@ export function SpotAndRewards({ initialFeaturedSpot, bounties }: { initialFeatu
             {bounties.length === 0 && <Text fontSize="13px" color={P.faint}>Sem bounties abertos.</Text>}
             {bounties.map((b, i) => {
               const title = b.source === "poidh" ? b.name || `Bounty ${b.id}` : b.title;
-              const sponsor = b.source === "poidh" ? `@${b.issuer?.slice(0, 8) ?? ""}` : b.sponsor;
               const value = bountyUsd(b);
               return (
                 <Flex key={i} align="center" gap="10px" py="10px" borderTop={`1px solid ${P.card}`} fontSize="14px">
                   <Box w="8px" h="8px" bg={P.accent} flexShrink={0} />
                   <Box minW={0} flex="1">
-                    <Text fontWeight={700} color={P.body} isTruncated>
-                      {title}
-                      {value && (
-                        <Text as="span" color={P.accent} ml="8px" fontWeight={800}>
-                          {value}
-                        </Text>
-                      )}
-                    </Text>
-                    {sponsor && <Text fontSize="11px" color={P.faint} isTruncated>{sponsor}</Text>}
+                    <Text fontWeight={700} color={P.body} isTruncated>{title}</Text>
+                    {value && (
+                      <Text fontSize="12px" color={P.accent} fontWeight={800} letterSpacing="0.5px">
+                        {value}
+                      </Text>
+                    )}
                   </Box>
                 </Flex>
               );
