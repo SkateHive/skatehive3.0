@@ -44,6 +44,20 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
       fontFamily={MONO}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
+      sx={{
+        // Navigation arrows fade in on hover on devices that support hover.
+        // Touch devices — where `(hover: hover)` doesn't match — keep the
+        // arrows visible all the time so they stay tappable.
+        "@media (hover: hover)": {
+          "& .hero-nav": {
+            opacity: 0,
+            transition: "opacity 0.2s ease",
+          },
+          "&:hover .hero-nav, &:focus-within .hero-nav": {
+            opacity: 1,
+          },
+        },
+      }}
     >
       {/* Sliding track: all slides side by side, translated into view. */}
       <Flex h="100%" w={`${n * 100}%`} transform={`translateX(-${(i * 100) / n}%)`} transition="transform 0.6s cubic-bezier(0.4,0,0.2,1)">
@@ -151,6 +165,7 @@ function ArrowBtn({ side, onClick, children }: { side: "left" | "right"; onClick
   return (
     <Flex
       as="button"
+      className="hero-nav"
       onClick={onClick}
       aria-label={side === "left" ? "Anterior" : "Próximo"}
       position="absolute"
