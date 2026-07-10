@@ -330,11 +330,11 @@ export default function UserbasePostingKeyPanel({
               Apoiar os posts oficiais da SkateHive
             </Text>
           </Checkbox>
-          <FormHelperText color="dim" mt={1}>
+          <Text color="dim" fontSize="sm" mt={1}>
             Com isso marcado, sua conta dá um upvote automático nos posts
             oficiais (SkateHive, Gnars, Reelflip, Nogenta) pra fortalecer a
             comunidade. Você pode desmarcar quando quiser — aí sai da curadoria.
-          </FormHelperText>
+          </Text>
 
           {supportOfficial && (
             <Box mt={4}>
@@ -362,9 +362,9 @@ export default function UserbasePostingKeyPanel({
                 </SliderTrack>
                 <SliderThumb />
               </Slider>
-              <FormHelperText color="dim" mt={1}>
+              <Text color="dim" fontSize="sm" mt={1}>
                 Quanto do seu poder de voto vai em cada post oficial. Padrão 50%.
-              </FormHelperText>
+              </Text>
             </Box>
           )}
         </Box>
