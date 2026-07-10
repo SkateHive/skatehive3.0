@@ -1,5 +1,38 @@
 // This file defines the structure that all translation files must follow
 export interface TranslationSchema {
+  swapAdmin: {
+    tab: string;
+    hiveTab: string;
+    erc20Tab: string;
+    hiveSwapTitle: string;
+    erc20SwapTitle: string;
+    connectWallet: string;
+    notAuthorized: string;
+    wrongNetwork: string;
+    switchToBase: string;
+    configOutdated: string;
+    contract: string;
+    address: string;
+    owner: string;
+    status: string;
+    active: string;
+    paused: string;
+    refresh: string;
+    copied: string;
+    viewOnExplorer: string;
+    viewOnSplits: string;
+    recipients: string;
+    balances: string;
+    balancesHint: string;
+    noBalances: string;
+    distribute: string;
+    distributing: string;
+    distributed: string;
+    txSubmitted: string;
+    txCancelled: string;
+    distributeFailed: string;
+    footnote: string;
+  };
   navigation: {
     home: string;
     magazine: string;
