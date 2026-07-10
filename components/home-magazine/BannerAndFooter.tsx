@@ -12,7 +12,7 @@ export function CommunityBanner({ headline, subtext, ctaLabel }: { headline: str
         <Text fontWeight={800} fontSize="32px" color={P.onAccent} textTransform="uppercase" lineHeight="1.15">{headline}</Text>
         {subtext && <Text fontSize="15px" color={P.onAccentSoft} mt="12px">{subtext}</Text>}
       </Box>
-      <Button onClick={() => router.push("/")} bg={P.onAccent} color={P.accent} border="none" borderRadius={0} fontFamily={MONO} fontWeight={800} fontSize="16px" letterSpacing="1px" px="32px" py="18px" h="auto" whiteSpace="nowrap" _hover={{ opacity: 0.9 }}>
+      <Button className="cursor-target" onClick={() => router.push("/")} bg={P.onAccent} color={P.accent} border="none" borderRadius={0} fontFamily={MONO} fontWeight={800} fontSize="16px" letterSpacing="1px" px="32px" py="18px" h="auto" whiteSpace="nowrap" _hover={{ opacity: 0.9 }}>
         {ctaLabel || "ENTER COMMUNITY"} &#8594;
       </Button>
     </Flex>

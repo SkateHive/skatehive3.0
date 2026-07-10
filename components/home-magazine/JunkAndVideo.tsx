@@ -17,7 +17,7 @@ export function JunkAndVideo({ items, video }: { items: JunkItem[]; video: Featu
         {items.map((j) => {
           const href = postHref(j.postRef);
           return (
-            <Flex key={j.id} gap="16px" py="16px" borderTop={`1px solid ${P.card}`} cursor={href ? "pointer" : "default"} onClick={() => href && router.push(href)}>
+            <Flex key={j.id} className={href ? "cursor-target" : undefined} gap="16px" py="16px" borderTop={`1px solid ${P.card}`} cursor={href ? "pointer" : "default"} onClick={() => href && router.push(href)}>
               <Image src={j.thumb} alt="" w="100px" h="75px" objectFit="cover" flexShrink={0} filter="grayscale(15%)" />
               <Box>
                 <Text fontWeight={700} fontSize="16px" color={P.body} mb="6px">{j.title}</Text>
@@ -29,7 +29,7 @@ export function JunkAndVideo({ items, video }: { items: JunkItem[]; video: Featu
       </Box>
 
       {video && (
-        <Box position="relative" border={`2px solid ${P.card}`} cursor={postHref(video.postRef) ? "pointer" : "default"} onClick={() => { const h = postHref(video.postRef); if (h) router.push(h); }}>
+        <Box className={postHref(video.postRef) ? "cursor-target" : undefined} position="relative" border={`2px solid ${P.card}`} cursor={postHref(video.postRef) ? "pointer" : "default"} onClick={() => { const h = postHref(video.postRef); if (h) router.push(h); }}>
           <Image src={video.cover} alt="" w="100%" h="100%" objectFit="cover" display="block" minH="420px" />
           <Box position="absolute" inset={0} bg="linear-gradient(180deg, rgba(10,10,10,0) 55%, rgba(10,10,10,0.92) 100%)" />
           <Flex position="absolute" top="50%" left="50%" transform="translate(-50%,-50%)" w="74px" h="74px" borderRadius="50%" bg={P.accent} align="center" justify="center" color={P.onAccent} fontSize="28px">

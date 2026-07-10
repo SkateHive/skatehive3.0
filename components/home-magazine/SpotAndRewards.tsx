@@ -68,7 +68,7 @@ export function SpotAndRewards({ initialFeaturedSpot, bounties }: { initialFeatu
             })}
           </Box>
         </Box>
-        <Button onClick={() => router.push("/bounties")} mt="18px" bg={P.accent} border="none" borderRadius={0} color={P.onAccent} fontFamily={MONO} fontWeight={800} letterSpacing="1px" py="14px" h="auto" _hover={{ bg: P.accentHover }}>
+        <Button className="cursor-target" onClick={() => router.push("/bounties")} mt="18px" bg={P.accent} border="none" borderRadius={0} color={P.onAccent} fontFamily={MONO} fontWeight={800} letterSpacing="1px" py="14px" h="auto" _hover={{ bg: P.accentHover }}>
           VIEW ALL BOUNTIES
         </Button>
       </Flex>

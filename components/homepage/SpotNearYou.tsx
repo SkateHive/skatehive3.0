@@ -207,6 +207,7 @@ export default function SpotNearYou({ initialSpot = null, fill = false }: SpotNe
         <Box
           as="a"
           href={spotHref}
+          className="cursor-target"
           display={fill ? "flex" : "block"}
           flexDirection={fill ? "column" : undefined}
           flex={fill ? "1" : undefined}

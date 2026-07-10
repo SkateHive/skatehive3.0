@@ -119,6 +119,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   {href && (
                     <Flex
                       as="button"
+                      className="cursor-target"
                       onClick={() => play(href)}
                       w="56px"
                       h="56px"
@@ -165,7 +166,7 @@ function ArrowBtn({ side, onClick, children }: { side: "left" | "right"; onClick
   return (
     <Flex
       as="button"
-      className="hero-nav"
+      className="hero-nav cursor-target"
       onClick={onClick}
       aria-label={side === "left" ? "Anterior" : "Próximo"}
       position="absolute"

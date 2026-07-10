@@ -19,7 +19,7 @@ export function FeaturedGrid({ cards }: { cards: StripCard[] }) {
         {cards.map((c) => {
           const href = postHref(c.postRef);
           return (
-            <Flex key={c.id} gap="16px" cursor={href ? "pointer" : "default"} onClick={() => href && router.push(href)} align="flex-start">
+            <Flex key={c.id} className={href ? "cursor-target" : undefined} gap="16px" cursor={href ? "pointer" : "default"} onClick={() => href && router.push(href)} align="flex-start">
               <Image src={c.image} alt="" w="120px" h="90px" objectFit="cover" flexShrink={0} filter="grayscale(10%)" />
               <Box minW={0}>
                 {c.category && (

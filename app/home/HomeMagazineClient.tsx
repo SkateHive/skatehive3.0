@@ -11,6 +11,7 @@ import { JunkAndVideo } from "@/components/home-magazine/JunkAndVideo";
 import { SpotAndRewards } from "@/components/home-magazine/SpotAndRewards";
 import { CommunityBanner, PreviewRibbon } from "@/components/home-magazine/BannerAndFooter";
 import { MagazineRail } from "@/components/home-magazine/MagazineRail";
+import TargetCursor from "@/components/home-magazine/TargetCursor";
 
 // Magazine content. /home uses the SAME chrome as every other page — the normal
 // Skatehive sidebar/navbar, the theme `background`, and the app's Container
@@ -30,6 +31,10 @@ export default function HomeMagazineClient({
 
   return (
     <Box bg="background" fontFamily={MONO} minH="100%" px={{ base: "16px", md: "32px" }} pt="20px" pb="48px">
+      {/* Custom target cursor — desktop only, snaps to any element with the
+          `cursor-target` class. Component no-ops on mobile / touch. */}
+      <TargetCursor cursorColor="#cbff3e" cursorColorOnTarget="#ffffff" spinDuration={3} />
+
       {preview && <PreviewRibbon label="Preview — rascunho (não publicado)" />}
       {preview && <meta name="referrer" content="no-referrer" />}
 

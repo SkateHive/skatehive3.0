@@ -62,6 +62,7 @@ export function MagazineRail() {
         <Box
           as="button"
           type="button"
+          className="cursor-target"
           onClick={open}
           disabled={loadingIssue}
           display="block"
