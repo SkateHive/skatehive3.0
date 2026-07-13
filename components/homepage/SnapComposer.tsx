@@ -88,9 +88,10 @@ import { ImageCompressorRef } from "@/lib/utils/ImageCompressor";
 import imageCompression from "browser-image-compression";
 import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
 
-import GIFMakerWithSelector, {
-  GIFMakerRef as GIFMakerWithSelectorRef,
-} from "./GIFMakerWithSelector";
+import type { GIFMakerRef as GIFMakerWithSelectorRef } from "./GIFMakerWithSelector";
+// FFmpeg (loaded inside this component) touches browser-only globals at
+// module init, which crashes SSR if bundled into the server render.
+const GIFMakerWithSelector = dynamic(() => import("./GIFMakerWithSelector"), { ssr: false });
 import useHivePower from "@/hooks/useHivePower";
 import { useInstagramHealth } from "@/hooks/useInstagramHealth";
 import { TbGif } from "react-icons/tb";
