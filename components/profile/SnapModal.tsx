@@ -348,6 +348,7 @@ const SnapModal = ({
                   <Box
                     as="iframe"
                     src={currentMedia}
+                    title={`Odysee video by @${currentSnap.author}`}
                     width="100%"
                     height="100%"
                     border="none"
