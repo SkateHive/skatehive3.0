@@ -6,7 +6,7 @@
  * re-encode, so it's fast and lossless. Returns an MP4 Blob used by the
  * media-prepare flow before the trimmed clip is uploaded to the transcoder.
  *
- * ponytail: copy mode is keyframe-bound (the cut snaps to the nearest
+ * caveat: copy mode is keyframe-bound (the cut snaps to the nearest
  * keyframe before `start`); frame-accurate cuts need a re-encode, which is
  * far too slow in single-threaded WASM. Switch to re-encode server-side if
  * exact cuts ever matter.
@@ -63,9 +63,14 @@ export function createTrimmedVideo(
     await ffmpeg.writeFile(inputName, await fetchFile(file));
     try {
       const exitCode = await ffmpeg.exec([
-        "-i", inputName,
+        // -ss before -i (input seek): keeps the boundary keyframe. Output
+        // seeking drops packets by DTS, and with B-frames the boundary
+        // keyframe's DTS < PTS, so it's always discarded — leaving 1-2s of
+        // frozen/black video at the start of the trim.
         "-ss", String(start),
-        "-to", String(end),
+        "-i", inputName,
+        // Relative end point — input seeking resets timestamps to zero.
+        "-to", String(end - start),
         "-c", "copy",
         // Copy-mode cuts can leave negative timestamps; shift them to zero so
         // players don't show a frozen first frame or wrong duration.
