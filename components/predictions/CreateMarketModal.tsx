@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAioha } from "@aioha/react-ui";
 import useCreateMarket from "@/hooks/useCreateMarket";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
+import { PREDICTIONS_SPORTS_SHAPE_ENABLED } from "@/lib/predictions/config";
 import type {
   CreateMarketFields,
   MarketToken,
@@ -44,17 +45,9 @@ type Shape = "binary" | "multi" | "sports";
 
 const inputStyle = { bg: "inputBg", borderColor: "inputBorder" } as const;
 
-const FALLBACK_CATEGORIES = [
-  { id: "crypto", name: "Crypto" },
-  { id: "hive", name: "Hive" },
-  { id: "sports", name: "Sports" },
-  { id: "politics", name: "Politics" },
-  { id: "gaming", name: "Gaming / Esports" },
-  { id: "entertainment", name: "Entertainment" },
-  { id: "science", name: "Science & Weather" },
-  { id: "tech", name: "Tech" },
-  { id: "other", name: "Other" },
-];
+// Skatehive only creates markets in hivepredict's Skateboarding category.
+const CATEGORY_ID = "skate";
+const CATEGORY_LABEL = "Skateboarding";
 
 // datetime-local (local) → ISO, or "" if empty/invalid.
 function toIso(local: string): string {
@@ -63,11 +56,16 @@ function toIso(local: string): string {
   return Number.isNaN(d.getTime()) ? "" : d.toISOString();
 }
 
-const SHAPE_CARDS: { value: Shape; title: string; desc: string }[] = [
+const ALL_SHAPE_CARDS: { value: Shape; title: string; desc: string }[] = [
   { value: "binary", title: "Yes / No", desc: "A single binary question." },
   { value: "multi", title: "Multiple options", desc: "One winner from a field." },
   { value: "sports", title: "Sports match", desc: "Match winner from a live data feed." },
 ];
+
+// Sports is feature-flagged off for now — only Yes/No and Multiple options show.
+const SHAPE_CARDS = ALL_SHAPE_CARDS.filter(
+  (c) => c.value !== "sports" || PREDICTIONS_SPORTS_SHAPE_ENABLED
+);
 
 export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModalProps) {
   const { user } = useAioha();
@@ -78,7 +76,6 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
   const [shape, setShape] = useState<Shape>("binary");
 
   // shared
-  const [category, setCategory] = useState("skate");
   const [token, setToken] = useState<MarketToken>("HIVE");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -100,13 +97,6 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
   const [league, setLeague] = useState<string>(SPORTS_LEAGUES[0]);
   const [eventId, setEventId] = useState("");
   const [betType, setBetType] = useState<SportsBetType>("moneyline");
-
-  const { data: catData } = useQuery({
-    queryKey: predictionKeys.categories(),
-    queryFn: predictionsApi.getCategories,
-    staleTime: 300_000,
-  });
-  const categories = catData?.categories ?? FALLBACK_CATEGORIES;
 
   const {
     data: eventsData,
@@ -144,7 +134,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
         ...base,
         title,
         description,
-        category,
+        category: CATEGORY_ID,
         outcomes: ["YES", "NO"],
         outcomeLabels: { YES: yesLabel, NO: noLabel },
         creatorSide,
@@ -163,7 +153,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
         ...base,
         title,
         description,
-        category,
+        category: CATEGORY_ID,
         outcomes,
         outcomeLabels,
         creatorSide: side ?? "O1",
@@ -183,7 +173,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
         ...base,
         title: title || m.title,
         description: description || m.resolutionCriteria,
-        category: "sports",
+        category: CATEGORY_ID,
         outcomes: ["YES", "NO"],
         outcomeLabels: m.outcomeLabels,
         creatorSide,
@@ -199,7 +189,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
       ...base,
       title: title || `${selectedEvent.homeTeam} vs ${selectedEvent.awayTeam}`,
       description,
-      category: "sports",
+      category: CATEGORY_ID,
       outcomes: ["YES", "NO"],
       outcomeLabels: { YES: yesLabel, NO: noLabel },
       creatorSide,
@@ -211,7 +201,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
     };
   }, [
     shape, token, stakeCap, minParticipants, openingBetAmount, title, description,
-    category, yesLabel, noLabel, creatorSide, participants, closesAt, resolvesAt,
+    yesLabel, noLabel, creatorSide, participants, closesAt, resolvesAt,
     selectedEvent, betType,
   ]);
 
@@ -308,20 +298,9 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
             </VStack>
           ) : step === 2 ? (
             <VStack align="stretch" spacing={3}>
-              <FormControl isRequired>
+              <FormControl>
                 <FormLabel>Category</FormLabel>
-                <Select
-                  {...inputStyle}
-                  value={shape === "sports" ? "sports" : category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  isDisabled={shape === "sports"}
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
+                <Input {...inputStyle} value={CATEGORY_LABEL} isReadOnly isDisabled />
               </FormControl>
 
               {shape === "sports" && (

@@ -18,6 +18,11 @@ export const PREDICTIONS_CONFIG: PredictionsConfig = {
   titleFilter: null,
 };
 
+// The "Sports match" create shape (Odds API auto-resolve) is fully built but
+// hidden for now — the create wizard shows only Yes/No and Multiple options.
+// Flip to true to expose it again.
+export const PREDICTIONS_SPORTS_SHAPE_ENABLED = false;
+
 // Apply the optional client-side title filter.
 export function applyTitleFilter<T extends { title: string }>(items: T[]): T[] {
   const { titleFilter } = PREDICTIONS_CONFIG;
