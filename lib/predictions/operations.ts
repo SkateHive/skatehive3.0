@@ -18,12 +18,18 @@ import {
 import type { CreateMarketFields, MarketOutcome, MarketToken } from "./types";
 
 // Hive assets are 3-decimal strings suffixed with the symbol, e.g. "1.000 HIVE".
+// Rejects anything that would broadcast as a zero or negative amount — including
+// sub-precision positives like 0.0004, which round to "0.000".
 export function formatAmount(amount: number | string, token: MarketToken): string {
   const n = typeof amount === "string" ? Number(amount) : amount;
   if (!Number.isFinite(n)) {
     throw new Error(`Invalid amount: ${amount}`);
   }
-  return `${n.toFixed(3)} ${token}`;
+  const formatted = n.toFixed(3);
+  if (Number(formatted) <= 0) {
+    throw new Error(`Amount must round to a positive value: ${amount}`);
+  }
+  return `${formatted} ${token}`;
 }
 
 // Transfer memo that links a stake to a market + chosen side.

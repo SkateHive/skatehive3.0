@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAioha } from "@aioha/react-ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
@@ -23,52 +23,63 @@ export default function useCreateMarket() {
   const [error, setError] = useState<string | null>(null);
   const [txId, setTxId] = useState<string | null>(null);
   const [marketId, setMarketId] = useState<string | null>(null);
+  // Synchronous in-flight guard (state updates are async — a double-click
+  // could otherwise broadcast the create tx twice).
+  const inFlightRef = useRef(false);
 
   const needsWallet = !user;
 
   const createMarket = useCallback(
     async (fields: CreateMarketFields) => {
+      if (inFlightRef.current) {
+        return { success: false };
+      }
+      inFlightRef.current = true;
+      setStatus("pending");
       setError(null);
       setTxId(null);
       setMarketId(null);
 
-      if (!user) {
-        setStatus("error");
-        setError("Connect a Hive wallet to create a market.");
-        return { success: false };
+      try {
+        if (!user) {
+          setStatus("error");
+          setError("Connect a Hive wallet to create a market.");
+          return { success: false };
+        }
+
+        const check = validateCreateMarket({ fields, now: new Date() });
+        if (!check.ok) {
+          setStatus("error");
+          setError(check.error || "Invalid market.");
+          return { success: false };
+        }
+
+        const id = newMarketId();
+        const ops = buildCreateMarketOps({ user, marketId: id, ...fields });
+
+        const broadcast = selectBroadcaster({ dryRun, aioha, username: user });
+        const result = await broadcast(ops);
+
+        if (!result.success) {
+          setStatus("error");
+          setError(result.error || "Broadcast failed.");
+          return result;
+        }
+
+        setStatus("success");
+        setTxId(result.txId || null);
+        setMarketId(id);
+
+        if (!result.dryRun) {
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: predictionKeys.all });
+          }, 4000);
+        }
+
+        return { ...result, marketId: id };
+      } finally {
+        inFlightRef.current = false;
       }
-
-      const check = validateCreateMarket({ fields, now: new Date() });
-      if (!check.ok) {
-        setStatus("error");
-        setError(check.error || "Invalid market.");
-        return { success: false };
-      }
-
-      setStatus("pending");
-      const id = newMarketId();
-      const ops = buildCreateMarketOps({ user, marketId: id, ...fields });
-
-      const broadcast = selectBroadcaster({ dryRun, aioha, username: user });
-      const result = await broadcast(ops);
-
-      if (!result.success) {
-        setStatus("error");
-        setError(result.error || "Broadcast failed.");
-        return result;
-      }
-
-      setStatus("success");
-      setTxId(result.txId || null);
-      setMarketId(id);
-
-      if (!result.dryRun) {
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: predictionKeys.all });
-        }, 4000);
-      }
-
-      return { ...result, marketId: id };
     },
     [user, aioha, dryRun, queryClient]
   );

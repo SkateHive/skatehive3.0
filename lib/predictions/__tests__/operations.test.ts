@@ -18,6 +18,13 @@ assert.strictEqual(formatAmount("2.5", "HBD"), "2.500 HBD");
 assert.strictEqual(formatAmount(0.1 + 0.2, "HIVE"), "0.300 HIVE", "rounds to 3dp");
 assert.strictEqual(formatAmount(1.9999, "HIVE"), "2.000 HIVE", "rounds up");
 assert.throws(() => formatAmount("abc", "HIVE"), "rejects non-numeric amount");
+assert.throws(() => formatAmount(0, "HIVE"), "rejects zero");
+assert.throws(() => formatAmount(-1, "HIVE"), "rejects negative");
+assert.throws(
+  () => formatAmount(0.0004, "HIVE"),
+  "rejects sub-precision positive (rounds to 0.000)"
+);
+assert.strictEqual(formatAmount(0.0006, "HIVE"), "0.001 HIVE", "smallest broadcastable unit ok");
 
 // --- betMemo --------------------------------------------------------------
 assert.strictEqual(betMemo("mkt-1", "YES"), "mkt-1:YES");

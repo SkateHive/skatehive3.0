@@ -97,8 +97,9 @@ export function sportsMoneyline(event: SportsEvent): SportsMoneyline {
       `moneyline:${homeTeam}|${awayTeam}\n` +
       `Resolve YES if ${homeTeam} wins the match (including overtime/extra time ` +
       `where applicable), otherwise resolve NO if ${awayTeam} wins. If the match ` +
-      `is postponed/cancelled or no official final result is available by the ` +
-      `resolution time, void + refund.`,
+      `ends in a draw, is postponed/cancelled, or no official final result is ` +
+      `available by the resolution time, void + refund. (Two-outcome market: a ` +
+      `draw cannot resolve either side and always voids.)`,
     // Betting closes at kickoff; resolve a few hours later.
     bettingClosesAt: commenceTime,
     resolvesAt: addHoursIso(commenceTime, 4),

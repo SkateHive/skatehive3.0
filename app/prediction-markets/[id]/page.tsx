@@ -17,10 +17,13 @@ export async function generateMetadata({
   let title = "Prediction Market — Skatehive";
   let description = "Parimutuel prediction markets on Hive.";
 
+  // Same deadline as the API proxy — metadata must never stall page render.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
     const res = await fetch(
       `${HIVEPREDICT_API_BASE}/markets/${encodeURIComponent(id)}`,
-      { next: { revalidate: 60 } }
+      { next: { revalidate: 60 }, signal: controller.signal }
     );
     if (res.ok) {
       const market = await res.json();
@@ -31,6 +34,8 @@ export async function generateMetadata({
     }
   } catch {
     /* fall back to generic card */
+  } finally {
+    clearTimeout(timeout);
   }
 
   const ogImageUrl = `${BASE_URL}/api/og/page?title=${encodeURIComponent(

@@ -66,8 +66,12 @@ export const predictionKeys = {
   markets: (query: Record<string, string>) =>
     [...predictionKeys.all, "markets", query] as const,
   market: (id: string) => [...predictionKeys.all, "market", id] as const,
-  predictions: (id: string) =>
-    [...predictionKeys.all, "market", id, "predictions"] as const,
+  // Optional query keeps distinct pages/limits in distinct cache entries;
+  // invalidating with just the id still prefix-matches every variant.
+  predictions: (id: string, query?: Record<string, string>) =>
+    query
+      ? ([...predictionKeys.all, "market", id, "predictions", query] as const)
+      : ([...predictionKeys.all, "market", id, "predictions"] as const),
   balance: (username: string, symbol: MarketToken) =>
     [...predictionKeys.all, "balance", username, symbol] as const,
   categories: () => [...predictionKeys.all, "categories"] as const,

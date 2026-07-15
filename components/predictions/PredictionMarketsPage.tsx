@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAioha } from "@aioha/react-ui";
 import useHivePower from "@/hooks/useHivePower";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
+import { HIVEPREDICT_BRAND_COLOR } from "@/lib/predictions/constants";
 import { PREDICTIONS_CONFIG, applyTitleFilter } from "@/lib/predictions/config";
 import type { MarketStatus } from "@/lib/predictions/types";
 import MarketCard from "./MarketCard";
@@ -125,13 +126,13 @@ export default function PredictionMarketsPage() {
           sx={{
             // HivePredict brand red in every state — the global anchor styles
             // would otherwise recolor it on hover/visited and underline it.
-            color: "#E31337 !important",
+            color: `${HIVEPREDICT_BRAND_COLOR} !important`,
             "&:hover": {
               textDecoration: "none !important",
-              color: "#E31337 !important",
+              color: `${HIVEPREDICT_BRAND_COLOR} !important`,
               opacity: 0.85,
             },
-            "&:visited": { color: "#E31337 !important" },
+            "&:visited": { color: `${HIVEPREDICT_BRAND_COLOR} !important` },
           }}
         >
           HivePredict

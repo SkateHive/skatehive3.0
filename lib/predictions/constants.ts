@@ -11,3 +11,7 @@ export const OP_CREATE_MARKET = "hivepredict_create_market";
 
 // Read-only public API base (proxied server-side via /api/predictions).
 export const HIVEPREDICT_API_BASE = "https://hivepredict.app/api";
+
+// HivePredict brand red — used wherever the platform is credited. Kept as a
+// constant (not a theme token) because it must not vary across themes.
+export const HIVEPREDICT_BRAND_COLOR = "#E31337";

@@ -45,7 +45,7 @@ function renderContentWithVideos(
   // Split on supported video, social media, Zora coin, Snapshot, SkateHive game, and Builder proposal placeholders
   // Use [\s\S] instead of [^\]] to handle newlines inside placeholders
   const parts = processed.contentWithPlaceholders.split(
-    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY|PREDICTIONMARKET):[\s\S]+?\]\])/g
+    /(\[\[(?:VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY|PREDICTIONMARKET):[\s\S]+?\]\])/g
   );
 
   return parts
@@ -177,10 +177,6 @@ function cleanMarkdownPart(part: string): string {
     .replace(/^https?:\/\/(?:www\.)?hivepredict\.app\/markets\/[A-Za-z0-9-]+$/gm, "") // Prediction markets (hivepredict)
     // Remove any leftover placeholders that weren't split properly
     .replace(/\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY|PREDICTIONMARKET):[^\]]+\]\]/g, "")
-    .replace(
-      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY|PREDICTIONMARKET)\s*$/gm,
-      ""
-    )
     .replace(/^[a-zA-Z0-9_-]{11}$/gm, "") // YouTube video IDs
     .replace(/^[0-9]{8,}$/gm, "") // Vimeo video IDs
     .replace(/^(Qm[1-9A-HJ-NP-Za-km-z]{44,}|bafy[0-9a-z]{50,})$/gm, "") // IPFS CIDs

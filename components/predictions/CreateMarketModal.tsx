@@ -108,7 +108,12 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
   });
   const categories = catData?.categories ?? FALLBACK_CATEGORIES;
 
-  const { data: eventsData, isFetching: eventsLoading } = useQuery({
+  const {
+    data: eventsData,
+    isFetching: eventsLoading,
+    isError: eventsError,
+    refetch: refetchEvents,
+  } = useQuery({
     queryKey: predictionKeys.sportsEvents(league),
     queryFn: () => predictionsApi.getSportsEvents(league),
     enabled: isOpen && shape === "sports" && !!league,
@@ -371,10 +376,22 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
                       ))}
                     </Select>
                   </FormControl>
-                  {events.length === 0 && !eventsLoading && (
-                    <Text color="dim" fontSize="sm">
-                      No upcoming events for {league}.
-                    </Text>
+                  {eventsError ? (
+                    <HStack spacing={2}>
+                      <Text color="error" fontSize="sm">
+                        Couldn&apos;t load events for {league}.
+                      </Text>
+                      <Button size="xs" variant="outline" borderColor="border" color="text" onClick={() => refetchEvents()}>
+                        Retry
+                      </Button>
+                    </HStack>
+                  ) : (
+                    events.length === 0 &&
+                    !eventsLoading && (
+                      <Text color="dim" fontSize="sm">
+                        No upcoming events for {league}.
+                      </Text>
+                    )
                   )}
                   {autoResolve ? (
                     <Text color="success" fontSize="sm">

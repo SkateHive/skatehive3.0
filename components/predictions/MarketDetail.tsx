@@ -144,7 +144,7 @@ export default function MarketDetail({ id }: { id: string }) {
   });
 
   const { data: predictionsData } = useQuery({
-    queryKey: predictionKeys.predictions(id),
+    queryKey: predictionKeys.predictions(id, { limit: "20" }),
     queryFn: () => predictionsApi.getPredictions(id, { limit: "20" }),
     enabled: !!market,
     staleTime: 10_000,
@@ -309,30 +309,38 @@ export default function MarketDetail({ id }: { id: string }) {
                 Recent predictions
               </Heading>
               <VStack align="stretch" spacing={1}>
-                {predictions.map((p) => (
-                  <Flex
-                    key={p.id}
-                    justify="space-between"
-                    bg="panel"
-                    border="1px solid"
-                    borderColor="border"
-                    borderRadius="md"
-                    px={3}
-                    py={2}
-                  >
-                    <Text color="text" fontSize="sm">
-                      @{p.hiveUsername}
-                    </Text>
-                    <HStack spacing={2}>
-                      <Badge bg={p.outcome === "NO" ? "error" : "success"} color="background">
-                        {market.outcomeLabels?.[p.outcome] || p.outcome}
-                      </Badge>
-                      <Text color="dim" fontSize="sm">
-                        {p.amount} {p.token}
+                {predictions.map((p) => {
+                  // Badge color follows the same palette as the outcome bars.
+                  const outcomeIndex = market.outcomes.indexOf(p.outcome);
+                  const badgeColor =
+                    outcomeIndex >= 0
+                      ? sliceColor(market, p.outcome, outcomeIndex)
+                      : "muted";
+                  return (
+                    <Flex
+                      key={p.id}
+                      justify="space-between"
+                      bg="panel"
+                      border="1px solid"
+                      borderColor="border"
+                      borderRadius="md"
+                      px={3}
+                      py={2}
+                    >
+                      <Text color="text" fontSize="sm">
+                        @{p.hiveUsername}
                       </Text>
-                    </HStack>
-                  </Flex>
-                ))}
+                      <HStack spacing={2}>
+                        <Badge bg={badgeColor} color="background">
+                          {market.outcomeLabels?.[p.outcome] || p.outcome}
+                        </Badge>
+                        <Text color="dim" fontSize="sm">
+                          {p.amount} {p.token}
+                        </Text>
+                      </HStack>
+                    </Flex>
+                  );
+                })}
               </VStack>
             </>
           )}

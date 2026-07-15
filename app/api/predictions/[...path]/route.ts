@@ -92,9 +92,13 @@ export async function GET(
 
     const data = await res.json();
     const response = NextResponse.json(data, { status: res.status });
+    // Only cache successful responses — a cached 4xx/5xx would be served to
+    // every user for the whole revalidate window.
     response.headers.set(
       "Cache-Control",
-      `public, s-maxage=${revalidate}, stale-while-revalidate=${revalidate * 2}`
+      res.ok
+        ? `public, s-maxage=${revalidate}, stale-while-revalidate=${revalidate * 2}`
+        : "no-store"
     );
     return response;
   } catch (err: any) {

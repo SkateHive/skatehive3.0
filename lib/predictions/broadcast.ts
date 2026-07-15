@@ -70,7 +70,15 @@ export const dryRunBroadcaster: Broadcaster = async (ops: Operation[]) => {
   return { success: true, dryRun: true, ops, txId: "dry-run" };
 };
 
-// Choose a broadcaster. `dryRun` wins; otherwise Aioha if a wallet is present.
+// No wallet context and no explicit dry-run: fail loudly instead of silently
+// pretending the ops were broadcast.
+const noWalletBroadcaster: Broadcaster = async () => ({
+  success: false,
+  error: "No Hive wallet available to sign this transaction.",
+});
+
+// Choose a broadcaster. `dryRun` wins; otherwise Aioha if a wallet is present,
+// then direct Keychain; with no wallet at all the broadcast fails.
 export function selectBroadcaster(opts: {
   dryRun?: boolean;
   aioha?: any;
@@ -79,5 +87,5 @@ export function selectBroadcaster(opts: {
   if (opts.dryRun) return dryRunBroadcaster;
   if (opts.aioha) return aiohaBroadcaster(opts.aioha);
   if (opts.username) return keychainBroadcaster(opts.username);
-  return dryRunBroadcaster;
+  return noWalletBroadcaster;
 }
