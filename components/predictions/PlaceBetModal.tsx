@@ -15,13 +15,14 @@ import {
   ModalOverlay,
   NumberInput,
   NumberInputField,
+  Select,
   Text,
   VStack,
 } from "@chakra-ui/react";
 import { useAioha } from "@aioha/react-ui";
 import usePlaceBet from "@/hooks/usePlaceBet";
 import type { Market, MarketOutcome } from "@/lib/predictions/types";
-import { outcomeLabel, poolNumbers } from "./marketDisplay";
+import { isBinaryMarket, outcomeBreakdown, outcomeLabel, totalPoolOf } from "./marketDisplay";
 import ConnectWalletPrompt from "./ConnectWalletPrompt";
 
 interface PlaceBetModalProps {
@@ -31,15 +32,16 @@ interface PlaceBetModalProps {
 }
 
 // Rough parimutuel payout estimate if `outcome` wins: your stake back plus a
-// proportional share of the losing pool.
+// proportional share of the rest of the pool. Works for binary and
+// multi-outcome markets (lose pool = total pool minus the chosen outcome).
 function estimatePayout(
   market: Market,
   outcome: MarketOutcome,
   stake: number
 ): number {
-  const { yes, no } = poolNumbers(market);
-  const winPool = outcome === "YES" ? yes : no;
-  const losePool = outcome === "YES" ? no : yes;
+  const slices = outcomeBreakdown(market);
+  const winPool = slices.find((s) => s.code === outcome)?.pool ?? 0;
+  const losePool = Math.max(0, totalPoolOf(market) - winPool);
   const newWinPool = winPool + stake;
   if (newWinPool <= 0) return stake;
   return stake + (stake / newWinPool) * losePool;
@@ -49,7 +51,8 @@ export default function PlaceBetModal({ market, isOpen, onClose }: PlaceBetModal
   const { user } = useAioha();
   const { placeBet, status, error, txId, isPending, dryRun, reset } =
     usePlaceBet(market);
-  const [outcome, setOutcome] = useState<MarketOutcome>("YES");
+  const binary = isBinaryMarket(market);
+  const [outcome, setOutcome] = useState<MarketOutcome>(market.outcomes?.[0] ?? "YES");
   const [stake, setStake] = useState<number>(1);
 
   const payout = useMemo(
@@ -90,21 +93,41 @@ export default function PlaceBetModal({ market, isOpen, onClose }: PlaceBetModal
             <VStack align="stretch" spacing={4}>
               <Text fontWeight={600}>{market.title}</Text>
 
-              <HStack spacing={2}>
-                {(["YES", "NO"] as MarketOutcome[]).map((o) => (
-                  <Button
-                    key={o}
-                    flex={1}
-                    variant={outcome === o ? "solid" : "outline"}
-                    bg={outcome === o ? (o === "YES" ? "success" : "error") : "transparent"}
-                    color={outcome === o ? "background" : "text"}
-                    borderColor="border"
-                    onClick={() => setOutcome(o)}
+              {binary ? (
+                <HStack spacing={2}>
+                  {market.outcomes.map((o) => (
+                    <Button
+                      key={o}
+                      flex={1}
+                      variant={outcome === o ? "solid" : "outline"}
+                      bg={outcome === o ? (o === "NO" ? "error" : "success") : "transparent"}
+                      color={outcome === o ? "background" : "text"}
+                      borderColor="border"
+                      onClick={() => setOutcome(o)}
+                    >
+                      {outcomeLabel(market, o)}
+                    </Button>
+                  ))}
+                </HStack>
+              ) : (
+                <Box>
+                  <Text fontSize="sm" color="muted" mb={1}>
+                    Choose an outcome
+                  </Text>
+                  <Select
+                    value={outcome}
+                    onChange={(e) => setOutcome(e.target.value)}
+                    bg="inputBg"
+                    borderColor="inputBorder"
                   >
-                    {outcomeLabel(market, o)}
-                  </Button>
-                ))}
-              </HStack>
+                    {outcomeBreakdown(market).map((s) => (
+                      <option key={s.code} value={s.code}>
+                        {s.label} — {s.pct}%
+                      </option>
+                    ))}
+                  </Select>
+                </Box>
+              )}
 
               <Box>
                 <Text fontSize="sm" color="muted" mb={1}>

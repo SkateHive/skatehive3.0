@@ -5,9 +5,11 @@ import { Badge, Box, Flex, Text, VStack } from "@chakra-ui/react";
 import type { Market } from "@/lib/predictions/types";
 import {
   closesLabel,
-  outcomeLabel,
-  poolNumbers,
+  isBinaryMarket,
+  outcomeBreakdown,
+  sliceColor,
   statusColor,
+  totalPoolOf,
 } from "./marketDisplay";
 
 interface MarketCardProps {
@@ -15,12 +17,14 @@ interface MarketCardProps {
   now?: Date;
 }
 
-// hivepredict-styled market card. Uses Chakra semantic tokens only so it adapts
-// across every Skatehive theme.
+// hivepredict-styled market card. Handles both binary (YES/NO) and
+// multi-outcome (O1..On) markets. Uses Chakra semantic tokens only so it
+// adapts across every Skatehive theme.
 export default function MarketCard({ market, now = new Date() }: MarketCardProps) {
-  const { yes, no, yesPct, noPct, total } = poolNumbers(market);
-  const yesLabel = outcomeLabel(market, "YES");
-  const noLabel = outcomeLabel(market, "NO");
+  const slices = outcomeBreakdown(market);
+  const total = totalPoolOf(market);
+  const binary = isBinaryMarket(market);
+  const leader = [...slices].sort((a, b) => b.pct - a.pct)[0];
 
   return (
     <Box
@@ -37,12 +41,7 @@ export default function MarketCard({ market, now = new Date() }: MarketCardProps
     >
       <VStack align="stretch" spacing={3}>
         <Flex justify="space-between" align="start" gap={2}>
-          <Badge
-            colorScheme="gray"
-            bg="subtle"
-            color="text"
-            textTransform="capitalize"
-          >
+          <Badge bg="subtle" color="text" textTransform="capitalize">
             {market.category || "market"}
           </Badge>
           <Flex gap={2} align="center">
@@ -59,21 +58,46 @@ export default function MarketCard({ market, now = new Date() }: MarketCardProps
           {market.title}
         </Text>
 
-        {/* YES / NO probability split bar */}
-        <Box>
-          <Flex justify="space-between" mb={1}>
-            <Text fontSize="xs" color="success" fontWeight={600} noOfLines={1}>
-              {yesLabel} {yesPct}%
-            </Text>
-            <Text fontSize="xs" color="error" fontWeight={600} noOfLines={1}>
-              {noLabel} {noPct}%
-            </Text>
-          </Flex>
-          <Flex h="6px" borderRadius="full" overflow="hidden" bg="subtle">
-            <Box w={`${yesPct}%`} bg="success" />
-            <Box w={`${noPct}%`} bg="error" />
-          </Flex>
-        </Box>
+        {binary ? (
+          // YES / NO split
+          <Box>
+            <Flex justify="space-between" mb={1}>
+              {slices.map((s) => (
+                <Text
+                  key={s.code}
+                  fontSize="xs"
+                  color={s.code === "NO" ? "error" : "success"}
+                  fontWeight={600}
+                  noOfLines={1}
+                >
+                  {s.label} {s.pct}%
+                </Text>
+              ))}
+            </Flex>
+            <Flex h="6px" borderRadius="full" overflow="hidden" bg="subtle">
+              {slices.map((s) => (
+                <Box key={s.code} w={`${s.pct}%`} bg={s.code === "NO" ? "error" : "success"} />
+              ))}
+            </Flex>
+          </Box>
+        ) : (
+          // Multi-outcome: leading option + stacked multi-color bar
+          <Box>
+            <Flex justify="space-between" mb={1} gap={2}>
+              <Text fontSize="xs" color="text" fontWeight={600} noOfLines={1}>
+                {leader ? `${leader.label} ${leader.pct}%` : "—"}
+              </Text>
+              <Text fontSize="xs" color="dim" flexShrink={0}>
+                {market.outcomes.length} options
+              </Text>
+            </Flex>
+            <Flex h="6px" borderRadius="full" overflow="hidden" bg="subtle">
+              {slices.map((s, i) => (
+                <Box key={s.code} w={`${s.pct}%`} bg={sliceColor(market, s.code, i)} />
+              ))}
+            </Flex>
+          </Box>
+        )}
 
         <Flex justify="space-between" align="center">
           <Text fontSize="xs" color="muted">

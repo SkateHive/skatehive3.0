@@ -16,7 +16,13 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useAioha } from "@aioha/react-ui";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
-import { closesLabel, outcomeLabel, poolNumbers, statusColor } from "./marketDisplay";
+import {
+  closesLabel,
+  outcomeBreakdown,
+  sliceColor,
+  statusColor,
+  totalPoolOf,
+} from "./marketDisplay";
 import PlaceBetModal from "./PlaceBetModal";
 import ConnectWalletPrompt from "./ConnectWalletPrompt";
 
@@ -56,7 +62,8 @@ export default function MarketDetail({ id }: { id: string }) {
     );
   }
 
-  const { yes, no, yesPct, noPct, total } = poolNumbers(market);
+  const slices = outcomeBreakdown(market).sort((a, b) => b.pct - a.pct);
+  const total = totalPoolOf(market);
   const canBet = market.status === "active";
   const predictions = predictionsData?.predictions ?? [];
 
@@ -94,28 +101,34 @@ export default function MarketDetail({ id }: { id: string }) {
         </Text>
       )}
 
-      {/* Pool split */}
+      {/* Outcomes + pools */}
       <Box bg="panel" border="1px solid" borderColor="border" borderRadius="lg" p={4} mb={4}>
-        <Flex justify="space-between" mb={1}>
-          <Text color="success" fontWeight={700}>
-            {outcomeLabel(market, "YES")} · {yesPct}%
-          </Text>
-          <Text color="error" fontWeight={700}>
-            {outcomeLabel(market, "NO")} · {noPct}%
-          </Text>
+        {/* Stacked bar across all outcomes */}
+        <Flex h="10px" borderRadius="full" overflow="hidden" bg="subtle" mb={3}>
+          {slices.map((s, i) => (
+            <Box key={s.code} w={`${s.pct}%`} bg={sliceColor(market, s.code, i)} />
+          ))}
         </Flex>
-        <Flex h="10px" borderRadius="full" overflow="hidden" bg="subtle" mb={2}>
-          <Box w={`${yesPct}%`} bg="success" />
-          <Box w={`${noPct}%`} bg="error" />
-        </Flex>
-        <Flex justify="space-between">
-          <Text fontSize="sm" color="muted">
-            {yes.toFixed(3)} {market.token}
-          </Text>
-          <Text fontSize="sm" color="muted">
-            {no.toFixed(3)} {market.token}
-          </Text>
-        </Flex>
+        <VStack align="stretch" spacing={2}>
+          {slices.map((s, i) => (
+            <Flex key={s.code} justify="space-between" align="center">
+              <HStack spacing={2} minW={0}>
+                <Box w="10px" h="10px" borderRadius="sm" bg={sliceColor(market, s.code, i)} flexShrink={0} />
+                <Text color="text" noOfLines={1}>
+                  {s.label}
+                </Text>
+              </HStack>
+              <HStack spacing={3} flexShrink={0}>
+                <Text color="muted" fontSize="sm">
+                  {s.pool.toFixed(3)} {market.token}
+                </Text>
+                <Text color="text" fontWeight={700} w="3.5rem" textAlign="right">
+                  {s.pct}%
+                </Text>
+              </HStack>
+            </Flex>
+          ))}
+        </VStack>
         <Divider my={3} borderColor="border" />
         <Flex justify="space-between">
           <Text fontSize="sm" color="dim">
@@ -167,7 +180,7 @@ export default function MarketDetail({ id }: { id: string }) {
                 </Text>
                 <HStack spacing={2}>
                   <Badge bg={p.outcome === "NO" ? "error" : "success"} color="background">
-                    {p.outcome}
+                    {market.outcomeLabels?.[p.outcome] || p.outcome}
                   </Badge>
                   <Text color="muted" fontSize="sm">
                     {p.amount} {p.token}

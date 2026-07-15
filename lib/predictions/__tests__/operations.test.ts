@@ -73,6 +73,23 @@ assert.strictEqual(betMemo("mkt-1", "YES"), "mkt-1:YES");
   assert.strictEqual((ops[0][1] as any).memo, "m2:NO");
 }
 
+// Multi-outcome bet: outcome code (O5) flows into memo + custom_json.
+{
+  const ops = buildPlaceBetOps({
+    user: "cwow2",
+    marketId: "0e10e215-d97e-4de8-a9e1-b3833649a47c",
+    outcome: "O5",
+    amount: 2,
+    token: "HIVE",
+  });
+  assert.strictEqual(
+    (ops[0][1] as any).memo,
+    "0e10e215-d97e-4de8-a9e1-b3833649a47c:O5",
+    "multi-outcome memo uses the outcome code"
+  );
+  assert.strictEqual(JSON.parse((ops[1][1] as any).json).outcome, "O5");
+}
+
 // --- buildCreateMarketOps -------------------------------------------------
 {
   const fields: CreateMarketFields = {

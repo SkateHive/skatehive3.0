@@ -4,7 +4,9 @@
 
 export type MarketToken = "HIVE" | "HBD";
 
-export type MarketOutcome = "YES" | "NO";
+// "YES" / "NO" for binary markets; "O1".."On" for multi-outcome markets.
+// Kept as a plain string so both kinds flow through the same code paths.
+export type MarketOutcome = string;
 
 export type MarketStatus =
   | "pending"
@@ -23,15 +25,18 @@ export interface Market {
   category?: string;
   token: MarketToken;
   outcomes: MarketOutcome[];
-  outcomeLabels?: Partial<Record<MarketOutcome, string>>;
+  outcomeLabels?: Record<string, string>;
   stakeCap?: string | number;
   minParticipants?: number;
   bettingClosesAt?: string;
   resolvesAt?: string;
   status: MarketStatus;
   totalPool?: string;
+  // Binary markets populate yes/no; multi-outcome markets populate
+  // outcomePools keyed by outcome code (O1..On), with yes/no = "0".
   yesPool?: string;
   noPool?: string;
+  outcomePools?: Record<string, string>;
   createdAt?: string;
 }
 
