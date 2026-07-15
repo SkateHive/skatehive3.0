@@ -78,7 +78,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
   const [shape, setShape] = useState<Shape>("binary");
 
   // shared
-  const [category, setCategory] = useState("sports");
+  const [category, setCategory] = useState("skate");
   const [token, setToken] = useState<MarketToken>("HIVE");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -312,7 +312,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
                 <FormLabel>Category</FormLabel>
                 <Select
                   {...inputStyle}
-                  value={category}
+                  value={shape === "sports" ? "sports" : category}
                   onChange={(e) => setCategory(e.target.value)}
                   isDisabled={shape === "sports"}
                 >

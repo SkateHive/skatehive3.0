@@ -1,10 +1,8 @@
 // Single source of truth for which markets Skatehive surfaces.
 //
-// Today: sports markets in the "core" group (good for testing — Skatehive-
-// specific markets don't exist yet). Later: flip to a title/tags filter for
-// anything containing "skate" by setting `titleFilter` (and optionally
-// clearing/relaxing `upstreamQuery`). Changing this one object re-scopes the
-// whole feature; no other file needs to change.
+// Scoped to hivepredict's dedicated "skate" category (API id `skate`).
+// Changing this one object re-scopes the whole feature; no other file needs
+// to change (e.g. add a titleFilter, or widen upstreamQuery for testing).
 
 export interface PredictionsConfig {
   // Query params forwarded to the hivepredict /markets endpoint.
@@ -15,11 +13,8 @@ export interface PredictionsConfig {
 
 export const PREDICTIONS_CONFIG: PredictionsConfig = {
   upstreamQuery: {
-    category: "sports",
-    marketGroup: "core",
+    category: "skate",
   },
-  // To scope to Skatehive markets once they exist:
-  //   titleFilter: /skate/i,
   titleFilter: null,
 };
 
