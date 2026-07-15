@@ -27,6 +27,7 @@ import {
   FiFilm,
   FiUsers,
   FiMail,
+  FiTrendingUp,
 } from "react-icons/fi";
 import { useTheme } from "@/app/themeProvider";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -123,6 +124,12 @@ export default function Sidebar() {
         { href: "/videos", icon: FiVideo, label: "Videos", prefetch: false },
         { href: "/cinema", icon: FiFilm, label: "Cinema", prefetch: false },
         { href: "/skaters", icon: FiUsers, label: "Skaters", prefetch: false },
+        {
+          href: "/prediction-markets",
+          icon: FiTrendingUp,
+          label: "Predictions",
+          prefetch: false,
+        },
       ],
     },
     {

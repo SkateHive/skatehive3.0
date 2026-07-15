@@ -343,6 +343,7 @@ export default function MobileTabBar() {
         { icon: FiVideo, href: "/videos", name: "Videos" },
         { icon: FiFilm, href: "/cinema", name: "Cinema" },
         { icon: FiUsers, href: "/skaters", name: "Skaters" },
+        { icon: FiTrendingUp, href: "/prediction-markets", name: "Predictions" },
       ],
     },
     {
