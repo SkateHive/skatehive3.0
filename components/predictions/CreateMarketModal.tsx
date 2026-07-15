@@ -219,7 +219,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
       isOpen={isOpen}
       onClose={handleClose}
       title="create-market"
-      size="xl"
+      size={{ base: "full", md: "2xl" }}
       footer={
         <Flex w="full" align="center">
           {user && step > 1 && (
