@@ -4,23 +4,18 @@ import {
   Badge,
   Box,
   Button,
+  Flex,
   FormControl,
   FormLabel,
   Grid,
   HStack,
   Input,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
   Select,
   Text,
   Textarea,
   VStack,
 } from "@chakra-ui/react";
+import SkateModal from "@/components/shared/SkateModal";
 import { useQuery } from "@tanstack/react-query";
 import { useAioha } from "@aioha/react-ui";
 import useCreateMarket from "@/hooks/useCreateMarket";
@@ -225,25 +220,61 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} isCentered size="xl" scrollBehavior="inside">
-      <ModalOverlay />
-      <ModalContent bg="panel" color="text">
-        <ModalHeader>
-          Create market
-          {dryRun && (
-            <Badge ml={2} bg="warning" color="background">
-              DRY RUN
-            </Badge>
+    <SkateModal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="create-market"
+      size="xl"
+      footer={
+        <Flex w="full" align="center">
+          {user && step > 1 && (
+            <Button variant="ghost" mr="auto" onClick={() => setStep((s) => s - 1)} color="text" size="sm">
+              Back
+            </Button>
           )}
-          <HStack spacing={1} mt={2}>
+          <Button variant="ghost" ml="auto" mr={3} onClick={handleClose} color="text" size="sm">
+            Close
+          </Button>
+          {user && step < 3 && (
+            <Button
+              bg="primary"
+              color="background"
+              size="sm"
+              onClick={() => setStep((s) => s + 1)}
+              isDisabled={step === 2 && shape === "sports" && !selectedEvent}
+            >
+              Next
+            </Button>
+          )}
+          {user && step === 3 && (
+            <Button
+              bg="primary"
+              color="background"
+              size="sm"
+              isLoading={isPending}
+              isDisabled={!assembled}
+              onClick={handleSubmit}
+            >
+              {dryRun ? "Simulate creation" : "Create market"}
+            </Button>
+          )}
+        </Flex>
+      }
+    >
+      <Box p={4} color="text">
+        <HStack spacing={2} mb={4} align="center">
+          <HStack spacing={1}>
             {[1, 2, 3].map((n) => (
               <Box key={n} w={6} h={1.5} borderRadius="full" bg={step >= n ? "primary" : "subtle"} />
             ))}
           </HStack>
-        </ModalHeader>
-        <ModalCloseButton />
-
-        <ModalBody>
+          {dryRun && (
+            <Badge bg="warning" color="background">
+              DRY RUN
+            </Badge>
+          )}
+        </HStack>
+        <Box>
           {!user ? (
             <ConnectWalletPrompt action="create a market" />
           ) : step === 1 ? (
@@ -491,40 +522,8 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
               )}
             </VStack>
           )}
-        </ModalBody>
-
-        <ModalFooter>
-          {user && step > 1 && (
-            <Button variant="ghost" mr="auto" onClick={() => setStep((s) => s - 1)} color="text">
-              Back
-            </Button>
-          )}
-          <Button variant="ghost" mr={3} onClick={handleClose} color="text">
-            Close
-          </Button>
-          {user && step < 3 && (
-            <Button
-              bg="primary"
-              color="background"
-              onClick={() => setStep((s) => s + 1)}
-              isDisabled={step === 2 && shape === "sports" && !selectedEvent}
-            >
-              Next
-            </Button>
-          )}
-          {user && step === 3 && (
-            <Button
-              bg="primary"
-              color="background"
-              isLoading={isPending}
-              isDisabled={!assembled}
-              onClick={handleSubmit}
-            >
-              {dryRun ? "Simulate creation" : "Create market"}
-            </Button>
-          )}
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+        </Box>
+      </Box>
+    </SkateModal>
   );
 }

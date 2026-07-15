@@ -197,11 +197,29 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
             </Text>
           )}
           {status === "success" && (
-            <Text color="success" fontSize="sm">
-              {dryRun
-                ? "Dry run complete — see console for the transaction ops."
-                : `Bet placed!${txId ? ` (${txId})` : ""}`}
-            </Text>
+            <VStack align="stretch" spacing={2}>
+              <Text color="success" fontSize="sm">
+                {dryRun
+                  ? "Dry run complete — see console for the transaction ops."
+                  : `Bet placed!${txId ? ` (${txId})` : ""}`}
+              </Text>
+              {!dryRun && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  borderColor="border"
+                  color="text"
+                  onClick={() => {
+                    const url = `${window.location.origin}/prediction-markets/${encodeURIComponent(market.id)}`;
+                    navigator.clipboard.writeText(
+                      `I just bet ${stake.toFixed(3)} ${market.token} on "${outcomeLabel(market, outcome)}" 🎯\n${url}`
+                    );
+                  }}
+                >
+                  Copy bet to share in a snap
+                </Button>
+              )}
+            </VStack>
           )}
         </VStack>
       )}

@@ -11,8 +11,11 @@ import {
   HStack,
   Spinner,
   Text,
+  useClipboard,
+  useToast,
   VStack,
 } from "@chakra-ui/react";
+import { FiLink, FiShare2 } from "react-icons/fi";
 import { useQuery } from "@tanstack/react-query";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
 import type { Market } from "@/lib/predictions/types";
@@ -83,6 +86,53 @@ function MarketInfoCard({ market }: { market: Market }) {
         ))}
       </VStack>
     </Box>
+  );
+}
+
+// Copy-link + compose-share row. Pasting the copied link into a snap/post
+// renders the market as an embedded card in the feed (see MarketPreview).
+function ShareRow({ marketId, title }: { marketId: string; title: string }) {
+  const toast = useToast();
+  const url =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/prediction-markets/${encodeURIComponent(marketId)}`
+      : "";
+  const { onCopy } = useClipboard(url);
+
+  return (
+    <HStack spacing={4} mb={4}>
+      <Button
+        size="xs"
+        variant="ghost"
+        color="dim"
+        leftIcon={<FiLink />}
+        onClick={() => {
+          onCopy();
+          toast({
+            title: "Link copied",
+            description: "Paste it in a snap — it renders as a market card.",
+            status: "success",
+            duration: 2500,
+          });
+        }}
+      >
+        Copy link
+      </Button>
+      <Button
+        size="xs"
+        variant="ghost"
+        color="dim"
+        leftIcon={<FiShare2 />}
+        onClick={() =>
+          window.open(
+            `https://x.com/intent/tweet?text=${encodeURIComponent(`${title}\n${url}`)}`,
+            "_blank"
+          )
+        }
+      >
+        Share on X
+      </Button>
+    </HStack>
   );
 }
 
@@ -160,10 +210,12 @@ export default function MarketDetail({ id }: { id: string }) {
             {market.title}
           </Heading>
           {market.description && (
-            <Text color="dim" mb={4} whiteSpace="pre-wrap">
+            <Text color="dim" mb={2} whiteSpace="pre-wrap">
               {market.description}
             </Text>
           )}
+
+          <ShareRow marketId={market.id} title={market.title} />
 
           {/* Outcome bar rows */}
           <VStack align="stretch" spacing={2} mb={4}>

@@ -14,7 +14,7 @@ export interface ProcessedMarkdown {
 }
 
 export interface VideoPlaceholder {
-  type: 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | '3SPEAK' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY';
+  type: 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | '3SPEAK' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY' | 'PREDICTIONMARKET';
   id: string;
   placeholder: string;
 }
@@ -56,8 +56,11 @@ export class MarkdownProcessor {
     // Step 3.7: Convert POIDH bounty links to placeholders
     const contentWithBountyPlaceholders = this.convertPoidhBountyLinksToPlaceholders(contentWithProposalPlaceholders);
 
+    // Step 3.8: Convert prediction market links to placeholders
+    const contentWithMarketPlaceholders = this.convertPredictionMarketLinksToPlaceholders(contentWithBountyPlaceholders);
+
     // Step 4: Extract video placeholders and convert to our format
-    const contentWithPlaceholders = this.convertToVideoPlaceholders(contentWithBountyPlaceholders);
+    const contentWithPlaceholders = this.convertToVideoPlaceholders(contentWithMarketPlaceholders);
 
     // Step 4: Detect Instagram embeds
     const hasInstagramEmbeds = processedContent.includes("<!--INSTAGRAM_EMBED_SCRIPT-->");
@@ -140,6 +143,17 @@ export class MarkdownProcessor {
     });
   }
 
+  private static convertPredictionMarketLinksToPlaceholders(content: string): string {
+    // Internal prediction-market pages on any host (prod, previews, localhost)
+    // and hivepredict.app market pages — both resolve to the same market id.
+    const internalRegex = /https?:\/\/[^\/\s]+\/prediction-markets\/([A-Za-z0-9-]+)/g;
+    const upstreamRegex = /https?:\/\/(?:www\.)?hivepredict\.app\/markets\/([A-Za-z0-9-]+)/g;
+
+    return content
+      .replace(internalRegex, (_, id) => `[[PREDICTIONMARKET:${id}]]`)
+      .replace(upstreamRegex, (_, id) => `[[PREDICTIONMARKET:${id}]]`);
+  }
+
   private static convertToVideoPlaceholders(content: string): string {
     return content.replace(
       /<div class="video-embed" data-ipfs-hash="([^"]+)">[\s\S]*?<\/div>/g,
@@ -149,12 +163,12 @@ export class MarkdownProcessor {
 
   private static extractVideoPlaceholders(content: string): VideoPlaceholder[] {
     const placeholders: VideoPlaceholder[] = [];
-    const regex = /\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):([^\]]+)\]\]/g;
+    const regex = /\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY|PREDICTIONMARKET):([^\]]+)\]\]/g;
     let match;
 
     while ((match = regex.exec(content)) !== null) {
       placeholders.push({
-        type: match[1] as 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | '3SPEAK' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY',
+        type: match[1] as VideoPlaceholder['type'],
         id: match[2],
         placeholder: match[0],
       });
