@@ -23,8 +23,16 @@ assert.ok(
   "happy path passes"
 );
 assert.ok(
-  !validateBet({ market: market({ status: "pending" }), stake: 5, balance: 10, now: NOW }).ok,
-  "non-active market rejected"
+  validateBet({ market: market({ status: "pending" }), stake: 5, balance: 10, now: NOW }).ok,
+  "pending (forming) market accepts bets — hivepredict activates at min participants"
+);
+assert.ok(
+  !validateBet({ market: market({ status: "resolved" }), stake: 5, balance: 10, now: NOW }).ok,
+  "resolved market rejected"
+);
+assert.ok(
+  !validateBet({ market: market({ status: "voided" }), stake: 5, balance: 10, now: NOW }).ok,
+  "voided market rejected"
 );
 assert.ok(
   !validateBet({

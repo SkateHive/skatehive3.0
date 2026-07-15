@@ -24,7 +24,9 @@ export function validateBet({
   balance,
   now,
 }: ValidateBetArgs): ValidationResult {
-  if (market.status !== "active") {
+  // "pending" markets are still forming (activate at min participants) and
+  // accept bets — hivepredict's own UI allows betting while FORMING.
+  if (market.status !== "active" && market.status !== "pending") {
     return fail("This market is not open for betting.");
   }
   if (market.bettingClosesAt && now >= new Date(market.bettingClosesAt)) {

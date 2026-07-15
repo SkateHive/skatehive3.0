@@ -83,6 +83,26 @@ export function statusColor(status: MarketStatus): string {
   }
 }
 
+// Rough parimutuel payout estimate if `outcome` wins: your stake back plus a
+// proportional share of the rest of the pool (lose pool = total − chosen).
+// Works for binary and multi-outcome markets.
+export function estimatePayout(
+  market: Market,
+  outcome: MarketOutcome,
+  stake: number
+): { payout: number; profit: number; multiplier: number } {
+  const slices = outcomeBreakdown(market);
+  const winPool = slices.find((s) => s.code === outcome)?.pool ?? 0;
+  const losePool = Math.max(0, totalPoolOf(market) - winPool);
+  const newWinPool = winPool + stake;
+  const payout = newWinPool > 0 ? stake + (stake / newWinPool) * losePool : stake;
+  return {
+    payout,
+    profit: payout - stake,
+    multiplier: stake > 0 ? payout / stake : 1,
+  };
+}
+
 // Visual "heat" flags for a card: 🔥 when the pool is hot (big stake for this
 // platform's typical volumes), ⚡ when betting closes within 24h. Both can
 // apply at once.

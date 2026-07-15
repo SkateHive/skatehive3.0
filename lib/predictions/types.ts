@@ -37,6 +37,9 @@ export interface Market {
   yesPool?: string;
   noPool?: string;
   outcomePools?: Record<string, string>;
+  participantCount?: number;
+  resolutionType?: string; // "manual" | "auto"
+  resolvedOutcome?: string | null;
   createdAt?: string;
 }
 
