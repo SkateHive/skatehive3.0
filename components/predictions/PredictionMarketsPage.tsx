@@ -6,6 +6,7 @@ import {
   Flex,
   Heading,
   HStack,
+  Link,
   SimpleGrid,
   Spinner,
   Text,
@@ -18,6 +19,7 @@ import { PREDICTIONS_CONFIG, applyTitleFilter } from "@/lib/predictions/config";
 import type { MarketStatus } from "@/lib/predictions/types";
 import MarketCard from "./MarketCard";
 import CreateMarketModal from "./CreateMarketModal";
+import LeaderboardPanel from "./LeaderboardPanel";
 
 const PAGE_SIZE = 24;
 
@@ -58,7 +60,7 @@ export default function PredictionMarketsPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <Box maxW="1100px" mx="auto" px={4} py={6}>
+    <Box maxW="1280px" mx="auto" px={4} py={6}>
       <Flex justify="space-between" align="center" wrap="wrap" gap={3} mb={2}>
         <Heading size="lg" color="text">
           Prediction Markets
@@ -76,78 +78,104 @@ export default function PredictionMarketsPage() {
         )}
       </Flex>
       <Text color="dim" mb={5}>
-        Parimutuel prediction markets on Hive, powered by hivepredict.
+        Parimutuel prediction markets on Hive, powered by{" "}
+        <Link
+          href="https://hivepredict.app/"
+          isExternal
+          color="#E31337"
+          fontWeight={600}
+        >
+          HivePredict
+        </Link>
+        .
       </Text>
 
-      <HStack spacing={2} mb={5} wrap="wrap">
-        {STATUS_FILTERS.map((f) => (
-          <Button
-            key={f.value}
-            size="sm"
-            variant={status === f.value ? "solid" : "outline"}
-            bg={status === f.value ? "primary" : "transparent"}
-            color={status === f.value ? "background" : "text"}
-            borderColor="border"
-            onClick={() => {
-              setStatus(f.value);
-              setPage(1);
-            }}
-          >
-            {f.label}
-          </Button>
-        ))}
-      </HStack>
+      <Flex gap={6} align="start">
+        {/* Markets — center column */}
+        <Box flex="1" minW={0}>
+          <HStack spacing={2} mb={5} wrap="wrap">
+            {STATUS_FILTERS.map((f) => (
+              <Button
+                key={f.value}
+                size="sm"
+                variant={status === f.value ? "solid" : "outline"}
+                bg={status === f.value ? "primary" : "transparent"}
+                color={status === f.value ? "background" : "text"}
+                borderColor="border"
+                onClick={() => {
+                  setStatus(f.value);
+                  setPage(1);
+                }}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </HStack>
 
-      {isLoading ? (
-        <Flex justify="center" py={16}>
-          <Spinner color="primary" size="lg" />
-        </Flex>
-      ) : isError ? (
-        <VStack py={16} spacing={2}>
-          <Text color="error">Failed to load markets.</Text>
-          <Text color="dim" fontSize="sm">
-            {(error as Error)?.message}
-          </Text>
-        </VStack>
-      ) : markets.length === 0 ? (
-        <VStack py={16} spacing={2}>
-          <Text color="dim">No markets found.</Text>
-        </VStack>
-      ) : (
-        <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={4}>
-          {markets.map((m) => (
-            <MarketCard key={m.id} market={m} />
-          ))}
-        </SimpleGrid>
-      )}
+          {isLoading ? (
+            <Flex justify="center" py={16}>
+              <Spinner color="primary" size="lg" />
+            </Flex>
+          ) : isError ? (
+            <VStack py={16} spacing={2}>
+              <Text color="error">Failed to load markets.</Text>
+              <Text color="dim" fontSize="sm">
+                {(error as Error)?.message}
+              </Text>
+            </VStack>
+          ) : markets.length === 0 ? (
+            <VStack py={16} spacing={2}>
+              <Text color="dim">No markets found.</Text>
+            </VStack>
+          ) : (
+            <SimpleGrid columns={{ base: 1, sm: 2, xl: 3 }} spacing={4}>
+              {markets.map((m) => (
+                <MarketCard key={m.id} market={m} />
+              ))}
+            </SimpleGrid>
+          )}
 
-      {totalPages > 1 && (
-        <Flex justify="center" align="center" gap={4} mt={8}>
-          <Button
-            size="sm"
-            variant="outline"
-            borderColor="border"
-            color="text"
-            isDisabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            Previous
-          </Button>
-          <Text color="dim" fontSize="sm">
-            Page {page} of {totalPages}
-          </Text>
-          <Button
-            size="sm"
-            variant="outline"
-            borderColor="border"
-            color="text"
-            isDisabled={page >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            Next
-          </Button>
-        </Flex>
-      )}
+          {totalPages > 1 && (
+            <Flex justify="center" align="center" gap={4} mt={8}>
+              <Button
+                size="sm"
+                variant="outline"
+                borderColor="border"
+                color="text"
+                isDisabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <Text color="dim" fontSize="sm">
+                Page {page} of {totalPages}
+              </Text>
+              <Button
+                size="sm"
+                variant="outline"
+                borderColor="border"
+                color="text"
+                isDisabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </Button>
+            </Flex>
+          )}
+        </Box>
+
+        {/* Leaderboard — right sidebar (wide screens) */}
+        <Box
+          as="aside"
+          w="300px"
+          flexShrink={0}
+          display={{ base: "none", lg: "block" }}
+          position="sticky"
+          top="1rem"
+        >
+          <LeaderboardPanel />
+        </Box>
+      </Flex>
 
       <CreateMarketModal isOpen={isCreateOpen} onClose={() => setCreateOpen(false)} />
     </Box>

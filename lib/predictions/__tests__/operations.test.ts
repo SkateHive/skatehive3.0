@@ -97,10 +97,13 @@ assert.strictEqual(betMemo("mkt-1", "YES"), "mkt-1:YES");
     description: "Who wins?",
     category: "sports",
     token: "HIVE",
+    outcomes: ["YES", "NO"],
     outcomeLabels: { YES: "Norway", NO: "England" },
     creatorSide: "YES",
     stakeCap: 1000,
     minParticipants: 3,
+    resolutionType: "manual",
+    resolutionSource: null,
     resolutionCriteria: "FIFA official result",
     bettingClosesAt: "2026-07-11T21:00:00.000Z",
     resolvesAt: "2026-07-11T21:00:00.000Z",
@@ -142,6 +145,64 @@ assert.strictEqual(betMemo("mkt-1", "YES"), "mkt-1:YES");
     amount: "1.000 HIVE",
     memo: "54f6a38b-ec28-4846-9792-2cfa861cdc4a:YES",
   });
+}
+
+// Multi-outcome create: arbitrary outcomes + labels flow through unchanged.
+{
+  const ops = buildCreateMarketOps({
+    user: "carol",
+    marketId: "m-multi",
+    title: "Who wins?",
+    description: "field",
+    category: "sports",
+    token: "HIVE",
+    outcomes: ["O1", "O2", "O3"],
+    outcomeLabels: { O1: "Spain", O2: "France", O3: "Brazil" },
+    creatorSide: "O2",
+    stakeCap: 1000,
+    minParticipants: 3,
+    resolutionType: "manual",
+    resolutionSource: null,
+    resolutionCriteria: "official winner",
+    bettingClosesAt: "2026-08-01T00:00:00.000Z",
+    resolvesAt: "2026-08-01T04:00:00.000Z",
+    openingBetAmount: 1,
+  });
+  const cj = JSON.parse((ops[0][1] as any).json);
+  assert.deepStrictEqual(cj.outcomes, ["O1", "O2", "O3"]);
+  assert.deepStrictEqual(cj.outcome_labels, { O1: "Spain", O2: "France", O3: "Brazil" });
+  assert.strictEqual(cj.creator_side, "O2");
+  assert.strictEqual((ops[1][1] as any).memo, "m-multi:O2");
+}
+
+// Sports auto-resolve create: resolution_type auto + oddsapi source.
+{
+  const ops = buildCreateMarketOps({
+    user: "carol",
+    marketId: "m-sports",
+    title: "FIFA World Cup: Will England beat Argentina?",
+    description: "auto",
+    category: "sports",
+    token: "HIVE",
+    outcomes: ["YES", "NO"],
+    outcomeLabels: { YES: "England wins", NO: "Argentina wins" },
+    creatorSide: "YES",
+    stakeCap: 10000,
+    minParticipants: 3,
+    resolutionType: "auto",
+    resolutionSource: "oddsapi:soccer_fifa_world_cup:ced22494ae0bbb8cc4f7108bf6f493df",
+    resolutionCriteria: "moneyline:England|Argentina\nResolve YES if England wins.",
+    bettingClosesAt: "2026-07-15T19:00:00.000Z",
+    resolvesAt: "2026-07-15T23:00:00.000Z",
+    openingBetAmount: 2,
+  });
+  const cj = JSON.parse((ops[0][1] as any).json);
+  assert.strictEqual(cj.resolution_type, "auto");
+  assert.strictEqual(
+    cj.resolution_source,
+    "oddsapi:soccer_fifa_world_cup:ced22494ae0bbb8cc4f7108bf6f493df"
+  );
+  assert.ok(cj.resolution_criteria.startsWith("moneyline:England|Argentina"));
 }
 
 console.log("✅ predictions/operations tests passed");

@@ -23,6 +23,7 @@ const ALLOWED_PREFIXES = new Set([
   "leaderboard",
   "tokens",
   "categories",
+  "sports",
   "transparency",
   "health",
 ]);

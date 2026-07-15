@@ -3,10 +3,13 @@
 // the hivepredict public API (see types.ts).
 
 import type {
+  LeaderboardBoard,
+  LeaderboardResponse,
   Market,
   MarketListResponse,
   MarketToken,
   Prediction,
+  SportsEvent,
   TokenBalance,
 } from "./types";
 
@@ -43,8 +46,15 @@ export const predictionsApi = {
     getJson<TokenBalance>(
       `tokens/balance/${encodeURIComponent(username)}/${encodeURIComponent(symbol)}`
     ),
-  getCategories: () => getJson<unknown>("categories"),
+  getCategories: () =>
+    getJson<{ categories: { id: string; name: string }[] }>("categories"),
   getStats: () => getJson<unknown>("stats"),
+  getSportsEvents: (league: string) =>
+    getJson<{ events: SportsEvent[] }>(
+      `sports/${encodeURIComponent(league)}/events`
+    ),
+  getLeaderboard: (board: LeaderboardBoard, limit = 10) =>
+    getJson<LeaderboardResponse>("leaderboard", { board, limit: String(limit) }),
 };
 
 // React Query key factory — stable keys for cache read/invalidation.
@@ -57,4 +67,9 @@ export const predictionKeys = {
     [...predictionKeys.all, "market", id, "predictions"] as const,
   balance: (username: string, symbol: MarketToken) =>
     [...predictionKeys.all, "balance", username, symbol] as const,
+  categories: () => [...predictionKeys.all, "categories"] as const,
+  sportsEvents: (league: string) =>
+    [...predictionKeys.all, "sportsEvents", league] as const,
+  leaderboard: (board: string) =>
+    [...predictionKeys.all, "leaderboard", board] as const,
 };

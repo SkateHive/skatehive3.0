@@ -55,8 +55,21 @@ export function validateCreateMarket({
   if (!fields.title.trim()) return fail("Title is required.");
   if (!fields.description.trim()) return fail("Description is required.");
   if (!fields.category.trim()) return fail("Category is required.");
-  if (!fields.outcomeLabels.YES?.trim() || !fields.outcomeLabels.NO?.trim()) {
-    return fail("Both outcome labels are required.");
+  if (!fields.outcomes || fields.outcomes.length < 2) {
+    return fail("At least two outcomes are required.");
+  }
+  const missingLabel = fields.outcomes.find(
+    (o) => !fields.outcomeLabels[o]?.trim()
+  );
+  if (missingLabel) return fail("Every outcome needs a label.");
+  if (!fields.outcomes.includes(fields.creatorSide)) {
+    return fail("Your chosen side must be one of the outcomes.");
+  }
+  if (fields.resolutionType === "auto" && !fields.resolutionSource) {
+    return fail("Auto-resolved markets need a resolution source.");
+  }
+  if (!fields.resolutionCriteria.trim()) {
+    return fail("Resolution criteria is required.");
   }
   if (!Number.isFinite(fields.stakeCap) || fields.stakeCap <= 0) {
     return fail("Stake cap must be greater than zero.");
