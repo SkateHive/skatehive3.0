@@ -21,19 +21,5 @@
         "README.md",
         "docs"
     ],
-    "files.watcherExclude": {
-        "**/.next/**": true,
-        "**/node_modules/**": true,
-        "**/.git/**": true,
-        "**/dist/**": true,
-        "**/build/**": true,
-        "**/.turbo/**": true
-    },
-    "search.exclude": {
-        "**/.next": true,
-        "**/node_modules": true,
-        "**/pnpm-lock.yaml": true,
-        "**/dist": true
-    },
     "coderabbit.agentType": "Clipboard"
 }
