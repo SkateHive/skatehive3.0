@@ -20,6 +20,7 @@ import { PREDICTIONS_CONFIG, applyTitleFilter } from "@/lib/predictions/config";
 import type { MarketStatus } from "@/lib/predictions/types";
 import MarketCard from "./MarketCard";
 import CreateMarketModal from "./CreateMarketModal";
+import PredictionsFaqModal from "./PredictionsFaqModal";
 import SkateModal from "@/components/shared/SkateModal";
 import LeaderboardPanel from "./LeaderboardPanel";
 import ActivityPanel from "./ActivityPanel";
@@ -44,6 +45,7 @@ export default function PredictionMarketsPage() {
   const [page, setPage] = useState(1);
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isHpAlertOpen, setHpAlertOpen] = useState(false);
+  const [isFaqOpen, setFaqOpen] = useState(false);
 
   const canCreate = !!user && (hivePower ?? 0) > CREATE_MIN_HP;
 
@@ -103,15 +105,26 @@ export default function PredictionMarketsPage() {
         <Heading size="lg" color="text">
           Prediction Markets
         </Heading>
-        <Button
-          size="sm"
-          bg="primary"
-          color="background"
-          _hover={{ opacity: 0.9 }}
-          onClick={() => (canCreate ? setCreateOpen(true) : setHpAlertOpen(true))}
-        >
-          Create market
-        </Button>
+        <HStack spacing={2}>
+          <Button
+            size="sm"
+            variant="outline"
+            borderColor="border"
+            color="text"
+            onClick={() => setFaqOpen(true)}
+          >
+            How it works
+          </Button>
+          <Button
+            size="sm"
+            bg="primary"
+            color="background"
+            _hover={{ opacity: 0.9 }}
+            onClick={() => (canCreate ? setCreateOpen(true) : setHpAlertOpen(true))}
+          >
+            Create market
+          </Button>
+        </HStack>
       </Flex>
       <Text color="dim" mb={5}>
         Parimutuel prediction markets on Hive, powered by{" "}
@@ -171,7 +184,7 @@ export default function PredictionMarketsPage() {
             </VStack>
           ) : markets.length === 0 ? (
             <VStack py={16} spacing={2}>
-              <Text color="dim">No markets found.</Text>
+              <Text color="dim">No Skatehive markets found.</Text>
             </VStack>
           ) : (
             <VStack align="stretch" spacing={3}>
@@ -253,6 +266,7 @@ export default function PredictionMarketsPage() {
       </Flex>
 
       <CreateMarketModal isOpen={isCreateOpen} onClose={() => setCreateOpen(false)} />
+      <PredictionsFaqModal isOpen={isFaqOpen} onClose={() => setFaqOpen(false)} />
 
       <SkateModal
         isOpen={isHpAlertOpen}
