@@ -95,7 +95,7 @@ function ShareRow({ marketId, title }: { marketId: string; title: string }) {
   const toast = useToast();
   const url =
     typeof window !== "undefined"
-      ? `${window.location.origin}/prediction-markets/${encodeURIComponent(marketId)}`
+      ? `${window.location.origin}/hivepredict/${encodeURIComponent(marketId)}`
       : "";
   const { onCopy } = useClipboard(url);
 
@@ -162,7 +162,7 @@ export default function MarketDetail({ id }: { id: string }) {
     return (
       <VStack py={20} spacing={3}>
         <Text color="error">Market not found.</Text>
-        <Button as={NextLink} href="/prediction-markets" variant="outline" borderColor="border" color="text">
+        <Button as={NextLink} href="/hivepredict" variant="outline" borderColor="border" color="text">
           Back to markets
         </Button>
       </VStack>
@@ -181,7 +181,7 @@ export default function MarketDetail({ id }: { id: string }) {
     <Box maxW="1280px" mx="auto" px={4} py={6}>
       <Button
         as={NextLink}
-        href="/prediction-markets"
+        href="/hivepredict"
         variant="link"
         color="primary"
         mb={4}

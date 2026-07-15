@@ -210,7 +210,7 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
                   borderColor="border"
                   color="text"
                   onClick={() => {
-                    const url = `${window.location.origin}/prediction-markets/${encodeURIComponent(market.id)}`;
+                    const url = `${window.location.origin}/hivepredict/${encodeURIComponent(market.id)}`;
                     navigator.clipboard.writeText(
                       `I just bet ${stake.toFixed(3)} ${market.token} on "${outcomeLabel(market, outcome)}" 🎯\n${url}`
                     );

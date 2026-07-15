@@ -345,17 +345,17 @@ export default function MobileTabBar() {
         { icon: FiVideo, href: "/videos", name: "Videos" },
         { icon: FiFilm, href: "/cinema", name: "Cinema" },
         { icon: FiUsers, href: "/skaters", name: "Skaters" },
-        // Prediction markets are Hive-only (on-chain bets) — hidden without
-        // a Hive account.
-        ...(hiveHandle
-          ? [{ icon: FiTrendingUp, href: "/prediction-markets", name: "Predictions" }]
-          : []),
       ],
     },
     {
       label: "COMMUNITY",
       items: [
         { icon: FiTarget, href: "/bounties", name: t("bounties") },
+        // Prediction markets are Hive-only (on-chain bets) — hidden without
+        // a Hive account.
+        ...(hiveHandle
+          ? [{ icon: FiTrendingUp, href: "/hivepredict", name: "Predictions" }]
+          : []),
         { icon: FiPlay, href: "/games", name: "Games" },
         { icon: FiTrendingUp, href: "/auction", name: t("auction") },
         ...(user ? [{ icon: FiMail, href: "/invite", name: t("invite") }] : []),

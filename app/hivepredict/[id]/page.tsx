@@ -13,7 +13,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const url = `${BASE_URL}/prediction-markets/${encodeURIComponent(id)}`;
+  const url = `${BASE_URL}/hivepredict/${encodeURIComponent(id)}`;
   let title = "Prediction Market — Skatehive";
   let description = "Parimutuel prediction markets on Hive.";
 

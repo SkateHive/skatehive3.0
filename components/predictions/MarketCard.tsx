@@ -35,7 +35,7 @@ export default function MarketCard({ market, now = new Date() }: MarketCardProps
   return (
     <Box
       as={NextLink}
-      href={`/prediction-markets/${encodeURIComponent(market.id)}`}
+      href={`/hivepredict/${encodeURIComponent(market.id)}`}
       display="block"
       bg="panel"
       border="1px solid"

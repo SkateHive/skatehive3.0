@@ -146,7 +146,7 @@ export class MarkdownProcessor {
   private static convertPredictionMarketLinksToPlaceholders(content: string): string {
     // Internal prediction-market pages on any host (prod, previews, localhost)
     // and hivepredict.app market pages — both resolve to the same market id.
-    const internalRegex = /https?:\/\/[^\/\s]+\/prediction-markets\/([A-Za-z0-9-]+)/g;
+    const internalRegex = /https?:\/\/[^\/\s]+\/hivepredict\/([A-Za-z0-9-]+)/g;
     const upstreamRegex = /https?:\/\/(?:www\.)?hivepredict\.app\/markets\/([A-Za-z0-9-]+)/g;
 
     return content

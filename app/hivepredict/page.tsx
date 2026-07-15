@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Prediction Markets — Skatehive",
     description: "Parimutuel prediction markets on Hive, powered by hivepredict.",
-    url: `${BASE_URL}/prediction-markets`,
+    url: `${BASE_URL}/hivepredict`,
     siteName: "Skatehive",
     type: "website",
     images: [{ url: ogImageUrl, width: 1200, height: 630 }],
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     description: "Parimutuel prediction markets on Hive.",
     images: [ogImageUrl],
   },
-  alternates: { canonical: `${BASE_URL}/prediction-markets` },
+  alternates: { canonical: `${BASE_URL}/hivepredict` },
 };
 
 export default function Page() {

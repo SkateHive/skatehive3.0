@@ -124,13 +124,6 @@ export default function Sidebar() {
         { href: "/videos", icon: FiVideo, label: "Videos", prefetch: false },
         { href: "/cinema", icon: FiFilm, label: "Cinema", prefetch: false },
         { href: "/skaters", icon: FiUsers, label: "Skaters", prefetch: false },
-        {
-          href: "/prediction-markets",
-          icon: FiTrendingUp,
-          label: "Predictions",
-          prefetch: false,
-          show: !!hiveHandle,
-        },
       ],
     },
     {
@@ -141,6 +134,13 @@ export default function Sidebar() {
           icon: FiTarget,
           label: t("bounties"),
           prefetch: false,
+        },
+        {
+          href: "/hivepredict",
+          icon: FiTrendingUp,
+          label: "Predictions",
+          prefetch: false,
+          show: !!hiveHandle,
         },
         { href: "/games", icon: FiPlay, label: "Games", prefetch: false },
         {

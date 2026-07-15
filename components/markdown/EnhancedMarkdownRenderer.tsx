@@ -173,7 +173,7 @@ function cleanMarkdownPart(part: string): string {
     .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/games\/.*$/gm, "") // SkateHive games
     .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/bounties\/poidh\/.*$/gm, "") // POIDH bounties
     .replace(/^https?:\/\/(?:www\.)?[^\/\s]+\/(?:proposals|vote)\/\d+$/gm, "") // Builder DAO proposals
-    .replace(/^https?:\/\/[^\/\s]+\/prediction-markets\/[A-Za-z0-9-]+$/gm, "") // Prediction markets (internal)
+    .replace(/^https?:\/\/[^\/\s]+\/hivepredict\/[A-Za-z0-9-]+$/gm, "") // Prediction markets (internal)
     .replace(/^https?:\/\/(?:www\.)?hivepredict\.app\/markets\/[A-Za-z0-9-]+$/gm, "") // Prediction markets (hivepredict)
     // Remove any leftover placeholders that weren't split properly
     .replace(/\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY|PREDICTIONMARKET):[^\]]+\]\]/g, "")
