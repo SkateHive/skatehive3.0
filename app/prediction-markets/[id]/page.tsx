@@ -1,4 +1,5 @@
 import MarketDetail from "@/components/predictions/MarketDetail";
+import HiveAccessGate from "@/components/predictions/HiveAccessGate";
 
 export default async function Page({
   params,
@@ -6,5 +7,9 @@ export default async function Page({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <MarketDetail id={id} />;
+  return (
+    <HiveAccessGate>
+      <MarketDetail id={id} />
+    </HiveAccessGate>
+  );
 }

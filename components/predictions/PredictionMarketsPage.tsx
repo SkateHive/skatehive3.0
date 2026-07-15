@@ -13,6 +13,7 @@ import {
 } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import { useAioha } from "@aioha/react-ui";
+import useHivePower from "@/hooks/useHivePower";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
 import { PREDICTIONS_CONFIG, applyTitleFilter } from "@/lib/predictions/config";
 import type { MarketStatus } from "@/lib/predictions/types";
@@ -30,11 +31,18 @@ const STATUS_FILTERS: { label: string; value: MarketStatus | "all" }[] = [
   { label: "All", value: "all" },
 ];
 
+// Creating a market stakes real funds and carries resolution duties, so it's
+// reserved for established accounts.
+const CREATE_MIN_HP = 100;
+
 export default function PredictionMarketsPage() {
   const { user } = useAioha();
+  const { hivePower } = useHivePower(user || "");
   const [status, setStatus] = useState<MarketStatus | "all">("active");
   const [page, setPage] = useState(1);
   const [isCreateOpen, setCreateOpen] = useState(false);
+
+  const canCreate = !!user && (hivePower ?? 0) > CREATE_MIN_HP;
 
   // Resolved shows a compact recent set (last 12); other views paginate fully.
   const pageSize = status === "resolved" ? 12 : PAGE_SIZE;
@@ -92,7 +100,7 @@ export default function PredictionMarketsPage() {
         <Heading size="lg" color="text">
           Prediction Markets
         </Heading>
-        {user && (
+        {canCreate ? (
           <Button
             size="sm"
             bg="primary"
@@ -102,7 +110,11 @@ export default function PredictionMarketsPage() {
           >
             Create market
           </Button>
-        )}
+        ) : user && hivePower != null ? (
+          <Text fontSize="xs" color="dim">
+            {CREATE_MIN_HP}+ HP required to create markets
+          </Text>
+        ) : null}
       </Flex>
       <Text color="dim" mb={5}>
         Parimutuel prediction markets on Hive, powered by{" "}

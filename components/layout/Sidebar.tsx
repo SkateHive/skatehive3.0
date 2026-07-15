@@ -129,6 +129,7 @@ export default function Sidebar() {
           icon: FiTrendingUp,
           label: "Predictions",
           prefetch: false,
+          show: !!hiveHandle,
         },
       ],
     },

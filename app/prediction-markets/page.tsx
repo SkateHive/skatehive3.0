@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { APP_CONFIG } from "@/config/app.config";
 import PredictionMarketsPage from "@/components/predictions/PredictionMarketsPage";
+import HiveAccessGate from "@/components/predictions/HiveAccessGate";
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 const ogImageUrl = `${BASE_URL}/api/og/page?title=Prediction%20Markets&subtitle=Parimutuel%20markets%20on%20Hive`;
@@ -27,5 +28,9 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <PredictionMarketsPage />;
+  return (
+    <HiveAccessGate>
+      <PredictionMarketsPage />
+    </HiveAccessGate>
+  );
 }
