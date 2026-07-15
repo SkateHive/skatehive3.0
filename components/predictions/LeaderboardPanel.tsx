@@ -19,10 +19,10 @@ import type {
 } from "@/lib/predictions/types";
 
 const BOARDS: { value: LeaderboardBoard; label: string }[] = [
-  { value: "creators", label: "Creators" },
-  { value: "profit", label: "Profit" },
   { value: "accuracy", label: "Accuracy" },
+  { value: "profit", label: "Profit" },
   { value: "volume", label: "Volume" },
+  { value: "creators", label: "Creators" },
 ];
 
 // The headline metric shown per board.
@@ -40,7 +40,7 @@ function metric(board: LeaderboardBoard, e: LeaderboardEntry): string {
 }
 
 export default function LeaderboardPanel() {
-  const [board, setBoard] = useState<LeaderboardBoard>("creators");
+  const [board, setBoard] = useState<LeaderboardBoard>("accuracy");
 
   const { data, isLoading } = useQuery({
     queryKey: predictionKeys.leaderboard(board),

@@ -1,11 +1,12 @@
 "use client";
 import React from "react";
 import NextLink from "next/link";
-import { Badge, Box, Flex, Text, VStack } from "@chakra-ui/react";
+import { Badge, Box, Flex, HStack, Text } from "@chakra-ui/react";
 import type { Market } from "@/lib/predictions/types";
 import {
   closesLabel,
   isBinaryMarket,
+  marketHeat,
   outcomeBreakdown,
   sliceColor,
   statusColor,
@@ -17,14 +18,19 @@ interface MarketCardProps {
   now?: Date;
 }
 
-// hivepredict-styled market card. Handles both binary (YES/NO) and
-// multi-outcome (O1..On) markets. Uses Chakra semantic tokens only so it
-// adapts across every Skatehive theme.
+// Full-width row card (one market per row): title + badges up top, the full
+// outcome split bar, then a stats line. Handles binary (YES/NO) and
+// multi-outcome (O1..On) markets. Chakra semantic tokens only, so it adapts
+// across every Skatehive theme.
 export default function MarketCard({ market, now = new Date() }: MarketCardProps) {
   const slices = outcomeBreakdown(market);
   const total = totalPoolOf(market);
   const binary = isBinaryMarket(market);
-  const leader = [...slices].sort((a, b) => b.pct - a.pct)[0];
+  const ranked = [...slices].sort((a, b) => b.pct - a.pct);
+  const heat = marketHeat(market, now);
+  // Row layout has room for a few leaders, not just one.
+  const leaders = binary ? slices : ranked.slice(0, 3);
+  const moreCount = binary ? 0 : Math.max(0, slices.length - 3);
 
   return (
     <Box
@@ -35,79 +41,112 @@ export default function MarketCard({ market, now = new Date() }: MarketCardProps
       border="1px solid"
       borderColor="border"
       borderRadius="lg"
-      p={4}
+      px={4}
+      py={3}
       transition="background 0.15s, transform 0.15s"
-      _hover={{ bg: "panelHover", transform: "translateY(-2px)" }}
+      _hover={{ bg: "panelHover", transform: "translateY(-1px)" }}
+      sx={{
+        // The global theme underlines anchors on hover; this card is one big
+        // anchor, so that would underline every line of text in it.
+        "&:hover": { textDecoration: "none !important" },
+      }}
     >
-      <VStack align="stretch" spacing={3}>
-        <Flex justify="space-between" align="start" gap={2}>
+      {/* Header: category + heat left, token/status right */}
+      <Flex justify="space-between" align="center" gap={2} mb={1.5}>
+        <HStack spacing={2} minW={0}>
           <Badge bg="subtle" color="text" textTransform="capitalize">
             {market.category || "market"}
           </Badge>
-          <Flex gap={2} align="center">
-            <Badge bg={market.token === "HBD" ? "accent" : "primary"} color="background">
-              {market.token}
-            </Badge>
-            <Badge bg={statusColor(market.status)} color="background" textTransform="capitalize">
-              {market.status}
-            </Badge>
-          </Flex>
-        </Flex>
+          {heat.emojis && (
+            <Text
+              as="span"
+              fontSize="sm"
+              lineHeight={1}
+              title={[
+                heat.fire ? "Hot market — big pool" : "",
+                heat.closingSoon ? "Closing within 24h" : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            >
+              {heat.emojis}
+            </Text>
+          )}
+        </HStack>
+        <HStack spacing={2} flexShrink={0}>
+          <Badge bg={market.token === "HBD" ? "accent" : "primary"} color="background">
+            {market.token}
+          </Badge>
+          <Badge bg={statusColor(market.status)} color="background" textTransform="capitalize">
+            {market.status}
+          </Badge>
+        </HStack>
+      </Flex>
 
-        <Text fontWeight={700} fontSize="md" color="text" noOfLines={2} minH="3rem">
-          {market.title}
-        </Text>
+      {/* Title — full width, no truncation squeeze */}
+      <Text fontWeight={700} fontSize="md" color="text" noOfLines={2} mb={2}>
+        {market.title}
+      </Text>
 
-        {binary ? (
-          // YES / NO split
-          <Box>
-            <Flex justify="space-between" mb={1}>
-              {slices.map((s) => (
-                <Text
-                  key={s.code}
-                  fontSize="xs"
-                  color={s.code === "NO" ? "error" : "success"}
-                  fontWeight={600}
-                  noOfLines={1}
-                >
-                  {s.label} {s.pct}%
-                </Text>
-              ))}
-            </Flex>
-            <Flex h="6px" borderRadius="full" overflow="hidden" bg="subtle">
-              {slices.map((s) => (
-                <Box key={s.code} w={`${s.pct}%`} bg={s.code === "NO" ? "error" : "success"} />
-              ))}
-            </Flex>
-          </Box>
-        ) : (
-          // Multi-outcome: leading option + stacked multi-color bar
-          <Box>
-            <Flex justify="space-between" mb={1} gap={2}>
-              <Text fontSize="xs" color="text" fontWeight={600} noOfLines={1}>
-                {leader ? `${leader.label} ${leader.pct}%` : "—"}
+      {/* Leaders line: top outcomes with label + % */}
+      <Flex wrap="wrap" columnGap={4} rowGap={1} mb={1.5}>
+        {leaders.map((s) => {
+          const i = slices.findIndex((x) => x.code === s.code);
+          return (
+            <HStack key={s.code} spacing={1.5} minW={0}>
+              <Box
+                w="8px"
+                h="8px"
+                borderRadius="sm"
+                bg={sliceColor(market, s.code, i)}
+                flexShrink={0}
+              />
+              <Text fontSize="sm" color="text" noOfLines={1}>
+                {s.label}
               </Text>
-              <Text fontSize="xs" color="dim" flexShrink={0}>
-                {market.outcomes.length} options
+              <Text fontSize="sm" color="text" fontWeight={700}>
+                {s.pct}%
               </Text>
-            </Flex>
-            <Flex h="6px" borderRadius="full" overflow="hidden" bg="subtle">
-              {slices.map((s, i) => (
-                <Box key={s.code} w={`${s.pct}%`} bg={sliceColor(market, s.code, i)} />
-              ))}
-            </Flex>
-          </Box>
+            </HStack>
+          );
+        })}
+        {moreCount > 0 && (
+          <Text fontSize="sm" color="dim">
+            +{moreCount} more
+          </Text>
         )}
+      </Flex>
 
-        <Flex justify="space-between" align="center">
+      {/* Full-width stacked split bar */}
+      <Flex h="8px" borderRadius="full" overflow="hidden" bg="subtle" mb={2}>
+        {slices.map((s, i) => (
+          <Box key={s.code} w={`${s.pct}%`} bg={sliceColor(market, s.code, i)} />
+        ))}
+      </Flex>
+
+      {/* Stats line */}
+      <Flex justify="space-between" align="center" wrap="wrap" gap={2}>
+        <HStack spacing={3}>
           <Text fontSize="xs" color="dim">
-            Pool {total.toFixed(3)} {market.token}
+            Pool <b>{total.toFixed(3)} {market.token}</b>
           </Text>
           <Text fontSize="xs" color="dim">
-            {closesLabel(market.bettingClosesAt, now)}
+            {slices.length} outcomes
           </Text>
-        </Flex>
-      </VStack>
+          {market.creatorUsername && (
+            <Text fontSize="xs" color="dim">
+              by @{market.creatorUsername}
+            </Text>
+          )}
+        </HStack>
+        <Text
+          fontSize="xs"
+          color={heat.closingSoon ? "warning" : "dim"}
+          fontWeight={heat.closingSoon ? 600 : undefined}
+        >
+          {closesLabel(market.bettingClosesAt, now)}
+        </Text>
+      </Flex>
     </Box>
   );
 }

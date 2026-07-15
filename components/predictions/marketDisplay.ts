@@ -83,6 +83,24 @@ export function statusColor(status: MarketStatus): string {
   }
 }
 
+// Visual "heat" flags for a card: 🔥 when the pool is hot (big stake for this
+// platform's typical volumes), ⚡ when betting closes within 24h. Both can
+// apply at once.
+export function marketHeat(
+  market: Market,
+  now: Date
+): { fire: boolean; closingSoon: boolean; emojis: string } {
+  const pool = totalPoolOf(market);
+  const fire = market.status === "active" && pool >= 20;
+  let closingSoon = false;
+  if (market.status === "active" && market.bettingClosesAt) {
+    const ms = new Date(market.bettingClosesAt).getTime() - now.getTime();
+    closingSoon = ms > 0 && ms <= 24 * 3_600_000;
+  }
+  const emojis = `${fire ? "🔥" : ""}${closingSoon ? "⚡" : ""}`;
+  return { fire, closingSoon, emojis };
+}
+
 // Short "closes in …" / "closed" label from an ISO timestamp.
 export function closesLabel(iso: string | undefined, now: Date): string {
   if (!iso) return "";

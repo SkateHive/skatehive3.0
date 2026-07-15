@@ -76,6 +76,7 @@ export default function MarketDetail({ id }: { id: string }) {
         color="primary"
         mb={4}
         size="sm"
+        sx={{ "&:hover": { textDecoration: "none !important" } }}
       >
         ← All markets
       </Button>

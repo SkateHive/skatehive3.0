@@ -1,9 +1,9 @@
 "use client";
 import React from "react";
 import {
-  Badge,
   Box,
   Flex,
+  HStack,
   Link,
   Spinner,
   Text,
@@ -13,52 +13,53 @@ import { useQuery } from "@tanstack/react-query";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
 import type { ActivityEvent } from "@/lib/predictions/types";
 
-// Human label + badge text for each event type.
-const EVENT_LABEL: Record<string, string> = {
-  bet_placed: "Bet Placed",
-  market_created: "Market Created",
-  cash_out: "Cash-Out",
-  cashout: "Cash-Out",
-  refund: "Refund",
-  market_resolved: "Resolved",
-  resolved: "Resolved",
-  payout: "Payout",
+// Compact one-glance icon per event type.
+const EVENT_ICON: Record<string, string> = {
+  bet_placed: "🎯",
+  market_created: "✨",
+  cash_out: "💸",
+  cashout: "💸",
+  refund: "↩️",
+  market_resolved: "✅",
+  resolved: "✅",
+  payout: "💰",
 };
 
-function line(e: ActivityEvent): string {
+// Bold headline: who did what (without the market title — that gets its own
+// dim line below, so long titles don't drown the action).
+function headline(e: ActivityEvent): string {
   const who = `@${e.account ?? "someone"}`;
   const amt = e.amount ? `${e.amount} ${e.token ?? ""}`.trim() : "";
-  const title = e.marketTitle ? `"${e.marketTitle}"` : "a market";
   switch (e.eventType) {
     case "bet_placed":
-      return `${who} placed ${amt} on ${e.outcome ?? "?"} in ${title}`;
+      return `${who} · ${amt} on ${e.outcome ?? "?"}`;
     case "market_created":
-      return `${who} created market ${title}`;
+      return `${who} created a market`;
     case "cash_out":
     case "cashout":
-      return `${who} cashed out ${amt} from ${title}`;
+      return `${who} cashed out ${amt}`;
     case "refund":
-      return `${who} was refunded ${amt} from ${title}`;
+      return `${who} refunded ${amt}`;
     case "market_resolved":
     case "resolved":
-      return `${title} resolved${e.resolvedOutcome ? `: ${e.resolvedOutcome}` : ""}`;
+      return `Resolved${e.resolvedOutcome ? `: ${e.resolvedOutcome}` : ""}`;
     case "payout":
-      return `${who} received ${amt} from ${title}`;
+      return `${who} won ${amt}`;
     default:
-      return `${who} — ${title}`;
+      return who;
   }
 }
 
-function fmtTime(iso?: string): string {
+// Short relative time: "2h", "3d", "35m".
+function ago(iso?: string): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms) || ms < 0) return "";
+  const mins = Math.floor(ms / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
 }
 
 export default function ActivityPanel() {
@@ -66,13 +67,14 @@ export default function ActivityPanel() {
     queryKey: predictionKeys.activity(),
     queryFn: () => predictionsApi.getActivity(10),
     staleTime: 15_000,
+    refetchInterval: 60_000,
   });
   const events = data?.events ?? [];
 
   return (
     <Box bg="panel" border="1px solid" borderColor="border" borderRadius="lg" p={4}>
       <Text fontWeight={700} color="text" mb={3}>
-        Platform activity
+        Activity
       </Text>
 
       {isLoading ? (
@@ -84,33 +86,41 @@ export default function ActivityPanel() {
           No recent activity.
         </Text>
       ) : (
-        <VStack align="stretch" spacing={3}>
+        <VStack align="stretch" spacing={2.5}>
           {events.map((e) => (
-            <Box key={e.id} borderBottom="1px solid" borderColor="border" pb={2}>
-              <Text color="text" fontSize="sm" mb={1}>
-                {line(e)}
+            <HStack key={e.id} align="start" spacing={2}>
+              <Text as="span" fontSize="sm" lineHeight="1.4" flexShrink={0}>
+                {EVENT_ICON[e.eventType] ?? "•"}
               </Text>
-              <Flex justify="space-between" align="center" gap={2}>
-                <Badge bg="subtle" color="text" fontSize="0.6rem">
-                  {EVENT_LABEL[e.eventType] ?? e.eventType}
-                </Badge>
-                <Flex gap={2} align="center" flexShrink={0}>
-                  <Text color="dim" fontSize="xs">
-                    {fmtTime(e.createdAt)}
+              <Box minW={0} flex="1">
+                <Flex justify="space-between" align="baseline" gap={2}>
+                  <Text color="text" fontSize="xs" fontWeight={600} noOfLines={1}>
+                    {headline(e)}
                   </Text>
-                  {e.txId && (
-                    <Link
-                      href={`https://hivehub.dev/tx/${e.txId}`}
-                      isExternal
-                      color="primary"
-                      fontSize="xs"
-                    >
-                      tx
-                    </Link>
-                  )}
+                  <HStack spacing={1.5} flexShrink={0}>
+                    <Text color="dim" fontSize="2xs">
+                      {ago(e.createdAt)}
+                    </Text>
+                    {e.txId && (
+                      <Link
+                        href={`https://hivehub.dev/tx/${e.txId}`}
+                        isExternal
+                        color="primary"
+                        fontSize="2xs"
+                        sx={{ "&:hover": { textDecoration: "none !important" } }}
+                      >
+                        tx
+                      </Link>
+                    )}
+                  </HStack>
                 </Flex>
-              </Flex>
-            </Box>
+                {e.marketTitle && (
+                  <Text color="dim" fontSize="2xs" noOfLines={1}>
+                    {e.marketTitle}
+                  </Text>
+                )}
+              </Box>
+            </HStack>
           ))}
         </VStack>
       )}

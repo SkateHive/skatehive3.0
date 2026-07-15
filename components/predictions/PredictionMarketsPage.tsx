@@ -7,7 +7,6 @@ import {
   Heading,
   HStack,
   Link,
-  SimpleGrid,
   Spinner,
   Text,
   VStack,
@@ -63,6 +62,30 @@ export default function PredictionMarketsPage() {
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  // When the Active list is short, fill the page with an "Upcoming" section
+  // (pending markets) instead of leaving it blank.
+  const showUpcoming =
+    status === "active" && !isLoading && !isError && markets.length < 9;
+  const upcomingQuery = useMemo(
+    () => ({
+      ...PREDICTIONS_CONFIG.upstreamQuery,
+      status: "pending",
+      page: "1",
+      limit: "9",
+    }),
+    []
+  );
+  const { data: upcomingData } = useQuery({
+    queryKey: predictionKeys.markets(upcomingQuery),
+    queryFn: () => predictionsApi.listMarkets(upcomingQuery),
+    enabled: showUpcoming,
+    staleTime: 30_000,
+  });
+  const upcoming = useMemo(
+    () => applyTitleFilter(upcomingData?.markets ?? []),
+    [upcomingData]
+  );
+
   return (
     <Box maxW="1280px" mx="auto" px={4} py={6}>
       <Flex justify="space-between" align="center" wrap="wrap" gap={3} mb={2}>
@@ -86,8 +109,18 @@ export default function PredictionMarketsPage() {
         <Link
           href="https://hivepredict.app/"
           isExternal
-          color="#E31337"
           fontWeight={600}
+          sx={{
+            // HivePredict brand red in every state — the global anchor styles
+            // would otherwise recolor it on hover/visited and underline it.
+            color: "#E31337 !important",
+            "&:hover": {
+              textDecoration: "none !important",
+              color: "#E31337 !important",
+              opacity: 0.85,
+            },
+            "&:visited": { color: "#E31337 !important" },
+          }}
         >
           HivePredict
         </Link>
@@ -132,11 +165,37 @@ export default function PredictionMarketsPage() {
               <Text color="dim">No markets found.</Text>
             </VStack>
           ) : (
-            <SimpleGrid columns={{ base: 1, sm: 2, xl: 3 }} spacing={4}>
+            <VStack align="stretch" spacing={3}>
               {markets.map((m) => (
                 <MarketCard key={m.id} market={m} />
               ))}
-            </SimpleGrid>
+            </VStack>
+          )}
+
+          {showUpcoming && upcoming.length > 0 && (
+            <Box mt={8}>
+              <Flex justify="space-between" align="center" mb={3}>
+                <Heading size="sm" color="text">
+                  Upcoming
+                </Heading>
+                <Button
+                  size="xs"
+                  variant="link"
+                  color="primary"
+                  onClick={() => {
+                    setStatus("pending");
+                    setPage(1);
+                  }}
+                >
+                  View all
+                </Button>
+              </Flex>
+              <VStack align="stretch" spacing={3}>
+                {upcoming.map((m) => (
+                  <MarketCard key={m.id} market={m} />
+                ))}
+              </VStack>
+            </Box>
           )}
 
           {totalPages > 1 && (
@@ -168,18 +227,20 @@ export default function PredictionMarketsPage() {
           )}
         </Box>
 
-        {/* Secondary section — right sidebar (wide screens). Activity while
-            browsing Active markets; leaderboard otherwise. */}
-        <Box
+        {/* Right sidebar (wide screens): Activity + Leaderboard widgets. */}
+        <VStack
           as="aside"
           w="300px"
           flexShrink={0}
-          display={{ base: "none", lg: "block" }}
+          display={{ base: "none", lg: "flex" }}
           position="sticky"
           top="1rem"
+          align="stretch"
+          spacing={4}
         >
-          {status === "active" ? <ActivityPanel /> : <LeaderboardPanel />}
-        </Box>
+          <ActivityPanel />
+          <LeaderboardPanel />
+        </VStack>
       </Flex>
 
       <CreateMarketModal isOpen={isCreateOpen} onClose={() => setCreateOpen(false)} />
