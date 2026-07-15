@@ -22,15 +22,15 @@ import CreateMarketModal from "./CreateMarketModal";
 const PAGE_SIZE = 24;
 
 const STATUS_FILTERS: { label: string; value: MarketStatus | "all" }[] = [
-  { label: "All", value: "all" },
   { label: "Active", value: "active" },
   { label: "Upcoming", value: "pending" },
   { label: "Resolved", value: "resolved" },
+  { label: "All", value: "all" },
 ];
 
 export default function PredictionMarketsPage() {
   const { user } = useAioha();
-  const [status, setStatus] = useState<MarketStatus | "all">("all");
+  const [status, setStatus] = useState<MarketStatus | "all">("active");
   const [page, setPage] = useState(1);
   const [isCreateOpen, setCreateOpen] = useState(false);
 
