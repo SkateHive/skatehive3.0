@@ -20,6 +20,7 @@ import { PREDICTIONS_CONFIG, applyTitleFilter } from "@/lib/predictions/config";
 import type { MarketStatus } from "@/lib/predictions/types";
 import MarketCard from "./MarketCard";
 import CreateMarketModal from "./CreateMarketModal";
+import SkateModal from "@/components/shared/SkateModal";
 import LeaderboardPanel from "./LeaderboardPanel";
 import ActivityPanel from "./ActivityPanel";
 
@@ -42,6 +43,7 @@ export default function PredictionMarketsPage() {
   const [status, setStatus] = useState<MarketStatus | "all">("active");
   const [page, setPage] = useState(1);
   const [isCreateOpen, setCreateOpen] = useState(false);
+  const [isHpAlertOpen, setHpAlertOpen] = useState(false);
 
   const canCreate = !!user && (hivePower ?? 0) > CREATE_MIN_HP;
 
@@ -101,21 +103,15 @@ export default function PredictionMarketsPage() {
         <Heading size="lg" color="text">
           Prediction Markets
         </Heading>
-        {canCreate ? (
-          <Button
-            size="sm"
-            bg="primary"
-            color="background"
-            _hover={{ opacity: 0.9 }}
-            onClick={() => setCreateOpen(true)}
-          >
-            Create market
-          </Button>
-        ) : user && hivePower != null ? (
-          <Text fontSize="xs" color="dim">
-            {CREATE_MIN_HP}+ HP required to create markets
-          </Text>
-        ) : null}
+        <Button
+          size="sm"
+          bg="primary"
+          color="background"
+          _hover={{ opacity: 0.9 }}
+          onClick={() => (canCreate ? setCreateOpen(true) : setHpAlertOpen(true))}
+        >
+          Create market
+        </Button>
       </Flex>
       <Text color="dim" mb={5}>
         Parimutuel prediction markets on Hive, powered by{" "}
@@ -257,6 +253,37 @@ export default function PredictionMarketsPage() {
       </Flex>
 
       <CreateMarketModal isOpen={isCreateOpen} onClose={() => setCreateOpen(false)} />
+
+      <SkateModal
+        isOpen={isHpAlertOpen}
+        onClose={() => setHpAlertOpen(false)}
+        title="create-market"
+        size={{ base: "full", md: "md" }}
+        footer={
+          <Button
+            size="sm"
+            ml="auto"
+            bg="primary"
+            color="background"
+            onClick={() => setHpAlertOpen(false)}
+          >
+            Got it
+          </Button>
+        }
+      >
+        <Box p={5} color="text">
+          <Heading size="sm" mb={2}>
+            {CREATE_MIN_HP}+ HP needed to create a market
+          </Heading>
+          <Text color="dim" fontSize="sm">
+            {!user
+              ? `Connect a Hive wallet with more than ${CREATE_MIN_HP} HP to create markets. You can still browse and bet.`
+              : `Creating a market stakes real funds and carries resolution duties, so it's reserved for accounts with more than ${CREATE_MIN_HP} HP.${
+                  hivePower != null ? ` You currently have ${Math.floor(hivePower)} HP.` : ""
+                }`}
+          </Text>
+        </Box>
+      </SkateModal>
     </Box>
   );
 }
