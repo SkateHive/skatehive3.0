@@ -75,6 +75,7 @@ function YouTubeLite({ id: rawId }: { id: string }) {
       }}
     >
       <img
+        className="embed-poster"
         src={posterSrc}
         onError={() =>
           setPosterSrc(`https://img.youtube.com/vi/${id}/hqdefault.jpg`)
@@ -293,6 +294,7 @@ function OdyseeLite({ url }: { url: string }) {
     >
       {posterSrc && (
         <img
+          className="embed-poster"
           src={posterSrc}
           alt=""
           loading="lazy"
@@ -463,6 +465,7 @@ function VimeoLite({ id }: { id: string }) {
     >
       {posterSrc && (
         <img
+          className="embed-poster"
           src={posterSrc}
           alt=""
           loading="lazy"
