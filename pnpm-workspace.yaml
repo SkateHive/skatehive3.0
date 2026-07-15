@@ -1,6 +1,22 @@
 packages:
   - '.'
 
+allowBuilds:
+  argon2: true
+  bufferutil: true
+  core-js: true
+  esbuild: true
+  exifreader: true
+  keccak: true
+  secp256k1: true
+  sharp: true
+  unrs-resolver: true
+  utf-8-validate: true
+
+# hive-tx resolves via a GitHub tarball as a subdep of keychain-sdk;
+# pnpm 11 blocks exotic subdeps by default.
+blockExoticSubdeps: false
+
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'
   - bufferutil
