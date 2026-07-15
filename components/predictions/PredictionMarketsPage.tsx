@@ -75,7 +75,7 @@ export default function PredictionMarketsPage() {
           </Button>
         )}
       </Flex>
-      <Text color="muted" mb={5}>
+      <Text color="dim" mb={5}>
         Parimutuel prediction markets on Hive, powered by hivepredict.
       </Text>
 
@@ -105,13 +105,13 @@ export default function PredictionMarketsPage() {
       ) : isError ? (
         <VStack py={16} spacing={2}>
           <Text color="error">Failed to load markets.</Text>
-          <Text color="muted" fontSize="sm">
+          <Text color="dim" fontSize="sm">
             {(error as Error)?.message}
           </Text>
         </VStack>
       ) : markets.length === 0 ? (
         <VStack py={16} spacing={2}>
-          <Text color="muted">No markets found.</Text>
+          <Text color="dim">No markets found.</Text>
         </VStack>
       ) : (
         <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={4}>
@@ -133,7 +133,7 @@ export default function PredictionMarketsPage() {
           >
             Previous
           </Button>
-          <Text color="muted" fontSize="sm">
+          <Text color="dim" fontSize="sm">
             Page {page} of {totalPages}
           </Text>
           <Button

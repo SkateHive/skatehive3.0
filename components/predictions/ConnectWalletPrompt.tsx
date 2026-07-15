@@ -22,7 +22,7 @@ export default function ConnectWalletPrompt({
       <Text color="text" fontWeight={600} mb={1}>
         Connect a Hive wallet to {action}
       </Text>
-      <Text color="muted" fontSize="sm">
+      <Text color="dim" fontSize="sm">
         Placing bets and creating markets moves real HIVE/HBD and requires your
         Hive <b>active</b> key. Sign in with Hive Keychain or HiveAuth to
         continue. Email, wallet, and Farcaster logins can browse markets but

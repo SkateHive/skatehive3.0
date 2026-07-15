@@ -96,7 +96,7 @@ export default function MarketDetail({ id }: { id: string }) {
         {market.title}
       </Heading>
       {market.description && (
-        <Text color="muted" mb={4} whiteSpace="pre-wrap">
+        <Text color="dim" mb={4} whiteSpace="pre-wrap">
           {market.description}
         </Text>
       )}
@@ -119,7 +119,7 @@ export default function MarketDetail({ id }: { id: string }) {
                 </Text>
               </HStack>
               <HStack spacing={3} flexShrink={0}>
-                <Text color="muted" fontSize="sm">
+                <Text color="dim" fontSize="sm">
                   {s.pool.toFixed(3)} {market.token}
                 </Text>
                 <Text color="text" fontWeight={700} w="3.5rem" textAlign="right">
@@ -152,7 +152,7 @@ export default function MarketDetail({ id }: { id: string }) {
           </Box>
         )
       ) : (
-        <Text color="muted" mb={6}>
+        <Text color="dim" mb={6}>
           This market is {market.status} and not open for betting.
         </Text>
       )}
@@ -182,7 +182,7 @@ export default function MarketDetail({ id }: { id: string }) {
                   <Badge bg={p.outcome === "NO" ? "error" : "success"} color="background">
                     {market.outcomeLabels?.[p.outcome] || p.outcome}
                   </Badge>
-                  <Text color="muted" fontSize="sm">
+                  <Text color="dim" fontSize="sm">
                     {p.amount} {p.token}
                   </Text>
                 </HStack>

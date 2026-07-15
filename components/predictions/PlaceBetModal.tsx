@@ -111,7 +111,7 @@ export default function PlaceBetModal({ market, isOpen, onClose }: PlaceBetModal
                 </HStack>
               ) : (
                 <Box>
-                  <Text fontSize="sm" color="muted" mb={1}>
+                  <Text fontSize="sm" color="dim" mb={1}>
                     Choose an outcome
                   </Text>
                   <Select
@@ -130,7 +130,7 @@ export default function PlaceBetModal({ market, isOpen, onClose }: PlaceBetModal
               )}
 
               <Box>
-                <Text fontSize="sm" color="muted" mb={1}>
+                <Text fontSize="sm" color="dim" mb={1}>
                   Stake ({market.token})
                 </Text>
                 <NumberInput
@@ -144,7 +144,7 @@ export default function PlaceBetModal({ market, isOpen, onClose }: PlaceBetModal
               </Box>
 
               <Flex justify="space-between">
-                <Text color="muted" fontSize="sm">
+                <Text color="dim" fontSize="sm">
                   Est. payout if {outcomeLabel(market, outcome)} wins
                 </Text>
                 <Text fontWeight={700} color="success">

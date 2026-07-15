@@ -100,7 +100,7 @@ export default function MarketCard({ market, now = new Date() }: MarketCardProps
         )}
 
         <Flex justify="space-between" align="center">
-          <Text fontSize="xs" color="muted">
+          <Text fontSize="xs" color="dim">
             Pool {total.toFixed(3)} {market.token}
           </Text>
           <Text fontSize="xs" color="dim">
