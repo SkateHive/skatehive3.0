@@ -3,6 +3,7 @@
 // the hivepredict public API (see types.ts).
 
 import type {
+  ActivityResponse,
   LeaderboardBoard,
   LeaderboardResponse,
   Market,
@@ -55,6 +56,8 @@ export const predictionsApi = {
     ),
   getLeaderboard: (board: LeaderboardBoard, limit = 10) =>
     getJson<LeaderboardResponse>("leaderboard", { board, limit: String(limit) }),
+  getActivity: (limit = 10) =>
+    getJson<ActivityResponse>("activity", { limit: String(limit) }),
 };
 
 // React Query key factory — stable keys for cache read/invalidation.
@@ -72,4 +75,5 @@ export const predictionKeys = {
     [...predictionKeys.all, "sportsEvents", league] as const,
   leaderboard: (board: string) =>
     [...predictionKeys.all, "leaderboard", board] as const,
+  activity: () => [...predictionKeys.all, "activity"] as const,
 };

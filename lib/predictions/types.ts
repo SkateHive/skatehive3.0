@@ -129,3 +129,27 @@ export interface LeaderboardResponse {
   period: string;
   entries: LeaderboardEntry[];
 }
+
+// Platform activity feed (/api/activity).
+export interface ActivityEvent {
+  id: string;
+  eventType: string; // bet_placed | market_created | cash_out | refund | market_resolved | …
+  marketId?: string;
+  marketOnChainId?: string;
+  marketTitle?: string;
+  account?: string;
+  amount?: string;
+  token?: string;
+  outcome?: string;
+  resolvedOutcome?: string | null;
+  txId?: string;
+  blockNum?: number;
+  createdAt?: string;
+}
+
+export interface ActivityResponse {
+  events: ActivityEvent[];
+  total: number;
+  page: number;
+  limit: number;
+}

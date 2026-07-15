@@ -20,6 +20,7 @@ import type { MarketStatus } from "@/lib/predictions/types";
 import MarketCard from "./MarketCard";
 import CreateMarketModal from "./CreateMarketModal";
 import LeaderboardPanel from "./LeaderboardPanel";
+import ActivityPanel from "./ActivityPanel";
 
 const PAGE_SIZE = 24;
 
@@ -36,15 +37,18 @@ export default function PredictionMarketsPage() {
   const [page, setPage] = useState(1);
   const [isCreateOpen, setCreateOpen] = useState(false);
 
+  // Resolved shows a compact recent set (last 12); other views paginate fully.
+  const pageSize = status === "resolved" ? 12 : PAGE_SIZE;
+
   const query = useMemo(() => {
     const q: Record<string, string> = {
       ...PREDICTIONS_CONFIG.upstreamQuery,
       page: String(page),
-      limit: String(PAGE_SIZE),
+      limit: String(pageSize),
     };
     if (status !== "all") q.status = status;
     return q;
-  }, [status, page]);
+  }, [status, page, pageSize]);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: predictionKeys.markets(query),
@@ -57,7 +61,7 @@ export default function PredictionMarketsPage() {
     [data]
   );
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <Box maxW="1280px" mx="auto" px={4} py={6}>
@@ -164,7 +168,8 @@ export default function PredictionMarketsPage() {
           )}
         </Box>
 
-        {/* Leaderboard — right sidebar (wide screens) */}
+        {/* Secondary section — right sidebar (wide screens). Activity while
+            browsing Active markets; leaderboard otherwise. */}
         <Box
           as="aside"
           w="300px"
@@ -173,7 +178,7 @@ export default function PredictionMarketsPage() {
           position="sticky"
           top="1rem"
         >
-          <LeaderboardPanel />
+          {status === "active" ? <ActivityPanel /> : <LeaderboardPanel />}
         </Box>
       </Flex>
 
