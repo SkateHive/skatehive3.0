@@ -341,6 +341,7 @@ const handleVote = useCallback(
           trigger={
             <Button
               variant="ghost"
+              color="primary"
               size={size}
               p={1}
               _hover={{ textDecoration: "underline" }}
@@ -400,6 +401,7 @@ const handleVote = useCallback(
             trigger={
               <Button
                 variant="ghost"
+                color="primary"
                 size={size}
                 p={1}
                 _hover={{ textDecoration: "underline" }}
@@ -520,6 +522,7 @@ const handleVote = useCallback(
           trigger={
             <Button
               variant="ghost"
+              color="primary"
               size={size}
               p={1}
               _hover={{ textDecoration: "underline" }}
