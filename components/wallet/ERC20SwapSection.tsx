@@ -228,7 +228,7 @@ function TokenPicker({
                   <FaSearch color="var(--chakra-colors-dim)" />
                 </InputLeftElement>
                 <Input
-                  placeholder="Search token name or paste address"
+                  placeholder="Search supported tokens by name or address"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   bg="muted"

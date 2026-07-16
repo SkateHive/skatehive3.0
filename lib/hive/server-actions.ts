@@ -93,7 +93,6 @@ export async function createSnapAsSkatedev({
         HIVE_CONFIG.THREADS.PERMLINK,
         HIVE_CONFIG.SEARCH_TAG,
         'ethereum',
-        'coin-creation',
         ...tags
       ],
       images,
