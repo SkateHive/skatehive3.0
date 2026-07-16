@@ -11,8 +11,6 @@ import {
   HStack,
   Button,
   VStack,
-  Spinner,
-  useToken,
   useTheme,
   Avatar,
   Input,
@@ -94,7 +92,6 @@ const Conversation = ({
   const theme = useTheme();
   const toast = useToast();
   const showError = useErrorToast();
-  const [primaryColor] = useToken("colors", ["primary"]);
 
   // Theme-aware colors
   const mobileBgColor = useColorModeValue("black", "black");
@@ -496,25 +493,6 @@ const Conversation = ({
   const onBackClick = useCallback(() => {
     setConversation(undefined);
   }, [setConversation]);
-
-  // Early return AFTER all hooks have been called
-  if (isLoading) {
-    return (
-      <Box
-        h="100vh"
-        bg={mobileBgColor}
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        borderTopRadius="20px"
-      >
-        <VStack spacing={4}>
-          <Spinner size="xl" color={primaryColor} />
-          <Text color={mobileTextColor}>Loading conversation...</Text>
-        </VStack>
-      </Box>
-    );
-  }
 
   // Error state for comments
   if (!comments && !isLoading) {
