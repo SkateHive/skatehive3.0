@@ -35,7 +35,7 @@ async function fetchPostData(username: string, permlink: string): Promise<Discus
 function cleanBodyForDescription(body: string): string {
     return body
         .replace(/!\[.*?\]\(.*?\)/g, '')       // Remove image markdown
-        .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '') // Remove iframes
+        .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '') // Remove iframes (multi-line embed markup)
         .replace(/<[^>]*>/g, '')               // Remove HTML tags
         .replace(/^#{1,6}\s+/gm, '')           // Remove headers
         .replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1') // Remove bold/italic
