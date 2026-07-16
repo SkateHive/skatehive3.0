@@ -350,6 +350,7 @@ export const en = {
     selectThumbnailFirst: 'Please select a thumbnail first',
     addTitleFirst: 'Please add a title first',
     placeholder: 'Write here',
+    replyPlaceholder: 'Post your reply...',
     dropFiles: 'Drop files to upload',
     enterCaption: 'Enter caption',
     uploadMedia: 'Upload Media',

@@ -467,7 +467,11 @@ export default function SnapList({
           >
             <SoftPostProvider posts={filteredAndSortedComments}>
               <SoftVoteProvider posts={filteredAndSortedComments}>
-                <VStack spacing={1} align="stretch">
+                <VStack
+                  spacing={1}
+                  align="stretch"
+                  divider={<Box borderBottom="1px solid" borderColor="muted" />}
+                >
                   {filteredAndSortedComments.map((discussion: Discussion) => (
                     <Snap
                       key={discussion.permlink}
