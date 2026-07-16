@@ -23,7 +23,6 @@ import ProfileHeader from "./ProfileHeader";
 import ViewModeSelector from "./ViewModeSelector";
 import MagazineModal from "../shared/MagazineModal";
 import SnapsGrid from "./SnapsGrid";
-import ZoraTokensView from "./ZoraTokensView";
 import SoftSnapsGrid from "./SoftSnapsGrid";
 import EditUserbaseProfile from "./EditUserbaseProfile";
 import { useProfileDebug } from "@/lib/utils/profileDebug";
@@ -69,7 +68,6 @@ const ContentViews = memo(function ContentViews({
   username,
   snapsUsername,
   softSnaps,
-  ethereumAddress,
   hasHiveProfile,
   farcasterFid,
   farcasterUsername,
@@ -92,7 +90,6 @@ const ContentViews = memo(function ContentViews({
   username: string;
   snapsUsername?: string | null;
   softSnaps?: Discussion[];
-  ethereumAddress?: string;
   hasHiveProfile: boolean;
   farcasterFid?: number | null;
   farcasterUsername?: string | null;
@@ -130,12 +127,6 @@ const ContentViews = memo(function ContentViews({
             </Box>
           )}
         </>
-      )}
-
-      {visited.has("tokens") && (
-        <Box display={viewMode === "tokens" ? "block" : "none"}>
-          <ZoraTokensView ethereumAddress={ethereumAddress} />
-        </Box>
       )}
 
       {visited.has("casts") && (
@@ -323,7 +314,6 @@ const ContentViewsWithData = memo(function ContentViewsWithData({
   videoPartsProps,
   username,
   snapsUsername,
-  ethereumAddress,
   hasHiveProfile,
   farcasterFid,
   farcasterUsername,
@@ -342,7 +332,6 @@ const ContentViewsWithData = memo(function ContentViewsWithData({
   };
   username: string;
   snapsUsername: string | null;
-  ethereumAddress?: string;
   hasHiveProfile: boolean;
   farcasterFid: number | null;
   farcasterUsername: string | null;
@@ -357,7 +346,7 @@ const ContentViewsWithData = memo(function ContentViewsWithData({
 }) {
   useProfileDebug("ContentViewsWithData");
   // Fetch Hive posts only when on a tab that needs them
-  const needsHivePosts = !["casts", "tokens"].includes(viewMode);
+  const needsHivePosts = viewMode !== "casts";
   const {
     posts: hivePosts,
     fetchPosts: fetchHivePosts,
@@ -425,7 +414,6 @@ const ContentViewsWithData = memo(function ContentViewsWithData({
         username={username}
         snapsUsername={snapsUsername}
         softSnaps={softSnaps}
-        ethereumAddress={ethereumAddress}
         hasHiveProfile={hasHiveProfile}
         farcasterFid={farcasterFid}
         farcasterUsername={farcasterUsername}
@@ -535,7 +523,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     }
   }, [viewerHiveUsername, hiveLookupHandle, currentUserbaseUser, userbaseUser]);
   const [activeProfileView, setActiveProfileView] = useState<
-    "hive" | "skate" | "zora" | "farcaster" | null
+    "hive" | "skate" | "farcaster" | null
   >(null);
   // useHiveAccount/useUserbaseProfile default isLoading to false until their
   // effects fire post-mount, so on the very first render neither hook is
@@ -692,8 +680,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
         return hiveCover || skateCover;
       case "skate":
         return skateCover || hiveCover;
-      case "zora":
-        return hiveCover || skateCover; // Zora uses Hive cover
       case "farcaster":
         // Farcaster protocol doesn't have cover images, use Hive cover as fallback
         return hiveCover || skateCover;
@@ -734,7 +720,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   // Optimized view mode change handler with debouncing to prevent rapid switches
   const memoizedViewModeChange = useCallback(
     (
-      mode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts"
+      mode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "casts"
     ) => {
       // Prevent rapid changes
       if (isTransitioning.current) return;
@@ -748,7 +734,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
 
       // Sync profile header view with content tab
       if (mode === "casts") setActiveProfileView("farcaster");
-      else if (mode === "tokens") setActiveProfileView("zora");
       else if (mode === "snaps" || mode === "grid" || mode === "list" || mode === "magazine") setActiveProfileView("hive");
 
       // Debounce the view mode change to prevent rapid switching
@@ -849,11 +834,9 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     // Redirect from Hive-only views if user doesn't have Hive
     if (canShowHiveViews || hasSoftSnaps) return;
     if (["snaps", "videoparts", "magazine"].includes(viewMode)) {
-      // Prefer casts if Farcaster available, tokens if Ethereum available, otherwise grid
+      // Prefer casts if Farcaster available, otherwise grid
       if (farcasterIdentityFid) {
         handleViewModeChange("casts");
-      } else if (resolvedEthereumAddress) {
-        handleViewModeChange("tokens");
       } else {
         handleViewModeChange("grid");
       }
@@ -863,7 +846,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     hasSoftSnaps,
     viewMode,
     handleViewModeChange,
-    resolvedEthereumAddress,
     farcasterIdentityFid,
   ]);
 
@@ -945,7 +927,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               viewMode={viewMode}
               onViewModeChange={memoizedViewModeChange}
               isMobile={isMobile}
-              hasEthereumAddress={!!resolvedEthereumAddress}
               hasHiveProfile={canShowHiveViews || hasSoftSnaps}
               hasFarcasterProfile={!!farcasterIdentityFid}
               hasVideoParts={!!activeProfileData.video_parts?.length}
@@ -961,7 +942,6 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               videoPartsProps={videoPartsProps}
               username={username}
               snapsUsername={hivePostsHandle || null}
-              ethereumAddress={resolvedEthereumAddress}
               hasHiveProfile={canShowHiveViews || hasSoftSnaps}
               farcasterFid={farcasterIdentityFid ? parseInt(farcasterIdentityFid, 10) : null}
               farcasterUsername={farcasterIdentityHandle}

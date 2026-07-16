@@ -8,12 +8,8 @@ import {
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { FaExchangeAlt, FaInfoCircle, FaSearch, FaChevronDown, FaCheck, FaCog } from "react-icons/fa";
-import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceipt, useWriteContract, useSwitchChain } from "wagmi";
-import { parseUnits, parseEther, formatUnits, formatEther, maxUint256, isAddress, UserRejectedRequestError } from "viem";
-import { base } from "wagmi/chains";
-import { getCoin } from "@zoralabs/coins-sdk";
-import { useZoraTrade } from "@/hooks/useZoraTrade";
-import { useZoraWalletData } from "@/hooks/useZoraWalletData";
+import { useAccount, useBalance, useChainId, useSendTransaction, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { parseUnits, formatUnits, formatEther, maxUint256, UserRejectedRequestError } from "viem";
 import { PortfolioContext } from "@/contexts/PortfolioContext";
 
 const shimmer = keyframes`
@@ -38,54 +34,43 @@ const ERC20_ABI = [
   },
 ] as const;
 
-type TokenSource = "standard" | "zora";
-
 interface TokenInfo {
   symbol: string;
   address: string;
   decimals: number;
   logo?: string;
   name?: string;
-  source: TokenSource;
-  balance?: string; // human-readable, for Zora coins from wallet
+  balance?: string;
 }
 
 const STANDARD_TOKENS_BY_CHAIN: Record<number, TokenInfo[]> = {
   // Base
   8453: [
-    { symbol: "ETH",   address: NATIVE,                                        decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "WETH",  address: "0x4200000000000000000000000000000000000006",  decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "USDC",  address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",  decimals: 6,  logo: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png", source: "standard" },
-    { symbol: "DAI",   address: "0x50c5725949a6f0c72e6c4a641f24049a917db0cb",  decimals: 18, source: "standard" },
-    { symbol: "DEGEN", address: "0x4ed4e862860bed51a9570b96d89af5e1b0efefed",  decimals: 18, logo: "/logos/degen.png", source: "standard" },
-    { symbol: "HIGHER",address: "0x0578d8a44db98b23bf096a382e016e29a5ce0ffe",  decimals: 18, logo: "/logos/higher.png", source: "standard" },
+    { symbol: "ETH",   address: NATIVE,                                        decimals: 18, logo: "/logos/ethereum_logo.png" },
+    { symbol: "WETH",  address: "0x4200000000000000000000000000000000000006",  decimals: 18, logo: "/logos/ethereum_logo.png" },
+    { symbol: "USDC",  address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",  decimals: 6,  logo: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png" },
+    { symbol: "DAI",   address: "0x50c5725949a6f0c72e6c4a641f24049a917db0cb",  decimals: 18 },
+    { symbol: "DEGEN", address: "0x4ed4e862860bed51a9570b96d89af5e1b0efefed",  decimals: 18, logo: "/logos/degen.png" },
+    { symbol: "HIGHER",address: "0x0578d8a44db98b23bf096a382e016e29a5ce0ffe",  decimals: 18, logo: "/logos/higher.png" },
   ],
   // Ethereum
   1: [
-    { symbol: "ETH",  address: NATIVE,                                         decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "WETH", address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",   decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "USDC", address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",   decimals: 6,  source: "standard" },
-    { symbol: "USDT", address: "0xdac17f958d2ee523a2206206994597c13d831ec7",   decimals: 6,  source: "standard" },
-    { symbol: "DAI",  address: "0x6b175474e89094c44da98b954eedeac495271d0f",   decimals: 18, source: "standard" },
+    { symbol: "ETH",  address: NATIVE,                                         decimals: 18, logo: "/logos/ethereum_logo.png" },
+    { symbol: "WETH", address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",   decimals: 18, logo: "/logos/ethereum_logo.png" },
+    { symbol: "USDC", address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",   decimals: 6 },
+    { symbol: "USDT", address: "0xdac17f958d2ee523a2206206994597c13d831ec7",   decimals: 6 },
+    { symbol: "DAI",  address: "0x6b175474e89094c44da98b954eedeac495271d0f",   decimals: 18 },
   ],
   // Arbitrum
   42161: [
-    { symbol: "ETH",  address: NATIVE,                                         decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "WETH", address: "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",   decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "USDC", address: "0xaf88d065e77c8cc2239327c5edb3a432268e5831",   decimals: 6,  source: "standard" },
-    { symbol: "ARB",  address: "0x912ce59144191c1204e64559fe8253a0e49e6548",   decimals: 18, source: "standard" },
+    { symbol: "ETH",  address: NATIVE,                                         decimals: 18, logo: "/logos/ethereum_logo.png" },
+    { symbol: "WETH", address: "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",   decimals: 18, logo: "/logos/ethereum_logo.png" },
+    { symbol: "USDC", address: "0xaf88d065e77c8cc2239327c5edb3a432268e5831",   decimals: 6 },
+    { symbol: "ARB",  address: "0x912ce59144191c1204e64559fe8253a0e49e6548",   decimals: 18 },
   ],
 };
 
 const CHAIN_NAMES: Record<number, string> = { 8453: "Base", 1: "Ethereum", 42161: "Arbitrum" };
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-/** Determine routing: if either token is Zora → bonding curve, else → 0x */
-function getRoute(sell: TokenInfo, buy: TokenInfo): "zora" | "0x" {
-  if (sell.source === "zora" || buy.source === "zora") return "zora";
-  return "0x";
-}
 
 // ─── Token Logo Helper ──────────────────────────────────────────────────────
 
@@ -100,9 +85,6 @@ function TokenLogo({ token, size = "28px" }: { token: TokenInfo; size?: string }
           </Box>
         } />
     );
-  }
-  if (token.source === "zora") {
-    return <Image src="/logos/Zorb.png" w={size} h={size} borderRadius="full" alt="" />;
   }
   return (
     <Box w={size} h={size} borderRadius="full" bg="border" display="flex"
@@ -171,14 +153,12 @@ function TokenPicker({
   selected,
   tokens,
   onSelect,
-  onSearchClick,
   label,
   exclude,
 }: {
   selected: TokenInfo;
   tokens: TokenInfo[];
   onSelect: (t: TokenInfo) => void;
-  onSearchClick: () => void;
   label: string;
   exclude?: string;
 }) {
@@ -186,7 +166,7 @@ function TokenPicker({
   const [query, setQuery] = useState("");
 
   const popular = useMemo(
-    () => tokens.filter((t) => t.source === "standard" && POPULAR_SYMBOLS.includes(t.symbol)),
+    () => tokens.filter((t) => POPULAR_SYMBOLS.includes(t.symbol)),
     [tokens],
   );
 
@@ -200,9 +180,6 @@ function TokenPicker({
         t.address.toLowerCase().includes(q),
     );
   }, [query, tokens]);
-
-  const standardFiltered = filtered.filter((t) => t.source === "standard");
-  const zoraFiltered = filtered.filter((t) => t.source === "zora");
 
   const handleSelect = (t: TokenInfo) => {
     if (t.address === exclude) return;
@@ -322,14 +299,13 @@ function TokenPicker({
                 "&::-webkit-scrollbar-thumb": { bg: "border", borderRadius: "2px" },
               }}
             >
-              {/* Standard tokens */}
-              {standardFiltered.length > 0 && (
+              {filtered.length > 0 && (
                 <Text fontSize="10px" fontFamily="mono" color="dim" textTransform="uppercase"
                   letterSpacing="wider" px={4} pt={3} pb={1}>
                   Tokens
                 </Text>
               )}
-              {standardFiltered.map((t) => (
+              {filtered.map((t) => (
                 <TokenRow
                   key={t.address}
                   token={t}
@@ -338,44 +314,9 @@ function TokenPicker({
                   onClick={() => handleSelect(t)}
                 />
               ))}
-
-              {/* Zora coins */}
-              {zoraFiltered.length > 0 && (
-                <Text fontSize="10px" fontFamily="mono" color="dim" textTransform="uppercase"
-                  letterSpacing="wider" px={4} pt={3} pb={1}
-                  borderTop="1px solid" borderColor="border" mt={1}>
-                  Zora Coins
-                </Text>
-              )}
-              {zoraFiltered.map((t) => (
-                <TokenRow
-                  key={t.address}
-                  token={t}
-                  isSelected={t.address === selected.address}
-                  isExcluded={t.address === exclude}
-                  onClick={() => handleSelect(t)}
-                />
-              ))}
-
-              {/* Zora search CTA */}
-              <Box
-                px={4} py={3} mt={1}
-                cursor="pointer"
-                borderTop="1px solid"
-                borderColor="border"
-                _hover={{ bg: "muted" }}
-                onClick={() => { setQuery(""); onClose(); onSearchClick(); }}
-              >
-                <HStack spacing={2} justify="center">
-                  <FaSearch size={10} color="var(--chakra-colors-primary)" />
-                  <Text fontSize="xs" fontFamily="mono" color="primary" fontWeight="bold">
-                    Search Zora coin by address
-                  </Text>
-                </HStack>
-              </Box>
 
               {/* No results */}
-              {query && standardFiltered.length === 0 && zoraFiltered.length === 0 && (
+              {query && filtered.length === 0 && (
                 <Box py={6} textAlign="center">
                   <Text fontSize="xs" color="dim" fontFamily="mono">No tokens found</Text>
                 </Box>
@@ -417,40 +358,12 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const toast = useToast();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { switchChain } = useSwitchChain();
-
-  // ── Zora SDK trade hook (for Zora coin routes) ──────────────────────────
-  const {
-    executeTrade: executeZoraTrade,
-    getTradeQuote: getZoraQuote,
-    isTrading: isZoraTrading,
-    ethBalance,
-  } = useZoraTrade();
-
-  // ── Fetch user's held Zora coins ────────────────────────────────────────
-  const evmAddresses = useMemo(
-    () => (address ? [address] : []),
-    [address],
-  );
-  const { heldCoins } = useZoraWalletData(evmAddresses);
+  const { data: ethBalance } = useBalance({ address });
 
   // ── Build unified token list ────────────────────────────────────────────
   const standardTokens = useMemo(
     () => STANDARD_TOKENS_BY_CHAIN[chainId] ?? STANDARD_TOKENS_BY_CHAIN[8453],
     [chainId],
-  );
-
-  const zoraTokens: TokenInfo[] = useMemo(
-    () => heldCoins.map((c) => ({
-      address: c.address,
-      symbol: c.symbol,
-      name: c.name,
-      logo: c.logo ?? undefined,
-      decimals: 18,
-      source: "zora" as const,
-      balance: c.balance,
-    })),
-    [heldCoins],
   );
 
   // Use portfolio balances (already fetched by PortfolioProvider) — safe when outside provider
@@ -470,7 +383,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
       }
     }
 
-    const enriched = standardTokens.map((t) => {
+    return standardTokens.map((t) => {
       // ETH: use wagmi balance (more accurate/realtime)
       if (t.address === NATIVE) {
         return ethBal ? { ...t, balance: ethBal } : t;
@@ -479,9 +392,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
       const bal = balanceMap.get(t.address.toLowerCase());
       return bal ? { ...t, balance: String(bal) } : t;
     });
-
-    return [...enriched, ...zoraTokens];
-  }, [standardTokens, zoraTokens, ethBalance, portfolioTokens]);
+  }, [standardTokens, ethBalance, portfolioTokens]);
 
   // ── Core state ──────────────────────────────────────────────────────────
   const [sellToken, setSellToken] = useState<TokenInfo>(standardTokens[0]);
@@ -500,27 +411,13 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const [approvalTarget, setApprovalTarget] = useState<`0x${string}` | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
 
-  // ── Zora-specific state ────────────────────────────────────────────────
-  const [zoraEstimate, setZoraEstimate] = useState("");
-
   // ── Shared state ────────────────────────────────────────────────────────
   const [isFetching, setIsFetching] = useState(false);
-
-  // ── Zora coin search ───────────────────────────────────────────────────
-  const [searchMode, setSearchMode] = useState(false);
-  const [searchAddress, setSearchAddress] = useState("");
-  const [searchResult, setSearchResult] = useState<TokenInfo | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-
-  const route = getRoute(sellToken, buyToken);
-  const isOnBase = chainId === base.id;
 
   // ── Balance of the currently selected sell token (from enriched list) ────
   const sellBalance = useMemo(() => {
     const match = allTokens.find(
-      (t) =>
-        t.address.toLowerCase() === sellToken.address.toLowerCase() &&
-        t.source === sellToken.source,
+      (t) => t.address.toLowerCase() === sellToken.address.toLowerCase(),
     );
     return match?.balance ? parseFloat(match.balance) : 0;
   }, [allTokens, sellToken]);
@@ -536,7 +433,6 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
       if (amount <= 0) return;
       setSellAmount(String(Number(amount.toFixed(sellToken.decimals > 8 ? 8 : sellToken.decimals))));
       setPrice(null);
-      setZoraEstimate("");
     },
     [sellBalance, isNativeSell, sellToken.decimals],
   );
@@ -551,126 +447,39 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
     setBuyToken(list[2] ?? list[1]);
     setSellAmount("");
     setPrice(null);
-    setZoraEstimate("");
   }, [chainId]);
 
-  // ── Search by address ─────────────────────────────────────────────────
-  useEffect(() => {
-    const addr = searchAddress.trim();
-    if (!isAddress(addr)) {
-      setSearchResult(null);
-      return;
-    }
-
-    // Check if already in token list
-    const existing = allTokens.find((t) => t.address.toLowerCase() === addr.toLowerCase());
-    if (existing) {
-      setSearchResult(null);
-      setBuyToken(existing);
-      setSearchMode(false);
-      setSearchAddress("");
-      setSellAmount("");
-      return;
-    }
-
-    let cancelled = false;
-    setIsSearching(true);
-
-    getCoin({ address: addr, chain: 8453 })
-      .then((res) => {
-        if (cancelled) return;
-        const coin = (res as any)?.data?.zora20Token;
-        if (coin) {
-          const image =
-            coin.mediaContent?.previewImage?.medium ??
-            coin.mediaContent?.previewImage?.small ??
-            coin.mediaContent?.originalUri ??
-            null;
-          setSearchResult({
-            address: coin.address ?? addr,
-            symbol: coin.symbol ?? "???",
-            name: coin.name ?? "",
-            logo: image ?? undefined,
-            decimals: 18,
-            source: "zora",
-          });
-        } else {
-          setSearchResult(null);
-        }
-      })
-      .catch(() => { if (!cancelled) setSearchResult(null); })
-      .finally(() => { if (!cancelled) setIsSearching(false); });
-
-    return () => { cancelled = true; };
-  }, [searchAddress, allTokens]);
-
-  // ── Debounced quote fetch ─────────────────────────────────────────────
+  // ── Debounced quote fetch (0x Protocol) ───────────────────────────────
   useEffect(() => {
     if (!sellAmount || isNaN(Number(sellAmount)) || Number(sellAmount) <= 0 || !address) {
       setPrice(null);
-      setZoraEstimate("");
       return;
     }
 
     const timeout = setTimeout(async () => {
       setIsFetching(true);
       try {
-        if (route === "0x") {
-          // ── 0x Protocol route ──────────────────────────────────────
-          const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
-          const params = new URLSearchParams({
-            chainId: String(chainId),
-            sellToken: sellToken.address,
-            buyToken: buyToken.address,
-            sellAmount: rawAmount,
-            taker: address,
-            slippageBps: String(slippageBps),
-          });
-          if (supportFee) params.set("fee", "1");
-          const res = await fetch(`/api/0x/price?${params}`);
-          const data = await res.json();
-          setPrice(data);
-          setZoraEstimate("");
+        const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
+        const params = new URLSearchParams({
+          chainId: String(chainId),
+          sellToken: sellToken.address,
+          buyToken: buyToken.address,
+          sellAmount: rawAmount,
+          taker: address,
+          slippageBps: String(slippageBps),
+        });
+        if (supportFee) params.set("fee", "1");
+        const res = await fetch(`/api/0x/price?${params}`);
+        const data = await res.json();
+        setPrice(data);
 
-          const spender = data?.issues?.allowance?.spender ?? data?.allowanceTarget;
-          const needsAllow =
-            sellToken.address !== NATIVE &&
-            !!data?.issues?.allowance &&
-            !!spender;
-          setNeedsApproval(needsAllow);
-          setApprovalTarget(needsAllow ? spender : null);
-        } else {
-          // ── Zora bonding curve route ───────────────────────────────
-          // Zora coins are always ETH ↔ coin
-          const isBuying = sellToken.source !== "zora";
-          const coinAddress = isBuying ? buyToken.address : sellToken.address;
-          const amountIn = isBuying
-            ? parseEther(sellAmount)
-            : parseUnits(sellAmount, 18);
-
-          const quote = await getZoraQuote({
-            fromToken: isBuying
-              ? { type: "eth", amount: amountIn }
-              : { type: "erc20", address: coinAddress as `0x${string}`, amount: amountIn },
-            toToken: isBuying
-              ? { type: "erc20", address: coinAddress as `0x${string}` }
-              : { type: "eth" },
-            slippage: slippageBps / 100,
-          });
-
-          setPrice(null);
-          setNeedsApproval(false);
-
-          if (quote?.quote?.amountOut) {
-            const out = isBuying
-              ? formatUnits(BigInt(quote.quote.amountOut), 18)
-              : formatEther(BigInt(quote.quote.amountOut));
-            const num = parseFloat(out);
-            setZoraEstimate(num < 0.0001 ? num.toExponential(3) : num.toFixed(6));
-          } else {
-            setZoraEstimate("—");
-          }
-        }
+        const spender = data?.issues?.allowance?.spender ?? data?.allowanceTarget;
+        const needsAllow =
+          sellToken.address !== NATIVE &&
+          !!data?.issues?.allowance &&
+          !!spender;
+        setNeedsApproval(needsAllow);
+        setApprovalTarget(needsAllow ? spender : null);
       } catch (e) {
         console.error("[swap quote]", e);
       } finally {
@@ -679,7 +488,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
     }, 600);
 
     return () => clearTimeout(timeout);
-  }, [sellAmount, sellToken, buyToken, address, chainId, supportFee, route, slippageBps, getZoraQuote]);
+  }, [sellAmount, sellToken, buyToken, address, chainId, supportFee, slippageBps]);
 
   // ── Approval (0x only) ────────────────────────────────────────────────
   const { writeContractAsync, isPending: isApproving } = useWriteContract();
@@ -708,130 +517,93 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
 
   const handleSwap = useCallback(async () => {
     if (!address) return;
+    if (!price?.liquidityAvailable) return;
+    try {
+      const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
+      const params = new URLSearchParams({
+        chainId: String(chainId),
+        sellToken: sellToken.address,
+        buyToken: buyToken.address,
+        sellAmount: rawAmount,
+        taker: address,
+        slippageBps: String(slippageBps),
+      });
+      if (supportFee) params.set("fee", "1");
+      const res = await fetch(`/api/0x/quote?${params}`);
+      const quote = await res.json();
 
-    if (route === "0x") {
-      // ── 0x Protocol swap ────────────────────────────────────────────
-      if (!price?.liquidityAvailable) return;
-      try {
-        const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
-        const params = new URLSearchParams({
-          chainId: String(chainId),
-          sellToken: sellToken.address,
-          buyToken: buyToken.address,
-          sellAmount: rawAmount,
-          taker: address,
-          slippageBps: String(slippageBps),
-        });
-        if (supportFee) params.set("fee", "1");
-        const res = await fetch(`/api/0x/quote?${params}`);
-        const quote = await res.json();
-
-        if (!quote?.transaction) {
-          toast({ title: "Quote failed", description: quote?.reason ?? "No transaction data", status: "error", duration: 4000, isClosable: true });
-          return;
-        }
-
-        const tx = quote.transaction;
-        const hash = await sendTransactionAsync({
-          to: tx.to as `0x${string}`,
-          data: tx.data as `0x${string}`,
-          value: BigInt(tx.value ?? 0),
-          gas: tx.gas != null ? BigInt(tx.gas) : undefined,
-          chainId,
-        });
-
-        setTxHash(hash);
-        toast({ title: "Swap submitted!", description: hash, status: "success", duration: 6000, isClosable: true });
-        setSellAmount("");
-        setPrice(null);
-      } catch (e: unknown) {
-        if (isUserRejection(e))
-          toast({ title: "Transaction cancelled", status: "info", duration: 2000, isClosable: true });
-        else
-          toast({ title: "Swap failed", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
-      }
-    } else {
-      // ── Zora bonding curve swap ─────────────────────────────────────
-      if (!isOnBase) {
-        try { await switchChain({ chainId: base.id }); } catch { /* */ }
+      if (!quote?.transaction) {
+        toast({ title: "Quote failed", description: quote?.reason ?? "No transaction data", status: "error", duration: 4000, isClosable: true });
         return;
       }
 
-      const isBuying = sellToken.source !== "zora";
-      const coinAddress = isBuying ? buyToken.address : sellToken.address;
-      const amountIn = isBuying
-        ? parseEther(sellAmount)
-        : parseUnits(sellAmount, 18);
-
-      await executeZoraTrade({
-        fromToken: isBuying
-          ? { type: "eth", amount: amountIn }
-          : { type: "erc20", address: coinAddress as `0x${string}`, amount: amountIn },
-        toToken: isBuying
-          ? { type: "erc20", address: coinAddress as `0x${string}` }
-          : { type: "eth" },
-        slippage: slippageBps / 100,
+      const tx = quote.transaction;
+      const hash = await sendTransactionAsync({
+        to: tx.to as `0x${string}`,
+        data: tx.data as `0x${string}`,
+        value: BigInt(tx.value ?? 0),
+        gas: tx.gas != null ? BigInt(tx.gas) : undefined,
+        chainId,
       });
 
+      setTxHash(hash);
+      toast({ title: "Swap submitted!", description: hash, status: "success", duration: 6000, isClosable: true });
       setSellAmount("");
-      setZoraEstimate("");
+      setPrice(null);
+    } catch (e: unknown) {
+      if (isUserRejection(e))
+        toast({ title: "Transaction cancelled", status: "info", duration: 2000, isClosable: true });
+      else
+        toast({ title: "Swap failed", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
     }
-  }, [address, price, sellAmount, sellToken, buyToken, chainId, supportFee, route, slippageBps, isOnBase, sendTransactionAsync, executeZoraTrade, switchChain, toast]);
+  }, [address, price, sellAmount, sellToken, buyToken, chainId, supportFee, slippageBps, sendTransactionAsync, toast]);
 
   // ── Derived display values ────────────────────────────────────────────
   const estimatedOut = useMemo(() => {
-    if (route === "zora") return zoraEstimate || "—";
     if (!price?.buyAmount) return "—";
     const val = parseFloat(formatUnits(BigInt(price.buyAmount), buyToken.decimals));
     return val < 0.0001 ? val.toExponential(4) : val.toFixed(6);
-  }, [route, zoraEstimate, price, buyToken.decimals]);
+  }, [price, buyToken.decimals]);
 
   const networkFeeEth = useMemo(() => {
-    if (route !== "0x" || !price?.totalNetworkFee) return null;
+    if (!price?.totalNetworkFee) return null;
     const eth = parseFloat(formatUnits(BigInt(price.totalNetworkFee), 18));
     return eth.toFixed(6);
-  }, [route, price]);
+  }, [price]);
 
   // Minimum received after slippage (0x returns minBuyAmount)
   const minReceived = useMemo(() => {
-    if (route !== "0x" || !price?.minBuyAmount) return null;
+    if (!price?.minBuyAmount) return null;
     const val = parseFloat(formatUnits(BigInt(price.minBuyAmount), buyToken.decimals));
     return val < 0.0001 ? val.toExponential(4) : val.toFixed(6);
-  }, [route, price, buyToken.decimals]);
+  }, [price, buyToken.decimals]);
 
   // Exchange rate: 1 sellToken = X buyToken
   const exchangeRate = useMemo(() => {
     const inAmt = parseFloat(sellAmount);
     if (!inAmt || inAmt <= 0) return null;
-    let out: number | null = null;
-    if (route === "zora") out = zoraEstimate ? parseFloat(zoraEstimate) : null;
-    else if (price?.buyAmount)
-      out = parseFloat(formatUnits(BigInt(price.buyAmount), buyToken.decimals));
+    if (!price?.buyAmount) return null;
+    const out = parseFloat(formatUnits(BigInt(price.buyAmount), buyToken.decimals));
     if (!out || isNaN(out)) return null;
     const rate = out / inAmt;
     return rate < 0.0001 ? rate.toExponential(3) : rate < 1 ? rate.toFixed(6) : rate.toFixed(4);
-  }, [route, zoraEstimate, price, sellAmount, buyToken.decimals]);
+  }, [price, sellAmount, buyToken.decimals]);
 
   const slippagePct = (slippageBps / 100).toString();
 
-  const isLoading = isFetching || isSending || isApproving || isConfirming || isZoraTrading;
-  const canSwap = route === "zora"
-    ? isConnected && !!sellAmount && parseFloat(sellAmount) > 0 && !isLoading && !insufficientBalance
-    : isConnected && !!price?.liquidityAvailable && !needsApproval && !isLoading && !!sellAmount && !insufficientBalance;
+  const isLoading = isFetching || isSending || isApproving || isConfirming;
+  const canSwap =
+    isConnected && !!price?.liquidityAvailable && !needsApproval && !isLoading && !!sellAmount && !insufficientBalance;
 
-  const routeLabel = route === "zora"
-    ? "via Zora SDK · Base"
-    : `via 0x · ${CHAIN_NAMES[chainId] ?? "Unknown"}`;
+  const routeLabel = `via 0x · ${CHAIN_NAMES[chainId] ?? "Unknown"}`;
 
   const handleFlip = () => {
-    // Only allow flip if both tokens make sense as sell/buy
     const newSell = buyToken;
     const newBuy = sellToken;
     setSellToken(newSell);
     setBuyToken(newBuy);
     setSellAmount("");
     setPrice(null);
-    setZoraEstimate("");
   };
 
   const SLIPPAGE_PRESETS = [50, 100, 300]; // 0.5% · 1% · 3%
@@ -978,8 +750,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
               <TokenPicker
                 selected={sellToken}
                 tokens={allTokens}
-                onSelect={(t) => { setSellToken(t); setSellAmount(""); setPrice(null); setZoraEstimate(""); }}
-                onSearchClick={() => setSearchMode(true)}
+                onSelect={(t) => { setSellToken(t); setSellAmount(""); setPrice(null); }}
                 label="Sell token"
                 exclude={buyToken.address}
               />
@@ -1012,86 +783,12 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
               <TokenPicker
                 selected={buyToken}
                 tokens={allTokens}
-                onSelect={(t) => { setBuyToken(t); setSellAmount(""); setPrice(null); setZoraEstimate(""); }}
-                onSearchClick={() => setSearchMode(true)}
+                onSelect={(t) => { setBuyToken(t); setSellAmount(""); setPrice(null); }}
                 label="Buy token"
                 exclude={sellToken.address}
               />
             </HStack>
           </Box>
-
-          {/* Search overlay */}
-          {searchMode && (
-            <Box border="1px solid" borderColor="primary" p={3} mb={3} bg="background">
-              <HStack mb={2}>
-                <Text fontSize="xs" color="primary" fontFamily="mono" fontWeight="bold"
-                  textTransform="uppercase" letterSpacing="wider" flex={1}>
-                  Search Zora Coin
-                </Text>
-                <Button size="xs" variant="ghost" color="dim" onClick={() => setSearchMode(false)}
-                  fontFamily="mono">
-                  X
-                </Button>
-              </HStack>
-              <Input
-                value={searchAddress}
-                onChange={(e) => setSearchAddress(e.target.value)}
-                placeholder="Paste coin address 0x..."
-                fontFamily="mono"
-                fontSize="sm"
-                variant="unstyled"
-                border="1px solid"
-                borderColor="border"
-                px={2}
-                py={1}
-                mb={2}
-                _placeholder={{ color: "dim" }}
-                autoFocus
-              />
-              {isSearching && (
-                <HStack spacing={2} py={1}>
-                  <Spinner size="xs" color="primary" />
-                  <Text fontSize="xs" color="dim" fontFamily="mono">Searching...</Text>
-                </HStack>
-              )}
-              {searchResult && !isSearching && (
-                <Button
-                  w="100%"
-                  variant="outline"
-                  borderColor="border"
-                  borderRadius="none"
-                  h="40px"
-                  justifyContent="flex-start"
-                  onClick={() => {
-                    setBuyToken(searchResult);
-                    setSearchMode(false);
-                    setSearchAddress("");
-                    setSearchResult(null);
-                    setSellAmount("");
-                  }}
-                  _hover={{ borderColor: "primary" }}
-                >
-                  <HStack spacing={2}>
-                    {searchResult.logo ? (
-                      <Image src={searchResult.logo} w="20px" h="20px" borderRadius="full" alt=""
-                        fallback={<Box w="20px" h="20px" borderRadius="full" bg="border" />} />
-                    ) : (
-                      <Image src="/logos/Zorb.png" w="20px" h="20px" borderRadius="full" alt="" />
-                    )}
-                    <Text fontSize="sm" fontFamily="mono" fontWeight="bold" color="primary">
-                      {searchResult.symbol}
-                    </Text>
-                    <Text fontSize="xs" fontFamily="mono" color="dim">
-                      {searchResult.name}
-                    </Text>
-                  </HStack>
-                </Button>
-              )}
-              {searchAddress && isAddress(searchAddress.trim()) && !searchResult && !isSearching && (
-                <Text fontSize="xs" color="dim" fontFamily="mono">Not a Zora coin</Text>
-              )}
-            </Box>
-          )}
 
           {/* Swap details (rate, min received, fees) */}
           {!isFetching && exchangeRate && (
@@ -1121,10 +818,10 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
                   <Text color="text">{networkFeeEth} ETH</Text>
                 </HStack>
               )}
-              {route === "0x" && price?.issues?.balance && (
+              {price?.issues?.balance && (
                 <Text color="red.400">Insufficient {sellToken.symbol} balance</Text>
               )}
-              {route === "0x" && price && !price.liquidityAvailable && (
+              {price && !price.liquidityAvailable && (
                 <Text color="red.400">No liquidity available for this pair</Text>
               )}
               {isSuccess && (
@@ -1133,19 +830,12 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </VStack>
           )}
 
-          {/* Zora route info */}
-          {route === "zora" && !isOnBase && isConnected && (
-            <Box border="1px solid" borderColor="border" p={2} mb={3} fontSize="xs" fontFamily="mono">
-              <Text color="orange.400">Zora coins trade on Base. Click swap to switch network.</Text>
-            </Box>
-          )}
-
           {/* CTA */}
           {!isConnected ? (
             <Box border="1px solid" borderColor="border" p={3} textAlign="center">
               <Text fontSize="xs" color="dim" fontFamily="mono">Connect EVM wallet to swap</Text>
             </Box>
-          ) : route === "0x" && needsApproval ? (
+          ) : needsApproval ? (
             <Button
               w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest"
               fontFamily="mono" colorScheme="orange" size="md"
@@ -1161,17 +851,17 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
               fontFamily="mono" colorScheme="green" size="md"
               sx={{ textTransform: "uppercase" }}
               isDisabled={!canSwap}
-              isLoading={isSending || isConfirming || isZoraTrading}
+              isLoading={isSending || isConfirming}
               loadingText={isConfirming ? "CONFIRMING..." : "SWAPPING..."}
               leftIcon={<FaExchangeAlt />}
               onClick={handleSwap}
             >
-              {!sellAmount ? "Enter Amount" : insufficientBalance ? `Insufficient ${sellToken.symbol}` : route === "zora" && !isOnBase ? "Switch to Base" : isFetching ? "..." : "Swap"}
+              {!sellAmount ? "Enter Amount" : insufficientBalance ? `Insufficient ${sellToken.symbol}` : isFetching ? "..." : "Swap"}
             </Button>
           )}
 
-          {/* Optional platform fee (0x route only) */}
-          {showFeeOption && route === "0x" && (
+          {/* Optional platform fee */}
+          {showFeeOption && (
             <HStack mt={2} spacing={2} justify="center">
               <Checkbox
                 size="sm"
@@ -1190,21 +880,10 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
           )}
 
           <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" mt={2}>
-            {route === "zora" ? (
-              <>
-                {slippagePct}% slippage · Zora bonding curve
-                <Tooltip label="Trades Zora creator coins via bonding curve. Adjust slippage in settings for low-liquidity coins.">
-                  <Box as="span" ml={1} cursor="help"><FaInfoCircle style={{ display: "inline" }} /></Box>
-                </Tooltip>
-              </>
-            ) : (
-              <>
-                Best price from 150+ sources
-                <Tooltip label="Powered by 0x Protocol — aggregates Uniswap, Curve, and 148+ other DEXes for best execution">
-                  <Box as="span" ml={1} cursor="help"><FaInfoCircle style={{ display: "inline" }} /></Box>
-                </Tooltip>
-              </>
-            )}
+            Best price from 150+ sources
+            <Tooltip label="Powered by 0x Protocol — aggregates Uniswap, Curve, and 148+ other DEXes for best execution">
+              <Box as="span" ml={1} cursor="help"><FaInfoCircle style={{ display: "inline" }} /></Box>
+            </Tooltip>
           </Text>
     </VStack>
   );
