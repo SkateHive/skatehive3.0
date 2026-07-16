@@ -9,17 +9,15 @@ import {
   FaVideo,
   FaCamera,
   FaFileAlt,
-  FaCoins,
 } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
 
 interface ViewModeSelectorProps {
-  viewMode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts";
+  viewMode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "casts";
   onViewModeChange: (
-    mode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts"
+    mode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "casts"
   ) => void;
   isMobile: boolean;
-  hasEthereumAddress?: boolean;
   hasHiveProfile?: boolean;
   hasFarcasterProfile?: boolean;
   hasVideoParts?: boolean;
@@ -27,7 +25,6 @@ interface ViewModeSelectorProps {
 
 const getMainTabs = (
   isMobile: boolean,
-  hasEthereumAddress: boolean,
   hasHiveProfile: boolean,
   hasFarcasterProfile: boolean,
   hasVideoParts: boolean
@@ -48,11 +45,6 @@ const getMainTabs = (
 
   const tabsWithExtras = [...baseTabs];
 
-  // Add tokens tab if user has an Ethereum address
-  if (hasEthereumAddress) {
-    tabsWithExtras.push({ key: "tokens", label: "Tokens", icon: FaCoins });
-  }
-
   // Add casts tab if user has a Farcaster profile
   if (hasFarcasterProfile) {
     tabsWithExtras.push({ key: "casts", label: "Casts", icon: SiFarcaster });
@@ -71,15 +63,14 @@ const ViewModeSelector = memo(function ViewModeSelector({
   viewMode,
   onViewModeChange,
   isMobile,
-  hasEthereumAddress = false,
   hasHiveProfile = true,
   hasFarcasterProfile = false,
   hasVideoParts = false,
 }: ViewModeSelectorProps) {
   useProfileDebug("ViewModeSelector");
   const mainTabs = useMemo(
-    () => getMainTabs(isMobile, hasEthereumAddress, hasHiveProfile, hasFarcasterProfile, hasVideoParts),
-    [isMobile, hasEthereumAddress, hasHiveProfile, hasFarcasterProfile, hasVideoParts]
+    () => getMainTabs(isMobile, hasHiveProfile, hasFarcasterProfile, hasVideoParts),
+    [isMobile, hasHiveProfile, hasFarcasterProfile, hasVideoParts]
   );
 
   // Determine which main tab is currently active
@@ -126,7 +117,7 @@ const ViewModeSelector = memo(function ViewModeSelector({
           : "grid";
         onViewModeChange(postMode as "grid" | "list" | "magazine");
       } else {
-        onViewModeChange(selectedTab.key as "snaps" | "videoparts" | "tokens" | "casts");
+        onViewModeChange(selectedTab.key as "snaps" | "videoparts" | "casts");
       }
     },
     [viewMode, onViewModeChange, mainTabs]

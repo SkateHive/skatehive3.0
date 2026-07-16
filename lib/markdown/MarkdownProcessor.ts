@@ -1,9 +1,7 @@
 import { processMediaContent } from "@/lib/markdown/MarkdownRenderer";
-import { extractZoraCoinLinks } from "@/lib/utils/extractImageUrls";
 import { isSnapshotUrl } from "@/lib/utils/snapshotUtils";
 import { LRUCache } from "@/lib/utils/LRUCache";
 import { getCacheKey } from "@/lib/utils/hashUtils";
-import { APP_CONFIG } from "@/config/app.config";
 
 export interface ProcessedMarkdown {
   originalContent: string;
@@ -14,7 +12,7 @@ export interface ProcessedMarkdown {
 }
 
 export interface VideoPlaceholder {
-  type: 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | '3SPEAK' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY';
+  type: 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | '3SPEAK' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY';
   id: string;
   placeholder: string;
 }
@@ -41,11 +39,8 @@ export class MarkdownProcessor {
     // Step 1: Process media content (from existing MarkdownRenderer)
     const processedContent = processMediaContent(content);
 
-    // Step 2: Convert Zora coin links to placeholders  
-    const contentWithZoraPlaceholders = this.convertZoraCoinLinksToPlaceholders(processedContent);
-
-    // Step 3: Convert Snapshot links to placeholders
-    const contentWithSnapshotPlaceholders = this.convertSnapshotLinksToPlaceholders(contentWithZoraPlaceholders);
+    // Step 2: Convert Snapshot links to placeholders
+    const contentWithSnapshotPlaceholders = this.convertSnapshotLinksToPlaceholders(processedContent);
 
     // Step 3.5: Convert SkateHive game links to placeholders
     const contentWithGamePlaceholders = this.convertSkateHiveGameLinksToPlaceholders(contentWithSnapshotPlaceholders);
@@ -76,27 +71,6 @@ export class MarkdownProcessor {
     // Cache the result using hash key
     markdownProcessingCache.set(cacheKey, result);
     return result;
-  }
-
-  private static convertZoraCoinLinksToPlaceholders(content: string): string {
-    const zoraCoinLinks = extractZoraCoinLinks(content);
-    
-    let processedContent = content;
-    
-    zoraCoinLinks.forEach(addressWithChain => {
-      // Extract just the address part (remove chain prefix if present)
-      const address = addressWithChain.includes(':') ? addressWithChain.split(':')[1] : addressWithChain;
-      
-      // Replace both zora.co and skatehive.app URLs
-      const zoraUrl = `https://zora.co/coin/${addressWithChain}`;
-      const skatehiveUrl = `${APP_CONFIG.BASE_URL}/coin/${addressWithChain}`;
-      const placeholder = `[[ZORACOIN:${address}]]`;
-      
-      processedContent = processedContent.replace(zoraUrl, placeholder);
-      processedContent = processedContent.replace(skatehiveUrl, placeholder);
-    });
-    
-    return processedContent;
   }
 
   private static convertSnapshotLinksToPlaceholders(content: string): string {
@@ -149,12 +123,12 @@ export class MarkdownProcessor {
 
   private static extractVideoPlaceholders(content: string): VideoPlaceholder[] {
     const placeholders: VideoPlaceholder[] = [];
-    const regex = /\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):([^\]]+)\]\]/g;
+    const regex = /\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):([^\]]+)\]\]/g;
     let match;
 
     while ((match = regex.exec(content)) !== null) {
       placeholders.push({
-        type: match[1] as 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | '3SPEAK' | 'ZORACOIN' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY',
+        type: match[1] as 'VIDEO' | 'ODYSEE' | 'YOUTUBE' | 'VIMEO' | '3SPEAK' | 'SNAPSHOT' | 'SKATEHIVEGAME' | 'BUILDERPROPOSAL' | 'POIDHBOUNTY',
         id: match[2],
         placeholder: match[0],
       });

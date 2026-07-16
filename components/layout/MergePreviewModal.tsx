@@ -80,7 +80,7 @@ export default function MergePreviewModal({
   const routeDestination = data.type === "hive"
     ? "Hive Profile"
     : data.type === "evm"
-      ? "Zora Profile"
+      ? "Profile"
       : "Farcaster Profile";
 
   return (

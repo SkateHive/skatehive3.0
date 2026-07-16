@@ -342,7 +342,7 @@ export default function UnifiedWalletTable({
 
   const isMobile = useBreakpointValue({ base: true, md: false });
 
-  // Always-active subscription — Zora enrichment can fire before portfolio tokens load
+  // Always-active subscription — logo fetches can resolve before portfolio tokens load
   useEffect(() => {
     const unsub = subscribeToLogoUpdates(() => {
       setLogoUpdateTrigger((prev) => prev + 1);
@@ -467,7 +467,7 @@ export default function UnifiedWalletTable({
     });
 
     return sortConsolidatedTokensByBalance(filtered);
-  // logoUpdateTrigger forces re-evaluation so fresh Zora logo cache is picked up
+  // logoUpdateTrigger forces re-evaluation so fresh logo cache entries are picked up
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hiveTokens, filteredEVMTokens, hideSmallBalances, chainFilter, logoUpdateTrigger]);
 

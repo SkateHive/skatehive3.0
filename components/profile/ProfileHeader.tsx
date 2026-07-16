@@ -11,7 +11,6 @@ import { Box, HStack, Image, Tooltip } from "@chakra-ui/react";
 import { useProfileDebug } from "@/lib/utils/profileDebug";
 import MobileProfileHeader from "./MobileProfileHeader";
 import HiveProfileHeader from "./HiveProfileHeader";
-import ZoraProfileHeader from "./ZoraProfileHeader";
 import SkateProfileHeader from "./SkateProfileHeader";
 import FarcasterProfileHeader from "./FarcasterProfileHeader";
 import type { ProfileData } from "./ProfilePage";
@@ -29,7 +28,7 @@ interface FarcasterProfileData {
   verifications?: string[];
 }
 
-type ProfileView = "hive" | "zora" | "skate" | "farcaster";
+type ProfileView = "hive" | "skate" | "farcaster";
 
 interface ProfileHeaderProps {
   profileData: ProfileData;
@@ -53,7 +52,6 @@ interface ProfileHeaderProps {
       | "magazine"
       | "videoparts"
       | "snaps"
-      | "tokens"
       | "casts",
   ) => void;
   debugPayload?: Record<string, any> | null;
@@ -107,7 +105,6 @@ const ProfileHeader = function ProfileHeader({
   }, [viewerUserbaseUser, user]);
 
   // Determine available views and default view
-  const hasZora = !!profileData.ethereum_address;
   const hasHive = hasHiveProfile;
   const hasSkate = hasUserbaseProfile;
   const hasFarcaster = !!farcasterProfile?.fid;
@@ -118,15 +115,13 @@ const ProfileHeader = function ProfileHeader({
   // Determine default view:
   // - If user has Hive profile (native or linked), prefer Hive
   // - If only Skate (userbase) profile, show Skate
-  // - If only Zora/ETH, show Zora
   // - If only Farcaster, show Farcaster
   const defaultView = useMemo<ProfileView>(() => {
     if (hasHive) return "hive";
     if (hasSkate) return "skate";
     if (hasFarcaster) return "farcaster";
-    if (hasZora) return "zora";
     return "hive"; // fallback
-  }, [hasHive, hasSkate, hasFarcaster, hasZora]);
+  }, [hasHive, hasSkate, hasFarcaster]);
 
   const [activeView, setActiveView] = useState<ProfileView>(defaultView);
   const manualViewRef = useRef(false);
@@ -150,14 +145,13 @@ const ProfileHeader = function ProfileHeader({
     const hasActive =
       (activeView === "hive" && hasHive) ||
       (activeView === "skate" && hasSkate) ||
-      (activeView === "zora" && hasZora) ||
       (activeView === "farcaster" && hasFarcaster);
     if (hasActive) {
       return;
     }
     manualViewRef.current = false;
     setActiveView(defaultView);
-  }, [activeView, hasHive, hasSkate, hasZora, hasFarcaster, defaultView]);
+  }, [activeView, hasHive, hasSkate, hasFarcaster, defaultView]);
 
   // Disabled: This effect was causing views to reset when manually selected
   // useEffect(() => {
@@ -273,46 +267,6 @@ const ProfileHeader = function ProfileHeader({
         </Tooltip>
       )}
 
-      {/* Zora Profile Folder */}
-      {hasZora && (
-        <Tooltip label="Zora Profile" placement="top">
-          <Box
-            cursor="pointer"
-            onClick={() => {
-              setView("zora");
-              onContentViewChange?.("tokens");
-            }}
-            transition="all 0.2s"
-            _hover={{ transform: "scale(1.1)" }}
-            position="relative"
-            w="32px"
-            h="32px"
-          >
-            {activeView === "zora" ? (
-              <Box
-                as="img"
-                src="/folder-icons/zora-open-folder.png?v=2"
-                alt="Zora Profile"
-                boxSize="32px"
-                position="absolute"
-                top={0}
-                left={0}
-              />
-            ) : (
-              <Box
-                as="img"
-                src="/folder-icons/zora-closed-folder.png?v=2"
-                alt="Zora Profile"
-                boxSize="32px"
-                position="absolute"
-                top={0}
-                left={0}
-              />
-            )}
-          </Box>
-        </Tooltip>
-      )}
-
       {/* Farcaster Profile Folder */}
       {hasFarcaster && (
         <Tooltip label="Farcaster Profile" placement="top">
@@ -392,17 +346,6 @@ const ProfileHeader = function ProfileHeader({
                 integrations={networkButtons}
                 userbaseUserId={userbaseUserId}
                 sponsorHiveUsername={viewerHiveUsername}
-              />
-            </Box>
-          )}
-
-          {/* Zora Profile Layout */}
-          {hasZora && (
-            <Box display={activeView === "zora" ? "block" : "none"} w="100%">
-              <ZoraProfileHeader
-                profileData={profileData}
-                username={username}
-                integrations={networkButtons}
               />
             </Box>
           )}

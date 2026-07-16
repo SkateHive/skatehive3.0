@@ -52,9 +52,6 @@ import ThumbnailPicker from "@/components/compose/ThumbnailPicker";
 import { DEFAULT_VOTE_WEIGHT } from "@/lib/utils/constants";
 import useVoteWeight from "@/hooks/useVoteWeight";
 import UpvoteStoke from "@/components/graphics/UpvoteStoke";
-import { MarkdownCoinModal } from "@/components/zora/MarkdownCoinModal/MarkdownCoinModal";
-import { canCreateCoin, analyzeContent } from "@/lib/utils/markdownCoinUtils";
-import { ZoraButton } from "./ZoraButton";
 import { extractSafeUser } from "@/lib/userbase/safeUserMetadata";
 import HiveUpgradePromptModal from "@/components/shared/HiveUpgradePromptModal";
 import { usePostProseTweaks } from "@/hooks/usePostProseTweaks";
@@ -213,9 +210,6 @@ export default function PostDetails({
   // Track previous payout value to detect changes
   const prevPayoutValueRef = useRef(payoutValue);
 
-  // Markdown coin modal state
-  const [isMarkdownCoinModalOpen, setIsMarkdownCoinModalOpen] = useState(false);
-
   // Moderator-only: cross-post a mag post to @skatehive Instagram. Multiple
   // media → carousel; single → image/Reel. Built lazily from the post body.
   const isModerator = useIsAdmin();
@@ -249,13 +243,9 @@ export default function PostDetails({
     [post.author, post.permlink, post.title, post.body, postTags, igMediaItems]
   );
 
-  // Check if this post is eligible for coin creation
-  const coinEligibility = useMemo(() => {
-    return canCreateCoin(post, effectiveUser);
-  }, [post, effectiveUser]);
-
-  const contentAnalysis = useMemo(() => {
-    return analyzeContent(post.body);
+  const readingTime = useMemo(() => {
+    const wordCount = (post.body || "").split(/\s+/).filter((w) => w.length > 0).length;
+    return Math.ceil(wordCount / 200);
   }, [post.body]);
 
   // Helper function to trigger UpvoteStoke animation
@@ -273,16 +263,6 @@ export default function PostDetails({
         prev.filter((instance) => instance.id !== newInstance.id),
       );
     }, 4000); // Total animation duration from UpvoteStoke.tsx
-  }, []);
-
-  // Memoized callback for opening markdown coin modal
-  const handleOpenMarkdownCoinModal = useCallback(() => {
-    setIsMarkdownCoinModalOpen(true);
-  }, []);
-
-  // Memoized callback for closing markdown coin modal
-  const handleCloseMarkdownCoinModal = useCallback(() => {
-    setIsMarkdownCoinModalOpen(false);
   }, []);
 
   // Watch for payoutValue changes and trigger animation
@@ -612,8 +592,8 @@ export default function PostDetails({
                 >
                   <span>{postDateFull.relative}</span>
                 </Tooltip>
-                {contentAnalysis.readingTime > 0 && (
-                  <> · {contentAnalysis.readingTime} min read</>
+                {readingTime > 0 && (
+                  <> · {readingTime} min read</>
                 )}
               </Text>
             </Box>
@@ -741,14 +721,6 @@ export default function PostDetails({
                   minW="auto"
                   h="auto"
                   p={1}
-                />
-              )}
-              {coinEligibility.canCreate && contentAnalysis.isLongform && (
-                <ZoraButton
-                  wordCount={contentAnalysis.wordCount}
-                  onClick={handleOpenMarkdownCoinModal}
-                  fontSize="10px"
-                  tooltipPlacement="top"
                 />
               )}
               <IconButton
@@ -981,15 +953,6 @@ export default function PostDetails({
           limit={4}
         />
       </Container>
-
-      {/* Markdown Coin Modal - Only render when needed */}
-      {isMarkdownCoinModalOpen && (
-        <MarkdownCoinModal
-          isOpen={isMarkdownCoinModalOpen}
-          onClose={handleCloseMarkdownCoinModal}
-          post={post}
-        />
-      )}
 
       {/* Hive Upgrade Prompt Modal for lite users */}
       <HiveUpgradePromptModal
