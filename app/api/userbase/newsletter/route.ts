@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import { newsletterPortalRequest } from "@/lib/newsletter/portal";
 
 // Newsletter subscription preference for the signed-in userbase account.
 // Status truth lives in the SkateHive marketing portal (Paragraph publication
@@ -83,37 +84,11 @@ async function callPortal(
   email: string,
   subscribed?: boolean
 ): Promise<NextResponse> {
-  const base = process.env.NEWSLETTER_PORTAL_BASE_URL;
-  const secret = process.env.NEWSLETTER_API_SECRET;
-  if (!base || !secret) {
-    return NextResponse.json(
-      { error: "Newsletter service not configured" },
-      { status: 503 }
-    );
+  const result = await newsletterPortalRequest(email, subscribed);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
-  const res = await fetch(`${base.replace(/\/+$/, "")}/api/newsletter/preference`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-newsletter-secret": secret,
-    },
-    body: JSON.stringify(
-      typeof subscribed === "boolean" ? { email, subscribed } : { email }
-    ),
-    cache: "no-store",
-  });
-  const data = (await res.json().catch(() => null)) as {
-    ok?: boolean;
-    subscribed?: boolean;
-    error?: string;
-  } | null;
-  if (!res.ok || !data?.ok) {
-    return NextResponse.json(
-      { error: data?.error || "Newsletter service error" },
-      { status: 502 }
-    );
-  }
-  return NextResponse.json({ subscribed: data.subscribed });
+  return NextResponse.json({ subscribed: result.subscribed });
 }
 
 export async function GET(request: NextRequest) {

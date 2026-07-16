@@ -501,12 +501,54 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const tCommon = useTranslations("common");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUserbaseEditModalOpen, setIsUserbaseEditModalOpen] = useState(false);
+
+  // Auto-open the edit profile modal when arriving with ?edit=1 (used by the
+  // profile-setup CTA toasts), but only for the profile owner. Reads the query
+  // from window.location (client-only) to avoid a useSearchParams Suspense
+  // requirement on this ISR route.
+  const viewerHiveUsername = useViewerHiveIdentity();
+  const { user: currentUserbaseUser } = useUserbaseAuth();
+  const editParamHandledRef = useRef(false);
+  useEffect(() => {
+    if (editParamHandledRef.current) return;
+    if (typeof window === "undefined") return;
+    const wantsEdit =
+      new URLSearchParams(window.location.search).get("edit") === "1";
+    if (!wantsEdit) return;
+    const isHiveOwner =
+      !!viewerHiveUsername &&
+      !!hiveLookupHandle &&
+      viewerHiveUsername.toLowerCase() === hiveLookupHandle.toLowerCase();
+    // Match ProfilePage's display precedence (app/userbase profile wins): when
+    // the viewer owns the userbase profile shown here, open the userbase editor.
+    // Fall back to the Hive editor for pure-Hive owners.
+    const isUserbaseOwner =
+      !!currentUserbaseUser &&
+      !!userbaseUser &&
+      currentUserbaseUser.id === userbaseUser.id;
+    if (isUserbaseOwner) {
+      editParamHandledRef.current = true;
+      setIsUserbaseEditModalOpen(true);
+    } else if (isHiveOwner) {
+      editParamHandledRef.current = true;
+      setIsEditModalOpen(true);
+    }
+  }, [viewerHiveUsername, hiveLookupHandle, currentUserbaseUser, userbaseUser]);
   const [activeProfileView, setActiveProfileView] = useState<
     "hive" | "skate" | "zora" | "farcaster" | null
   >(null);
+  // useHiveAccount/useUserbaseProfile default isLoading to false until their
+  // effects fire post-mount, so on the very first render neither hook is
+  // "loading" yet. Without this flag the not-found branch below flashes
+  // before either fetch has actually started. Client-only by design (SSR
+  // and the initial hydration pass both render isMounted=false).
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Custom hooks
-  const { profileData, updateProfileData } = useProfileData(
+  const { profileData, updateProfileData, refetchBridgeData, adjustFollowerCount } = useProfileData(
     hiveLookupHandle,
     hiveAccount
   );
@@ -828,7 +870,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   const isProfileResolved =
     isHiveProfile || Boolean(userbaseUser) || isEvmAddress;
 
-  if (!isProfileResolved && (isLoading || userbaseLoading)) {
+  if (!isProfileResolved && (!isMounted || isLoading || userbaseLoading)) {
     return (
       <Box
         display="flex"
@@ -841,7 +883,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
     );
   }
 
-  if (!isProfileResolved && !isLoading && !userbaseLoading) {
+  if (!isProfileResolved && isMounted && !isLoading && !userbaseLoading) {
     return (
       <Box
         display="flex"
@@ -893,6 +935,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
               debugPayload={debugPayloadRef.current}
               hasHiveProfile={isHiveProfile || !!hiveIdentityHandle}
               hasUserbaseProfile={!!userbaseUser}
+              onFollowConfirmed={adjustFollowerCount}
               farcasterProfile={farcasterProfileData}
               userbaseUserId={userbaseUser?.id}
             />

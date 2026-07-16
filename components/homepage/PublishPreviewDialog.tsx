@@ -38,6 +38,7 @@ import {
 import { FaInstagram, FaHive, FaPlus } from "react-icons/fa";
 import { SiFarcaster } from "react-icons/si";
 import SkateModal from "@/components/shared/SkateModal";
+import { useTranslations } from "@/contexts/LocaleContext";
 import VideoTimeline from "./VideoTimeline";
 import { InstagramPostPreview } from "./InstagramPreviewModal";
 import type { CarouselMediaItem } from "@/lib/instagram/extractPostMedia";
@@ -121,17 +122,25 @@ export default function PublishPreviewDialog({
   canBypassTrim,
   onPublish,
 }: PublishPreviewDialogProps) {
+  const t = useTranslations();
   const hasRawVideo = !!videoFile && !!videoLocalUrl;
+  // Localised step labels (STEP_META lives at module scope, so the labels come
+  // from t() at render). Keys: compose.prepare.stepTrim / stepHive / …
+  const stepLabel = useCallback(
+    (k: StepKey) =>
+      t(`compose.prepare.step${k.charAt(0).toUpperCase()}${k.slice(1)}`),
+    [t]
+  );
 
   // ── Step model ──────────────────────────────────────────────────────
   const steps = useMemo<StepKey[]>(() => {
     const s: StepKey[] = [];
     if (hasRawVideo) s.push("trim");
-    if (targets.hive) s.push("hive");
+    // A SkateHive post always backs the snap (own account, or @skateuser for
+    // Farcaster-only) — so the cover + master caption step is always shown.
+    s.push("hive");
     if (targets.farcaster) s.push("farcaster");
     if (targets.instagram) s.push("instagram");
-    // Always need at least one content step to write a caption.
-    if (!s.some((k) => k !== "trim")) s.push("hive");
     return s;
   }, [hasRawVideo, targets]);
 
@@ -171,6 +180,14 @@ export default function PublishPreviewDialog({
 
   const effFarcaster = farcasterCaption ?? masterCaption;
   const effIg = igCaption ?? masterCaption + DEFAULT_IG_CTA;
+
+  // One normalized publish caption. In the Farcaster-only masked-post flow the
+  // master (Hive) caption can be blank while the FC/IG caption carries the text,
+  // so fall back to those instead of blocking publish on an empty master.
+  const normalizedPublishCaption =
+    masterCaption.trim() ||
+    (farcasterCaption ?? "").trim() ||
+    (igCaption ?? "").trim();
 
   // ── Instagram collaborators ─────────────────────────────────────────
   const [collaborators, setCollaborators] = useState<string[]>([]);
@@ -235,44 +252,49 @@ export default function PublishPreviewDialog({
   // publishes in the background (with a progress toast) so this dialog can
   // close immediately instead of holding a loading state.
   const handlePublish = useCallback(() => {
-    if (!masterCaption.trim()) {
+    if (!normalizedPublishCaption) {
       goToStep(targets.hive ? "hive" : steps.find((s) => s !== "trim") ?? "hive");
       return;
     }
     const needsTrim = hasRawVideo && (startTime > 0.05 || endTime < duration - 0.05);
     onPublish({
-      caption: masterCaption,
+      caption: normalizedPublishCaption,
       farcasterCaption: effFarcaster,
       igCaption: effIg,
       collaborators,
       trim: needsTrim ? { start: startTime, end: endTime } : null,
       coverBlob: coverBlobRef.current,
     });
-  }, [masterCaption, effFarcaster, effIg, collaborators, hasRawVideo, startTime, endTime, duration, onPublish, goToStep, targets.hive, steps]);
+  }, [normalizedPublishCaption, effFarcaster, effIg, collaborators, hasRawVideo, startTime, endTime, duration, onPublish, goToStep, targets.hive, steps]);
 
   // ── Media shape for preview cards ───────────────────────────────────
   const carouselItems = useMemo<CarouselMediaItem[]>(() => images.map((img) => ({ url: img.url, type: "image" as const })), [images]);
   const igMediaType: "IMAGE" | "REELS" | "CAROUSEL" = videoLocalUrl ? "REELS" : images.length >= 2 ? "CAROUSEL" : "IMAGE";
   const igMediaUrl = videoLocalUrl || images[0]?.url || coverUrl || null;
 
-  const primaryLabel = hasForwardNext ? "Next →" : `Publish to ${steps.filter((s) => s !== "trim" && s !== "farcaster").map((s) => STEP_META[s].label).join(" + ")}${targets.farcaster ? " + Farcaster" : ""}`;
+  const primaryLabel = hasForwardNext
+    ? t("compose.prepare.next")
+    : `${t("compose.prepare.publishTo")} ${steps
+        .filter((s) => s !== "trim" && s !== "farcaster")
+        .map((s) => stepLabel(s))
+        .join(" + ")}${targets.farcaster ? ` + ${stepLabel("farcaster")}` : ""}`;
 
   return (
     <SkateModal
       isOpen={isOpen}
       onClose={onClose}
-      title="prepare & publish"
+      title={t("compose.prepare.title")}
       size={{ base: "full", md: "5xl" }}
       footer={
         <HStack spacing={3} justify="space-between" w="full">
           <Button variant="ghost" color="text" onClick={idx === 0 ? onClose : goBack} fontFamily="mono" size="sm">
-            {idx === 0 ? "Cancel" : "← Back"}
+            {idx === 0 ? t("compose.prepare.cancel") : t("compose.prepare.back")}
           </Button>
           <Button
             bg="primary"
             color="background"
             onClick={hasForwardNext ? goNext : handlePublish}
-            isDisabled={!isValidSelection || (!hasForwardNext && !masterCaption.trim())}
+            isDisabled={!isValidSelection || (!hasForwardNext && !normalizedPublishCaption)}
             fontFamily="mono"
             size="sm"
             _hover={{ opacity: 0.85 }}
@@ -302,8 +324,8 @@ export default function PublishPreviewDialog({
                 borderRadius="full"
                 leftIcon={<Box as={meta.icon} color={isCurrent ? "background" : meta.color} />}
               >
-                {i + 1} · {meta.label}
-                {k === "farcaster" ? " (auto)" : ""}
+                {i + 1} · {stepLabel(k)}
+                {k === "farcaster" ? t("compose.prepare.auto") : ""}
               </Button>
             );
           })}
@@ -315,7 +337,7 @@ export default function PublishPreviewDialog({
             {step === "trim" && hasRawVideo && (
               <>
                 <Text fontFamily="mono" fontSize="sm" color="text" fontWeight="bold">
-                  ✂️ Trim your clip
+                  {t("compose.prepare.trimHeading")}
                 </Text>
                 <Box borderRadius="md" overflow="hidden" bg="black">
                   <video
@@ -351,7 +373,7 @@ export default function PublishPreviewDialog({
             {step === "hive" && (
               <>
                 <Text fontFamily="mono" fontSize="sm" color="text" fontWeight="bold">
-                  📸 Cover &amp; caption (Hive)
+                  {t("compose.prepare.coverHeading")}
                 </Text>
                 {hasRawVideo && (
                   <Box>
@@ -369,7 +391,7 @@ export default function PublishPreviewDialog({
                     </Box>
                     <HStack mb={1}>
                       <Button size="xs" variant="outline" colorScheme="green" onClick={captureCover} fontFamily="mono">
-                        📸 Set cover from current frame
+                        {t("compose.prepare.setCover")}
                       </Button>
                       {coverUrl && (
                         <Box w="44px" h="44px" borderRadius="md" overflow="hidden" border="1px solid" borderColor="border">
@@ -380,14 +402,14 @@ export default function PublishPreviewDialog({
                   </Box>
                 )}
                 <CaptionField
-                  label="Caption"
+                  label={t("compose.prepare.caption")}
                   value={masterCaption}
                   onChange={setMasterCaption}
-                  placeholder="Write your caption…"
+                  placeholder={t("compose.prepare.captionPlaceholder")}
                 />
                 {targets.farcaster && (
                   <Text fontFamily="mono" fontSize="2xs" color="dim">
-                    ✓ Also posting to Farcaster with this caption — step 3 to customize.
+                    {t("compose.prepare.alsoFarcaster")}
                   </Text>
                 )}
               </>
@@ -396,16 +418,16 @@ export default function PublishPreviewDialog({
             {step === "farcaster" && (
               <>
                 <Text fontFamily="mono" fontSize="sm" color="text" fontWeight="bold">
-                  🟪 Farcaster cast
+                  {t("compose.prepare.farcasterHeading")}
                 </Text>
                 <Text fontFamily="mono" fontSize="2xs" color="dim">
-                  Skipped by default — same as your Hive caption. Edit here to make it different.
+                  {t("compose.prepare.farcasterHint")}
                 </Text>
                 <CaptionField
-                  label="Cast text"
+                  label={t("compose.prepare.castText")}
                   value={effFarcaster}
                   onChange={setFarcasterCaption}
-                  placeholder="Cast text…"
+                  placeholder={t("compose.prepare.castPlaceholder")}
                 />
               </>
             )}
@@ -413,19 +435,19 @@ export default function PublishPreviewDialog({
             {step === "instagram" && (
               <>
                 <Text fontFamily="mono" fontSize="sm" color="text" fontWeight="bold">
-                  📷 Instagram post
+                  {t("compose.prepare.instagramHeading")}
                 </Text>
                 <CaptionField
-                  label="Caption"
+                  label={t("compose.prepare.caption")}
                   value={effIg}
                   onChange={setIgCaption}
                   limit={IG_CAPTION_LIMIT}
-                  placeholder="Instagram caption…"
+                  placeholder={t("compose.prepare.igCaptionPlaceholder")}
                 />
                 {/* Collaborators */}
                 <Box>
                   <Text fontFamily="mono" fontSize="2xs" color="dim" textTransform="uppercase" letterSpacing="wider" mb={1}>
-                    Collaborators ({collaborators.length} / {MAX_COLLABORATORS})
+                    {t("compose.prepare.collaborators")} ({collaborators.length} / {MAX_COLLABORATORS})
                   </Text>
                   {collaborators.length > 0 && (
                     <Wrap mb={2}>
@@ -450,19 +472,19 @@ export default function PublishPreviewDialog({
                             addCollaborator();
                           }
                         }}
-                        placeholder="add IG username"
+                        placeholder={t("compose.prepare.addIgUsername")}
                         size="sm"
                         fontFamily="mono"
                         bg="background"
                         borderColor="border"
                       />
                       <Button size="sm" leftIcon={<FaPlus />} onClick={addCollaborator} isDisabled={!collabInput.trim()} fontFamily="mono" variant="outline">
-                        Add
+                        {t("compose.prepare.add")}
                       </Button>
                     </HStack>
                   )}
                   <Text fontFamily="mono" fontSize="2xs" color="dim" mt={1}>
-                    Each gets a co-author invite — the post lands on their feed once they accept.
+                    {t("compose.prepare.collabHint")}
                   </Text>
                 </Box>
               </>
@@ -473,7 +495,7 @@ export default function PublishPreviewDialog({
           {/* ── RIGHT: live preview for this step ───────────────────── */}
           <Box w={{ base: "full", lg: "340px" }} flexShrink={0} alignSelf={{ lg: "flex-start" }}>
             <Text fontFamily="mono" fontSize="2xs" color="dim" textTransform="uppercase" letterSpacing="wider" mb={2}>
-              Preview
+              {t("compose.prepare.preview")}
             </Text>
             {step === "instagram" ? (
               <InstagramPostPreview

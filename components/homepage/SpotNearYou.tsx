@@ -28,6 +28,12 @@ interface SpotNearYouProps {
    * this just removes the skeleton flash for cold visits.
    */
   initialSpot?: FeaturedSpot | null;
+  /**
+   * Stretch to fill the parent's height (the image grows to consume extra
+   * space). Used on /home so the widget matches the adjacent bounties card
+   * height. Off by default (RightSidebar keeps its natural size).
+   */
+  fill?: boolean;
 }
 
 function readSeen(): string[] {
@@ -60,7 +66,7 @@ function formatDistance(km: number): string {
   return `${Math.round(km)} km`;
 }
 
-export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {}) {
+export default function SpotNearYou({ initialSpot = null, fill = false }: SpotNearYouProps = {}) {
   const router = useRouter();
   const t = useTranslations("spotWidget");
   const [spot, setSpot] = useState<FeaturedSpot | null>(initialSpot);
@@ -168,12 +174,15 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
 
   return (
     <Box
-      mt={3}
-      borderWidth="1px"
-      borderColor="whiteAlpha.200"
+      mt={fill ? 0 : 3}
+      h={fill ? "100%" : undefined}
+      display={fill ? "flex" : undefined}
+      flexDirection={fill ? "column" : undefined}
+      borderWidth="2px"
+      borderColor="muted"
       borderRadius="0"
       p={3}
-      bg="rgba(20,20,20,0.45)"
+      bg="background"
     >
       <Flex align="center" justify="space-between" mb={3}>
         <Text fontSize="sm" fontWeight="500" color="primary">
@@ -198,14 +207,18 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
         <Box
           as="a"
           href={spotHref}
-          display="block"
+          className="cursor-target"
+          display={fill ? "flex" : "block"}
+          flexDirection={fill ? "column" : undefined}
+          flex={fill ? "1" : undefined}
+          minH={0}
           cursor="pointer"
           _hover={{ opacity: 0.92 }}
           transition="opacity 0.15s"
           opacity={isLoading ? 0.6 : 1}
         >
           {spot.thumbnail ? (
-            <Box position="relative" width="100%" height="160px" bg="rgba(255,255,255,0.04)">
+            <Box position="relative" width="100%" height={fill ? "auto" : "160px"} flex={fill ? "1" : undefined} minHeight="160px" bg="muted">
               <Image
                 src={spot.thumbnail}
                 alt={spot.name}
@@ -240,13 +253,13 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
             <Box
               width="100%"
               height="100px"
-              bg="rgba(167,255,0,0.04)"
+              bg="muted"
               border="1px dashed"
-              borderColor="whiteAlpha.200"
+              borderColor="border"
               display="flex"
               alignItems="center"
               justifyContent="center"
-              color="gray.500"
+              color="secondary"
               fontSize="xs"
             >
               📍
@@ -255,7 +268,7 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
           <Text
             fontSize="sm"
             fontWeight="500"
-            color="white"
+            color="text"
             mt={2}
             mb={2}
             noOfLines={1}
@@ -268,10 +281,12 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
       <HStack spacing={2} mt={2}>
         <Button
           flex={1}
+          minW={0}
           size="sm"
           variant="outline"
           borderRadius="0"
-          fontSize="13px"
+          fontSize={{ base: "11px", md: "13px" }}
+          px={2}
           onClick={() => fetchFeatured({ excludeCurrent: true })}
           isLoading={isLoading && !!spot}
           isDisabled={showSkeleton}
@@ -280,10 +295,12 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
         </Button>
         <Button
           flex={1}
+          minW={0}
           size="sm"
           variant="outline"
           borderRadius="0"
-          fontSize="13px"
+          fontSize={{ base: "11px", md: "13px" }}
+          px={2}
           onClick={() => router.push("/map")}
         >
           {t("viewAllSpots")}
@@ -296,7 +313,7 @@ export default function SpotNearYou({ initialSpot = null }: SpotNearYouProps = {
           type="button"
           mt={2}
           fontSize="11px"
-          color="gray.500"
+          color="secondary"
           fontFamily="ui-monospace, monospace"
           letterSpacing="0.01em"
           textAlign="center"
@@ -321,11 +338,11 @@ function SpotSkeleton() {
       <Box
         width="100%"
         height="160px"
-        bg="rgba(255,255,255,0.05)"
+        bg="muted"
         sx={{
           animation: "spotShimmer 1.4s linear infinite",
           background:
-            "linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 100%)",
+            "linear-gradient(90deg, var(--chakra-colors-muted) 0%, var(--chakra-colors-border) 50%, var(--chakra-colors-muted) 100%)",
           backgroundSize: "200% 100%",
           "@keyframes spotShimmer": {
             "0%": { backgroundPosition: "200% 0" },
@@ -333,7 +350,7 @@ function SpotSkeleton() {
           },
         }}
       />
-      <Box height="14px" width="65%" bg="rgba(255,255,255,0.06)" mt={2} mb={2} borderRadius="2px" />
+      <Box height="14px" width="65%" bg="muted" mt={2} mb={2} borderRadius="2px" />
     </Box>
   );
 }

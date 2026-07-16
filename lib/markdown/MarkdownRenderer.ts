@@ -24,7 +24,7 @@ const YOUTUBE_URL_PATTERN = new RegExp(
     "i"
 );
 
-function getYouTubePlaceholder(rawUrl: string): string | null {
+export function getYouTubePlaceholder(rawUrl: string): string | null {
     const normalizedUrl = rawUrl.trim().replace(/^<|>$/g, "");
     try {
         const url = new URL(normalizedUrl);

@@ -251,7 +251,7 @@ html[data-skatehive-theme="gruvbox-nogg"] .post-page .post-prose {
 }
 
 /* Regular image styling - keep existing behavior but ensure centering - exclude mention avatars */
-.markdown-body img:not([src*=".gif"]):not([src*="/giphy.gif"]):not([src*="tenor.com"]):not([src*="giphy.com"]):not([alt*="@"]) {
+.markdown-body img:not([src*=".gif"]):not([src*="/giphy.gif"]):not([src*="tenor.com"]):not([src*="giphy.com"]):not([alt*="@"]):not(.embed-poster) {
   display: block !important;
   margin: 1.5rem auto !important;
   max-width: 100% !important;
@@ -259,6 +259,14 @@ html[data-skatehive-theme="gruvbox-nogg"] .post-page .post-prose {
   border-radius: 4px !important;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.12) !important;
 }
+
+/* Video-embed poster images (YouTube/Odysee/Vimeo/3Speak) fill a
+   fixed-aspect button and rely on their inline `height: 100%` +
+   `object-fit: cover`. The general markdown-image rule above would force
+   `height: auto`, collapsing the poster to its natural ratio inside the
+   taller box and exposing the black button background as top/bottom bars —
+   so posters are excluded from it (`:not(.embed-poster)`). object-fit then
+   has real box dimensions to crop against and the poster fills edge-to-edge. */
 
 /* Mention styling for inline user mentions */
 .markdown-body a[href^="/@"] {
@@ -632,7 +640,7 @@ html[data-skatehive-theme="gruvbox-nogg"] .post-page .post-prose {
 }
 
 /* ─── Image frames ───────────────────────────────── */
-.post-prose[data-image-frames="on"] .markdown-body img:not([src*=".gif"]):not([src*="/giphy.gif"]):not([src*="tenor.com"]):not([src*="giphy.com"]):not([alt*="@"]) {
+.post-prose[data-image-frames="on"] .markdown-body img:not([src*=".gif"]):not([src*="/giphy.gif"]):not([src*="tenor.com"]):not([src*="giphy.com"]):not([alt*="@"]):not(.embed-poster) {
   border-radius: var(--pp-image-radius) !important;
   border: var(--pp-image-border) solid color-mix(in srgb, white var(--pp-image-border-tint, 8%), transparent);
   box-shadow: 0 10px 32px rgba(0, 0, 0, calc(var(--pp-image-shadow) * 1.0)) !important;

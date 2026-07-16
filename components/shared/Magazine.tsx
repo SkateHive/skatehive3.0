@@ -20,7 +20,6 @@ const EnhancedMarkdownRenderer = lazy(() =>
 );
 import LoadingComponent from "../homepage/loadingComponent";
 import MatrixOverlay from "@/components/graphics/MatrixOverlay";
-import { useTheme } from "@/app/themeProvider";
 import SkateErrorBoundary from "./SkateErrorBoundary";
 import ContentErrorWatcher from "./ContentErrorWatcher";
 import { usePostProseTweaks } from "@/hooks/usePostProseTweaks";
@@ -99,35 +98,65 @@ const backgroundGradient = {
   overflow: "hidden",
 };
 
-const pageStyles = (theme: any) => ({
-  background: `linear-gradient(135deg,${theme.colors.background} 80%,${theme.colors.muted} 100%)`,
+// Deliberately theme-INDEPENDENT palette for the flipbook: paper pages with
+// black ink, whatever theme the user is running elsewhere on the site. The
+// magazine reads as a physical zine, sober and consistent, not a re-skin of
+// the current app theme.
+const PAPER = {
+  page: "#f4ecd8", // warm cream paper
+  pageEdge: "#e8ddc0", // subtle paper-fold shadow
+  text: "#141414", // near-black ink for body copy
+  headline: "#0e0d0c", // even darker for titles
+  muted: "#6a625a", // warm gray for dates, meta separators
+  accent: "#8b2828", // magazine red ink for handle + badge bg
+  onAccent: "#f4ecd8", // cream text on red badge
+  rule: "rgba(20,20,20,0.18)", // hairline rule between meta and body
+  border: "#c8bea5", // sepia page border
+} as const;
+
+const pageStyles = () => ({
+  background: `linear-gradient(135deg, ${PAPER.page} 80%, ${PAPER.pageEdge} 100%)`,
   borderRadius: "16px",
-  boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.15)",
+  boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.35)",
   display: "flex",
   flexDirection: "column",
   justifyContent: "space-between",
   padding: "32px 28px 48px 28px",
-  color: theme.colors.text,
+  color: PAPER.text,
   overflow: "auto",
   position: "relative",
   minHeight: 400,
   zIndex: 1,
-  border: `1px solid ${theme.colors.border || "#e0e7ef"}`,
+  border: `1px solid ${PAPER.border}`,
 });
 
-const retroBoxShadow = (theme: any) =>
-  `0 0 0 2px ${theme.colors.text}, 0 0 8px ${theme.colors.primary}`;
+// Paper pages don't need the retro double-outline anymore — the light page
+// against the dark modal already reads as "floating page". Keeping a real
+// paper drop-shadow instead.
+const paperShadow = "0 4px 18px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.12)";
 
-const backCoverStyles = (theme: any) => ({
-  ...pageStyles(theme),
-  background: `linear-gradient(120deg, ${theme.colors.primary} 60%, ${theme.colors.accent} 100%)`,
-  color: theme.colors.text,
+const backCoverStyles = () => ({
+  ...pageStyles(),
+  // Full-bleed like the front cover — without an explicit size the page-flip
+  // engine measures this page short (minHeight only), so the last page looked
+  // detached/dislocated mid-animation.
+  width: "100%",
+  height: "100%",
+  overflow: "hidden",
+  background: PAPER.page,
+  color: PAPER.text,
   justifyContent: "center",
   alignItems: "center",
-  backgroundImage:
-    "url(https://media1.giphy.com/media/9ZsHm0z5QwSYpV7g01/giphy.gif?cid=6c09b952uxaerotyqa9vct5pkiwvar6l6knjgsctieeg0sh1&ep=v1_gifs_search&rid=giphy.gif&ct=g)",
-  backgroundSize: "cover",
-  boxShadow: "0 8px 32px 0 rgba(179,18,23,0.25)",
+  boxShadow: paperShadow,
+});
+
+// Blank filler page: in landscape (two-page spread) the flip engine needs an
+// EVEN page count — with an odd count the last sheet has only one face and the
+// back cover visibly disconnects while flipping. Inserted before the back cover.
+const fillerPageStyles = () => ({
+  ...pageStyles(),
+  justifyContent: "center",
+  alignItems: "center",
 });
 
 export interface MagazineProps {
@@ -147,10 +176,13 @@ export interface MagazineProps {
   userProfileImage?: string;
   displayName?: string;
   userLocation?: string;
+  // When the posts are an editorial pick (e.g. the curated magazine issue from
+  // the ops portal), keep the given selection + order as-is: skip the quality
+  // filter and the payout re-sort.
+  preserveOrder?: boolean;
 }
 
 export default function Magazine(props: MagazineProps) {
-  const { theme } = useTheme();
   const flipBookRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -159,7 +191,29 @@ export default function Magazine(props: MagazineProps) {
   // DEFAULT_POST_PROSE_TWEAKS).
   const { tweaks } = usePostProseTweaks();
   const proseStyleVars = useMemo(
-    () => buildProseStyleVars(tweaks),
+    () => {
+      // Start from the shared prose vars, then LOCK the color + font vars
+      // to paper-mode values. The flipbook has a fixed editorial look
+      // (cream paper, dark ink, readable serif) so it must NOT inherit the
+      // user's active Chakra theme or their custom prose tweaks. Font
+      // stack matches the post page's serif preset so long reads feel like
+      // a magazine, not a UI panel.
+      const base = buildProseStyleVars(tweaks);
+      const READABLE_SERIF =
+        "'Iowan Old Style', 'Charter', 'Palatino', 'Palatino Linotype', 'Georgia', 'Times New Roman', serif";
+      return {
+        ...base,
+        ["--pp-font" as string]: READABLE_SERIF,
+        ["--pp-heading-font" as string]: READABLE_SERIF,
+        ["--pp-color" as string]: "#141414",
+        ["--pp-accent" as string]: "#8b2828",
+        ["--pp-heading-color" as string]: "#0e0d0c",
+        ["--pp-link-color" as string]: "#8b2828",
+        ["--pp-code-accent" as string]: "#8b2828",
+        ["--pp-drop-cap-color" as string]: "#0e0d0c",
+        ["--pp-bg" as string]: "transparent",
+      };
+    },
     [tweaks],
   );
 
@@ -224,6 +278,9 @@ export default function Magazine(props: MagazineProps) {
   const filteredPosts = useMemo(() => {
     if (!posts || !isInitialized) return [];
 
+    // Editorial issue: trust the curator's selection + order verbatim.
+    if (props.preserveOrder) return posts;
+
     // First apply quality filters (reputation and downvote filtering)
     const qualityFilteredPosts = filterAutoComments(posts);
 
@@ -234,7 +291,7 @@ export default function Magazine(props: MagazineProps) {
     );
 
     return sortedPosts;
-  }, [posts, isInitialized]);
+  }, [posts, isInitialized, props.preserveOrder]);
 
   const playSound = () => {
     if (audioRef.current) {
@@ -347,7 +404,7 @@ export default function Magazine(props: MagazineProps) {
             position="relative"
             overflow="hidden"
             borderRadius="0px 16px 0px 0px"
-            boxShadow={retroBoxShadow(theme)}
+            boxShadow={paperShadow}
           >
             {/* Cover image - full bleed */}
             <Image
@@ -408,7 +465,7 @@ export default function Magazine(props: MagazineProps) {
                   left="20px"
                   fontSize="2xl"
                   fontWeight="bold"
-                  color={theme.colors.primary}
+                  color={PAPER.page}
                   textTransform="uppercase"
                   style={{
                     fontFamily: `'Joystix', 'VT323', 'Fira Mono', 'monospace'`,
@@ -428,7 +485,7 @@ export default function Magazine(props: MagazineProps) {
                 top="50%"
                 fontSize="6xl"
                 fontWeight="black"
-                color={theme.colors.primary}
+                color={PAPER.page}
                 textTransform="uppercase"
                 style={{
                   fontFamily: `'Joystix', 'VT323', 'Fira Mono', 'monospace'`,
@@ -455,13 +512,13 @@ export default function Magazine(props: MagazineProps) {
                   left="20px"
                   boxSize="80px"
                   borderRadius="full"
-                  border={`4px solid ${theme.colors.primary}`}
+                  border={`4px solid ${PAPER.page}`}
                   boxShadow="0 4px 32px #000, 0 8px 48px #000"
                 />
               )}
             </Box>
           </Box>
-          {filteredPosts.map((post: Discussion, index) => {
+          {[...filteredPosts.map((post: Discussion, index) => {
             const isLeftPage = index % 2 === 0;
             const pageBorderRadius = isLeftPage
               ? "16px 0 0 0px"
@@ -469,7 +526,7 @@ export default function Magazine(props: MagazineProps) {
             return (
               <Box
                 key={`${post.author}/${post.permlink}`}
-                sx={{ ...pageStyles(theme), borderRadius: pageBorderRadius }}
+                sx={{ ...pageStyles(), borderRadius: pageBorderRadius }}
                 position="relative"
                 width="100%"
                 height="100%"
@@ -487,7 +544,7 @@ export default function Magazine(props: MagazineProps) {
                   />
                   <Text
                     as="span"
-                    color={theme.colors.primary}
+                    color={PAPER.accent}
                     className="magazine-meta-handle"
                   >
                     @{post.author}
@@ -500,8 +557,8 @@ export default function Magazine(props: MagazineProps) {
                   </Text>
                   <Box flex={1} />
                   <Badge
-                    bg={theme.colors.primary}
-                    color={theme.colors.background}
+                    bg={PAPER.accent}
+                    color={PAPER.onAccent}
                     className="magazine-meta-payout"
                   >
                     ${Number(getPayoutValue(post as any)).toFixed(2)}
@@ -510,7 +567,7 @@ export default function Magazine(props: MagazineProps) {
                 <Heading
                   as="h2"
                   className="magazine-title"
-                  color={theme.colors.primary}
+                  color={PAPER.headline}
                 >
                   {post.title}
                 </Heading>
@@ -563,10 +620,23 @@ export default function Magazine(props: MagazineProps) {
                 </Box>
               </Box>
             );
-          })}
-          <Box sx={backCoverStyles(theme)}>
-            <Heading color={theme.colors.primary}>Back Cover</Heading>
-            <Text color={theme.colors.text}>Last Page</Text>
+          }),
+          // Even-ize the page count (cover + posts + back cover) so the back
+          // cover is the BACK face of the last sheet. Kept INSIDE the array and
+          // filtered — never a bare `&&`/falsy child, because the flip engine
+          // clones every child and React.Children.map hands cloneElement(null)
+          // for a null/false child, which throws.
+          (filteredPosts.length + 2) % 2 === 1 ? (
+            <Box key="filler" sx={fillerPageStyles()}>
+              <Text color={PAPER.muted} fontSize="sm">
+                — fim da edição —
+              </Text>
+            </Box>
+          ) : null,
+          ].filter(Boolean)}
+          <Box sx={backCoverStyles()}>
+            <Heading color={PAPER.headline}>Back Cover</Heading>
+            <Text color={PAPER.text}>Last Page</Text>
           </Box>
         </HTMLFlipBook>
         <style jsx global>{`
@@ -580,12 +650,12 @@ export default function Magazine(props: MagazineProps) {
             letter-spacing: 0.5px;
           }
           .magazine-meta-sep {
-            color: rgba(255, 255, 255, 0.25);
+            color: rgba(20, 20, 20, 0.28);
             margin: 0 2px;
           }
           .magazine-meta-date {
             font-size: 0.72rem;
-            color: rgba(255, 255, 255, 0.5);
+            color: #6a625a;
             letter-spacing: 0.5px;
           }
           .magazine-meta-payout {
@@ -618,8 +688,7 @@ export default function Magazine(props: MagazineProps) {
           }
           .magazine-rule {
             height: 1px;
-            background: var(--chakra-colors-primary, #adff2f);
-            opacity: 0.22;
+            background: rgba(20, 20, 20, 0.22);
             margin: 0 0 1rem 0;
           }
           /* Magazine post body now shares typography with the post page
@@ -628,6 +697,104 @@ export default function Magazine(props: MagazineProps) {
           .post-prose {
             contain: layout style paint;
             will-change: transform;
+          }
+          /* Paper-mode ink overrides inside the flipbook. Everything in
+             here is scoped by .flipbook so it can never bleed into the
+             normal post page. Many rules use !important because the
+             underlying .markdown-body styles hard-code
+             var(--chakra-colors-primary) or use !important themselves
+             (mentions, blockquote borders, list markers, tables). Without
+             matching that specificity the theme color leaks through. */
+          .flipbook .post-prose,
+          .flipbook .post-prose p,
+          .flipbook .post-prose li,
+          .flipbook .post-prose .markdown-body,
+          .flipbook .post-prose .markdown-body p,
+          .flipbook .post-prose .markdown-body li,
+          .flipbook .post-prose .markdown-body td,
+          .flipbook .post-prose .markdown-body th {
+            color: #141414 !important;
+          }
+          /* Blockquote: cream tint on paper red rule, dark italic text. */
+          .flipbook .post-prose blockquote,
+          .flipbook .post-prose .markdown-body blockquote {
+            border-left: 4px solid #8b2828 !important;
+            background: rgba(139, 40, 40, 0.06) !important;
+            color: #333 !important;
+          }
+          .flipbook .post-prose blockquote p,
+          .flipbook .post-prose .markdown-body blockquote p {
+            color: #333 !important;
+          }
+          /* List markers — paper red instead of theme green. */
+          .flipbook .post-prose .markdown-body ul > li::marker,
+          .flipbook .post-prose .markdown-body ol > li::marker {
+            color: #8b2828 !important;
+          }
+          /* Headings — near-black, no theme accent. */
+          .flipbook .post-prose h1,
+          .flipbook .post-prose h2,
+          .flipbook .post-prose h3,
+          .flipbook .post-prose h4,
+          .flipbook .post-prose h5,
+          .flipbook .post-prose h6,
+          .flipbook .post-prose .markdown-body h1,
+          .flipbook .post-prose .markdown-body h2,
+          .flipbook .post-prose .markdown-body h3,
+          .flipbook .post-prose .markdown-body h4,
+          .flipbook .post-prose .markdown-body h5,
+          .flipbook .post-prose .markdown-body h6 {
+            color: #0e0d0c !important;
+            border-color: rgba(20, 20, 20, 0.22) !important;
+          }
+          /* Inline emphasis — strong tags default to --pp-accent (green
+             on stock themes). Force paper red so bold reads as editorial
+             emphasis, not a UI accent. */
+          .flipbook .post-prose .markdown-body strong {
+            color: #8b2828 !important;
+          }
+          /* Regular links + @mentions — both should be paper red. The
+             mention rule in markdown.css uses !important so match it. */
+          .flipbook .post-prose a,
+          .flipbook .post-prose .markdown-body a,
+          .flipbook .post-prose .markdown-body a[href^="/@"] {
+            color: #8b2828 !important;
+          }
+          /* HR — dark hairline instead of green tint. */
+          .flipbook .post-prose hr,
+          .flipbook .post-prose .markdown-body hr {
+            background: rgba(20, 20, 20, 0.22) !important;
+            border-color: rgba(20, 20, 20, 0.22) !important;
+          }
+          /* Tables — ink borders, no green wash. */
+          .flipbook .post-prose .markdown-body table {
+            border-top-color: rgba(20, 20, 20, 0.35) !important;
+            border-bottom-color: rgba(20, 20, 20, 0.35) !important;
+          }
+          .flipbook .post-prose .markdown-body thead {
+            background: rgba(20, 20, 20, 0.06) !important;
+          }
+          .flipbook .post-prose .markdown-body th {
+            color: #0e0d0c !important;
+            border-bottom-color: rgba(20, 20, 20, 0.3) !important;
+          }
+          .flipbook .post-prose .markdown-body td {
+            border-bottom-color: rgba(20, 20, 20, 0.12) !important;
+          }
+          .flipbook .post-prose .markdown-body tbody tr:nth-child(even) {
+            background: rgba(20, 20, 20, 0.03) !important;
+          }
+          .flipbook .post-prose .markdown-body tbody tr:hover {
+            background: rgba(20, 20, 20, 0.06) !important;
+          }
+          /* Code — subtle dark tint, no green accent. */
+          .flipbook .post-prose code,
+          .flipbook .post-prose pre,
+          .flipbook .post-prose .markdown-body code,
+          .flipbook .post-prose .markdown-body pre {
+            background: rgba(20, 20, 20, 0.06) !important;
+            border-color: rgba(20, 20, 20, 0.15) !important;
+            color: #141414 !important;
           }
           .post-prose iframe {
             max-width: 100%;

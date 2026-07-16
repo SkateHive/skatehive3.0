@@ -63,6 +63,8 @@ interface ProfileHeaderProps {
   userbaseUserId?: string | null;
   viewerHiveUsername?: string | null;
   useStoredPostingKey?: boolean;
+  /** Called after follow/unfollow is confirmed with the follower-count delta (+1 or -1) */
+  onFollowConfirmed?: (delta: number) => void;
 }
 
 const ProfileHeader = function ProfileHeader({
@@ -88,6 +90,7 @@ const ProfileHeader = function ProfileHeader({
   userbaseUserId = null,
   viewerHiveUsername = null,
   useStoredPostingKey = false,
+  onFollowConfirmed,
 }: ProfileHeaderProps) {
   useProfileDebug("ProfileHeader");
   const { connections } = useLinkedIdentities();
@@ -370,6 +373,7 @@ const ProfileHeader = function ProfileHeader({
         onEditModalOpen={activeEditHandler}
         isLiteUser={isViewerLiteUser}
         useStoredPostingKey={useStoredPostingKey}
+        onFollowConfirmed={onFollowConfirmed}
       />
 
       {/* Desktop Layout */}
@@ -420,6 +424,7 @@ const ProfileHeader = function ProfileHeader({
                 integrations={networkButtons}
                 isLiteUser={isViewerLiteUser}
                 useStoredPostingKey={useStoredPostingKey}
+                onFollowConfirmed={onFollowConfirmed}
               />
             </Box>
           )}
@@ -451,6 +456,15 @@ export default memo(ProfileHeader, (prevProps, nextProps) => {
       nextProps.profileData.ethereum_address &&
     prevProps.profileData.profileImage === nextProps.profileData.profileImage &&
     prevProps.hiveProfileData?.profileImage === nextProps.hiveProfileData?.profileImage &&
+    // Phase 2 bridge fields — written async by useProfileData after hiveAccount resolves.
+    // Without these, ProfileHeader's memo blocks re-renders when the bridge API
+    // returns, leaving follower counts, bio, name, and VP% stale.
+    prevProps.hiveProfileData?.followers === nextProps.hiveProfileData?.followers &&
+    prevProps.hiveProfileData?.following === nextProps.hiveProfileData?.following &&
+    prevProps.hiveProfileData?.name === nextProps.hiveProfileData?.name &&
+    prevProps.hiveProfileData?.about === nextProps.hiveProfileData?.about &&
+    prevProps.hiveProfileData?.vp_percent === nextProps.hiveProfileData?.vp_percent &&
+    prevProps.hiveProfileData?.location === nextProps.hiveProfileData?.location &&
     prevProps.isOwner === nextProps.isOwner &&
     prevProps.isUserbaseOwner === nextProps.isUserbaseOwner &&
     prevProps.user === nextProps.user &&
@@ -470,6 +484,7 @@ export default memo(ProfileHeader, (prevProps, nextProps) => {
     prevProps.farcasterProfile?.custody ===
       nextProps.farcasterProfile?.custody &&
     prevProps.farcasterProfile?.verifications ===
-      nextProps.farcasterProfile?.verifications
+      nextProps.farcasterProfile?.verifications &&
+    prevProps.onFollowConfirmed === nextProps.onFollowConfirmed
   );
 });

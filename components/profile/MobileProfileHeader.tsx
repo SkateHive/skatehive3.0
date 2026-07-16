@@ -33,6 +33,8 @@ interface MobileProfileHeaderProps {
   isLiteUser?: boolean;
   /** If true, follow actions can use the viewer DB-stored posting key */
   useStoredPostingKey?: boolean;
+  /** Called after follow/unfollow is confirmed with the follower-count delta (+1 or -1) */
+  onFollowConfirmed?: (delta: number) => void;
 }
 
 const MobileProfileHeader = memo(function MobileProfileHeader({
@@ -48,6 +50,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
   onEditModalOpen,
   isLiteUser = false,
   useStoredPostingKey = false,
+  onFollowConfirmed,
 }: MobileProfileHeaderProps) {
   const router = useRouter();
   const { aioha } = useAioha();
@@ -88,6 +91,9 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
     onFollowingChange(next);
     onLoadingChange(true);
 
+    // For the stored-key path, use the server-confirmed follow state.
+    // For the Keychain path, keep the optimistic `next` value.
+    let confirmedFollowing = next;
     try {
       if (useStoredPostingKey) {
         const response = await fetch("/api/userbase/hive/follow", {
@@ -99,12 +105,17 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
         if (!response.ok) {
           throw new Error(data?.error || "Failed to update follow status");
         }
-        onFollowingChange(Boolean(data?.isFollowing));
+        // Same guard as FollowButton: fall back to `next` when upstream
+        // doesn't return isFollowing (raw Hive broadcast result).
+        confirmedFollowing =
+          typeof data?.isFollowing === "boolean" ? data.isFollowing : next;
+        onFollowingChange(confirmedFollowing);
       } else {
         await changeFollow(user, username);
         // Keep optimistic state
       }
       onLoadingChange(false);
+      onFollowConfirmed?.(confirmedFollowing ? +1 : -1);
     } catch (error) {
       console.error("Follow action failed:", error);
       // Revert on error
@@ -118,6 +129,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
     isFollowLoading,
     onFollowingChange,
     onLoadingChange,
+    onFollowConfirmed,
     isLiteUser,
     useStoredPostingKey,
   ]);
