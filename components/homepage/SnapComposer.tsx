@@ -830,7 +830,8 @@ const SnapComposer = React.memo(function SnapComposer({
     // Hive image/text post (no eligible cross-post) skips straight to publishing.
     const igEligibleNow =
       instagramCrossPost && isMainFeedSnap && canBypassLimit && hasCrossPostMedia;
-    const fcEligibleNow = postToFarcaster && farcasterEligible && !!farcasterLinkage;
+    const fcEligibleNow =
+      postToFarcaster && isMainFeedSnap && farcasterEligible && !!farcasterLinkage;
     const needsPrepareDialog = !!videoUrl || igEligibleNow || fcEligibleNow;
     if (needsPrepareDialog && !publishConfirmedRef.current) {
       setShowPublishPreview(true);
@@ -845,7 +846,9 @@ const SnapComposer = React.memo(function SnapComposer({
     }
 
     const wantsSkatehive = postToHive;
-    const wantsFarcaster = postToFarcaster;
+    // Cross-posting only ever applies to the main-feed composer — a reply
+    // shouldn't fan out to Farcaster regardless of leftover toggle state.
+    const wantsFarcaster = postToFarcaster && isMainFeedSnap;
     // Farcaster-only main-feed snaps still create a masked @skateuser Hive
     // soft-post (overlaid with the user's identity) so there's always a
     // SkateHive post page for the cast / Mini App to open. Replies (non-main-
@@ -2093,7 +2096,7 @@ const SnapComposer = React.memo(function SnapComposer({
                   color="background"
                   _hover={{ bg: "muted", color: "text", border: "tb1" }}
                   isLoading={isLoading}
-                  isDisabled={isLoading || isUploadingMedia || (!postToHive && !postToFarcaster)}
+                  isDisabled={isLoading || isUploadingMedia || (!postToHive && !(postToFarcaster && isMainFeedSnap))}
                   onClick={handleComment}
                   borderRadius={"none"}
                   fontWeight="bold"
@@ -2111,33 +2114,37 @@ const SnapComposer = React.memo(function SnapComposer({
                 >
                   {buttonText}
                 </Button>
-                <DestinationMenu
-                  postToHive={postToHive}
-                  postToFarcaster={postToFarcaster}
-                  postToInstagram={instagramCrossPost}
-                  setPostToHive={setPostToHive}
-                  setPostToFarcaster={setPostToFarcaster}
-                  setPostToInstagram={(v: boolean) => {
-                    // If the user is enabling IG cross-post for the first time
-                    // and we don't have a stored handle, prompt them so the
-                    // caption can @-tag instead of falling back to plain text.
-                    if (v && igHandleStatus === "absent") {
-                      setIgPromptInput("");
-                      setIgPromptOpen(true);
-                      return;
-                    }
-                    setInstagramCrossPost(v);
-                  }}
-                  farcasterChannel={farcasterChannel}
-                  setFarcasterChannel={setFarcasterChannel}
-                  farcasterEligible={farcasterEligible}
-                  farcasterSignerApproved={farcasterSignerApproved}
-                  farcasterUsername={farcasterLinkage?.username || null}
-                  instagramEligible={isMainFeedSnap && canBypassLimit}
-                  instagramHasMedia={hasCrossPostMedia}
-                  isLoading={isLoading}
-                  buttonSize={buttonSize}
-                />
+                {/* Cross-post destination picker — main-feed snaps only. A
+                    reply/comment always goes to Hive alone. */}
+                {isMainFeedSnap && (
+                  <DestinationMenu
+                    postToHive={postToHive}
+                    postToFarcaster={postToFarcaster}
+                    postToInstagram={instagramCrossPost}
+                    setPostToHive={setPostToHive}
+                    setPostToFarcaster={setPostToFarcaster}
+                    setPostToInstagram={(v: boolean) => {
+                      // If the user is enabling IG cross-post for the first time
+                      // and we don't have a stored handle, prompt them so the
+                      // caption can @-tag instead of falling back to plain text.
+                      if (v && igHandleStatus === "absent") {
+                        setIgPromptInput("");
+                        setIgPromptOpen(true);
+                        return;
+                      }
+                      setInstagramCrossPost(v);
+                    }}
+                    farcasterChannel={farcasterChannel}
+                    setFarcasterChannel={setFarcasterChannel}
+                    farcasterEligible={farcasterEligible}
+                    farcasterSignerApproved={farcasterSignerApproved}
+                    farcasterUsername={farcasterLinkage?.username || null}
+                    instagramEligible={isMainFeedSnap && canBypassLimit}
+                    instagramHasMedia={hasCrossPostMedia}
+                    isLoading={isLoading}
+                    buttonSize={buttonSize}
+                  />
+                )}
               </ButtonGroup>
             </Box>
           </HStack>
@@ -2250,7 +2257,7 @@ const SnapComposer = React.memo(function SnapComposer({
             hive: postToHive,
             instagram:
               instagramCrossPost && isMainFeedSnap && canBypassLimit && hasCrossPostMedia,
-            farcaster: postToFarcaster && farcasterEligible && !!farcasterLinkage,
+            farcaster: postToFarcaster && isMainFeedSnap && farcasterEligible && !!farcasterLinkage,
           }}
           maxVideoDuration={15}
           canBypassTrim={canBypassLimit}
