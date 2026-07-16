@@ -100,6 +100,7 @@ import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { buildSnapCastText, buildSnapCastEmbeds } from "@/lib/crosspost/snapCast";
+import { getSnapDraft, saveSnapDraft, clearSnapDraft } from "@/lib/compose/snapDraft";
 
 // Channels enabled for Farcaster cross-posting. Mirrors the server-side
 // whitelist in /api/farcaster/cast/route.ts — keep them in sync.
@@ -257,6 +258,7 @@ const SnapComposer = React.memo(function SnapComposer({
   >([]);
 
   const imageUploadInputRef = useRef<HTMLInputElement>(null);
+  const snapDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // GIF maker state and refs (direct integration)
   const [isGifMakerOpen, setGifMakerOpen] = useState(false);
@@ -369,6 +371,64 @@ const SnapComposer = React.memo(function SnapComposer({
       cancelled = true;
     };
   }, [isMainFeedSnap, canBypassLimit, igHandleStatus]);
+
+  // Restore snap draft on mount — main feed instance only (silent, no indicator)
+  useEffect(() => {
+    if (!isMainFeedSnap) return;
+    const draft = getSnapDraft();
+    if (!draft) return;
+    if (draft.body && postBodyRef.current) {
+      postBodyRef.current.value = draft.body;
+    }
+    if (draft.images.length > 0) {
+      setCompressedImages(
+        draft.images.map(({ url, caption }) => ({
+          url,
+          fileName: url.split("/").pop()?.split("?")[0] || "image",
+          caption,
+        }))
+      );
+    }
+    if (draft.videoUrl) {
+      setVideoUrl(draft.videoUrl);
+    }
+    // gifUrl: not restored — selectedGif requires a full IGif object and Giphy
+    // GIFs are preview-only (they don't make it into post bodies), so nothing is lost
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Autosave: debounced save after body/image/gif/video changes — main feed only
+  const doSaveSnapDraft = useCallback(() => {
+    if (!isMainFeedSnap) return;
+    const body = postBodyRef.current?.value || "";
+    const images = compressedImages.map((img) => ({ url: img.url, caption: img.caption }));
+    const gifUrl = selectedGif?.images?.downsized_medium?.url ?? null;
+    // blob: URLs are session-only local previews; only persist hosted URLs
+    const persistedVideoUrl = videoUrl?.startsWith("blob:") ? null : videoUrl;
+    if (!body.trim() && images.length === 0 && !gifUrl && !persistedVideoUrl) {
+      clearSnapDraft();
+      return;
+    }
+    saveSnapDraft({ body, images, gifUrl, videoUrl: persistedVideoUrl });
+  }, [isMainFeedSnap, compressedImages, selectedGif, videoUrl]);
+
+  const cancelSnapDraftSave = useCallback(() => {
+    if (snapDraftTimerRef.current) {
+      clearTimeout(snapDraftTimerRef.current);
+      snapDraftTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleSnapDraftSave = useCallback(() => {
+    if (!isMainFeedSnap) return;
+    cancelSnapDraftSave();
+    snapDraftTimerRef.current = setTimeout(doSaveSnapDraft, 1000);
+  }, [isMainFeedSnap, cancelSnapDraftSave, doSaveSnapDraft]);
+
+  // Fire debounced save when media state changes (main feed only)
+  useEffect(() => {
+    if (!isMainFeedSnap) return;
+    scheduleSnapDraftSave();
+  }, [isMainFeedSnap, scheduleSnapDraftSave]);
 
   const buttonText = useMemo(
     () => submitLabel || (post ? "Reply" : "Post"),
@@ -953,6 +1013,10 @@ const SnapComposer = React.memo(function SnapComposer({
           duration: 3000,
           isClosable: true,
         });
+        if (isMainFeedSnap) {
+          cancelSnapDraftSave();
+          clearSnapDraft();
+        }
         postBodyRef.current!.value = "";
         setCompressedImages([]);
         setSelectedGif(null);
@@ -1134,6 +1198,10 @@ const SnapComposer = React.memo(function SnapComposer({
             throw new Error("Unable to determine comment author");
           }
 
+          if (isMainFeedSnap) {
+            cancelSnapDraftSave();
+            clearSnapDraft();
+          }
           postBodyRef.current!.value = "";
           setCompressedImages([]);
           setSelectedGif(null);
@@ -1814,6 +1882,8 @@ const SnapComposer = React.memo(function SnapComposer({
             isDisabled={isLoading}
             onKeyDown={handleKeyDown} // Attach the keydown handler
             onPaste={handlePaste}
+            onChange={() => scheduleSnapDraftSave()}
+            onBlur={() => doSaveSnapDraft()}
             _focusVisible={{ border: "tb1" }}
           />
 

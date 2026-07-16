@@ -386,6 +386,10 @@ export const ptBR = {
     compressionError: 'Erro ao comprimir imagem',
     unsupportedFileType: 'Tipo de arquivo não suportado',
     videoProcessFailed: 'Falha ao processar arquivo de vídeo',
+    snapTabCompose: 'Compor',
+    snapTabDrafts: 'Rascunhos',
+    snapNoDraft: 'Nenhum rascunho salvo',
+    snapDiscardDraft: 'Descartar',
     prepare: {
       title: 'preparar & publicar',
       stepTrim: 'Cortar',
