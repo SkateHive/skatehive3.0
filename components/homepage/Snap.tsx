@@ -515,6 +515,7 @@ const Snap = React.memo(function Snap({
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
+                    if (e.key === " ") e.preventDefault();
                     if (!voted && !isVoting) {
                       if (disableSlider) {
                         // Slider disabled - vote directly with default weight
@@ -537,14 +538,14 @@ const Snap = React.memo(function Snap({
                     </Box>
                   ) : (
                     <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                      <LuArrowUp size={18} color="white" />
+                      <LuArrowUp size={18} color="var(--chakra-colors-text)" />
                     </Box>
                   )}
                   {activeVotes.length > 0 && (
                     <Text
                       fontSize="sm"
                       fontWeight="medium"
-                      color={voted ? "primary" : "white"}
+                      color={voted ? "primary" : "text"}
                     >
                       {activeVotes.length}
                     </Text>
@@ -567,6 +568,7 @@ const Snap = React.memo(function Snap({
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
+                    if (e.key === " ") e.preventDefault();
                     // Always open inline composer for replies
                     handleReplyButtonClick(discussion.permlink);
                   }
@@ -579,13 +581,13 @@ const Snap = React.memo(function Snap({
                   <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
                     <FaRegComment
                       size={18}
-                      color={voted ? "var(--chakra-colors-primary)" : "white"}
+                      color={voted ? "var(--chakra-colors-primary)" : "var(--chakra-colors-text)"}
                     />
                   </Box>
                   <Text
                     fontSize="sm"
                     fontWeight="medium"
-                    color={voted ? "primary" : "white"}
+                    color={voted ? "primary" : "text"}
                   >
                     {commentCount}
                   </Text>
@@ -610,6 +612,7 @@ const Snap = React.memo(function Snap({
                     onClick={() => setIsSponsorModalOpen(true)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
+                        if (e.key === " ") e.preventDefault();
                         setIsSponsorModalOpen(true);
                       }
                     }}
@@ -664,14 +667,14 @@ const Snap = React.memo(function Snap({
                         <Text
                           fontSize="sm"
                           fontWeight="medium"
-                          color={voted ? "primary" : "white"}
+                          color={voted ? "primary" : "text"}
                         >
                           $
                         </Text>
                         <Text
                           fontSize="sm"
                           fontWeight="medium"
-                          color={voted ? "primary" : "white"}
+                          color={voted ? "primary" : "text"}
                         >
                           {rewardAmount.toFixed(2)}
                         </Text>

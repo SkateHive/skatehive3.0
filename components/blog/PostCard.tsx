@@ -477,13 +477,13 @@ export default function PostCard({
                   </Box>
                 ) : (
                   <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                    <LuArrowUp size={18} color="white" />
+                    <LuArrowUp size={18} color="var(--chakra-colors-text)" />
                   </Box>
                 )}
                 <Text
                   fontSize="sm"
                   fontWeight="medium"
-                  color={voted ? "primary" : "white"}
+                  color={voted ? "primary" : "text"}
                 >
                   {activeVotes.length}
                 </Text>
@@ -520,14 +520,14 @@ export default function PostCard({
                         <Text
                           fontSize="sm"
                           fontWeight="medium"
-                          color={voted ? "primary" : "white"}
+                          color={voted ? "primary" : "text"}
                         >
                           $
                         </Text>
                         <Text
                           fontSize="sm"
                           fontWeight="medium"
-                          color={voted ? "primary" : "white"}
+                          color={voted ? "primary" : "text"}
                         >
                           {payoutValue.toFixed(2)}
                         </Text>
@@ -922,13 +922,13 @@ export default function PostCard({
                       </Box>
                     ) : (
                       <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                        <LuArrowUp size={18} color="white" />
+                        <LuArrowUp size={18} color="var(--chakra-colors-text)" />
                       </Box>
                     )}
                     <Text
                       fontSize="sm"
                       fontWeight="medium"
-                      color={voted ? "primary" : "white"}
+                      color={voted ? "primary" : "text"}
                     >
                       {activeVotes.length}
                     </Text>
@@ -965,14 +965,14 @@ export default function PostCard({
                             <Text
                               fontSize="sm"
                               fontWeight="medium"
-                              color={voted ? "primary" : "white"}
+                              color={voted ? "primary" : "text"}
                             >
                               $
                             </Text>
                             <Text
                               fontSize="sm"
                               fontWeight="medium"
-                              color={voted ? "primary" : "white"}
+                              color={voted ? "primary" : "text"}
                             >
                               {payoutValue.toFixed(2)}
                             </Text>
