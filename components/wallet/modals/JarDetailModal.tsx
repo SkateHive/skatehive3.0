@@ -13,6 +13,7 @@ import SkateModal from "@/components/shared/SkateModal";
 import useIsMobile from "@/hooks/useIsMobile";
 import { useTranslations, useLocale } from "@/contexts/LocaleContext";
 import { tVars } from "@/lib/i18n/format";
+import { jarProgress } from "@/hooks/wallet/useSavingsJars";
 import type { SavingsJar, JarEvent } from "@/hooks/wallet/useSavingsJars";
 
 /** Hive HBD savings APR used for the display-only monthly yield estimate. */
@@ -84,10 +85,7 @@ export function JarDetailModal({
     // `allocated` covers the "balance moved, reload history" trigger.
   }, [isOpen, jarId, allocated, fetchEvents]);
 
-  const progress = useMemo(() => {
-    if (!jar?.target_hbd || jar.target_hbd <= 0) return null;
-    return Math.min(100, (allocated / jar.target_hbd) * 100);
-  }, [jar, allocated]);
+  const progress = useMemo(() => (jar ? jarProgress(jar) : null), [jar]);
 
   if (!jar) return null;
 

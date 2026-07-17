@@ -26,6 +26,15 @@ export interface JarsSummary {
   over_allocated: boolean;
 }
 
+/**
+ * A jar's funding progress as a 0–100 percentage, or null when it has no
+ * target to measure against (open-ended / wishlist jars).
+ */
+export function jarProgress(jar: SavingsJar): number | null {
+  if (!jar.target_hbd || jar.target_hbd <= 0) return null;
+  return Math.min(100, (Number(jar.allocated_hbd) / jar.target_hbd) * 100);
+}
+
 export interface JarInput {
   name?: string;
   target_hbd?: number | null;

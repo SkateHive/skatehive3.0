@@ -11,7 +11,7 @@ import {
   SimpleGrid,
 } from "@chakra-ui/react";
 import { FaPlus, FaLock } from "react-icons/fa";
-import { useSavingsJars, type SavingsJar } from "@/hooks/wallet";
+import { useSavingsJars, jarProgress, type SavingsJar } from "@/hooks/wallet";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { tVars } from "@/lib/i18n/format";
 import {
@@ -26,11 +26,6 @@ interface SavingsJarsSectionProps {
   /** Liquid wallet HBD balance (string like "12.345" or "N/A"). */
   hbdBalance: string;
   hbdPrice: number | null;
-}
-
-function jarProgress(jar: SavingsJar): number | null {
-  if (!jar.target_hbd || jar.target_hbd <= 0) return null;
-  return Math.min(100, (Number(jar.allocated_hbd) / jar.target_hbd) * 100);
 }
 
 /**
