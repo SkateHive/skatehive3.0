@@ -125,11 +125,11 @@ export function useSavingsJars() {
   }, [user, aioha]);
 
   /** Fetch the latest jars + summary. Silently flags auth state on 401. */
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<boolean> => {
     if (!user) {
       setJars([]);
       setAuthed(false);
-      return;
+      return false;
     }
     setLoading(true);
     try {
@@ -137,14 +137,18 @@ export function useSavingsJars() {
       if (res.status === 401) {
         setAuthed(false);
         setJars([]);
-        return;
+        return false;
       }
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.error("Cofrinhos load failed:", await parseError(res, `HTTP ${res.status}`));
+        return false;
+      }
       const data = await res.json();
       setJars(data.jars || []);
       setSavingsHbd(data.savings_hbd || 0);
       setSummary(data.summary);
       setAuthed(true);
+      return true;
     } finally {
       setLoading(false);
     }
@@ -160,8 +164,10 @@ export function useSavingsJars() {
     setUnlocking(true);
     try {
       const ok = await ensureAuth();
-      if (ok) await refresh();
-      return ok;
+      if (!ok) return false;
+      // Surface load failures too — a signed-in user staring at the locked
+      // state with no feedback is how bugs hide.
+      return await refresh();
     } finally {
       setUnlocking(false);
     }
