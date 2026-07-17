@@ -31,6 +31,7 @@ import {
 import { Discussion } from "@hiveio/dhive";
 import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
 import useSoftVoteOverlay from "@/hooks/useSoftVoteOverlay";
+import { callHiveApi } from "@/lib/hive/client-proxy";
 import VideoRenderer from "../layout/VideoRenderer";
 import SnapComposer from "../homepage/SnapComposer";
 import Snap from "../homepage/Snap";
@@ -211,6 +212,42 @@ const SnapModal = ({
     setActiveVotes(currentSnap.active_votes || []);
     setShowSlider(false);
   }, [currentSnap, effectiveUser, hasSoftVote]);
+
+  // The grid's snap list (api.skatehive.app feed / bridge.get_account_posts)
+  // doesn't include the full active_votes array, so the vote count above
+  // starts at 0 even for snaps with real votes. Refresh from the full post
+  // content once the modal opens on this snap — same fix already applied to
+  // the feed's Snap.tsx for the same reason.
+  useEffect(() => {
+    let mounted = true;
+
+    const refreshVotes = async () => {
+      try {
+        const content = await callHiveApi("condenser_api.get_content", [
+          currentSnap.author,
+          currentSnap.permlink,
+        ]);
+        if (mounted && content?.active_votes && Array.isArray(content.active_votes)) {
+          setActiveVotes(content.active_votes);
+          setVoted(
+            hasSoftVote ||
+              content.active_votes.some(
+                (item: { voter: string }) =>
+                  item.voter?.toLowerCase() === effectiveUser?.toLowerCase()
+              )
+          );
+        }
+      } catch (error) {
+        // Silent fail - keep the (possibly empty) data already in state
+      }
+    };
+
+    refreshVotes();
+
+    return () => {
+      mounted = false;
+    };
+  }, [currentSnap.author, currentSnap.permlink, effectiveUser, hasSoftVote]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

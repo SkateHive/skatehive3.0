@@ -14,7 +14,7 @@ import {
   SliderFilledTrack,
   SliderThumb,
 } from "@chakra-ui/react";
-import { LuArrowUp, LuArrowDown } from "react-icons/lu";
+import { LuArrowUp, LuCheck } from "react-icons/lu";
 import useHiveVote from "@/hooks/useHiveVote";
 import { Discussion } from "@hiveio/dhive";
 import VoteListPopover from "@/components/blog/VoteListModal";
@@ -63,7 +63,6 @@ const UpvoteButton = ({
   const [sliderValue, setSliderValue] = useState(userVoteWeight);
   const [isVoting, setIsVoting] = useState(false);
   const [lastVoteTime, setLastVoteTime] = useState(0);
-  const [isHovered, setIsHovered] = useState(false);
 
   // Refs for immediate concurrency/debounce checks (non-atomic state guard)
   const isVotingRef = useRef(false);
@@ -273,25 +272,15 @@ const handleVote = useCallback(
             justifyContent="center"
             cursor="pointer"
             onClick={handleHeartClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
             p={1}
             _hover={{ opacity: 0.7 }}
             transition="opacity 0.2s"
             className={`upvote-container ${className}`}
           >
-            {voted || isHovered ? (
-              <LuArrowUp
-                size={24}
-                color={voted ? "#22c55e" : "var(--chakra-colors-primary)"}
-                style={{ opacity: 1 }}
-              />
+            {voted ? (
+              <LuCheck size={24} color="var(--chakra-colors-primary)" />
             ) : (
-              <LuArrowDown
-                size={24}
-                color="var(--chakra-colors-primary)"
-                style={{ opacity: 1 }}
-              />
+              <LuArrowUp size={24} color="var(--chakra-colors-text)" />
             )}
           </Box>
         </Tooltip>
@@ -315,25 +304,15 @@ const handleVote = useCallback(
             justifyContent="center"
             cursor="pointer"
             onClick={handleHeartClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
             p={1}
             _hover={{ opacity: 0.7 }}
             transition="opacity 0.2s"
             className={`upvote-container ${className}`}
           >
-            {voted || isHovered ? (
-              <LuArrowUp
-                size={24}
-                color={voted ? "#22c55e" : "var(--chakra-colors-primary)"}
-                style={{ opacity: 1 }}
-              />
+            {voted ? (
+              <LuCheck size={24} color="var(--chakra-colors-primary)" />
             ) : (
-              <LuArrowDown
-                size={24}
-                color="var(--chakra-colors-primary)"
-                style={{ opacity: 1 }}
-              />
+              <LuArrowUp size={24} color="var(--chakra-colors-text)" />
             )}
           </Box>
         </Tooltip>
@@ -375,25 +354,15 @@ const handleVote = useCallback(
               justifyContent="center"
               cursor="pointer"
               onClick={handleHeartClick}
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
               p={1}
               _hover={{ opacity: 0.7 }}
               transition="opacity 0.2s"
               className={`upvote-container ${className}`}
             >
-              {voted || isHovered ? (
-                <LuArrowUp
-                  size={24}
-                  color={voted ? "#22c55e" : "var(--chakra-colors-primary)"}
-                  style={{ opacity: 1 }}
-                />
+              {voted ? (
+                <LuCheck size={24} color="var(--chakra-colors-primary)" />
               ) : (
-                <LuArrowDown
-                  size={24}
-                  color="var(--chakra-colors-primary)"
-                  style={{ opacity: 1 }}
-                />
+                <LuArrowUp size={24} color="var(--chakra-colors-text)" />
               )}
             </Box>
           </Tooltip>
@@ -496,25 +465,15 @@ const handleVote = useCallback(
             justifyContent="center"
             cursor="pointer"
             onClick={handleHeartClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
             p={1}
             _hover={{ opacity: 0.7 }}
             transition="opacity 0.2s"
             className={`upvote-container ${className}`}
           >
-            {voted || isHovered ? (
-              <LuArrowUp
-                size={24}
-                color={voted ? "#22c55e" : "var(--chakra-colors-primary)"}
-                style={{ opacity: 1 }}
-              />
+            {voted ? (
+              <LuCheck size={24} color="var(--chakra-colors-primary)" />
             ) : (
-              <LuArrowDown
-                size={24}
-                color="var(--chakra-colors-primary)"
-                style={{ opacity: 1 }}
-              />
+              <LuArrowUp size={24} color="var(--chakra-colors-text)" />
             )}
           </Box>
         </Tooltip>
