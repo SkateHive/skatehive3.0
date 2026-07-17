@@ -2,9 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { VStack, HStack, Box, Text, Button } from "@chakra-ui/react";
 import { BaseWalletModal } from "./BaseWalletModal";
 import { AmountInput } from "./components";
+import { useTranslations } from "@/contexts/LocaleContext";
+import { tVars } from "@/lib/i18n/format";
 import type { SavingsJar } from "@/hooks/wallet/useSavingsJars";
 
 export type AllocateMode = "add" | "take";
+
+const QUICK_AMOUNTS = [5, 10, 25];
 
 interface JarAllocateModalProps {
   isOpen: boolean;
@@ -15,14 +19,23 @@ interface JarAllocateModalProps {
   unallocated: number;
   /** Liquid wallet HBD balance (string like "12.345"). */
   walletHbd: string;
-  allocate: (id: string, delta: number) => Promise<{ success: boolean; error?: string }>;
+  allocate: (
+    id: string,
+    delta: number,
+    options?: { skipRefresh?: boolean; via?: "savings" | "wallet" }
+  ) => Promise<{ success: boolean; error?: string }>;
   fundFromWallet: (id: string, amount: number) => Promise<{ success: boolean; error?: string }>;
   withdrawToWallet: (id: string, amount: number) => Promise<{ success: boolean; error?: string }>;
+  /** Fired when a save pushes the jar across its target for the first time. */
+  onGoalReached?: (jar: SavingsJar) => void;
+  /** Success feedback (already localized). */
+  onDone?: (message: string) => void;
 }
 
 /**
- * Add money to a jar (from unallocated savings or from the wallet) or take it
- * out (back to unallocated savings, or cash out to the wallet with a 3-day delay).
+ * "Guardar / Resgatar" bottom-sheet-style flow: quick amounts, source and
+ * destination in the user's words, and the Hive 3-day delay explained only at
+ * the exact moment it applies.
  */
 export function JarAllocateModal({
   isOpen,
@@ -34,7 +47,10 @@ export function JarAllocateModal({
   allocate,
   fundFromWallet,
   withdrawToWallet,
+  onGoalReached,
+  onDone,
 }: JarAllocateModalProps) {
+  const t = useTranslations("cofrinhos");
   // "savings" = instant metadata move; "wallet" = real on-chain transfer.
   const [source, setSource] = useState<"savings" | "wallet">("savings");
   const [amount, setAmount] = useState("");
@@ -46,105 +62,188 @@ export function JarAllocateModal({
     }
   }, [isOpen, mode]);
 
+  const adding = mode === "add";
+  const walletBalance = parseFloat(walletHbd) || 0;
+
   const max = useMemo(() => {
     if (!jar) return 0;
-    if (mode === "add") {
-      return source === "savings" ? unallocated : parseFloat(walletHbd) || 0;
-    }
+    if (adding) return source === "savings" ? Math.max(0, unallocated) : walletBalance;
     return Number(jar.allocated_hbd);
-  }, [jar, mode, source, unallocated, walletHbd]);
+  }, [jar, adding, source, unallocated, walletBalance]);
+
+  const value = parseFloat(amount);
+  const isValid = Number.isFinite(value) && value > 0 && value <= max + 1e-6;
 
   const handleConfirm = async () => {
-    if (!jar) return;
-    const value = parseFloat(amount);
-    if (!Number.isFinite(value) || value <= 0) {
-      throw new Error("Enter a valid amount");
-    }
-    if (value > max + 1e-6) {
-      throw new Error("Amount exceeds the available balance");
-    }
+    if (!jar || !isValid) return;
 
     let result;
-    if (mode === "add") {
-      result = source === "savings"
-        ? await allocate(jar.id, value)
-        : await fundFromWallet(jar.id, value);
+    let doneMessage = "";
+    if (adding) {
+      result =
+        source === "savings"
+          ? await allocate(jar.id, value)
+          : await fundFromWallet(jar.id, value);
+      doneMessage = tVars(t("savedToast"), { amount: value.toFixed(3), name: jar.name });
     } else {
-      result = source === "savings"
-        ? await allocate(jar.id, -value)
-        : await withdrawToWallet(jar.id, value);
+      result =
+        source === "savings"
+          ? await allocate(jar.id, -value)
+          : await withdrawToWallet(jar.id, value);
+      doneMessage =
+        source === "wallet"
+          ? tVars(t("withdrawnToast"), { amount: value.toFixed(3) })
+          : tVars(t("returnedToast"), { amount: value.toFixed(3) });
     }
 
     if (!result.success) throw new Error(result.error || "Operation failed");
+
+    const before = Number(jar.allocated_hbd);
+    if (
+      adding &&
+      jar.target_hbd &&
+      before < jar.target_hbd &&
+      before + value >= jar.target_hbd - 1e-6
+    ) {
+      onGoalReached?.(jar);
+    }
+    onDone?.(doneMessage);
     onClose();
   };
 
-  const addOptions = [
-    { key: "savings" as const, label: "Unallocated savings", hint: "instant" },
-    { key: "wallet" as const, label: "Wallet HBD", hint: "deposit" },
-  ];
-  const takeOptions = [
-    { key: "savings" as const, label: "Unallocated savings", hint: "instant" },
-    { key: "wallet" as const, label: "Wallet (cash out)", hint: "3-day delay" },
-  ];
-  const options = mode === "add" ? addOptions : takeOptions;
+  const options = adding
+    ? [
+        {
+          key: "savings" as const,
+          label: t("srcFree"),
+          hint: tVars(t("srcFreeHint"), { amount: Math.max(0, unallocated).toFixed(3) }),
+        },
+        {
+          key: "wallet" as const,
+          label: t("srcWallet"),
+          hint: tVars(t("srcWalletHint"), { amount: walletBalance.toFixed(3) }),
+        },
+      ]
+    : [
+        { key: "savings" as const, label: t("dstFree"), hint: t("dstFreeHint") },
+        { key: "wallet" as const, label: t("dstWallet"), hint: t("dstWalletHint") },
+      ];
+
+  const cta = isValid
+    ? tVars(t(adding ? "ctaSave" : "ctaWithdraw"), { amount: value.toFixed(3) })
+    : t(adding ? "save" : "withdraw");
 
   return (
     <BaseWalletModal
       isOpen={isOpen}
       onClose={onClose}
-      title={`${mode === "add" ? "Add to" : "Take from"} ${jar?.name ?? "jar"}`}
+      title={`${t(adding ? "saveTo" : "withdrawFrom")} ${jar?.icon ?? ""} ${jar?.name ?? ""}`}
       onConfirm={handleConfirm}
-      isConfirmDisabled={!amount || parseFloat(amount) <= 0}
-      confirmText={mode === "add" ? "Add" : "Take out"}
+      isConfirmDisabled={!isValid}
+      confirmText={cta}
     >
       <VStack spacing={4} align="stretch">
         <Box>
-          <Text fontSize="xs" color="dim" mb={2} fontFamily="mono" textTransform="uppercase">
-            {mode === "add" ? "Source" : "Destination"}
+          <Text fontSize="xs" color="dim" mb={2} fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
+            {t("howMuch")}
           </Text>
-          <HStack spacing={2}>
-            {options.map((opt) => (
+          <HStack spacing={2} mb={2}>
+            {QUICK_AMOUNTS.map((quick) => (
               <Button
-                key={opt.key}
+                key={quick}
                 flex={1}
                 size="sm"
                 borderRadius="none"
-                variant={source === opt.key ? "solid" : "outline"}
-                colorScheme={source === opt.key ? "orange" : "gray"}
-                onClick={() => setSource(opt.key)}
-                flexDirection="column"
-                height="auto"
-                py={2}
-                whiteSpace="normal"
+                fontFamily="mono"
+                variant="outline"
+                borderColor={value === quick ? "primary" : "border"}
+                color={value === quick ? "primary" : "text"}
+                onClick={() => setAmount(String(Math.min(quick, max)))}
+                isDisabled={max <= 0}
               >
-                <Text fontSize="xs" fontWeight="bold">{opt.label}</Text>
-                <Text fontSize="2xs" opacity={0.8}>{opt.hint}</Text>
+                +{quick}
               </Button>
             ))}
+            <Button
+              flex={1}
+              size="sm"
+              borderRadius="none"
+              fontFamily="mono"
+              variant="outline"
+              borderColor="border"
+              color="text"
+              onClick={() => setAmount(max.toFixed(3))}
+              isDisabled={max <= 0}
+            >
+              {t("max")}
+            </Button>
           </HStack>
+          <AmountInput
+            value={amount}
+            onChange={setAmount}
+            balance={max.toFixed(3)}
+            currency="HBD"
+            placeholder="0.000"
+            onMaxClick={() => setAmount(max.toFixed(3))}
+          />
+          <Text fontSize="2xs" color="dim" fontFamily="mono" mt={1} textAlign="center">
+            {tVars(t("upTo"), { amount: max.toFixed(3) })}
+          </Text>
         </Box>
 
-        <AmountInput
-          value={amount}
-          onChange={setAmount}
-          balance={max.toFixed(3)}
-          currency="HBD"
-          placeholder="0.000"
-          onMaxClick={() => setAmount(max.toFixed(3))}
-        />
+        <Box>
+          <Text fontSize="xs" color="dim" mb={2} fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
+            {t(adding ? "fromWhere" : "toWhere")}
+          </Text>
+          <VStack spacing={2} align="stretch">
+            {options.map((opt) => {
+              const selected = source === opt.key;
+              return (
+                <Button
+                  key={opt.key}
+                  onClick={() => setSource(opt.key)}
+                  variant="unstyled"
+                  h="auto"
+                  py={2.5}
+                  px={3}
+                  bg={selected ? "muted" : "panel"}
+                  border="1px solid"
+                  borderColor={selected ? "primary" : "border"}
+                  borderRadius="none"
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  textAlign="left"
+                  whiteSpace="normal"
+                >
+                  <Box>
+                    <Text fontSize="sm" fontWeight="bold" color="text" fontFamily="mono">
+                      {opt.label}
+                    </Text>
+                    <Text fontSize="2xs" color="dim" fontFamily="mono" mt={0.5}>
+                      {opt.hint}
+                    </Text>
+                  </Box>
+                  <Text fontSize="sm" color="primary" opacity={selected ? 1 : 0}>
+                    ◉
+                  </Text>
+                </Button>
+              );
+            })}
+          </VStack>
+        </Box>
 
-        {mode === "take" && source === "wallet" && (
-          <Box p={2} bg="muted" borderLeft="4px solid" borderColor="yellow.500">
-            <Text fontSize="xs" color="yellow.200">
-              ⚠️ Cashing out of savings to your wallet has a 3-day waiting period (Hive protocol).
+        {adding && source === "wallet" && (
+          <Box p={2} bg="muted" borderLeft="3px solid" borderColor="success">
+            <Text fontSize="xs" color="success" fontFamily="mono" lineHeight="tall">
+              {t("depositNote")}
             </Text>
           </Box>
         )}
-        {mode === "add" && source === "wallet" && (
-          <Box p={2} bg="muted" borderLeft="4px solid" borderColor="green.500">
-            <Text fontSize="xs" color="green.200">
-              💰 Deposits your wallet HBD into savings (15% APR) and assigns it to this jar.
+        {!adding && source === "wallet" && (
+          <Box p={2} bg="muted" borderLeft="3px solid" borderColor="warning">
+            <Text fontSize="xs" color="warning" fontFamily="mono" lineHeight="tall">
+              {t("delayNote")}
             </Text>
           </Box>
         )}

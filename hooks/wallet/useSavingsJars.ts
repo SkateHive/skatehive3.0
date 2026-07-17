@@ -36,9 +36,24 @@ export interface JarInput {
   sort_order?: number;
 }
 
+export interface JarEvent {
+  id: string;
+  jar_id: string;
+  type: "create" | "fund" | "withdraw";
+  amount_hbd: number;
+  via: "savings" | "wallet" | null;
+  created_at: string;
+}
+
 interface OpResult {
   success: boolean;
   error?: string;
+}
+
+interface AllocateOptions {
+  skipRefresh?: boolean;
+  /** Ledger hint: 'wallet' when a real on-chain transfer wraps this move. */
+  via?: "savings" | "wallet";
 }
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -204,14 +219,14 @@ export function useSavingsJars() {
 
   /** Move HBD between a jar and unallocated savings (metadata only, no tx). */
   const allocate = useCallback(
-    async (id: string, deltaHbd: number, skipRefresh = false): Promise<OpResult> => {
+    async (id: string, deltaHbd: number, options: AllocateOptions = {}): Promise<OpResult> => {
       const res = await authedFetch(`/api/cofrinhos/${id}/allocate`, {
         method: "POST",
         headers: JSON_HEADERS,
-        body: JSON.stringify({ delta_hbd: deltaHbd }),
+        body: JSON.stringify({ delta_hbd: deltaHbd, via: options.via ?? "savings" }),
       });
       if (!res.ok) return { success: false, error: await parseError(res, "Failed to allocate") };
-      if (!skipRefresh) await refresh();
+      if (!options.skipRefresh) await refresh();
       return { success: true };
     },
     [authedFetch, refresh]
@@ -222,7 +237,7 @@ export function useSavingsJars() {
     async (id: string, amount: number): Promise<OpResult> => {
       const tx = await depositToSavings(amount, "HBD", "SkateHive cofrinho");
       if (!tx.success) return { success: false, error: tx.error };
-      return allocate(id, amount);
+      return allocate(id, amount, { via: "wallet" });
     },
     [depositToSavings, allocate]
   );
@@ -230,7 +245,7 @@ export function useSavingsJars() {
   /** Cash a jar out to the liquid wallet: de-allocate, then withdraw (3-day delay). */
   const withdrawToWallet = useCallback(
     async (id: string, amount: number): Promise<OpResult> => {
-      const dealloc = await allocate(id, -amount, true);
+      const dealloc = await allocate(id, -amount, { skipRefresh: true, via: "wallet" });
       if (!dealloc.success) return dealloc;
       const tx = await withdrawFromSavings(amount, "HBD", "SkateHive cofrinho");
       await refresh();
@@ -243,12 +258,23 @@ export function useSavingsJars() {
   /** Move HBD from one jar to another (pure metadata). */
   const moveBetween = useCallback(
     async (fromId: string, toId: string, amount: number): Promise<OpResult> => {
-      const out = await allocate(fromId, -amount, true);
+      const out = await allocate(fromId, -amount, { skipRefresh: true });
       if (!out.success) return out;
       const into = await allocate(toId, amount);
       return into;
     },
     [allocate]
+  );
+
+  /** Load a jar's movement history (newest first). */
+  const fetchEvents = useCallback(
+    async (id: string): Promise<JarEvent[]> => {
+      const res = await authedFetch(`/api/cofrinhos/${id}/events`, { method: "GET" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.events as JarEvent[]) || [];
+    },
+    [authedFetch]
   );
 
   return {
@@ -268,5 +294,6 @@ export function useSavingsJars() {
     fundFromWallet,
     withdrawToWallet,
     moveBetween,
+    fetchEvents,
   };
 }

@@ -1,19 +1,26 @@
-import { useState, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Box,
   Text,
   HStack,
   VStack,
   Button,
-  Progress,
-  Image,
   Spinner,
   useToast,
   Badge,
+  SimpleGrid,
 } from "@chakra-ui/react";
-import { FaPlus, FaPencilAlt, FaTrash, FaLock } from "react-icons/fa";
+import { FaPlus, FaLock } from "react-icons/fa";
 import { useSavingsJars, type SavingsJar } from "@/hooks/wallet";
-import { SavingsJarModal, JarAllocateModal, type AllocateMode } from "./modals";
+import { useTranslations } from "@/contexts/LocaleContext";
+import { tVars } from "@/lib/i18n/format";
+import {
+  SavingsJarModal,
+  JarAllocateModal,
+  JarDetailModal,
+  JarCelebration,
+  type AllocateMode,
+} from "./modals";
 
 interface SavingsJarsSectionProps {
   /** Liquid wallet HBD balance (string like "12.345" or "N/A"). */
@@ -27,7 +34,9 @@ function jarProgress(jar: SavingsJar): number | null {
 }
 
 /**
- * Cofrinhos — virtual savings jars layered over the account's HBD savings.
+ * Cofrinhos — virtual savings jars layered over the account's HBD savings,
+ * presented Nubank-Caixinhas-style: cover cards with progress, a per-jar
+ * detail screen, and guided save/withdraw flows.
  * See docs/COFRINHOS_SAVINGS_JARS_CONCEPT.md
  */
 export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJarsSectionProps) {
@@ -45,14 +54,28 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
     allocate,
     fundFromWallet,
     withdrawToWallet,
+    fetchEvents,
   } = useSavingsJars();
+  const t = useTranslations("cofrinhos");
   const toast = useToast();
 
   const [jarModalOpen, setJarModalOpen] = useState(false);
   const [editingJar, setEditingJar] = useState<SavingsJar | null>(null);
   const [allocOpen, setAllocOpen] = useState(false);
-  const [allocJar, setAllocJar] = useState<SavingsJar | null>(null);
+  const [allocJarId, setAllocJarId] = useState<string | null>(null);
   const [allocMode, setAllocMode] = useState<AllocateMode>("add");
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [celebrationJar, setCelebrationJar] = useState<SavingsJar | null>(null);
+
+  // Derive from the live list so modals stay fresh after refreshes.
+  const detailJar = useMemo(
+    () => jars.find((jar) => jar.id === detailId) ?? null,
+    [jars, detailId]
+  );
+  const allocJar = useMemo(
+    () => jars.find((jar) => jar.id === allocJarId) ?? null,
+    [jars, allocJarId]
+  );
 
   const openCreate = () => {
     setEditingJar(null);
@@ -63,7 +86,7 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
     setJarModalOpen(true);
   };
   const openAllocate = (jar: SavingsJar, mode: AllocateMode) => {
-    setAllocJar(jar);
+    setAllocJarId(jar.id);
     setAllocMode(mode);
     setAllocOpen(true);
   };
@@ -76,41 +99,43 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
 
   const handleDelete = useCallback(
     async (jar: SavingsJar) => {
-      if (typeof window !== "undefined" && !window.confirm(`Delete "${jar.name}"? Its allocation returns to unallocated savings.`)) {
-        return;
-      }
       const res = await deleteJar(jar.id);
       toast({
-        title: res.success ? "Jar deleted" : "Failed to delete jar",
-        description: res.error,
+        title: res.success ? t("deletedToast") : res.error,
         status: res.success ? "success" : "error",
-        duration: 3000,
+        duration: 3500,
         isClosable: true,
       });
+      if (res.success) setDetailId(null);
     },
-    [deleteJar, toast]
+    [deleteJar, toast, t]
   );
 
   const handleUnlock = useCallback(async () => {
     const ok = await connect();
     if (!ok) {
       toast({
-        title: "Could not unlock cofrinhos",
-        description: "Signature was cancelled or failed.",
+        title: t("unlockFailedTitle"),
+        description: t("unlockFailedDesc"),
         status: "error",
         duration: 4000,
         isClosable: true,
       });
     }
-  }, [connect, toast]);
+  }, [connect, toast, t]);
 
   if (!isConnected) return null;
+
+  const totalUsd =
+    hbdPrice && summary.allocated_total > 0
+      ? (summary.allocated_total * hbdPrice).toFixed(2)
+      : null;
 
   return (
     <>
       <Box position="relative" border="2px solid" borderColor="primary" overflow="hidden">
         {/* Header */}
-        <HStack px={3} py={2} bg="primary" justify="space-between">
+        <HStack px={3} py={2} bg="primary" justify="space-between" align="center">
           <HStack spacing={2}>
             <Text fontSize="lg">🐷</Text>
             <Text
@@ -121,19 +146,25 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
               letterSpacing="widest"
               fontFamily="mono"
             >
-              Cofrinhos
+              {t("title")}
             </Text>
           </HStack>
           {authed && (
             <VStack spacing={0} align="end">
-              <Text fontSize="xl" fontWeight="black" color="background" fontFamily="mono">
+              <Text
+                fontSize="xl"
+                fontWeight="black"
+                color="background"
+                fontFamily="mono"
+                lineHeight={1.2}
+                sx={{ fontVariantNumeric: "tabular-nums" }}
+              >
                 {summary.allocated_total.toFixed(3)} HBD
               </Text>
-              {hbdPrice && summary.allocated_total > 0 && (
-                <Text fontSize="xs" color="background" opacity={0.75} fontFamily="mono">
-                  ${(summary.allocated_total * hbdPrice).toFixed(2)} saved in jars
-                </Text>
-              )}
+              <Text fontSize="2xs" color="background" opacity={0.75} fontFamily="mono" textTransform="uppercase">
+                {totalUsd ? `$${totalUsd} · ` : ""}
+                {t("savedInGoals")}
+              </Text>
             </VStack>
           )}
         </HStack>
@@ -144,8 +175,7 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
           {!authed && (
             <VStack spacing={3} py={4}>
               <Text fontSize="sm" color="dim" fontFamily="mono" textAlign="center" lineHeight="tall">
-                Split your HBD savings into named goals — a new deck, a skate trip, a contest.
-                Unlock once with a Hive signature (no funds move).
+                {t("unlockTitle")}
               </Text>
               <Button
                 leftIcon={<FaLock />}
@@ -159,63 +189,26 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
                 letterSpacing="wide"
                 _hover={{ bg: "accent" }}
               >
-                Unlock Cofrinhos
+                {t("unlockCta")}
               </Button>
             </VStack>
           )}
 
           {authed && (
             <>
-              {/* Summary */}
-              <HStack spacing={2} mb={3} align="stretch">
-                <Box flex={1} p={2} bg="muted">
-                  <Text fontSize="2xs" color="dim" fontFamily="mono" textTransform="uppercase">
-                    Allocated
-                  </Text>
-                  <Text fontSize="sm" color="primary" fontWeight="bold" fontFamily="mono">
-                    {summary.allocated_total.toFixed(3)}
-                  </Text>
-                </Box>
-                <Box flex={1} p={2} bg="muted">
-                  <Text fontSize="2xs" color="dim" fontFamily="mono" textTransform="uppercase">
-                    Unallocated
-                  </Text>
-                  <Text
-                    fontSize="sm"
-                    color={summary.unallocated < 0 ? "red.400" : "text"}
-                    fontWeight="bold"
-                    fontFamily="mono"
-                  >
-                    {summary.unallocated.toFixed(3)}
-                  </Text>
-                </Box>
-              </HStack>
+              <Text fontSize="xs" color="dim" fontFamily="mono" mb={3} lineHeight="tall">
+                {tVars(t("freeSavings"), {
+                  amount: Math.max(0, summary.unallocated).toFixed(3),
+                })}
+              </Text>
 
               {summary.over_allocated && (
-                <Box p={2} bg="muted" mb={3} border="1px solid" borderColor="red.400">
-                  <Text color="red.400" fontSize="xs" fontFamily="mono">
-                    Jars claim more than your on-chain savings. Cash-outs elsewhere may have
-                    reduced your balance — adjust your jars to match.
+                <Box p={2} bg="muted" mb={3} borderLeft="3px solid" borderColor="error">
+                  <Text color="error" fontSize="xs" fontFamily="mono" lineHeight="tall">
+                    {t("overAllocated")}
                   </Text>
                 </Box>
               )}
-
-              {/* New jar */}
-              <Button
-                leftIcon={<FaPlus />}
-                onClick={openCreate}
-                size="sm"
-                w="100%"
-                mb={3}
-                bg="muted"
-                color="text"
-                borderRadius="none"
-                fontFamily="mono"
-                fontWeight="bold"
-                _hover={{ bg: "accent", color: "background" }}
-              >
-                New Jar
-              </Button>
 
               {loading && jars.length === 0 && (
                 <HStack justify="center" py={4}>
@@ -224,83 +217,155 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
               )}
 
               {!loading && jars.length === 0 && (
-                <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" py={3}>
-                  No jars yet. Create your first cofrinho above.
+                <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" pb={3}>
+                  {t("empty")}
                 </Text>
               )}
 
-              {/* Jar list */}
-              <VStack spacing={2} align="stretch">
+              {/* Cover cards */}
+              <SimpleGrid columns={2} spacing={2.5}>
                 {jars.map((jar) => {
                   const progress = jarProgress(jar);
+                  const done = progress !== null && progress >= 100;
                   return (
-                    <Box key={jar.id} p={3} bg="muted" borderLeft="4px solid" borderColor={jar.color}>
-                      <HStack justify="space-between" align="start" mb={1}>
-                        <HStack spacing={2}>
-                          <Text fontSize="lg">{jar.icon}</Text>
-                          <Box>
-                            <HStack spacing={2}>
-                              <Text fontSize="sm" fontWeight="bold" color="text" fontFamily="mono">
-                                {jar.name}
-                              </Text>
-                              {jar.is_wishlist && (
-                                <Badge fontSize="2xs" colorScheme="purple">goal</Badge>
-                              )}
-                            </HStack>
-                            {jar.deadline && (
-                              <Text fontSize="2xs" color="dim" fontFamily="mono">
-                                by {jar.deadline}
-                              </Text>
-                            )}
-                          </Box>
-                        </HStack>
-                        <Box textAlign="right">
-                          <Text fontSize="sm" color="primary" fontWeight="bold" fontFamily="mono">
-                            {jar.is_wishlist ? "" : Number(jar.allocated_hbd).toFixed(3)}
-                            {jar.target_hbd ? ` / ${jar.target_hbd.toFixed(3)}` : ""}
-                          </Text>
-                          <Text fontSize="2xs" color="dim" fontFamily="mono">HBD</Text>
-                        </Box>
-                      </HStack>
-
-                      {progress !== null && !jar.is_wishlist && (
-                        <Progress
-                          value={progress}
-                          size="xs"
+                    <Button
+                      key={jar.id}
+                      onClick={() => setDetailId(jar.id)}
+                      variant="unstyled"
+                      h="auto"
+                      minH="112px"
+                      p={2.5}
+                      bg="panel"
+                      border="1px solid"
+                      borderColor="border"
+                      borderTop="3px solid"
+                      borderTopColor={jar.color}
+                      borderRadius="none"
+                      display="flex"
+                      flexDirection="column"
+                      alignItems="flex-start"
+                      gap={1.5}
+                      whiteSpace="normal"
+                      textAlign="left"
+                      position="relative"
+                      transition="border-color .15s, transform .15s"
+                      _hover={{ borderColor: jar.color, transform: "translateY(-2px)" }}
+                      aria-label={jar.name}
+                    >
+                      {done && (
+                        <Badge
+                          position="absolute"
+                          top={1.5}
+                          right={1.5}
+                          fontSize="2xs"
+                          bg={jar.color}
+                          color="background"
                           borderRadius="none"
-                          mb={2}
-                          sx={{ "& > div": { backgroundColor: jar.color } }}
-                          bg="background"
-                        />
+                          textTransform="uppercase"
+                        >
+                          {t("goalReached")}
+                        </Badge>
                       )}
-
-                      <HStack spacing={1} mt={1}>
-                        {!jar.is_wishlist && (
-                          <>
-                            <Button size="xs" borderRadius="none" fontFamily="mono" onClick={() => openAllocate(jar, "add")} colorScheme="green" variant="outline">
-                              Add
-                            </Button>
-                            <Button size="xs" borderRadius="none" fontFamily="mono" onClick={() => openAllocate(jar, "take")} variant="outline" colorScheme="orange" isDisabled={Number(jar.allocated_hbd) <= 0}>
-                              Take out
-                            </Button>
-                          </>
+                      {jar.is_wishlist && !done && (
+                        <Badge
+                          position="absolute"
+                          top={1.5}
+                          right={1.5}
+                          fontSize="2xs"
+                          colorScheme="purple"
+                        >
+                          {t("wishlistBadge")}
+                        </Badge>
+                      )}
+                      <Text fontSize="xl" lineHeight={1}>
+                        {jar.icon}
+                      </Text>
+                      <Text fontSize="xs" fontWeight="bold" color="text" fontFamily="mono" noOfLines={2}>
+                        {jar.name}
+                      </Text>
+                      <Text
+                        fontSize="sm"
+                        fontWeight="black"
+                        fontFamily="mono"
+                        color={jar.color}
+                        mt="auto"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {jar.is_wishlist ? "" : Number(jar.allocated_hbd).toFixed(3)}
+                        {jar.target_hbd ? (
+                          <Text as="span" fontSize="2xs" color="dim" fontWeight="normal">
+                            {jar.is_wishlist ? "" : " / "}
+                            {jar.target_hbd.toFixed(3)} HBD
+                          </Text>
+                        ) : (
+                          <Text as="span" fontSize="2xs" color="dim" fontWeight="normal">
+                            {" "}
+                            HBD
+                          </Text>
                         )}
-                        <Button size="xs" borderRadius="none" variant="ghost" onClick={() => openEdit(jar)} aria-label="Edit jar">
-                          <FaPencilAlt />
-                        </Button>
-                        <Button size="xs" borderRadius="none" variant="ghost" colorScheme="red" onClick={() => handleDelete(jar)} aria-label="Delete jar">
-                          <FaTrash />
-                        </Button>
-                      </HStack>
-                    </Box>
+                      </Text>
+                      {progress !== null && !jar.is_wishlist && (
+                        <Box w="100%" h="4px" bg="background" position="relative" overflow="hidden">
+                          <Box
+                            position="absolute"
+                            left={0}
+                            top={0}
+                            bottom={0}
+                            w={`${progress}%`}
+                            bg={jar.color}
+                            transition="width .4s ease"
+                          />
+                        </Box>
+                      )}
+                    </Button>
                   );
                 })}
-              </VStack>
+
+                {/* New jar */}
+                <Button
+                  onClick={openCreate}
+                  variant="unstyled"
+                  h="auto"
+                  minH="112px"
+                  border="1px dashed"
+                  borderColor="dim"
+                  borderRadius="none"
+                  display="flex"
+                  flexDirection="column"
+                  alignItems="center"
+                  justifyContent="center"
+                  gap={1.5}
+                  color="dim"
+                  transition="color .15s, border-color .15s"
+                  _hover={{ color: "primary", borderColor: "primary" }}
+                >
+                  <FaPlus />
+                  <Text
+                    fontSize="2xs"
+                    fontFamily="mono"
+                    textTransform="uppercase"
+                    letterSpacing="widest"
+                    textAlign="center"
+                  >
+                    {t("newJar")}
+                  </Text>
+                </Button>
+              </SimpleGrid>
             </>
           )}
         </Box>
       </Box>
 
+      <JarDetailModal
+        isOpen={!!detailJar}
+        onClose={() => setDetailId(null)}
+        jar={detailJar}
+        fetchEvents={fetchEvents}
+        onSave={(jar) => openAllocate(jar, "add")}
+        onWithdraw={(jar) => openAllocate(jar, "take")}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+      />
       <SavingsJarModal
         isOpen={jarModalOpen}
         onClose={() => setJarModalOpen(false)}
@@ -317,7 +382,12 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
         allocate={allocate}
         fundFromWallet={fundFromWallet}
         withdrawToWallet={withdrawToWallet}
+        onGoalReached={setCelebrationJar}
+        onDone={(message) =>
+          toast({ title: message, status: "success", duration: 3000, isClosable: true })
+        }
       />
+      <JarCelebration jar={celebrationJar} onClose={() => setCelebrationJar(null)} />
     </>
   );
 }

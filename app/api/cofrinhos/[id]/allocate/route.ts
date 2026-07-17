@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthedAccount } from "@/lib/cofrinhos/auth";
 import { getCofrinhosSupabase, type SavingsJarRow } from "@/lib/cofrinhos/supabase";
+import { logJarEvent, type JarEventVia } from "@/lib/cofrinhos/events";
 import {
   getOnChainHbdSavings,
   round3,
@@ -50,6 +51,12 @@ export async function POST(
       { status: 400 }
     );
   }
+
+  // Where the money came from / went to, for the history ledger. Optional and
+  // display-only: 'savings' = metadata move against free savings (default),
+  // 'wallet' = the client wrapped this call in a real on-chain transfer.
+  const via: JarEventVia =
+    body?.via === "wallet" ? "wallet" : "savings";
 
   // Load all of the account's jars (small set) for the invariant check.
   const { data: jarsData, error: loadError } = await supabase
@@ -117,6 +124,14 @@ export async function POST(
     console.error("Failed to allocate:", updateError.message);
     return NextResponse.json({ error: "Failed to allocate" }, { status: 500 });
   }
+
+  await logJarEvent(supabase, {
+    jar_id: jar.id,
+    hive_account: account,
+    type: delta > 0 ? "fund" : "withdraw",
+    amount_hbd: Math.abs(delta),
+    via,
+  });
 
   // Recompute the summary with the updated jar.
   const merged = jars.map((j) => (j.id === jar.id ? (updated as SavingsJarRow) : j));

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthedAccount } from "@/lib/cofrinhos/auth";
 import { getCofrinhosSupabase, type SavingsJarRow } from "@/lib/cofrinhos/supabase";
+import { logJarEvent } from "@/lib/cofrinhos/events";
 import {
   getOnChainHbdSavings,
   summarize,
@@ -116,5 +117,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create jar" }, { status: 500 });
   }
 
-  return NextResponse.json({ jar: data as SavingsJarRow }, { status: 201 });
+  const jar = data as SavingsJarRow;
+  await logJarEvent(supabase, {
+    jar_id: jar.id,
+    hive_account: account,
+    type: "create",
+  });
+
+  return NextResponse.json({ jar }, { status: 201 });
 }

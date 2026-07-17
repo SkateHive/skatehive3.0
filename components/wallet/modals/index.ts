@@ -21,6 +21,8 @@ export { WithdrawSavingsModal } from './WithdrawSavingsModal';
 export { SavingsJarModal } from './SavingsJarModal';
 export { JarAllocateModal } from './JarAllocateModal';
 export type { AllocateMode } from './JarAllocateModal';
+export { JarDetailModal } from './JarDetailModal';
+export { JarCelebration } from './JarCelebration';
 
 // Types
 export * from './types';
