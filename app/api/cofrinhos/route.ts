@@ -42,16 +42,30 @@ export async function GET(request: NextRequest) {
   }
 
   let savings = 0;
+  let savingsAvailable = true;
   try {
     savings = await getOnChainHbdSavings(account);
   } catch (err: any) {
     console.error("Failed to read on-chain savings:", err?.message || err);
+    savingsAvailable = false;
+  }
+
+  const rows = (jars as SavingsJarRow[]) || [];
+  const summary = summarize(rows, savings);
+
+  // A transient RPC failure reads savings as 0, which would fabricate an
+  // over-allocated state and a negative "free savings". Don't cry wolf: report
+  // the reconciliation as unknown so the client can skip the warning.
+  if (!savingsAvailable) {
+    summary.over_allocated = false;
+    summary.unallocated = 0;
   }
 
   return NextResponse.json({
-    jars: (jars as SavingsJarRow[]) || [],
+    jars: rows,
     savings_hbd: savings,
-    summary: summarize((jars as SavingsJarRow[]) || [], savings),
+    savings_available: savingsAvailable,
+    summary,
   });
 }
 

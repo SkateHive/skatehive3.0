@@ -42,6 +42,24 @@ export async function PATCH(
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
 
+  // A wishlist jar is excluded from the Σ(allocated) ≤ savings invariant, so
+  // flipping a funded jar to wishlist would orphan its allocation and let the
+  // same savings be assigned twice. Require it to be emptied first.
+  if (validation.value.is_wishlist === true) {
+    const { data: current } = await supabase
+      .from("userbase_savings_jars")
+      .select("allocated_hbd")
+      .eq("id", id)
+      .eq("hive_account", account)
+      .maybeSingle();
+    if (current && Number(current.allocated_hbd) > 0) {
+      return NextResponse.json(
+        { error: "Take the money out of this jar before making it a goal-only jar" },
+        { status: 400 }
+      );
+    }
+  }
+
   // Scope the update to the owning account so one user can't edit another's jar.
   const { data, error } = await supabase
     .from("userbase_savings_jars")

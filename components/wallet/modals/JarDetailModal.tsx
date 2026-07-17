@@ -63,12 +63,13 @@ export function JarDetailModal({
 
   const allocated = Number(jar?.allocated_hbd ?? 0);
 
+  const jarId = jar?.id;
   useEffect(() => {
     setConfirmingDelete(false);
-    if (!isOpen || !jar) return;
+    if (!isOpen || !jarId) return;
     let cancelled = false;
     setEventsLoading(true);
-    fetchEvents(jar.id)
+    fetchEvents(jarId)
       .then((list) => {
         if (!cancelled) setEvents(list);
       })
@@ -78,8 +79,10 @@ export function JarDetailModal({
     return () => {
       cancelled = true;
     };
-    // Reload after operations change the balance so the history stays fresh.
-  }, [isOpen, jar?.id, allocated, fetchEvents, jar]);
+    // Keyed on id + balance only: `jar` gets a new object identity on every
+    // refresh(), so depending on it would refetch history on unrelated changes.
+    // `allocated` covers the "balance moved, reload history" trigger.
+  }, [isOpen, jarId, allocated, fetchEvents]);
 
   const progress = useMemo(() => {
     if (!jar?.target_hbd || jar.target_hbd <= 0) return null;

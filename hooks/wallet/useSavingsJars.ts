@@ -248,28 +248,18 @@ export function useSavingsJars() {
     [depositToSavings, allocate]
   );
 
-  /** Cash a jar out to the liquid wallet: de-allocate, then withdraw (3-day delay). */
+  /** Cash a jar out to the liquid wallet: withdraw on-chain first, then de-allocate. */
   const withdrawToWallet = useCallback(
     async (id: string, amount: number): Promise<OpResult> => {
-      const dealloc = await allocate(id, -amount, { skipRefresh: true, via: "wallet" });
-      if (!dealloc.success) return dealloc;
+      // Mirror fundFromWallet: do the real on-chain move first, and only touch
+      // the jar (and its ledger) once it succeeds. Doing it the other way round
+      // would empty the jar and log a phantom "withdrew to wallet" event even
+      // when the user cancels the Keychain popup.
       const tx = await withdrawFromSavings(amount, "HBD", "SkateHive cofrinho");
-      await refresh();
       if (!tx.success) return { success: false, error: tx.error };
-      return { success: true };
+      return allocate(id, -amount, { via: "wallet" });
     },
-    [allocate, withdrawFromSavings, refresh]
-  );
-
-  /** Move HBD from one jar to another (pure metadata). */
-  const moveBetween = useCallback(
-    async (fromId: string, toId: string, amount: number): Promise<OpResult> => {
-      const out = await allocate(fromId, -amount, { skipRefresh: true });
-      if (!out.success) return out;
-      const into = await allocate(toId, amount);
-      return into;
-    },
-    [allocate]
+    [withdrawFromSavings, allocate]
   );
 
   /** Load a jar's movement history (newest first). */
@@ -299,7 +289,6 @@ export function useSavingsJars() {
     allocate,
     fundFromWallet,
     withdrawToWallet,
-    moveBetween,
     fetchEvents,
   };
 }
