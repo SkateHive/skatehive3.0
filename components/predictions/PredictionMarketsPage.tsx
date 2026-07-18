@@ -1,0 +1,305 @@
+"use client";
+import React, { useMemo, useState } from "react";
+import {
+  Box,
+  Button,
+  Flex,
+  Heading,
+  HStack,
+  Link,
+  Spinner,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
+import { useAioha } from "@aioha/react-ui";
+import { useTranslations } from "@/lib/i18n/hooks";
+import useHivePower from "@/hooks/useHivePower";
+import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
+import { HIVEPREDICT_BRAND_COLOR } from "@/lib/predictions/constants";
+import { PREDICTIONS_CONFIG, applyTitleFilter } from "@/lib/predictions/config";
+import type { MarketStatus } from "@/lib/predictions/types";
+import MarketCard from "./MarketCard";
+import CreateMarketModal from "./CreateMarketModal";
+import PredictionsFaqModal from "./PredictionsFaqModal";
+import SkateModal from "@/components/shared/SkateModal";
+import LeaderboardPanel from "./LeaderboardPanel";
+import ActivityPanel from "./ActivityPanel";
+
+const PAGE_SIZE = 24;
+
+const STATUS_FILTERS: { labelKey: string; value: MarketStatus | "all" }[] = [
+  { labelKey: "filterActive", value: "active" },
+  { labelKey: "filterUpcoming", value: "pending" },
+  { labelKey: "filterResolved", value: "resolved" },
+  { labelKey: "filterAll", value: "all" },
+];
+
+// Creating a market stakes real funds and carries resolution duties, so it's
+// reserved for established accounts.
+const CREATE_MIN_HP = 100;
+
+export default function PredictionMarketsPage() {
+  const t = useTranslations("predictions");
+  const { user } = useAioha();
+  const { hivePower } = useHivePower(user || "");
+  const [status, setStatus] = useState<MarketStatus | "all">("active");
+  const [page, setPage] = useState(1);
+  const [isCreateOpen, setCreateOpen] = useState(false);
+  const [isHpAlertOpen, setHpAlertOpen] = useState(false);
+  const [isFaqOpen, setFaqOpen] = useState(false);
+
+  const canCreate = !!user && (hivePower ?? 0) > CREATE_MIN_HP;
+
+  // Resolved shows a compact recent set (last 12); other views paginate fully.
+  const pageSize = status === "resolved" ? 12 : PAGE_SIZE;
+
+  const query = useMemo(() => {
+    const q: Record<string, string> = {
+      ...PREDICTIONS_CONFIG.upstreamQuery,
+      page: String(page),
+      limit: String(pageSize),
+    };
+    if (status !== "all") q.status = status;
+    return q;
+  }, [status, page, pageSize]);
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: predictionKeys.markets(query),
+    queryFn: () => predictionsApi.listMarkets(query),
+    staleTime: 15_000,
+  });
+
+  const markets = useMemo(
+    () => applyTitleFilter(data?.markets ?? []),
+    [data]
+  );
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  // When the Active list is short, fill the page with an "Upcoming" section
+  // (pending markets) instead of leaving it blank.
+  const showUpcoming =
+    status === "active" && !isLoading && !isError && markets.length < 9;
+  const upcomingQuery = useMemo(
+    () => ({
+      ...PREDICTIONS_CONFIG.upstreamQuery,
+      status: "pending",
+      page: "1",
+      limit: "9",
+    }),
+    []
+  );
+  const { data: upcomingData } = useQuery({
+    queryKey: predictionKeys.markets(upcomingQuery),
+    queryFn: () => predictionsApi.listMarkets(upcomingQuery),
+    enabled: showUpcoming,
+    staleTime: 30_000,
+  });
+  const upcoming = useMemo(
+    () => applyTitleFilter(upcomingData?.markets ?? []),
+    [upcomingData]
+  );
+
+  return (
+    <Box maxW="1280px" mx="auto" px={4} py={6}>
+      <Flex justify="space-between" align="center" wrap="wrap" gap={3} mb={2}>
+        <Heading size="lg" color="text">
+          {t("title")}
+        </Heading>
+        <HStack spacing={2}>
+          <Button
+            size="sm"
+            variant="outline"
+            borderColor="border"
+            color="text"
+            onClick={() => setFaqOpen(true)}
+          >
+            {t("howItWorks")}
+          </Button>
+          <Button
+            size="sm"
+            bg="primary"
+            color="background"
+            _hover={{ opacity: 0.9 }}
+            onClick={() => (canCreate ? setCreateOpen(true) : setHpAlertOpen(true))}
+          >
+            {t("createMarket")}
+          </Button>
+        </HStack>
+      </Flex>
+      <Text color="dim" mb={5}>
+        {t("poweredBy")}{" "}
+        <Link
+          href="https://hivepredict.app/"
+          isExternal
+          fontWeight={600}
+          sx={{
+            // HivePredict brand red in every state — the global anchor styles
+            // would otherwise recolor it on hover/visited and underline it.
+            color: `${HIVEPREDICT_BRAND_COLOR} !important`,
+            "&:hover": {
+              textDecoration: "none !important",
+              color: `${HIVEPREDICT_BRAND_COLOR} !important`,
+              opacity: 0.85,
+            },
+            "&:visited": { color: `${HIVEPREDICT_BRAND_COLOR} !important` },
+          }}
+        >
+          HivePredict
+        </Link>
+        .
+      </Text>
+
+      <Flex gap={6} align="start">
+        {/* Markets — center column */}
+        <Box flex="1" minW={0}>
+          <HStack spacing={2} mb={5} wrap="wrap">
+            {STATUS_FILTERS.map((f) => (
+              <Button
+                key={f.value}
+                size="sm"
+                variant={status === f.value ? "solid" : "outline"}
+                bg={status === f.value ? "primary" : "transparent"}
+                color={status === f.value ? "background" : "text"}
+                borderColor="border"
+                onClick={() => {
+                  setStatus(f.value);
+                  setPage(1);
+                }}
+              >
+                {t(f.labelKey)}
+              </Button>
+            ))}
+          </HStack>
+
+          {isLoading ? (
+            <Flex justify="center" py={16}>
+              <Spinner color="primary" size="lg" />
+            </Flex>
+          ) : isError ? (
+            <VStack py={16} spacing={2}>
+              <Text color="error">{t("loadError")}</Text>
+              <Text color="dim" fontSize="sm">
+                {(error as Error)?.message}
+              </Text>
+            </VStack>
+          ) : markets.length === 0 ? (
+            <VStack py={16} spacing={2}>
+              <Text color="dim">{t("noMarkets")}</Text>
+            </VStack>
+          ) : (
+            <VStack align="stretch" spacing={3}>
+              {markets.map((m) => (
+                <MarketCard key={m.id} market={m} />
+              ))}
+            </VStack>
+          )}
+
+          {showUpcoming && upcoming.length > 0 && (
+            <Box mt={8}>
+              <Flex justify="space-between" align="center" mb={3}>
+                <Heading size="sm" color="text">
+                  {t("upcoming")}
+                </Heading>
+                <Button
+                  size="xs"
+                  variant="link"
+                  color="primary"
+                  onClick={() => {
+                    setStatus("pending");
+                    setPage(1);
+                  }}
+                >
+                  {t("viewAll")}
+                </Button>
+              </Flex>
+              <VStack align="stretch" spacing={3}>
+                {upcoming.map((m) => (
+                  <MarketCard key={m.id} market={m} />
+                ))}
+              </VStack>
+            </Box>
+          )}
+
+          {totalPages > 1 && (
+            <Flex justify="center" align="center" gap={4} mt={8}>
+              <Button
+                size="sm"
+                variant="outline"
+                borderColor="border"
+                color="text"
+                isDisabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                {t("previous")}
+              </Button>
+              <Text color="dim" fontSize="sm">
+                {t("page")} {page} {t("of")} {totalPages}
+              </Text>
+              <Button
+                size="sm"
+                variant="outline"
+                borderColor="border"
+                color="text"
+                isDisabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                {t("next")}
+              </Button>
+            </Flex>
+          )}
+        </Box>
+
+        {/* Right sidebar (wide screens): Activity + Leaderboard widgets. */}
+        <VStack
+          as="aside"
+          w="300px"
+          flexShrink={0}
+          display={{ base: "none", lg: "flex" }}
+          position="sticky"
+          top="1rem"
+          align="stretch"
+          spacing={4}
+        >
+          <ActivityPanel />
+          <LeaderboardPanel />
+        </VStack>
+      </Flex>
+
+      <CreateMarketModal isOpen={isCreateOpen} onClose={() => setCreateOpen(false)} />
+      <PredictionsFaqModal isOpen={isFaqOpen} onClose={() => setFaqOpen(false)} />
+
+      <SkateModal
+        isOpen={isHpAlertOpen}
+        onClose={() => setHpAlertOpen(false)}
+        title="create-market"
+        size={{ base: "full", md: "md" }}
+        footer={
+          <Button
+            size="sm"
+            ml="auto"
+            bg="primary"
+            color="background"
+            onClick={() => setHpAlertOpen(false)}
+          >
+            {t("gotIt")}
+          </Button>
+        }
+      >
+        <Box p={5} color="text">
+          <Heading size="sm" mb={2}>
+            {CREATE_MIN_HP}+ {t("hpNeeded")}
+          </Heading>
+          <Text color="dim" fontSize="sm">
+            {!user
+              ? t("hpAlertConnect")
+              : `${t("hpAlertReserved")}${
+                  hivePower != null ? ` ${t("hpCurrent")} ${Math.floor(hivePower)} HP.` : ""
+                }`}
+          </Text>
+        </Box>
+      </SkateModal>
+    </Box>
+  );
+}

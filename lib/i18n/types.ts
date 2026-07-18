@@ -49,6 +49,7 @@ export interface TranslationSchema {
     auction: string;
     videos: string;
     create: string;
+    predictions: string;
   };
   common: {
     loading: string;
@@ -875,5 +876,45 @@ export interface TranslationSchema {
     diceAriaLabel: string;
     diceImageAlt: string;
     viewClips: string;
+  };
+  predictions: {
+    title: string; poweredBy: string; howItWorks: string; createMarket: string;
+    filterActive: string; filterUpcoming: string; filterResolved: string; filterAll: string;
+    loadError: string; noMarkets: string; upcoming: string; viewAll: string;
+    previous: string; next: string; page: string; of: string;
+    hpNeeded: string; hpAlertConnect: string; hpAlertReserved: string; hpCurrent: string; gotIt: string;
+    options: string; pool: string; outcomes: string; by: string;
+    hotTooltip: string; closingSoonTooltip: string; closesIn: string; bettingClosed: string;
+    allMarkets: string; forming: string; copyLink: string; shareOnX: string;
+    linkCopied: string; linkCopiedDesc: string; participants: string; cutoff: string; resolvesAt: string;
+    formingNoticePrefix: string; formingNoticeSuffix: string; current: string; needs: string; more: string;
+    recentPredictions: string; marketNotFound: string; backToMarkets: string;
+    marketInfo: string; category: string; token: string; resolution: string;
+    resolutionAuto: string; resolutionManual: string; creator: string; minParticipants: string; stakeCap: string;
+    notOpenPrefix: string; notOpenSuffix: string;
+    placePrediction: string; chooseOutcome: string; amount: string; minimumBet: string; cap: string;
+    estReturn: string; netProfit: string; multiplier: string; basedOnPools: string;
+    bet: string; simulateBet: string; dryRunDone: string; betPlaced: string;
+    copyBetShare: string; bragBet: string; bragOn: string;
+    connectTo: string; actionBet: string; actionCreate: string; connectBody: string;
+    questionShape: string; shapeBinary: string; shapeBinaryDesc: string; shapeMulti: string;
+    shapeMultiDesc: string; shapeSports: string; shapeSportsDesc: string;
+    league: string; betType: string; event: string; loadingEvents: string; selectEvent: string;
+    noEventsFor: string; eventsLoadError: string; retry: string; autoResolveNote: string;
+    participantsLabel: string; participantsPlaceholder: string; participantsHint: string;
+    yesLabel: string; noLabel: string; question: string; questionPlaceholder: string;
+    questionAutoPlaceholder: string; description: string; descriptionPlaceholder: string;
+    yourSide: string; openingBet: string; stakeCapField: string; minParticipantsField: string;
+    bettingCloses: string; resolves: string; autoResolveTimes: string; autoResolveShort: string; manualShort: string;
+    back: string; close: string; createMarketBtn: string; simulateCreation: string; dryRun: string;
+    marketCreated: string; dryRunCreateDone: string;
+    activity: string; noActivity: string; actPlaced: string; actOn: string; actCreated: string;
+    actCashedOut: string; actRefunded: string; actResolved: string; actWon: string;
+    leaderboard: string; boardAccuracy: string; boardProfit: string; boardVolume: string;
+    boardCreators: string; mkts: string; noRanked: string; viewMarket: string;
+    faqTitle: string; faqTermsPrefix: string;
+    faqQ1: string; faqA1: string; faqQ2: string; faqA2: string; faqQ3: string; faqA3: string;
+    faqQ4: string; faqA4: string; faqQ5: string; faqA5: string; faqQ6: string; faqA6: string;
+    faqQ7: string; faqA7: string; faqQ8: string; faqA8: string; faqQ9: string; faqA9: string;
   };
 }

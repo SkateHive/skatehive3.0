@@ -21,6 +21,7 @@ import { useAioha } from "@aioha/react-ui";
 import HiveLoginModal from "./HiveLoginModal";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
+import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
 import { useFarcasterMiniapp } from "@/hooks/useFarcasterMiniapp";
 import { FarcasterAuthIsland, useFarcasterAuthMethods } from "@/components/farcaster/FarcasterAuthIsland";
 import { useTranslations } from "@/lib/i18n/hooks";
@@ -58,6 +59,7 @@ export default function MobileTabBar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, aioha } = useAioha();
+  const { handle: hiveHandle } = useEffectiveHiveUser();
   const [modalDisplayed, setModalDisplayed] = useState(false);
   const toast = useToast();
   const t = useTranslations("navigation");
@@ -349,6 +351,11 @@ export default function MobileTabBar() {
       label: "COMMUNITY",
       items: [
         { icon: FiTarget, href: "/bounties", name: t("bounties") },
+        // Prediction markets are Hive-only (on-chain bets) — hidden without
+        // a Hive account.
+        ...(hiveHandle
+          ? [{ icon: FiTrendingUp, href: "/hivepredict", name: t("predictions") }]
+          : []),
         { icon: FiPlay, href: "/games", name: "Games" },
         { icon: FiTrendingUp, href: "/auction", name: t("auction") },
         ...(user ? [{ icon: FiMail, href: "/invite", name: t("invite") }] : []),

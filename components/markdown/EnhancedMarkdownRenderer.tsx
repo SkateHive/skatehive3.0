@@ -16,6 +16,7 @@ const SnapshotPreview = dynamic(() => import("../shared/SnapshotPreview"), { ssr
 const GameCartridgeEmbed = dynamic(() => import("../games/GameCartridgeEmbed"), { ssr: false });
 const ProposalPreview = dynamic(() => import("../dao/governance/ProposalPreview"), { ssr: false });
 const BountyPreview = dynamic(() => import("../bounties/BountyPreview"), { ssr: false });
+const MarketPreview = dynamic(() => import("../predictions/MarketPreview"), { ssr: false });
 
 interface EnhancedMarkdownRendererProps {
   content: string;
@@ -43,7 +44,7 @@ function renderContentWithVideos(
   // Split on supported video, social media, Snapshot, SkateHive game, and Builder proposal placeholders
   // Use [\s\S] instead of [^\]] to handle newlines inside placeholders
   const parts = processed.contentWithPlaceholders.split(
-    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[\s\S]+?\]\])/g
+    /(\[\[(?:VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY|PREDICTIONMARKET):[\s\S]+?\]\])/g
   );
 
   return parts
@@ -105,6 +106,13 @@ function renderContentWithVideos(
         return <BountyPreview key={`bounty-${idx}`} chainId={chainId} id={id} />;
       }
 
+      // Handle prediction market placeholders
+      const marketMatch = part.match(/^\[\[PREDICTIONMARKET:([\s\S]+?)\]\]$/);
+      if (marketMatch) {
+        const marketId = marketMatch[1].trim();
+        return <MarketPreview key={`market-${idx}`} marketId={marketId} />;
+      }
+
       // Skip empty parts or parts that are just whitespace
       if (!part || part.trim() === "") {
         return null;
@@ -155,12 +163,10 @@ function cleanMarkdownPart(part: string): string {
     .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/games\/.*$/gm, "") // SkateHive games
     .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/bounties\/poidh\/.*$/gm, "") // POIDH bounties
     .replace(/^https?:\/\/(?:www\.)?[^\/\s]+\/(?:proposals|vote)\/\d+$/gm, "") // Builder DAO proposals
+    .replace(/^https?:\/\/[^\/\s]+\/hivepredict\/[A-Za-z0-9-]+$/gm, "") // Prediction markets (internal)
+    .replace(/^https?:\/\/(?:www\.)?hivepredict\.app\/markets\/[A-Za-z0-9-]+$/gm, "") // Prediction markets (hivepredict)
     // Remove any leftover placeholders that weren't split properly
-    .replace(/\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[^\]]+\]\]/g, "")
-    .replace(
-      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY)\s*$/gm,
-      ""
-    )
+    .replace(/\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY|PREDICTIONMARKET):[^\]]+\]\]/g, "")
     .replace(/^[a-zA-Z0-9_-]{11}$/gm, "") // YouTube video IDs
     .replace(/^[0-9]{8,}$/gm, "") // Vimeo video IDs
     .replace(/^(Qm[1-9A-HJ-NP-Za-km-z]{44,}|bafy[0-9a-z]{50,})$/gm, "") // IPFS CIDs

@@ -27,6 +27,7 @@ import {
   FiFilm,
   FiUsers,
   FiMail,
+  FiTrendingUp,
 } from "react-icons/fi";
 import { useTheme } from "@/app/themeProvider";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -133,6 +134,13 @@ export default function Sidebar() {
           icon: FiTarget,
           label: t("bounties"),
           prefetch: false,
+        },
+        {
+          href: "/hivepredict",
+          icon: FiTrendingUp,
+          label: t("predictions"),
+          prefetch: false,
+          show: !!hiveHandle,
         },
         { href: "/games", icon: FiPlay, label: "Games", prefetch: false },
         {
