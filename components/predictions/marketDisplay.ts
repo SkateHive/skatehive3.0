@@ -121,17 +121,43 @@ export function marketHeat(
   return { fire, closingSoon, emojis };
 }
 
-// Short "closes in …" / "closed" label from an ISO timestamp.
-export function closesLabel(iso: string | undefined, now: Date): string {
-  if (!iso) return "";
-  const closes = new Date(iso);
-  const ms = closes.getTime() - now.getTime();
-  if (Number.isNaN(ms)) return "";
-  if (ms <= 0) return "Betting closed";
-  const mins = Math.floor(ms / 60000);
-  const days = Math.floor(mins / 1440);
-  const hours = Math.floor((mins % 1440) / 60);
-  if (days > 0) return `Closes in ${days}d ${hours}h`;
-  if (hours > 0) return `Closes in ${hours}h ${mins % 60}m`;
-  return `Closes in ${mins}m`;
+// Raw time-to-close info from an ISO timestamp — the consumer localizes the
+// label (see formatCloses). null when there's no timestamp.
+export interface ClosesInfo {
+  closed: boolean;
+  days: number;
+  hours: number;
+  mins: number;
+}
+
+export function closesInfo(iso: string | undefined, now: Date): ClosesInfo | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - now.getTime();
+  if (Number.isNaN(ms)) return null;
+  if (ms <= 0) return { closed: true, days: 0, hours: 0, mins: 0 };
+  const total = Math.floor(ms / 60000);
+  return {
+    closed: false,
+    days: Math.floor(total / 1440),
+    hours: Math.floor((total % 1440) / 60),
+    mins: total % 60,
+  };
+}
+
+// Just the "2d 16h" duration part (no prefix) — d/h/m units are kept universal.
+export function durationText(info: ClosesInfo): string {
+  if (info.closed) return "";
+  if (info.days > 0) return `${info.days}d ${info.hours}h`;
+  if (info.hours > 0) return `${info.hours}h ${info.mins}m`;
+  return `${info.mins}m`;
+}
+
+// Localized "Closes in 2d 16h" / "Betting closed" label.
+export function formatCloses(
+  info: ClosesInfo | null,
+  t: (k: string) => string
+): string {
+  if (!info) return "";
+  if (info.closed) return t("bettingClosed");
+  return `${t("closesIn")} ${durationText(info)}`;
 }

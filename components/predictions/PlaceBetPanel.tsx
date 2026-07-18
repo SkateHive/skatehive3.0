@@ -23,6 +23,7 @@ import {
   outcomeLabel,
 } from "./marketDisplay";
 import ConnectWalletPrompt from "./ConnectWalletPrompt";
+import { useTranslations } from "@/lib/i18n/hooks";
 
 // Platform-wide minimum bet (matches hivepredict.app's UI).
 const MIN_BET = 1;
@@ -30,6 +31,7 @@ const MIN_BET = 1;
 // Always-visible bet card (hivepredict-style sidebar panel): outcome selector,
 // amount, live Est. Return / Net Profit / Multiplier, then the broadcast CTA.
 export default function PlaceBetPanel({ market }: { market: Market }) {
+  const t = useTranslations("predictions");
   const { user } = useAioha();
   const { placeBet, status, error, txId, isPending, dryRun, reset } =
     usePlaceBet(market);
@@ -57,10 +59,10 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
     return (
       <Box bg="panel" border="1px solid" borderColor="border" borderRadius="lg" p={4}>
         <Text fontWeight={700} color="text" mb={1}>
-          Place Prediction
+          {t("placePrediction")}
         </Text>
         <Text color="dim" fontSize="sm">
-          This market is {market.status} and not open for betting.
+          {t("notOpenPrefix")} {market.status} {t("notOpenSuffix")}
         </Text>
       </Box>
     );
@@ -70,11 +72,11 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
     <Box bg="panel" border="1px solid" borderColor="border" borderRadius="lg" p={4}>
       <Flex justify="space-between" align="center" mb={3}>
         <Text fontWeight={700} color="text">
-          Place Prediction
+          {t("placePrediction")}
         </Text>
         {dryRun && (
           <Badge bg="warning" color="background">
-            DRY RUN
+            {t("dryRun")}
           </Badge>
         )}
       </Flex>
@@ -118,7 +120,7 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
 
           <Box>
             <Text fontSize="sm" color="dim" mb={1}>
-              Amount ({market.token})
+              {t("amount")} ({market.token})
             </Text>
             <NumberInput
               min={0}
@@ -131,11 +133,11 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
             </NumberInput>
             <Flex justify="space-between" mt={1}>
               <Text fontSize="xs" color="dim">
-                Minimum bet: {MIN_BET.toFixed(3)} {market.token}
+                {t("minimumBet")}: {MIN_BET.toFixed(3)} {market.token}
               </Text>
               {cap > 0 && (
                 <Text fontSize="xs" color="dim">
-                  Cap: {cap.toFixed(3)} {market.token}
+                  {t("cap")}: {cap.toFixed(3)} {market.token}
                 </Text>
               )}
             </Flex>
@@ -145,7 +147,7 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
           <Box bg="subtle" borderRadius="md" p={3}>
             <Flex justify="space-between" mb={1}>
               <Text fontSize="sm" color="dim">
-                Est. Return
+                {t("estReturn")}
               </Text>
               <Text fontSize="sm" color="text" fontWeight={700}>
                 {est.payout.toFixed(3)} {market.token}
@@ -153,7 +155,7 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
             </Flex>
             <Flex justify="space-between" mb={1}>
               <Text fontSize="sm" color="dim">
-                Net Profit
+                {t("netProfit")}
               </Text>
               <Text
                 fontSize="sm"
@@ -166,7 +168,7 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
             </Flex>
             <Flex justify="space-between">
               <Text fontSize="sm" color="dim">
-                Multiplier
+                {t("multiplier")}
               </Text>
               <Text fontSize="sm" color="text" fontWeight={700}>
                 {est.multiplier.toFixed(2)}x
@@ -174,7 +176,7 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
             </Flex>
             <Divider my={2} borderColor="border" />
             <Text fontSize="xs" color="dim">
-              Based on current pools. Actual payout may vary.
+              {t("basedOnPools")}
             </Text>
           </Box>
 
@@ -186,9 +188,7 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
             isDisabled={belowMin}
             onClick={handleConfirm}
           >
-            {dryRun
-              ? "Simulate bet"
-              : `Bet ${outcomeLabel(market, outcome)}`}
+            {dryRun ? t("simulateBet") : `${t("bet")} ${outcomeLabel(market, outcome)}`}
           </Button>
 
           {error && (
@@ -199,9 +199,7 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
           {status === "success" && (
             <VStack align="stretch" spacing={2}>
               <Text color="success" fontSize="sm">
-                {dryRun
-                  ? "Dry run complete — see console for the transaction ops."
-                  : `Bet placed!${txId ? ` (${txId})` : ""}`}
+                {dryRun ? t("dryRunDone") : `${t("betPlaced")}${txId ? ` (${txId})` : ""}`}
               </Text>
               {!dryRun && (
                 <Button
@@ -212,11 +210,11 @@ export default function PlaceBetPanel({ market }: { market: Market }) {
                   onClick={() => {
                     const url = `${window.location.origin}/hivepredict/${encodeURIComponent(market.id)}`;
                     navigator.clipboard.writeText(
-                      `I just bet ${stake.toFixed(3)} ${market.token} on "${outcomeLabel(market, outcome)}" 🎯\n${url}`
+                      `${t("bragBet")} ${stake.toFixed(3)} ${market.token} ${t("bragOn")} "${outcomeLabel(market, outcome)}" 🎯\n${url}`
                     );
                   }}
                 >
-                  Copy bet to share in a snap
+                  {t("copyBetShare")}
                 </Button>
               )}
             </VStack>

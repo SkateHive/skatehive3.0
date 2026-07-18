@@ -3,8 +3,10 @@ import React from "react";
 import NextLink from "next/link";
 import { Badge, Box, Flex, HStack, Text } from "@chakra-ui/react";
 import type { Market } from "@/lib/predictions/types";
+import { useTranslations } from "@/lib/i18n/hooks";
 import {
-  closesLabel,
+  closesInfo,
+  formatCloses,
   isBinaryMarket,
   marketHeat,
   outcomeBreakdown,
@@ -23,6 +25,7 @@ interface MarketCardProps {
 // multi-outcome (O1..On) markets. Chakra semantic tokens only, so it adapts
 // across every Skatehive theme.
 export default function MarketCard({ market, now = new Date() }: MarketCardProps) {
+  const t = useTranslations("predictions");
   const slices = outcomeBreakdown(market);
   const total = totalPoolOf(market);
   const binary = isBinaryMarket(market);
@@ -63,8 +66,8 @@ export default function MarketCard({ market, now = new Date() }: MarketCardProps
               fontSize="sm"
               lineHeight={1}
               title={[
-                heat.fire ? "Hot market — big pool" : "",
-                heat.closingSoon ? "Closing within 24h" : "",
+                heat.fire ? t("hotTooltip") : "",
+                heat.closingSoon ? t("closingSoonTooltip") : "",
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -112,7 +115,7 @@ export default function MarketCard({ market, now = new Date() }: MarketCardProps
         })}
         {moreCount > 0 && (
           <Text fontSize="sm" color="dim">
-            +{moreCount} more
+            +{moreCount} {t("more")}
           </Text>
         )}
       </Flex>
@@ -128,14 +131,14 @@ export default function MarketCard({ market, now = new Date() }: MarketCardProps
       <Flex justify="space-between" align="center" wrap="wrap" gap={2}>
         <HStack spacing={3}>
           <Text fontSize="xs" color="dim">
-            Pool <b>{total.toFixed(3)} {market.token}</b>
+            {t("pool")} <b>{total.toFixed(3)} {market.token}</b>
           </Text>
           <Text fontSize="xs" color="dim">
-            {slices.length} outcomes
+            {slices.length} {t("outcomes")}
           </Text>
           {market.creatorUsername && (
             <Text fontSize="xs" color="dim">
-              by @{market.creatorUsername}
+              {t("by")} @{market.creatorUsername}
             </Text>
           )}
         </HStack>
@@ -144,7 +147,7 @@ export default function MarketCard({ market, now = new Date() }: MarketCardProps
           color={heat.closingSoon ? "warning" : "dim"}
           fontWeight={heat.closingSoon ? 600 : undefined}
         >
-          {closesLabel(market.bettingClosesAt, now)}
+          {formatCloses(closesInfo(market.bettingClosesAt, now), t)}
         </Text>
       </Flex>
     </Box>

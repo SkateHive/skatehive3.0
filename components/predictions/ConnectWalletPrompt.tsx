@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { Box, Text } from "@chakra-ui/react";
+import { useTranslations } from "@/lib/i18n/hooks";
 
 // Shown to lite/logged-out users in place of bet/create actions. Markets stay
 // fully readable; this just explains why the action is unavailable. Betting and
@@ -11,6 +12,8 @@ export default function ConnectWalletPrompt({
 }: {
   action?: "bet" | "create a market";
 }) {
+  const t = useTranslations("predictions");
+  const actionLabel = action === "bet" ? t("actionBet") : t("actionCreate");
   return (
     <Box
       bg="subtle"
@@ -20,13 +23,10 @@ export default function ConnectWalletPrompt({
       p={4}
     >
       <Text color="text" fontWeight={600} mb={1}>
-        Connect a Hive wallet to {action}
+        {t("connectTo")} {actionLabel}
       </Text>
       <Text color="dim" fontSize="sm">
-        Placing bets and creating markets moves real HIVE/HBD and requires your
-        Hive <b>active</b> key. Sign in with Hive Keychain or HiveAuth to
-        continue. Email, wallet, and Farcaster logins can browse markets but
-        can&apos;t bet.
+        {t("connectBody")}
       </Text>
     </Box>
   );

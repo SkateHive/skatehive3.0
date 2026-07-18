@@ -3,6 +3,7 @@ import React from "react";
 import NextLink from "next/link";
 import { Box, Skeleton, Text } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "@/lib/i18n/hooks";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
 import MarketCard from "./MarketCard";
 
@@ -10,6 +11,7 @@ import MarketCard from "./MarketCard";
 // (skatehive /hivepredict/<id> or hivepredict.app/markets/<id>) renders
 // as the market card inline in the post/snap, linking to the internal page.
 export default function MarketPreview({ marketId }: { marketId: string }) {
+  const t = useTranslations("predictions");
   const { data: market, isLoading, isError } = useQuery({
     queryKey: predictionKeys.market(marketId),
     queryFn: () => predictionsApi.getMarket(marketId),
@@ -35,7 +37,7 @@ export default function MarketPreview({ marketId }: { marketId: string }) {
           color="primary"
           fontSize="sm"
         >
-          View prediction market →
+          {t("viewMarket")}
         </Text>
       </Box>
     );

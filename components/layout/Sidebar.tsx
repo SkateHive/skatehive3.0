@@ -138,7 +138,7 @@ export default function Sidebar() {
         {
           href: "/hivepredict",
           icon: FiTrendingUp,
-          label: "Predictions",
+          label: t("predictions"),
           prefetch: false,
           show: !!hiveHandle,
         },

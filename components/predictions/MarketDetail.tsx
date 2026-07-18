@@ -17,10 +17,12 @@ import {
 } from "@chakra-ui/react";
 import { FiLink, FiShare2 } from "react-icons/fi";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "@/lib/i18n/hooks";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
 import type { Market } from "@/lib/predictions/types";
 import {
-  closesLabel,
+  closesInfo,
+  durationText,
   outcomeBreakdown,
   sliceColor,
   statusColor,
@@ -54,24 +56,25 @@ function fmtDate(iso?: string): string {
 }
 
 function MarketInfoCard({ market }: { market: Market }) {
+  const t = useTranslations("predictions");
   const rows: [string, React.ReactNode][] = [
-    ["Category", <Text as="span" textTransform="capitalize" key="c">{market.category || "—"}</Text>],
-    ["Token", market.token],
-    ["Resolution", market.resolutionType === "auto" ? "Auto" : "Manual"],
+    [t("category"), <Text as="span" textTransform="capitalize" key="c">{market.category || "—"}</Text>],
+    [t("token"), market.token],
+    [t("resolution"), market.resolutionType === "auto" ? t("resolutionAuto") : t("resolutionManual")],
     [
-      "Creator",
+      t("creator"),
       market.creatorUsername ? `@${market.creatorUsername}` : "—",
     ],
-    ["Min Participants", String(market.minParticipants ?? "—")],
+    [t("minParticipants"), String(market.minParticipants ?? "—")],
     [
-      "Stake Cap",
+      t("stakeCap"),
       market.stakeCap ? `${Number(market.stakeCap).toFixed(3)} ${market.token}` : "—",
     ],
   ];
   return (
     <Box bg="panel" border="1px solid" borderColor="border" borderRadius="lg" p={4}>
       <Text fontWeight={700} color="text" mb={3}>
-        Market Info
+        {t("marketInfo")}
       </Text>
       <VStack align="stretch" spacing={2}>
         {rows.map(([k, v]) => (
@@ -92,6 +95,7 @@ function MarketInfoCard({ market }: { market: Market }) {
 // Copy-link + compose-share row. Pasting the copied link into a snap/post
 // renders the market as an embedded card in the feed (see MarketPreview).
 function ShareRow({ marketId, title }: { marketId: string; title: string }) {
+  const t = useTranslations("predictions");
   const toast = useToast();
   const url =
     typeof window !== "undefined"
@@ -109,14 +113,14 @@ function ShareRow({ marketId, title }: { marketId: string; title: string }) {
         onClick={() => {
           onCopy();
           toast({
-            title: "Link copied",
-            description: "Paste it in a snap — it renders as a market card.",
+            title: t("linkCopied"),
+            description: t("linkCopiedDesc"),
             status: "success",
             duration: 2500,
           });
         }}
       >
-        Copy link
+        {t("copyLink")}
       </Button>
       <Button
         size="xs"
@@ -130,13 +134,14 @@ function ShareRow({ marketId, title }: { marketId: string; title: string }) {
           )
         }
       >
-        Share on X
+        {t("shareOnX")}
       </Button>
     </HStack>
   );
 }
 
 export default function MarketDetail({ id }: { id: string }) {
+  const t = useTranslations("predictions");
   const { data: market, isLoading, isError } = useQuery({
     queryKey: predictionKeys.market(id),
     queryFn: () => predictionsApi.getMarket(id),
@@ -161,9 +166,9 @@ export default function MarketDetail({ id }: { id: string }) {
   if (isError || !market) {
     return (
       <VStack py={20} spacing={3}>
-        <Text color="error">Market not found.</Text>
+        <Text color="error">{t("marketNotFound")}</Text>
         <Button as={NextLink} href="/hivepredict" variant="outline" borderColor="border" color="text">
-          Back to markets
+          {t("backToMarkets")}
         </Button>
       </VStack>
     );
@@ -188,7 +193,7 @@ export default function MarketDetail({ id }: { id: string }) {
         size="sm"
         sx={{ "&:hover": { textDecoration: "none !important" } }}
       >
-        ← All markets
+        ← {t("allMarkets")}
       </Button>
 
       <Flex gap={6} align="start" direction={{ base: "column", lg: "row" }}>
@@ -202,7 +207,7 @@ export default function MarketDetail({ id }: { id: string }) {
               {market.token}
             </Badge>
             <Badge bg={statusColor(market.status)} color="background" textTransform="capitalize">
-              {market.status === "pending" ? "forming" : market.status}
+              {market.status === "pending" ? t("forming") : market.status}
             </Badge>
           </HStack>
 
@@ -263,16 +268,22 @@ export default function MarketDetail({ id }: { id: string }) {
 
           {/* Stat tiles */}
           <Grid templateColumns={{ base: "1fr 1fr", md: "repeat(4, 1fr)" }} gap={3} mb={4}>
-            <StatTile label="Pool" value={`${total.toFixed(3)} ${market.token}`} />
+            <StatTile label={t("pool")} value={`${total.toFixed(3)} ${market.token}`} />
             <StatTile
-              label="Participants"
+              label={t("participants")}
               value={market.participantCount != null ? String(market.participantCount) : "—"}
             />
             <StatTile
-              label="Cutoff"
-              value={closesLabel(market.bettingClosesAt, new Date()).replace("Closes in ", "") || "—"}
+              label={t("cutoff")}
+              value={
+                (() => {
+                  const ci = closesInfo(market.bettingClosesAt, new Date());
+                  if (!ci) return "—";
+                  return ci.closed ? t("bettingClosed") : durationText(ci);
+                })()
+              }
             />
-            <StatTile label="Resolves At" value={fmtDate(market.resolvesAt)} />
+            <StatTile label={t("resolvesAt")} value={fmtDate(market.resolvesAt)} />
           </Grid>
 
           {/* Forming notice */}
@@ -286,13 +297,12 @@ export default function MarketDetail({ id }: { id: string }) {
               mb={4}
             >
               <Text color="text" fontSize="sm">
-                This market is forming. It activates at {market.minParticipants}+ unique
-                participants.{" "}
+                {t("formingNoticePrefix")} {market.minParticipants}+ {t("formingNoticeSuffix")}{" "}
                 <b>
-                  Current: {market.participantCount}/{market.minParticipants}
+                  {t("current")}: {market.participantCount}/{market.minParticipants}
                 </b>
                 {(market.participantCount ?? 0) < (market.minParticipants ?? 0) &&
-                  ` — needs ${(market.minParticipants ?? 0) - (market.participantCount ?? 0)} more.`}
+                  ` — ${t("needs")} ${(market.minParticipants ?? 0) - (market.participantCount ?? 0)} ${t("more")}.`}
               </Text>
             </Box>
           )}
@@ -306,7 +316,7 @@ export default function MarketDetail({ id }: { id: string }) {
           {predictions.length > 0 && (
             <>
               <Heading size="sm" color="text" mb={2}>
-                Recent predictions
+                {t("recentPredictions")}
               </Heading>
               <VStack align="stretch" spacing={1}>
                 {predictions.map((p) => {

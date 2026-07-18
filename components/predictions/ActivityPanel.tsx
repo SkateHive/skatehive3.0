@@ -10,6 +10,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "@/lib/i18n/hooks";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
 import type { ActivityEvent } from "@/lib/predictions/types";
 
@@ -27,24 +28,24 @@ const EVENT_ICON: Record<string, string> = {
 
 // Bold headline: who did what (without the market title — that gets its own
 // dim line below, so long titles don't drown the action).
-function headline(e: ActivityEvent): string {
+function headline(e: ActivityEvent, t: (k: string) => string): string {
   const who = `@${e.account ?? "someone"}`;
   const amt = e.amount ? `${e.amount} ${e.token ?? ""}`.trim() : "";
   switch (e.eventType) {
     case "bet_placed":
-      return `${who} · ${amt} on ${e.outcome ?? "?"}`;
+      return `${who} · ${amt} ${t("actOn")} ${e.outcome ?? "?"}`;
     case "market_created":
-      return `${who} created a market`;
+      return `${who} ${t("actCreated")}`;
     case "cash_out":
     case "cashout":
-      return `${who} cashed out ${amt}`;
+      return `${who} ${t("actCashedOut")} ${amt}`;
     case "refund":
-      return `${who} refunded ${amt}`;
+      return `${who} ${t("actRefunded")} ${amt}`;
     case "market_resolved":
     case "resolved":
-      return `Resolved${e.resolvedOutcome ? `: ${e.resolvedOutcome}` : ""}`;
+      return `${t("actResolved")}${e.resolvedOutcome ? `: ${e.resolvedOutcome}` : ""}`;
     case "payout":
-      return `${who} won ${amt}`;
+      return `${who} ${t("actWon")} ${amt}`;
     default:
       return who;
   }
@@ -63,6 +64,7 @@ function ago(iso?: string): string {
 }
 
 export default function ActivityPanel() {
+  const t = useTranslations("predictions");
   const { data, isLoading } = useQuery({
     queryKey: predictionKeys.activity(),
     queryFn: () => predictionsApi.getActivity(10),
@@ -74,7 +76,7 @@ export default function ActivityPanel() {
   return (
     <Box bg="panel" border="1px solid" borderColor="border" borderRadius="lg" p={4}>
       <Text fontWeight={700} color="text" mb={3}>
-        Activity
+        {t("activity")}
       </Text>
 
       {isLoading ? (
@@ -83,7 +85,7 @@ export default function ActivityPanel() {
         </Flex>
       ) : events.length === 0 ? (
         <Text color="dim" fontSize="sm">
-          No recent activity.
+          {t("noActivity")}
         </Text>
       ) : (
         <VStack align="stretch" spacing={2.5}>
@@ -95,7 +97,7 @@ export default function ActivityPanel() {
               <Box minW={0} flex="1">
                 <Flex justify="space-between" align="baseline" gap={2}>
                   <Text color="text" fontSize="xs" fontWeight={600} noOfLines={1}>
-                    {headline(e)}
+                    {headline(e, t)}
                   </Text>
                   <HStack spacing={1.5} flexShrink={0}>
                     <Text color="dim" fontSize="2xs">

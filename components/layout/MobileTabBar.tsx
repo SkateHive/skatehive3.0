@@ -354,7 +354,7 @@ export default function MobileTabBar() {
         // Prediction markets are Hive-only (on-chain bets) — hidden without
         // a Hive account.
         ...(hiveHandle
-          ? [{ icon: FiTrendingUp, href: "/hivepredict", name: "Predictions" }]
+          ? [{ icon: FiTrendingUp, href: "/hivepredict", name: t("predictions") }]
           : []),
         { icon: FiPlay, href: "/games", name: "Games" },
         { icon: FiTrendingUp, href: "/auction", name: t("auction") },

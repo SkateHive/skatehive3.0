@@ -18,6 +18,7 @@ import {
 import SkateModal from "@/components/shared/SkateModal";
 import { useQuery } from "@tanstack/react-query";
 import { useAioha } from "@aioha/react-ui";
+import { useTranslations } from "@/lib/i18n/hooks";
 import useCreateMarket from "@/hooks/useCreateMarket";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
 import { PREDICTIONS_SPORTS_SHAPE_ENABLED } from "@/lib/predictions/config";
@@ -56,10 +57,10 @@ function toIso(local: string): string {
   return Number.isNaN(d.getTime()) ? "" : d.toISOString();
 }
 
-const ALL_SHAPE_CARDS: { value: Shape; title: string; desc: string }[] = [
-  { value: "binary", title: "Yes / No", desc: "A single binary question." },
-  { value: "multi", title: "Multiple options", desc: "One winner from a field." },
-  { value: "sports", title: "Sports match", desc: "Match winner from a live data feed." },
+const ALL_SHAPE_CARDS: { value: Shape; titleKey: string; descKey: string }[] = [
+  { value: "binary", titleKey: "shapeBinary", descKey: "shapeBinaryDesc" },
+  { value: "multi", titleKey: "shapeMulti", descKey: "shapeMultiDesc" },
+  { value: "sports", titleKey: "shapeSports", descKey: "shapeSportsDesc" },
 ];
 
 // Sports is feature-flagged off for now — only Yes/No and Multiple options show.
@@ -68,6 +69,7 @@ const SHAPE_CARDS = ALL_SHAPE_CARDS.filter(
 );
 
 export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModalProps) {
+  const t = useTranslations("predictions");
   const { user } = useAioha();
   const { createMarket, status, error, txId, isPending, dryRun, reset } =
     useCreateMarket();
@@ -224,11 +226,11 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
         <Flex w="full" align="center">
           {user && step > 1 && (
             <Button variant="ghost" mr="auto" onClick={() => setStep((s) => s - 1)} color="text" size="sm">
-              Back
+              {t("back")}
             </Button>
           )}
           <Button variant="ghost" ml="auto" mr={3} onClick={handleClose} color="text" size="sm">
-            Close
+            {t("close")}
           </Button>
           {user && step < 3 && (
             <Button
@@ -238,7 +240,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
               onClick={() => setStep((s) => s + 1)}
               isDisabled={step === 2 && shape === "sports" && !selectedEvent}
             >
-              Next
+              {t("next")}
             </Button>
           )}
           {user && step === 3 && (
@@ -250,7 +252,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
               isDisabled={!assembled}
               onClick={handleSubmit}
             >
-              {dryRun ? "Simulate creation" : "Create market"}
+              {dryRun ? t("simulateCreation") : t("createMarketBtn")}
             </Button>
           )}
         </Flex>
@@ -265,7 +267,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
           </HStack>
           {dryRun && (
             <Badge bg="warning" color="background">
-              DRY RUN
+              {t("dryRun")}
             </Badge>
           )}
         </HStack>
@@ -275,7 +277,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
           ) : step === 1 ? (
             <VStack align="stretch" spacing={3}>
               <Text color="dim" fontSize="sm">
-                Question shape
+                {t("questionShape")}
               </Text>
               {SHAPE_CARDS.map((c) => (
                 <Box
@@ -289,9 +291,9 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
                   bg={shape === c.value ? "panelHover" : "transparent"}
                   onClick={() => setShape(c.value)}
                 >
-                  <Text fontWeight={700}>{c.title}</Text>
+                  <Text fontWeight={700}>{t(c.titleKey)}</Text>
                   <Text color="dim" fontSize="sm">
-                    {c.desc}
+                    {t(c.descKey)}
                   </Text>
                 </Box>
               ))}
@@ -299,7 +301,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
           ) : step === 2 ? (
             <VStack align="stretch" spacing={3}>
               <FormControl>
-                <FormLabel>Category</FormLabel>
+                <FormLabel>{t("category")}</FormLabel>
                 <Input {...inputStyle} value={CATEGORY_LABEL} isReadOnly isDisabled />
               </FormControl>
 
@@ -307,7 +309,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
                 <>
                   <Grid templateColumns="1fr 1fr" gap={3}>
                     <FormControl isRequired>
-                      <FormLabel>League</FormLabel>
+                      <FormLabel>{t("league")}</FormLabel>
                       <Select
                         {...inputStyle}
                         value={league}
@@ -324,7 +326,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
                       </Select>
                     </FormControl>
                     <FormControl isRequired>
-                      <FormLabel>Bet type</FormLabel>
+                      <FormLabel>{t("betType")}</FormLabel>
                       <Select
                         {...inputStyle}
                         value={betType}
@@ -340,12 +342,12 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
                     </FormControl>
                   </Grid>
                   <FormControl isRequired>
-                    <FormLabel>Event</FormLabel>
+                    <FormLabel>{t("event")}</FormLabel>
                     <Select
                       {...inputStyle}
                       value={eventId}
                       onChange={(e) => setEventId(e.target.value)}
-                      placeholder={eventsLoading ? "Loading events…" : "Select an event"}
+                      placeholder={eventsLoading ? t("loadingEvents") : t("selectEvent")}
                     >
                       {events.map((ev) => (
                         <option key={ev.id} value={ev.id}>
@@ -360,31 +362,28 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
                       <Text color="error" fontSize="sm">
                         Couldn&apos;t load events for {league}.
                       </Text>
-                      <Button size="xs" variant="outline" borderColor="border" color="text" onClick={() => refetchEvents()}>
-                        Retry
-                      </Button>
+                      <Button size="xs" variant="outline" borderColor="border" color="text" onClick={() => refetchEvents()}>{t("retry")}</Button>
                     </HStack>
                   ) : (
                     events.length === 0 &&
                     !eventsLoading && (
                       <Text color="dim" fontSize="sm">
-                        No upcoming events for {league}.
+                        {t("noEventsFor")} {league}.
                       </Text>
                     )
                   )}
                   {autoResolve ? (
                     <Text color="success" fontSize="sm">
-                      Auto-resolves from The Odds API final score. Outcomes and
-                      close/resolve times come from the event.
+                      {t("autoResolveNote")}
                     </Text>
                   ) : (
                     <Grid templateColumns="1fr 1fr" gap={3}>
                       <FormControl isRequired>
-                        <FormLabel>YES label</FormLabel>
+                        <FormLabel>{t("yesLabel")}</FormLabel>
                         <Input {...inputStyle} value={yesLabel} onChange={(e) => setYesLabel(e.target.value)} />
                       </FormControl>
                       <FormControl isRequired>
-                        <FormLabel>NO label</FormLabel>
+                        <FormLabel>{t("noLabel")}</FormLabel>
                         <Input {...inputStyle} value={noLabel} onChange={(e) => setNoLabel(e.target.value)} />
                       </FormControl>
                     </Grid>
@@ -394,15 +393,15 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
 
               {shape === "multi" && (
                 <FormControl isRequired>
-                  <FormLabel>Participants</FormLabel>
+                  <FormLabel>{t("participantsLabel")}</FormLabel>
                   <Textarea
                     {...inputStyle}
                     value={participants}
                     onChange={(e) => setParticipants(e.target.value)}
-                    placeholder="One per line, or comma separated"
+                    placeholder={t("participantsPlaceholder")}
                   />
                   <Text color="dim" fontSize="xs" mt={1}>
-                    At least two participants. One winner.
+                    {t("participantsHint")}
                   </Text>
                 </FormControl>
               )}
@@ -410,33 +409,33 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
               {shape === "binary" && (
                 <Grid templateColumns="1fr 1fr" gap={3}>
                   <FormControl isRequired>
-                    <FormLabel>YES label</FormLabel>
+                    <FormLabel>{t("yesLabel")}</FormLabel>
                     <Input {...inputStyle} value={yesLabel} onChange={(e) => setYesLabel(e.target.value)} />
                   </FormControl>
                   <FormControl isRequired>
-                    <FormLabel>NO label</FormLabel>
+                    <FormLabel>{t("noLabel")}</FormLabel>
                     <Input {...inputStyle} value={noLabel} onChange={(e) => setNoLabel(e.target.value)} />
                   </FormControl>
                 </Grid>
               )}
 
               <FormControl isRequired={!autoResolve}>
-                <FormLabel>Question</FormLabel>
+                <FormLabel>{t("question")}</FormLabel>
                 <Input
                   {...inputStyle}
                   value={title}
                   maxLength={200}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder={autoResolve ? "Auto-filled from the event (optional)" : "Will …?"}
+                  placeholder={autoResolve ? t("questionAutoPlaceholder") : t("questionPlaceholder")}
                 />
               </FormControl>
               <FormControl isRequired={!autoResolve}>
-                <FormLabel>Description</FormLabel>
+                <FormLabel>{t("description")}</FormLabel>
                 <Textarea
                   {...inputStyle}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Context and how each outcome resolves."
+                  placeholder={t("descriptionPlaceholder")}
                 />
               </FormControl>
             </VStack>
@@ -445,14 +444,14 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
             <VStack align="stretch" spacing={3}>
               <Grid templateColumns="1fr 1fr" gap={3}>
                 <FormControl isRequired>
-                  <FormLabel>Token</FormLabel>
+                  <FormLabel>{t("token")}</FormLabel>
                   <Select {...inputStyle} value={token} onChange={(e) => setToken(e.target.value as MarketToken)}>
                     <option value="HIVE">HIVE</option>
                     <option value="HBD">HBD</option>
                   </Select>
                 </FormControl>
                 <FormControl isRequired>
-                  <FormLabel>Your side</FormLabel>
+                  <FormLabel>{t("yourSide")}</FormLabel>
                   <Select {...inputStyle} value={creatorSide} onChange={(e) => setCreatorSide(e.target.value)}>
                     {outcomesForSide.map((o) => (
                       <option key={o} value={o}>
@@ -462,32 +461,31 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
                   </Select>
                 </FormControl>
                 <FormControl isRequired>
-                  <FormLabel>Opening bet ({token})</FormLabel>
+                  <FormLabel>{t("openingBet")} ({token})</FormLabel>
                   <Input {...inputStyle} type="number" value={openingBetAmount} onChange={(e) => setOpeningBetAmount(e.target.value)} />
                 </FormControl>
                 <FormControl isRequired>
-                  <FormLabel>Stake cap ({token})</FormLabel>
+                  <FormLabel>{t("stakeCapField")} ({token})</FormLabel>
                   <Input {...inputStyle} type="number" value={stakeCap} onChange={(e) => setStakeCap(e.target.value)} />
                 </FormControl>
                 <FormControl isRequired>
-                  <FormLabel>Min participants</FormLabel>
+                  <FormLabel>{t("minParticipantsField")}</FormLabel>
                   <Input {...inputStyle} type="number" value={minParticipants} onChange={(e) => setMinParticipants(e.target.value)} />
                 </FormControl>
               </Grid>
 
               {autoResolve ? (
                 <Text color="dim" fontSize="sm">
-                  Betting closes at kickoff and resolves automatically after the
-                  match — set from the selected event.
+                  {t("autoResolveTimes")}
                 </Text>
               ) : (
                 <Grid templateColumns="1fr 1fr" gap={3}>
                   <FormControl isRequired>
-                    <FormLabel>Betting closes</FormLabel>
+                    <FormLabel>{t("bettingCloses")}</FormLabel>
                     <Input {...inputStyle} type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} />
                   </FormControl>
                   <FormControl isRequired>
-                    <FormLabel>Resolves</FormLabel>
+                    <FormLabel>{t("resolves")}</FormLabel>
                     <Input {...inputStyle} type="datetime-local" value={resolvesAt} onChange={(e) => setResolvesAt(e.target.value)} />
                   </FormControl>
                 </Grid>
@@ -498,8 +496,8 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
                   {assembled?.title || "—"}
                 </Text>
                 <Text color="dim" fontSize="sm">
-                  {assembled?.outcomes.length ?? 0} outcomes ·{" "}
-                  {assembled?.resolutionType === "auto" ? "auto-resolve" : "manual"} ·{" "}
+                  {assembled?.outcomes.length ?? 0} {t("outcomes")} ·{" "}
+                  {assembled?.resolutionType === "auto" ? t("autoResolveShort") : t("manualShort")} ·{" "}
                   {assembled?.category}
                 </Text>
               </Box>
@@ -511,9 +509,7 @@ export default function CreateMarketModal({ isOpen, onClose }: CreateMarketModal
               )}
               {status === "success" && (
                 <Text color="success" fontSize="sm">
-                  {dryRun
-                    ? "Dry run complete — see console for the transaction ops."
-                    : `Market created!${txId ? ` (${txId})` : ""}`}
+                  {dryRun ? t("dryRunCreateDone") : `${t("marketCreated")}${txId ? ` (${txId})` : ""}`}
                 </Text>
               )}
             </VStack>

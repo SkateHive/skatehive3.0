@@ -12,24 +12,25 @@ import {
   WrapItem,
 } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "@/lib/i18n/hooks";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
 import type {
   LeaderboardBoard,
   LeaderboardEntry,
 } from "@/lib/predictions/types";
 
-const BOARDS: { value: LeaderboardBoard; label: string }[] = [
-  { value: "accuracy", label: "Accuracy" },
-  { value: "profit", label: "Profit" },
-  { value: "volume", label: "Volume" },
-  { value: "creators", label: "Creators" },
+const BOARDS: { value: LeaderboardBoard; labelKey: string }[] = [
+  { value: "accuracy", labelKey: "boardAccuracy" },
+  { value: "profit", labelKey: "boardProfit" },
+  { value: "volume", labelKey: "boardVolume" },
+  { value: "creators", labelKey: "boardCreators" },
 ];
 
 // The headline metric shown per board.
-function metric(board: LeaderboardBoard, e: LeaderboardEntry): string {
+function metric(board: LeaderboardBoard, e: LeaderboardEntry, mktsLabel: string): string {
   switch (board) {
     case "creators":
-      return `${e.marketsCreated ?? 0} mkts`;
+      return `${e.marketsCreated ?? 0} ${mktsLabel}`;
     case "profit":
       return `+${Number(e.profit ?? 0).toFixed(2)}`;
     case "accuracy":
@@ -40,6 +41,7 @@ function metric(board: LeaderboardBoard, e: LeaderboardEntry): string {
 }
 
 export default function LeaderboardPanel() {
+  const t = useTranslations("predictions");
   const [board, setBoard] = useState<LeaderboardBoard>("accuracy");
 
   const { data, isLoading } = useQuery({
@@ -52,7 +54,7 @@ export default function LeaderboardPanel() {
   return (
     <Box bg="panel" border="1px solid" borderColor="border" borderRadius="lg" p={4}>
       <Text fontWeight={700} color="text" mb={3}>
-        Leaderboard
+        {t("leaderboard")}
       </Text>
 
       <Wrap spacing={1} mb={3}>
@@ -66,7 +68,7 @@ export default function LeaderboardPanel() {
               borderColor="border"
               onClick={() => setBoard(b.value)}
             >
-              {b.label}
+              {t(b.labelKey)}
             </Button>
           </WrapItem>
         ))}
@@ -78,7 +80,7 @@ export default function LeaderboardPanel() {
         </Flex>
       ) : entries.length === 0 ? (
         <Text color="dim" fontSize="sm">
-          No ranked users yet.
+          {t("noRanked")}
         </Text>
       ) : (
         <VStack align="stretch" spacing={1}>
@@ -93,7 +95,7 @@ export default function LeaderboardPanel() {
                 </Text>
               </HStack>
               <Text color="primary" fontWeight={600} fontSize="sm" flexShrink={0}>
-                {metric(board, e)}
+                {metric(board, e, t("mkts"))}
               </Text>
             </Flex>
           ))}

@@ -13,6 +13,7 @@ import {
 } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import { useAioha } from "@aioha/react-ui";
+import { useTranslations } from "@/lib/i18n/hooks";
 import useHivePower from "@/hooks/useHivePower";
 import { predictionKeys, predictionsApi } from "@/lib/predictions/api";
 import { HIVEPREDICT_BRAND_COLOR } from "@/lib/predictions/constants";
@@ -27,11 +28,11 @@ import ActivityPanel from "./ActivityPanel";
 
 const PAGE_SIZE = 24;
 
-const STATUS_FILTERS: { label: string; value: MarketStatus | "all" }[] = [
-  { label: "Active", value: "active" },
-  { label: "Upcoming", value: "pending" },
-  { label: "Resolved", value: "resolved" },
-  { label: "All", value: "all" },
+const STATUS_FILTERS: { labelKey: string; value: MarketStatus | "all" }[] = [
+  { labelKey: "filterActive", value: "active" },
+  { labelKey: "filterUpcoming", value: "pending" },
+  { labelKey: "filterResolved", value: "resolved" },
+  { labelKey: "filterAll", value: "all" },
 ];
 
 // Creating a market stakes real funds and carries resolution duties, so it's
@@ -39,6 +40,7 @@ const STATUS_FILTERS: { label: string; value: MarketStatus | "all" }[] = [
 const CREATE_MIN_HP = 100;
 
 export default function PredictionMarketsPage() {
+  const t = useTranslations("predictions");
   const { user } = useAioha();
   const { hivePower } = useHivePower(user || "");
   const [status, setStatus] = useState<MarketStatus | "all">("active");
@@ -103,7 +105,7 @@ export default function PredictionMarketsPage() {
     <Box maxW="1280px" mx="auto" px={4} py={6}>
       <Flex justify="space-between" align="center" wrap="wrap" gap={3} mb={2}>
         <Heading size="lg" color="text">
-          Prediction Markets
+          {t("title")}
         </Heading>
         <HStack spacing={2}>
           <Button
@@ -113,7 +115,7 @@ export default function PredictionMarketsPage() {
             color="text"
             onClick={() => setFaqOpen(true)}
           >
-            How it works
+            {t("howItWorks")}
           </Button>
           <Button
             size="sm"
@@ -122,12 +124,12 @@ export default function PredictionMarketsPage() {
             _hover={{ opacity: 0.9 }}
             onClick={() => (canCreate ? setCreateOpen(true) : setHpAlertOpen(true))}
           >
-            Create market
+            {t("createMarket")}
           </Button>
         </HStack>
       </Flex>
       <Text color="dim" mb={5}>
-        Parimutuel prediction markets on Hive, powered by{" "}
+        {t("poweredBy")}{" "}
         <Link
           href="https://hivepredict.app/"
           isExternal
@@ -166,7 +168,7 @@ export default function PredictionMarketsPage() {
                   setPage(1);
                 }}
               >
-                {f.label}
+                {t(f.labelKey)}
               </Button>
             ))}
           </HStack>
@@ -177,14 +179,14 @@ export default function PredictionMarketsPage() {
             </Flex>
           ) : isError ? (
             <VStack py={16} spacing={2}>
-              <Text color="error">Failed to load markets.</Text>
+              <Text color="error">{t("loadError")}</Text>
               <Text color="dim" fontSize="sm">
                 {(error as Error)?.message}
               </Text>
             </VStack>
           ) : markets.length === 0 ? (
             <VStack py={16} spacing={2}>
-              <Text color="dim">No Skatehive markets found.</Text>
+              <Text color="dim">{t("noMarkets")}</Text>
             </VStack>
           ) : (
             <VStack align="stretch" spacing={3}>
@@ -198,7 +200,7 @@ export default function PredictionMarketsPage() {
             <Box mt={8}>
               <Flex justify="space-between" align="center" mb={3}>
                 <Heading size="sm" color="text">
-                  Upcoming
+                  {t("upcoming")}
                 </Heading>
                 <Button
                   size="xs"
@@ -209,7 +211,7 @@ export default function PredictionMarketsPage() {
                     setPage(1);
                   }}
                 >
-                  View all
+                  {t("viewAll")}
                 </Button>
               </Flex>
               <VStack align="stretch" spacing={3}>
@@ -230,10 +232,10 @@ export default function PredictionMarketsPage() {
                 isDisabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                Previous
+                {t("previous")}
               </Button>
               <Text color="dim" fontSize="sm">
-                Page {page} of {totalPages}
+                {t("page")} {page} {t("of")} {totalPages}
               </Text>
               <Button
                 size="sm"
@@ -243,7 +245,7 @@ export default function PredictionMarketsPage() {
                 isDisabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
-                Next
+                {t("next")}
               </Button>
             </Flex>
           )}
@@ -281,19 +283,19 @@ export default function PredictionMarketsPage() {
             color="background"
             onClick={() => setHpAlertOpen(false)}
           >
-            Got it
+            {t("gotIt")}
           </Button>
         }
       >
         <Box p={5} color="text">
           <Heading size="sm" mb={2}>
-            {CREATE_MIN_HP}+ HP needed to create a market
+            {CREATE_MIN_HP}+ {t("hpNeeded")}
           </Heading>
           <Text color="dim" fontSize="sm">
             {!user
-              ? `Connect a Hive wallet with more than ${CREATE_MIN_HP} HP to create markets. You can still browse and bet.`
-              : `Creating a market stakes real funds and carries resolution duties, so it's reserved for accounts with more than ${CREATE_MIN_HP} HP.${
-                  hivePower != null ? ` You currently have ${Math.floor(hivePower)} HP.` : ""
+              ? t("hpAlertConnect")
+              : `${t("hpAlertReserved")}${
+                  hivePower != null ? ` ${t("hpCurrent")} ${Math.floor(hivePower)} HP.` : ""
                 }`}
           </Text>
         </Box>
