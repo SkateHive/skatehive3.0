@@ -1,6 +1,5 @@
 import { TokenDetail } from "../../types/portfolio";
 import type { ConsolidatedToken } from "./tokenConsolidation";
-import { getZoraToken } from "./zoraEnrichment";
 
 // GeckoTerminal API types
 export interface GeckoTokenAttribute {
@@ -410,10 +409,7 @@ export const getEnhancedTokenData = (tokenDetail: TokenDetail): {
   const marketCap = tokenDetail.token.marketCap ||
     (cachedData?.market_cap_usd ? parseFloat(cachedData.market_cap_usd) : null);
 
-  // 24h change: Zora (most accurate for Zora coins) → GeckoTerminal → token field
-  const zoraData = getZoraToken(tokenDetail.token.address);
   const priceChange =
-    zoraData?.change24h ??
     (tokenDetail.token as any).priceChange ??
     (cachedData?.priceChange ? parseFloat(cachedData.priceChange) : null);
 

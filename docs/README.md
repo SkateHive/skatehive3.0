@@ -171,7 +171,6 @@ Users can link multiple identities (Hive account, EVM wallets, Farcaster profile
 ### Profile Modes
 Different views of a user's profile based on their linked identities:
 - **Hive Mode** - Blockchain posts, followers, Hive Power
-- **Zora Mode** - NFTs, tokens, collections
 - **Farcaster Mode** - Social graph, casts
 - **App Account Mode** - Display name, bio, soft posts
 

@@ -117,10 +117,6 @@ export const blockchainDictionary: Record<string, BlockchainInfo> = {
     color: "#FCDC00",
     logo: "/logos/celo_logo.png",
   },
-  zora: {
-    color: "#000000",
-    logo: "/logos/Zorb.png",
-  },
   zero: {
     color: "#000000",
     logo: "/logos/skatehive-logo-rounded.png",

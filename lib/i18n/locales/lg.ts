@@ -368,6 +368,7 @@ export const lg = {
     selectThumbnailFirst: 'Ndagala olonde thumbnail kusooka',
     addTitleFirst: 'Ndagala okwongera ekigazi kusooka',
     placeholder: 'Wandika wano',
+    replyPlaceholder: 'Wandika okuddamu kwo...',
     dropFiles: 'Kwetaaga fayiro okukola',
     enterCaption: 'Wandika captions',
     uploadMedia: 'Kwetaaga Media',
@@ -385,6 +386,10 @@ export const lg = {
     compressionError: 'Kifo mu kukakaasa image',
     unsupportedFileType: 'Unsupported file type',
     videoProcessFailed: 'Kifo mu kutegeeza video file',
+    snapTabCompose: 'Wandika',
+    snapTabDrafts: 'Ebipapula',
+    snapNoDraft: 'Tewali bipapula bisaliddwawo',
+    snapDiscardDraft: 'Ggyako',
     prepare: {
       title: 'tegeka & fulumya',
       stepTrim: 'Salako',

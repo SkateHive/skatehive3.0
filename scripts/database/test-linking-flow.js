@@ -232,7 +232,7 @@ async function main() {
     console.log('      2. Click "Link Accounts" in the modal');
     console.log('      3. Verify the merge preview shows the wallet');
     console.log('      4. Confirm linking');
-    console.log('      5. Should route to your Zora profile');
+    console.log('      5. Should route to your profile');
     console.log('      6. Run this script again to verify');
   } else if (!hasFarcaster) {
     console.log('\n   📝 TODO: Link Farcaster Account');
@@ -249,7 +249,6 @@ async function main() {
     console.log('      ✓ Farcaster profile');
     console.log('\n   💡 Test profile switching:');
     console.log('      - Click Hive logo → should show Hive profile');
-    console.log('      - Click Zora logo → should show Zora/tokens');
     console.log('      - Click Farcaster logo → should show Farcaster profile');
   }
 

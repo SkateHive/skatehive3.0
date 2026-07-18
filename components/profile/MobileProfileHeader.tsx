@@ -270,7 +270,7 @@ const MobileProfileHeader = memo(function MobileProfileHeader({
             )}
           </Flex>
 
-          {/* Stats Row - Farcaster Style with Zora Coin */}
+          {/* Stats Row - Farcaster Style */}
           <Flex gap={4} fontSize="sm" wrap="wrap">
             <Flex align="center" gap={1}>
               <Text fontWeight="bold" color="white">

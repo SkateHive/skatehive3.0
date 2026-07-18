@@ -368,6 +368,7 @@ export const ptBR = {
     selectThumbnailFirst: 'Por favor, selecione uma miniatura primeiro',
     addTitleFirst: 'Por favor, adicione um título primeiro',
     placeholder: 'Escreva aqui',
+    replyPlaceholder: 'Publique sua resposta...',
     dropFiles: 'Solte arquivos para carregar',
     enterCaption: 'Digite a legenda',
     uploadMedia: 'Carregar Mídia',
@@ -386,6 +387,10 @@ export const ptBR = {
     compressionError: 'Erro ao comprimir imagem',
     unsupportedFileType: 'Tipo de arquivo não suportado',
     videoProcessFailed: 'Falha ao processar arquivo de vídeo',
+    snapTabCompose: 'Compor',
+    snapTabDrafts: 'Rascunhos',
+    snapNoDraft: 'Nenhum rascunho salvo',
+    snapDiscardDraft: 'Descartar',
     prepare: {
       title: 'preparar & publicar',
       stepTrim: 'Cortar',

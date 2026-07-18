@@ -97,7 +97,6 @@ Add these variables to `.env.local` as needed:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLIC_KEY`, `SUPABASE_SERVICE_ROLE_KEY` – Supabase integration
 - `PINATA_JWT` – JWT token for Pinata/IPFS uploads (get from Pinata dashboard > API Keys)
 - `GIPHY_API_KEY` – GIF search in the composer
-- `NEXT_PUBLIC_ZORA_API_KEY` – Zora embeds
 - `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_RECOVERYACC` – email settings for invites
 - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`, `NEXT_PUBLIC_ALCHEMY_KEY`, `ETHERSCAN_API_KEY` – Web3 features
 - `FARCASTER_HUB_URL`, `FARCASTER_INIT_PASSWORD` – Farcaster notifications

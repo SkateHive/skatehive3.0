@@ -16,7 +16,7 @@ Skatehive's authentication system supports **multiple identity types** that can 
 |--------------|----------|-------------|
 | **Email (App Account)** | Magic Link | Core account, no blockchain needed |
 | **Hive** | Keychain/Aioha | Blockchain posting, Hive profile data |
-| **EVM Wallet** | WalletConnect/MetaMask | Token gating, Zora profile |
+| **EVM Wallet** | WalletConnect/MetaMask | Token gating, wallet-linked profile |
 | **Farcaster** | Neynar API | Social graph, Farcaster profile |
 
 ---
@@ -153,7 +153,7 @@ Once logged in with any method, users can link additional identities from Settin
 2. Creates challenge: POST /api/userbase/identities/evm/challenge
 3. Signs message with wallet (MetaMask/WalletConnect)
 4. Verifies signature: POST /api/userbase/identities/evm/verify
-5. Success → Links wallet, routes to /user/{handle}?mode=zora
+5. Success → Links wallet, routes to /user/{handle}
 ```
 
 **What Gets Linked:**
@@ -209,7 +209,6 @@ The app supports different profile views based on active identity:
 | Mode | Route | Data Source | Features |
 |------|-------|-------------|----------|
 | **Hive** | `/user/{hive_username}` | Hive blockchain | Posts, followers, HP, snaps |
-| **Zora** | `/user/{handle}?mode=zora` | Zora API + wallet | NFTs, tokens, collections |
 | **Farcaster** | `/user/{handle}?mode=farcaster` | Neynar API | Casts, social graph |
 | **App Account** | `/user/{handle}` | Userbase DB | Display name, bio, soft posts |
 
@@ -222,7 +221,7 @@ function routeAfterLink(identityType: string, identifier: string) {
   if (identityType === "hive") {
     router.push(`/user/${identifier}`); // Hive profile
   } else if (identityType === "evm") {
-    router.push(`/user/${userbaseUser.handle}?mode=zora`); // Zora profile
+    router.push(`/user/${userbaseUser.handle}`); // Wallet-linked profile
   } else if (identityType === "farcaster") {
     router.push(`/user/${userbaseUser.handle}?mode=farcaster`); // Farcaster profile
   }
