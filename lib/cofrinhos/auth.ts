@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { PublicKey, Signature, cryptoUtils } from "@hiveio/dhive";
+import { PublicKey, Signature, cryptoUtils, type Authority } from "@hiveio/dhive";
 import fetchAccount from "@/lib/hive/fetchAccount";
 
 /**
@@ -179,27 +179,36 @@ export function verifyHiveSignature(
 }
 
 /**
- * Confirm `publicKey` can, on its own, satisfy the account's on-chain posting
- * authority. Checking key membership alone is not enough: in a multisig
- * posting setup a low-weight key can't act alone, so its weight must meet
- * `weight_threshold`. Delegated `account_auths` are deliberately not resolved —
- * unlocking cofrinhos requires the account's own posting key.
+ * Pure rule behind isPostingAuthority: can `publicKey`, on its own, satisfy
+ * this posting authority? Checking key membership alone is not enough: in a
+ * multisig posting setup a low-weight key can't act alone, so its weight must
+ * meet `weight_threshold`. Delegated `account_auths` are deliberately not
+ * resolved — unlocking cofrinhos requires the account's own posting key.
+ * Exported separately so the rule is unit-testable without hitting a Hive
+ * node (see lib/cofrinhos/__tests__/auth.test.ts).
  */
+export function keySatisfiesPostingAuthority(
+  posting: Authority | undefined,
+  publicKey: string
+): boolean {
+  const threshold = posting?.weight_threshold;
+  if (!posting?.key_auths || typeof threshold !== "number" || threshold <= 0) {
+    return false;
+  }
+  const key = publicKey.trim();
+  const entry = posting.key_auths.find(([k]) => String(k) === key);
+  if (!entry) return false;
+  return Number(entry[1]) >= threshold;
+}
+
+/** Confirm `publicKey` satisfies the account's on-chain posting authority. */
 export async function isPostingAuthority(
   account: string,
   publicKey: string
 ): Promise<boolean> {
   try {
     const { account: acc } = await fetchAccount(account.toLowerCase());
-    const posting = acc.posting;
-    const threshold = posting?.weight_threshold;
-    if (!posting?.key_auths || typeof threshold !== "number" || threshold <= 0) {
-      return false;
-    }
-    const key = publicKey.trim();
-    const entry = posting.key_auths.find(([k]) => String(k) === key);
-    if (!entry) return false;
-    return Number(entry[1]) >= threshold;
+    return keySatisfiesPostingAuthority(acc.posting, publicKey);
   } catch {
     return false;
   }
