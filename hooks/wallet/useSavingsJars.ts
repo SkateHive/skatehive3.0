@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
 import { useBankActions } from "./useBankActions";
@@ -88,6 +88,11 @@ export function useSavingsJars() {
   const { user, aioha } = useAioha();
   const { depositToSavings, withdrawFromSavings } = useBankActions();
 
+  // Latest Aioha user, so in-flight requests can tell they became stale after
+  // an account switch and must not write the previous account's data to state.
+  const userRef = useRef(user);
+  userRef.current = user;
+
   const [jars, setJars] = useState<SavingsJar[]>([]);
   const [savingsHbd, setSavingsHbd] = useState(0);
   const [summary, setSummary] = useState<JarsSummary>({
@@ -143,6 +148,8 @@ export function useSavingsJars() {
     setLoading(true);
     try {
       const res = await fetch("/api/cofrinhos");
+      // Account switched while this request was in flight — drop the response.
+      if (userRef.current !== user) return false;
       if (res.status === 401) {
         setAuthed(false);
         setJars([]);
@@ -153,6 +160,15 @@ export function useSavingsJars() {
         return false;
       }
       const data = await res.json();
+      if (userRef.current !== user) return false;
+      if (data.account !== user.toLowerCase()) {
+        // The session cookie belongs to a previously connected account. Kill
+        // it and show the locked state instead of another account's jars.
+        await fetch("/api/cofrinhos/auth/session", { method: "DELETE" });
+        setJars([]);
+        setAuthed(false);
+        return false;
+      }
       setJars(data.jars || []);
       setSavingsHbd(data.savings_hbd || 0);
       setSummary(data.summary);

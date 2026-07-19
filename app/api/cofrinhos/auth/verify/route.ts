@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   COFRINHOS_COOKIE,
   SESSION_COOKIE_MAX_AGE,
+  consumeChallenge,
   createSessionToken,
   isPostingAuthority,
   verifyChallenge,
   verifyHiveSignature,
 } from "@/lib/cofrinhos/auth";
+import { getCofrinhosSupabase } from "@/lib/cofrinhos/supabase";
 
 /**
  * POST /api/cofrinhos/auth/verify
  * Body: { account, message, signature, public_key }
- * Verifies the signed challenge and, on success, sets the cofrinhos session
- * cookie scoped to the Hive account.
+ * Verifies the signed challenge, consumes it (each challenge mints exactly one
+ * session) and, on success, sets the cofrinhos session cookie scoped to the
+ * Hive account.
  */
 export async function POST(request: NextRequest) {
   let body: any;
@@ -31,7 +34,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
-  if (!verifyChallenge(account, message)) {
+  const challenge = verifyChallenge(account, message);
+  if (!challenge) {
     return NextResponse.json(
       { error: "Invalid or expired challenge" },
       { status: 400 }
@@ -47,6 +51,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "Key is not a posting authority for this account" },
       { status: 403 }
+    );
+  }
+
+  const supabase = getCofrinhosSupabase();
+  if (!supabase) {
+    return NextResponse.json(
+      { error: "Missing Supabase configuration" },
+      { status: 500 }
+    );
+  }
+
+  // Consume last, once every other check has passed: a transient RPC failure
+  // above shouldn't burn the challenge, but a fully valid replay must die here.
+  if (!(await consumeChallenge(supabase, account, challenge))) {
+    return NextResponse.json(
+      { error: "Challenge already used" },
+      { status: 409 }
     );
   }
 

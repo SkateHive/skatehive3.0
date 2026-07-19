@@ -62,6 +62,9 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
+    // Echo the session's account so the client can detect a cookie left over
+    // from a previously connected Hive account (see useSavingsJars.refresh).
+    account,
     jars: rows,
     savings_hbd: savings,
     savings_available: savingsAvailable,
