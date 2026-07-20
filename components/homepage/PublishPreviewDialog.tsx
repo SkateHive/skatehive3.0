@@ -165,6 +165,7 @@ export default function PublishPreviewDialog({
   const [masterCaption, setMasterCaption] = useState(initialCaption);
   const [farcasterCaption, setFarcasterCaption] = useState<string | null>(null);
   const [igCaption, setIgCaption] = useState<string | null>(null);
+  const [captionError, setCaptionError] = useState(false);
 
   // Lazily seed the per-network captions the first time their step is shown,
   // so they pick up edits made to the master caption on the Hive step.
@@ -303,6 +304,7 @@ export default function PublishPreviewDialog({
   // close immediately instead of holding a loading state.
   const handlePublish = useCallback(() => {
     if (!masterCaption.trim()) {
+      setCaptionError(true);
       goToStep(targets.hive ? "hive" : steps.find((s) => s !== "trim") ?? "hive");
       return;
     }
@@ -341,7 +343,7 @@ export default function PublishPreviewDialog({
             variant="ghost"
             color="text"
             onClick={hasForwardNext ? goNext : handlePublish}
-            isDisabled={!hasForwardNext && (!isValidSelection || !masterCaption.trim())}
+            isDisabled={!hasForwardNext && !isValidSelection}
             fontFamily="mono"
             size="sm"
           >
@@ -495,8 +497,12 @@ export default function PublishPreviewDialog({
                 <CaptionField
                   label="Caption"
                   value={masterCaption}
-                  onChange={setMasterCaption}
+                  onChange={(v) => {
+                    setMasterCaption(v);
+                    if (v.trim()) setCaptionError(false);
+                  }}
                   placeholder="Write your caption…"
+                  error={captionError && !masterCaption.trim() ? t("compose.captionRequired") : undefined}
                 />
                 {targets.farcaster && (
                   <Text fontFamily="mono" fontSize="2xs" color="dim">
@@ -617,6 +623,7 @@ function CaptionField({
   disabled,
   limit,
   placeholder,
+  error,
 }: {
   label: string;
   value: string;
@@ -624,6 +631,7 @@ function CaptionField({
   disabled?: boolean;
   limit?: number;
   placeholder?: string;
+  error?: string;
 }) {
   return (
     <Box>
@@ -644,11 +652,18 @@ function CaptionField({
         fontSize="sm"
         color="text"
         bg="background"
-        borderColor="border"
+        borderColor={error ? "error" : "border"}
+        borderWidth={error ? "2px" : "1px"}
         whiteSpace="pre-wrap"
         placeholder={placeholder}
         isDisabled={disabled}
+        isInvalid={!!error}
       />
+      {error && (
+        <Text fontFamily="mono" fontSize="2xs" color="error" mt={1}>
+          ⚠ {error}
+        </Text>
+      )}
     </Box>
   );
 }

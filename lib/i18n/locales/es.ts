@@ -358,6 +358,7 @@ export const es = {
     trimDragHandles: 'Arrastra los controles para recortar tu video',
     trimStartHandle: 'Inicio del recorte',
     trimEndHandle: 'Fin del recorte',
+    captionRequired: 'Se requiere un pie de foto antes de publicar',
   },
   createWorkspace: {
     title: 'Espacio de Creación',

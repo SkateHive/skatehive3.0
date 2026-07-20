@@ -341,6 +341,7 @@ export const en = {
     trimDragHandles: 'Drag the handles to trim your video',
     trimStartHandle: 'Trim start',
     trimEndHandle: 'Trim end',
+    captionRequired: 'Caption required before publishing',
   },
   createWorkspace: {
     title: 'Create Workspace',

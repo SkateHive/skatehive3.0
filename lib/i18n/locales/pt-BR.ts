@@ -358,6 +358,7 @@ export const ptBR = {
     trimDragHandles: 'Arraste as alças para cortar seu vídeo',
     trimStartHandle: 'Início do corte',
     trimEndHandle: 'Fim do corte',
+    captionRequired: 'Legenda obrigatória antes de publicar',
   },
   createWorkspace: {
     title: 'Área de Criação',

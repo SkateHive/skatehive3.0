@@ -357,6 +357,7 @@ export const lg = {
     trimDragHandles: 'Walula obukwaso okusala video yo',
     trimStartHandle: 'Entandikwa y’okusala',
     trimEndHandle: 'Enkomerero y’okusala',
+    captionRequired: 'Ekiwandiiko kyetaagisa nga tonnafulumya',
   },
   createWorkspace: {
     title: 'Ekitundu ky Okukola',
