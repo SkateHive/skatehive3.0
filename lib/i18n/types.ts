@@ -1,15 +1,54 @@
 // This file defines the structure that all translation files must follow
 export interface TranslationSchema {
+  swapAdmin: {
+    tab: string;
+    hiveTab: string;
+    erc20Tab: string;
+    hiveSwapTitle: string;
+    erc20SwapTitle: string;
+    connectWallet: string;
+    notAuthorized: string;
+    wrongNetwork: string;
+    switchToBase: string;
+    configOutdated: string;
+    contract: string;
+    address: string;
+    owner: string;
+    status: string;
+    active: string;
+    paused: string;
+    refresh: string;
+    copied: string;
+    viewOnExplorer: string;
+    viewOnSplits: string;
+    recipients: string;
+    balances: string;
+    balancesHint: string;
+    noBalances: string;
+    distribute: string;
+    distributing: string;
+    distributed: string;
+    txSubmitted: string;
+    txCancelled: string;
+    distributeFailed: string;
+    footnote: string;
+  };
   navigation: {
     home: string;
     magazine: string;
     leaderboard: string;
     skatespots: string;
+    map: string;
     bounties: string;
     notifications: string;
     wallet: string;
     settings: string;
     invite: string;
+    menu: string;
+    profile: string;
+    auction: string;
+    videos: string;
+    create: string;
   };
   common: {
     loading: string;
@@ -232,6 +271,7 @@ export interface TranslationSchema {
     selectThumbnailFirst: string;
     addTitleFirst: string;
     placeholder: string;
+    replyPlaceholder: string;
     dropFiles: string;
     enterCaption: string;
     uploadMedia: string;
@@ -249,6 +289,10 @@ export interface TranslationSchema {
     compressionError: string;
     unsupportedFileType: string;
     videoProcessFailed: string;
+    snapTabCompose: string;
+    snapTabDrafts: string;
+    snapNoDraft: string;
+    snapDiscardDraft: string;
     trimButton: string;
     trimProcessing: string;
     trimEngineLoading: string;
@@ -258,6 +302,71 @@ export interface TranslationSchema {
     trimDragHandles: string;
     trimStartHandle: string;
     trimEndHandle: string;
+    captionRequired: string;
+    prepare: {
+      title: string;
+      stepTrim: string;
+      stepHive: string;
+      stepFarcaster: string;
+      stepInstagram: string;
+      auto: string;
+      cancel: string;
+      back: string;
+      next: string;
+      publishTo: string;
+      trimHeading: string;
+      coverHeading: string;
+      setCover: string;
+      caption: string;
+      captionPlaceholder: string;
+      alsoFarcaster: string;
+      farcasterHeading: string;
+      farcasterHint: string;
+      castText: string;
+      castPlaceholder: string;
+      instagramHeading: string;
+      igCaptionPlaceholder: string;
+      collaborators: string;
+      addIgUsername: string;
+      add: string;
+      collabHint: string;
+      preview: string;
+    };
+    progress: {
+      title: string;
+      confirmingHive: string;
+      postingFarcaster: string;
+    };
+  };
+  skateDice: {
+    title: string;
+    coachAlt: string;
+    wannaPlay: string;
+    instructions: string;
+    play: string;
+    rollAgain: string;
+    skatersChoice: string;
+    sentence0: string;
+    sentence1: string;
+    sentence2: string;
+    sentence3: string;
+    sentence4: string;
+    sentence5: string;
+    sentence6: string;
+    sentence7: string;
+    sentence8: string;
+    sentence9: string;
+    sentence10: string;
+    sentence11: string;
+    sentence12: string;
+    sentence13: string;
+    sentence14: string;
+    prompt0: string;
+    prompt1: string;
+    prompt2: string;
+  };
+  trickTutorial: {
+    sectionTitle: string;
   };
   createWorkspace: {
     title: string;
@@ -803,5 +912,12 @@ export interface TranslationSchema {
     pending: string;
     completed: string;
     failed: string;
+  };
+  tricks: {
+    title: string;
+    subtitle: string;
+    diceAriaLabel: string;
+    diceImageAlt: string;
+    viewClips: string;
   };
 }

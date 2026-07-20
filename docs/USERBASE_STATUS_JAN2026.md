@@ -12,7 +12,7 @@ The Skatehive Userbase system is a **multi-identity authentication platform** th
 - Sign up with any method (email, Hive, wallet, Farcaster)
 - Link additional identities with one-click flows
 - Maintain a unified profile across platforms
-- Switch between different profile modes (Hive, Zora, Farcaster)
+- Switch between different profile modes (Hive, Farcaster)
 - Merge duplicate accounts seamlessly
 
 **Current State:** All core features implemented, tested, and optimized for production.
@@ -44,7 +44,7 @@ The Skatehive Userbase system is a **multi-identity authentication platform** th
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **Profile Modes** | ✅ Ready | Hive, Zora (tokens), Farcaster, App Account |
+| **Profile Modes** | ✅ Ready | Hive, Farcaster, App Account |
 | **Mode Switching** | ✅ Ready | Click logos in Connection Modal |
 | **Auto-Routing** | ✅ Ready | Routes to appropriate mode after linking |
 | **Display Name Priority** | ✅ Ready | Hive username > display_name > handle |

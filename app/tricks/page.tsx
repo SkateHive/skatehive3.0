@@ -1,9 +1,18 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { APP_CONFIG } from "@/config/app.config";
+import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import HiveClient from "@/lib/hive/hiveclient";
 import TricksPageWrapper from "@/components/tricks/TricksPageWrapper";
+import TrickCard from "@/components/tricks/TrickCard";
+import TricksHeader from "@/components/tricks/TricksHeader";
+import { extractPostThumbnail } from "@/lib/utils/postThumbnail";
+import { TRICK_TUTORIALS } from "@/lib/utils/trickTutorials";
+
+function extractYouTubeId(url: string): string | null {
+    const match = url.match(/(?:[?&]v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return match ? match[1] : null;
+}
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 const ogImageUrl = `${BASE_URL}/api/og/page?title=Skate%20Tricks&subtitle=Learn%20tricks%20from%20the%20community`;
@@ -65,23 +74,30 @@ export const metadata: Metadata = {
 const TRICK_CATEGORIES = [
     {
         name: "Flip Tricks",
-        emoji: "🔄",
         tricks: [
             { name: "Kickflip", slug: "kickflip", tags: ["kickflip"] },
             { name: "Heelflip", slug: "heelflip", tags: ["heelflip"] },
             { name: "Varial Kickflip", slug: "varial-kickflip", tags: ["varial", "varialkickflip"] },
             { name: "Tre Flip (360 Flip)", slug: "tre-flip", tags: ["treflip", "360flip"] },
             { name: "Hardflip", slug: "hardflip", tags: ["hardflip"] },
+            { name: "Frontside Flip", slug: "frontside-flip", tags: ["frontsideflip", "fsflip"] },
+            { name: "Backside Flip", slug: "backside-flip", tags: ["backsideflip", "bsflip"] },
+            { name: "Varial Heelflip", slug: "varial-heelflip", tags: ["varialheel", "varialheelflip"] },
             { name: "Laser Flip", slug: "laser-flip", tags: ["laserflip"] },
         ],
     },
     {
         name: "Flatground",
-        emoji: "🛹",
         tricks: [
             { name: "Ollie", slug: "ollie", tags: ["ollie"] },
             { name: "Nollie", slug: "nollie", tags: ["nollie"] },
             { name: "Pop Shove-it", slug: "pop-shove-it", tags: ["shove", "shoveit", "popshove"] },
+            { name: "Frontside Shuvit", slug: "frontside-shuvit", tags: ["frontsideshove", "fsshoveit"] },
+            { name: "Backside 180", slug: "backside-180", tags: ["backside180", "bs180"] },
+            { name: "Frontside 180", slug: "frontside-180", tags: ["frontside180", "fs180"] },
+            { name: "360 Pop Shuvit", slug: "360-pop-shuvit", tags: ["360shove", "3shove"] },
+            { name: "One-Foot Ollie", slug: "one-foot-ollie", tags: ["onefootollie", "onefoot"] },
+            { name: "Backside Bigspin", slug: "backside-bigspin", tags: ["backsidebigspin", "bsbigspin", "bigspin"] },
             { name: "Manual", slug: "manual", tags: ["manual"] },
             { name: "No Comply", slug: "no-comply", tags: ["nocomply"] },
             { name: "Boneless", slug: "boneless", tags: ["boneless"] },
@@ -89,7 +105,6 @@ const TRICK_CATEGORIES = [
     },
     {
         name: "Grinds & Slides",
-        emoji: "⚡",
         tricks: [
             { name: "50-50 Grind", slug: "50-50", tags: ["5050", "grind"] },
             { name: "Boardslide", slug: "boardslide", tags: ["boardslide"] },
@@ -97,13 +112,12 @@ const TRICK_CATEGORIES = [
             { name: "Smith Grind", slug: "smith-grind", tags: ["smithgrind"] },
             { name: "Feeble Grind", slug: "feeble", tags: ["feeble", "feeblegrind"] },
             { name: "Crooked Grind", slug: "crooked-grind", tags: ["crooks", "crookedgrind"] },
-            { name: "Blunt Stall", slug: "blunt-stall", tags: ["bluntstall", "blunt"] },
+            { name: "Blunt to Fakie", slug: "blunt-to-fakie", tags: ["blunttofakie", "blunt", "bluntfakie"] },
             { name: "Wallride", slug: "wallride", tags: ["wallride"] },
         ],
     },
     {
         name: "Transition",
-        emoji: "🌊",
         tricks: [
             { name: "Drop In", slug: "drop-in", tags: ["dropin"] },
             { name: "Rock to Fakie", slug: "rock-to-fakie", tags: ["rocktofakie", "rock"] },
@@ -120,33 +134,60 @@ type HivePost = {
     title?: string;
     created?: string;
     body?: string;
+    json_metadata?: unknown;
+    category?: string;
 };
 
-async function fetchPostsForTrick(tags: string[]): Promise<number> {
+async function fetchFirstPostForTrick(tags: string[]): Promise<HivePost | null> {
     try {
         const results = await Promise.allSettled(
             tags.map((tag) =>
                 HiveClient.call("bridge", "get_ranked_posts", {
                     sort: "created",
                     tag,
-                    limit: 1,
+                    limit: 10,
                     observer: "",
                 })
             )
         );
-        let count = 0;
         for (const r of results) {
-            if (r.status === "fulfilled" && r.value?.length) count += r.value.length;
+            if (r.status !== "fulfilled" || !r.value?.length) continue;
+            const community = (r.value as HivePost[]).find(
+                (p) => p.category === HIVE_CONFIG.COMMUNITY_TAG
+            );
+            if (community) return community;
         }
-        return count;
+        return null;
     } catch {
-        return 0;
+        return null;
     }
 }
 
 export const revalidate = 300; // ISR: render once, refresh every 5 min (static-safe page)
 
 export default async function TricksPage() {
+    // Fetch one representative post per trick in parallel to extract a thumbnail URL.
+    // Uses the same limit:1 pattern already established in fetchFirstPostForTrick.
+    const allTricks = TRICK_CATEGORIES.flatMap((cat) => cat.tricks);
+    const postResults = await Promise.allSettled(
+        allTricks.map((trick) => fetchFirstPostForTrick(trick.tags))
+    );
+    const thumbnailMap = new Map<string, string | null>();
+    allTricks.forEach((trick, i) => {
+        const result = postResults[i];
+        const post = result.status === "fulfilled" ? result.value : null;
+        thumbnailMap.set(trick.slug, post ? extractPostThumbnail(post) : null);
+    });
+
+    const tutorialThumbnailMap = new Map<string, string>();
+    allTricks.forEach((trick) => {
+        const url = TRICK_TUTORIALS[trick.slug];
+        if (url) {
+            const id = extractYouTubeId(url);
+            if (id) tutorialThumbnailMap.set(trick.slug, `https://img.youtube.com/vi/${id}/hqdefault.jpg`);
+        }
+    });
+
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -200,86 +241,37 @@ export default async function TricksPage() {
                         minHeight: "100vh",
                     }}
                 >
-                <header style={{ textAlign: "center", marginBottom: "32px" }}>
-                    <h1
-                        style={{
-                            fontSize: "2.2rem",
-                            fontWeight: "bold",
-                            color: "#a7ff00",
-                            marginBottom: "12px",
-                        }}
-                    >
-                        Skateboard Tricks
-                    </h1>
-                    <p
-                        style={{
-                            fontSize: "1.1rem",
-                            color: "#ccc",
-                            maxWidth: "600px",
-                            margin: "0 auto",
-                            lineHeight: 1.6,
-                        }}
-                    >
-                        Browse trick clips filmed by real skaters from the Skatehive
-                        community. Click any trick to see GIFs, videos, and posts.
-                    </p>
-                </header>
+                <TricksHeader />
 
                 {TRICK_CATEGORIES.map((category) => (
                     <section key={category.name} style={{ marginBottom: "40px" }}>
                         <h2
                             style={{
                                 fontSize: "1.4rem",
-                                color: "#fff",
+                                fontWeight: "bold",
+                                color: "var(--chakra-colors-primary)",
                                 marginBottom: "16px",
                                 borderBottom: "1px solid #333",
                                 paddingBottom: "8px",
                             }}
                         >
-                            {category.emoji} {category.name}
+                            {category.name}
                         </h2>
                         <div
                             style={{
                                 display: "grid",
                                 gridTemplateColumns:
-                                    "repeat(auto-fill, minmax(180px, 1fr))",
+                                    "repeat(auto-fill, minmax(200px, 1fr))",
                                 gap: "12px",
                             }}
                         >
                             {category.tricks.map((trick) => (
-                                <Link
+                                <TrickCard
                                     key={trick.slug}
-                                    href={`/tricks/${trick.slug}`}
-                                    style={{
-                                        display: "block",
-                                        padding: "16px",
-                                        background: "rgba(167, 255, 0, 0.05)",
-                                        border: "1px solid rgba(167, 255, 0, 0.2)",
-                                        borderRadius: "12px",
-                                        textDecoration: "none",
-                                        transition: "all 0.2s",
-                                    }}
-                                >
-                                    <span
-                                        style={{
-                                            display: "block",
-                                            fontSize: "1.1rem",
-                                            color: "#a7ff00",
-                                            fontWeight: "600",
-                                            marginBottom: "4px",
-                                        }}
-                                    >
-                                        {trick.name}
-                                    </span>
-                                    <span
-                                        style={{
-                                            fontSize: "0.8rem",
-                                            color: "#888",
-                                        }}
-                                    >
-                                        View clips →
-                                    </span>
-                                </Link>
+                                    trick={trick}
+                                    tutorialThumbnailUrl={tutorialThumbnailMap.get(trick.slug)}
+                                    thumbnailUrl={thumbnailMap.get(trick.slug) ?? null}
+                                />
                             ))}
                         </div>
                     </section>

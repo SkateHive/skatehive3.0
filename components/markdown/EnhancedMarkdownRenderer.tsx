@@ -12,7 +12,6 @@ import HiveMarkdown from "@/components/shared/HiveMarkdown";
 const VideoEmbed = dynamic(() => import("./VideoEmbed").then(m => m.VideoEmbed), { ssr: false });
 const ThreeSpeakPlayer = dynamic(() => import("./ThreeSpeakPlayer").then(m => m.ThreeSpeakPlayer), { ssr: false });
 const InstagramEmbed = dynamic(() => import("./InstagramEmbed"), { ssr: false });
-const ZoraCoinPreview = dynamic(() => import("../zora/ZoraCoinPreview"), { ssr: false });
 const SnapshotPreview = dynamic(() => import("../shared/SnapshotPreview"), { ssr: false });
 const GameCartridgeEmbed = dynamic(() => import("../games/GameCartridgeEmbed"), { ssr: false });
 const ProposalPreview = dynamic(() => import("../dao/governance/ProposalPreview"), { ssr: false });
@@ -41,10 +40,10 @@ export function EnhancedMarkdownRenderer({
 function renderContentWithVideos(
   processed: ProcessedMarkdown
 ): React.ReactNode[] {
-  // Split on supported video, social media, Zora coin, Snapshot, SkateHive game, and Builder proposal placeholders
+  // Split on supported video, social media, Snapshot, SkateHive game, and Builder proposal placeholders
   // Use [\s\S] instead of [^\]] to handle newlines inside placeholders
   const parts = processed.contentWithPlaceholders.split(
-    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[\s\S]+?\]\])/g
+    /(\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[\s\S]+?\]\])/g
   );
 
   return parts
@@ -76,13 +75,6 @@ function renderContentWithVideos(
       if (instagramMatch) {
         const url = instagramMatch[1].trim();
         return <InstagramEmbed key={`instagram-${idx}`} url={url} />;
-      }
-
-      // Handle Zora coin placeholders
-      const zoraCoinMatch = part.match(/^\[\[ZORACOIN:([\s\S]+?)\]\]$/);
-      if (zoraCoinMatch) {
-        const address = zoraCoinMatch[1].trim();
-        return <ZoraCoinPreview key={`zora-${idx}`} address={address} />;
       }
 
       // Handle Snapshot proposal placeholders
@@ -151,8 +143,6 @@ function cleanMarkdownPart(part: string): string {
       ""
     )
     .replace(/^https?:\/\/(?:www\.)?(?:vimeo\.com\/).*$/gm, "")
-    .replace(/^https?:\/\/(?:www\.)?zora\.co\/coin\/.*$/gm, "")
-    .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/coin\/.*$/gm, "")
     .replace(
       /^https?:\/\/(?:www\.)?snapshot\.(?:org|box)\/.*\/proposal\/.*$/gm,
       ""
@@ -166,9 +156,9 @@ function cleanMarkdownPart(part: string): string {
     .replace(/^https?:\/\/(?:www\.)?skatehive\.app\/bounties\/poidh\/.*$/gm, "") // POIDH bounties
     .replace(/^https?:\/\/(?:www\.)?[^\/\s]+\/(?:proposals|vote)\/\d+$/gm, "") // Builder DAO proposals
     // Remove any leftover placeholders that weren't split properly
-    .replace(/\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[^\]]+\]\]/g, "")
+    .replace(/\[\[(VIDEO|ODYSEE|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY):[^\]]+\]\]/g, "")
     .replace(
-      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|ZORACOIN|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY)\s*$/gm,
+      /^(ODYSEE|VIDEO|YOUTUBE|VIMEO|3SPEAK|INSTAGRAM|SNAPSHOT|SKATEHIVEGAME|BUILDERPROPOSAL|POIDHBOUNTY)\s*$/gm,
       ""
     )
     .replace(/^[a-zA-Z0-9_-]{11}$/gm, "") // YouTube video IDs

@@ -1,8 +1,16 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { APP_CONFIG } from "@/config/app.config";
+import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
 import { safeJsonLdStringify } from "@/lib/utils/safeJsonLd";
 import HiveClient from "@/lib/hive/hiveclient";
+import TrickTutorial from "@/components/tricks/TrickTutorial";
+import TrickCard from "@/components/tricks/TrickCard";
+import { TRICK_TUTORIALS } from "@/lib/utils/trickTutorials";
+
+function extractYouTubeId(url: string): string | null {
+    const match = url.match(/(?:[?&]v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return match ? match[1] : null;
+}
 
 const BASE_URL = APP_CONFIG.BASE_URL;
 
@@ -98,10 +106,10 @@ const TRICK_MAP: Record<string, { name: string; tags: string[]; description: str
         tags: ["crooks", "crookedgrind", "crooked"],
         description: "The crooked grind (or crooks) is a nosegrind at an angle, with the nose of the board pressing into the ledge.",
     },
-    "blunt-stall": {
-        name: "Blunt Stall",
-        tags: ["bluntstall", "blunt"],
-        description: "A blunt stall involves riding up a ramp, locking the back trucks on the coping with the board vertical, and coming back in.",
+    "blunt-to-fakie": {
+        name: "Blunt to Fakie",
+        tags: ["blunttofakie", "blunt", "bluntfakie", "blunt-to-fakie"],
+        description: "A blunt to fakie involves riding up a ramp, locking the tail on the coping with the board tilted back, then pumping back in fakie.",
     },
     wallride: {
         name: "Wallride",
@@ -133,6 +141,51 @@ const TRICK_MAP: Record<string, { name: string; tags: string[]; description: str
         tags: ["backsideair"],
         description: "A backside air is an aerial trick on a ramp where the skater turns backside while grabbing the board.",
     },
+    "frontside-flip": {
+        name: "Frontside Flip",
+        tags: ["frontsideflip", "fsflip", "frontside-flip"],
+        description: "A frontside flip combines a frontside 180 body rotation with a kickflip. The skater turns their chest toward the direction of travel while the board flips.",
+    },
+    "backside-bigspin": {
+        name: "Backside Bigspin",
+        tags: ["backsidebigspin", "bsbigspin", "bigspin", "backside-bigspin"],
+        description: "A backside bigspin combines a 360 backside pop shove-it with a 180 backside body rotation. The skater and board rotate in the same direction.",
+    },
+    "varial-heelflip": {
+        name: "Varial Heelflip",
+        tags: ["varialheel", "varialheelflip", "varial-heelflip"],
+        description: "A varial heelflip combines a backside pop shove-it with a heelflip. The board spins backside while flipping toward the rider.",
+    },
+    "backside-flip": {
+        name: "Backside Flip",
+        tags: ["backsideflip", "bsflip", "backside-flip"],
+        description: "A backside flip combines a backside 180 body rotation with a kickflip. One of the most stylish street tricks.",
+    },
+    "backside-180": {
+        name: "Backside 180",
+        tags: ["backside180", "bs180", "backside-180"],
+        description: "A backside 180 is a 180-degree rotation where the skater turns their back toward the direction of travel. A core flatground and park trick.",
+    },
+    "frontside-180": {
+        name: "Frontside 180",
+        tags: ["frontside180", "fs180", "frontside-180"],
+        description: "A frontside 180 is a 180-degree rotation where the skater turns their chest toward the direction of travel. A fundamental foundation trick.",
+    },
+    "360-pop-shuvit": {
+        name: "360 Pop Shuvit",
+        tags: ["360shove", "3shove", "360popshove", "360-pop-shuvit"],
+        description: "A 360 pop shove-it (3 shove) spins the board a full 360 degrees under the skater's feet with a backside scoop of the tail.",
+    },
+    "one-foot-ollie": {
+        name: "One-Foot Ollie",
+        tags: ["onefootollie", "onefoot", "one-foot-ollie"],
+        description: "A one-foot ollie is an ollie where the front foot kicks out to the side mid-air, fully leaving the board, then returns to land.",
+    },
+    "frontside-shuvit": {
+        name: "Frontside Shuvit",
+        tags: ["frontsideshove", "fsshoveit", "frontsideshoveit", "frontside-shuvit"],
+        description: "A frontside shove-it spins the board 180 degrees in the frontside direction under the skater's feet without a kickflip.",
+    },
 };
 
 type HivePost = {
@@ -143,6 +196,7 @@ type HivePost = {
     body?: string;
     net_votes?: number;
     children?: number;
+    category?: string;
 };
 
 interface Props {
@@ -151,10 +205,10 @@ interface Props {
 
 // Helper to get related tricks based on category
 function getRelatedTricks(currentTrick: string): Array<{ slug: string; name: string }> {
-    const flipTricks = ["kickflip", "heelflip", "varial-kickflip", "tre-flip", "hardflip", "laser-flip"];
-    const flatgroundTricks = ["ollie", "pop-shove-it", "nollie", "manual", "no-comply", "boneless"];
+    const flipTricks = ["kickflip", "heelflip", "varial-kickflip", "tre-flip", "hardflip", "laser-flip", "frontside-flip", "varial-heelflip", "backside-flip"];
+    const flatgroundTricks = ["ollie", "pop-shove-it", "nollie", "manual", "no-comply", "boneless", "backside-180", "frontside-180", "360-pop-shuvit", "one-foot-ollie", "frontside-shuvit", "backside-bigspin"];
     const grindTricks = ["50-50", "boardslide", "nosegrind", "smith-grind", "feeble", "crooked-grind"];
-    const transitionTricks = ["blunt-stall", "wallride", "drop-in", "rock-to-fakie", "axle-stall", "frontside-air", "backside-air"];
+    const transitionTricks = ["blunt-to-fakie", "wallride", "drop-in", "rock-to-fakie", "axle-stall", "frontside-air", "backside-air"];
 
     let relatedSlugs: string[] = [];
     if (flipTricks.includes(currentTrick)) {
@@ -192,6 +246,7 @@ async function fetchTrickPosts(tags: string[]): Promise<HivePost[]> {
         if (result.status === "fulfilled" && Array.isArray(result.value)) {
             for (const post of result.value) {
                 if (!post?.author || !post?.permlink) continue;
+                if (post.category !== HIVE_CONFIG.COMMUNITY_TAG) continue;
                 const key = `${post.author}/${post.permlink}`;
                 if (seen.has(key)) continue;
                 seen.add(key);
@@ -268,6 +323,8 @@ export default async function TrickPage({ params }: Props) {
     const displayName = trickData?.name || trickSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     const description = trickData?.description || `Browse ${displayName} clips from the skateboarding community.`;
     const tags = trickData?.tags || [trickSlug.replace(/-/g, "")];
+
+    const tutorialUrl = TRICK_TUTORIALS[trickSlug];
 
     // Fetch real posts from Hive
     const posts = await fetchTrickPosts(tags);
@@ -354,6 +411,8 @@ export default async function TrickPage({ params }: Props) {
                     </p>
                 </header>
 
+                <TrickTutorial url={tutorialUrl} />
+
                 {/* Posts grid */}
                 {posts.length > 0 ? (
                     <div
@@ -374,7 +433,6 @@ export default async function TrickPage({ params }: Props) {
                                         display: "block",
                                         background: "rgba(255,255,255,0.03)",
                                         border: "1px solid rgba(255,255,255,0.1)",
-                                        borderRadius: "12px",
                                         overflow: "hidden",
                                         textDecoration: "none",
                                         transition: "border-color 0.2s",
@@ -422,7 +480,6 @@ export default async function TrickPage({ params }: Props) {
                             textAlign: "center",
                             color: "#888",
                             border: "1px dashed #333",
-                            borderRadius: "12px",
                             marginBottom: "32px",
                         }}
                     >
@@ -439,38 +496,27 @@ export default async function TrickPage({ params }: Props) {
                     </div>
                 )}
 
-                {/* Related Tricks Cross-Links */}
-                <div style={{ 
-                    marginBottom: "32px", 
-                    padding: "20px", 
-                    background: "rgba(20,20,20,0.4)", 
-                    borderRadius: "12px",
-                    border: "1px solid rgba(255,255,255,0.1)"
-                }}>
+                {/* Related Tricks */}
+                <div style={{ marginBottom: "32px" }}>
                     <h2 style={{ fontSize: "1.2rem", color: "#a7ff00", marginBottom: "16px" }}>
                         Related Tricks
                     </h2>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "12px" }}>
-                        {getRelatedTricks(trickSlug).map((relatedTrick) => (
-                            <Link
-                                key={relatedTrick.slug}
-                                href={`/tricks/${relatedTrick.slug}`}
-                                style={{
-                                    padding: "12px",
-                                    background: "rgba(0,0,0,0.3)",
-                                    borderRadius: "8px",
-                                    border: "1px solid rgba(167,255,0,0.2)",
-                                    color: "#fff",
-                                    textDecoration: "none",
-                                    transition: "all 0.3s",
-                                    textAlign: "center",
-                                    fontSize: "0.9rem",
-                                }}
-
-                            >
-                                {relatedTrick.name}
-                            </Link>
-                        ))}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
+                        {getRelatedTricks(trickSlug).slice(0, 4).map((relatedTrick) => {
+                            const tutUrl = TRICK_TUTORIALS[relatedTrick.slug];
+                            const tutId = tutUrl ? extractYouTubeId(tutUrl) : null;
+                            const tutorialThumbnailUrl = tutId
+                                ? `https://img.youtube.com/vi/${tutId}/hqdefault.jpg`
+                                : undefined;
+                            return (
+                                <TrickCard
+                                    key={relatedTrick.slug}
+                                    trick={relatedTrick}
+                                    tutorialThumbnailUrl={tutorialThumbnailUrl}
+                                    thumbnailUrl={null}
+                                />
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -479,7 +525,6 @@ export default async function TrickPage({ params }: Props) {
                     <h2 style={{ fontSize: "1.2rem", color: "#fff", marginBottom: "12px" }}>
                         About the {displayName}
                     </h2>
-                    <p style={{ marginBottom: "12px" }}>{description}</p>
                     <p>
                         Want to see your {displayName.toLowerCase()} clip here? Post it on Skatehive
                         with the tag <code style={{ color: "#a7ff00" }}>#{tags[0]}</code> and

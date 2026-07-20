@@ -88,9 +88,10 @@ import { ImageCompressorRef } from "@/lib/utils/ImageCompressor";
 import imageCompression from "browser-image-compression";
 import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
 
-import GIFMakerWithSelector, {
-  GIFMakerRef as GIFMakerWithSelectorRef,
-} from "./GIFMakerWithSelector";
+import type { GIFMakerRef as GIFMakerWithSelectorRef } from "./GIFMakerWithSelector";
+// FFmpeg (loaded inside this component) touches browser-only globals at
+// module init, which crashes SSR if bundled into the server render.
+const GIFMakerWithSelector = dynamic(() => import("./GIFMakerWithSelector"), { ssr: false });
 import useHivePower from "@/hooks/useHivePower";
 import { useInstagramHealth } from "@/hooks/useInstagramHealth";
 import { TbGif } from "react-icons/tb";
@@ -99,6 +100,7 @@ import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { buildSnapCastText, buildSnapCastEmbeds } from "@/lib/crosspost/snapCast";
+import { getSnapDraft, saveSnapDraft, clearSnapDraft } from "@/lib/compose/snapDraft";
 
 // Channels enabled for Farcaster cross-posting. Mirrors the server-side
 // whitelist in /api/farcaster/cast/route.ts — keep them in sync.
@@ -121,6 +123,10 @@ interface SnapComposerProps {
   onClose: () => void;
   submitLabel?: string;
   buttonSize?: "sm" | "md" | "lg";
+  /** When true, renders the reply-specific media button styles
+   *  (plain buttons, no hover effects). DestinationMenu renders in both modes.
+   *  Only the Snap.tsx inline reply composer opts into this. */
+  isReply?: boolean;
 }
 
 /** Rich progress toast for background video publishing: cover thumb + bar. */
@@ -185,6 +191,7 @@ const SnapComposer = React.memo(function SnapComposer({
   onClose,
   submitLabel,
   buttonSize = "lg",
+  isReply = false,
 }: SnapComposerProps) {
   const { user, aioha } = useAioha();
   const { handle: effectiveUser, canUseAppFeatures } = useEffectiveHiveUser();
@@ -251,6 +258,7 @@ const SnapComposer = React.memo(function SnapComposer({
   >([]);
 
   const imageUploadInputRef = useRef<HTMLInputElement>(null);
+  const snapDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // GIF maker state and refs (direct integration)
   const [isGifMakerOpen, setGifMakerOpen] = useState(false);
@@ -363,6 +371,64 @@ const SnapComposer = React.memo(function SnapComposer({
       cancelled = true;
     };
   }, [isMainFeedSnap, canBypassLimit, igHandleStatus]);
+
+  // Restore snap draft on mount — main feed instance only (silent, no indicator)
+  useEffect(() => {
+    if (!isMainFeedSnap) return;
+    const draft = getSnapDraft();
+    if (!draft) return;
+    if (draft.body && postBodyRef.current) {
+      postBodyRef.current.value = draft.body;
+    }
+    if (draft.images.length > 0) {
+      setCompressedImages(
+        draft.images.map(({ url, caption }) => ({
+          url,
+          fileName: url.split("/").pop()?.split("?")[0] || "image",
+          caption,
+        }))
+      );
+    }
+    if (draft.videoUrl) {
+      setVideoUrl(draft.videoUrl);
+    }
+    // gifUrl: not restored — selectedGif requires a full IGif object and Giphy
+    // GIFs are preview-only (they don't make it into post bodies), so nothing is lost
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Autosave: debounced save after body/image/gif/video changes — main feed only
+  const doSaveSnapDraft = useCallback(() => {
+    if (!isMainFeedSnap) return;
+    const body = postBodyRef.current?.value || "";
+    const images = compressedImages.map((img) => ({ url: img.url, caption: img.caption }));
+    const gifUrl = selectedGif?.images?.downsized_medium?.url ?? null;
+    // blob: URLs are session-only local previews; only persist hosted URLs
+    const persistedVideoUrl = videoUrl?.startsWith("blob:") ? null : videoUrl;
+    if (!body.trim() && images.length === 0 && !gifUrl && !persistedVideoUrl) {
+      clearSnapDraft();
+      return;
+    }
+    saveSnapDraft({ body, images, gifUrl, videoUrl: persistedVideoUrl });
+  }, [isMainFeedSnap, compressedImages, selectedGif, videoUrl]);
+
+  const cancelSnapDraftSave = useCallback(() => {
+    if (snapDraftTimerRef.current) {
+      clearTimeout(snapDraftTimerRef.current);
+      snapDraftTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleSnapDraftSave = useCallback(() => {
+    if (!isMainFeedSnap) return;
+    cancelSnapDraftSave();
+    snapDraftTimerRef.current = setTimeout(doSaveSnapDraft, 1000);
+  }, [isMainFeedSnap, cancelSnapDraftSave, doSaveSnapDraft]);
+
+  // Fire debounced save when media state changes (main feed only)
+  useEffect(() => {
+    if (!isMainFeedSnap) return;
+    scheduleSnapDraftSave();
+  }, [isMainFeedSnap, scheduleSnapDraftSave]);
 
   const buttonText = useMemo(
     () => submitLabel || (post ? "Reply" : "Post"),
@@ -845,6 +911,26 @@ const SnapComposer = React.memo(function SnapComposer({
 
     const wantsSkatehive = postToHive;
     const wantsFarcaster = postToFarcaster;
+    // Farcaster-only main-feed snaps still create a masked @skateuser Hive
+    // soft-post (overlaid with the user's identity) so there's always a
+    // SkateHive post page for the cast / Mini App to open. Replies (non-main-
+    // feed) keep the cast-only behavior in the branch below.
+    //
+    // The @skateuser soft-post is created via the userbase route, which REQUIRES
+    // a userbase session. A Keychain/aioha-only user (no userbase session) would
+    // get a 401 there and be unable to publish — so only force it when a
+    // userbase session exists; otherwise fall back to the cast-only branch.
+    // Only force the masked @skateuser soft-post when the user can ACTUALLY
+    // publish to Farcaster (eligible + linked). Otherwise a non-eligible FC-only
+    // user would create an orphan masked Hive post they can't back with a cast —
+    // instead they fall through to the branch below that prompts them to link.
+    const forceSkateuser =
+      !wantsSkatehive &&
+      wantsFarcaster &&
+      isMainFeedSnap &&
+      !!userbaseUser &&
+      farcasterEligible &&
+      !!farcasterLinkage;
 
     if (!wantsSkatehive && !wantsFarcaster) {
       toast({
@@ -856,8 +942,10 @@ const SnapComposer = React.memo(function SnapComposer({
       return;
     }
 
-    // Farcaster-only: skip Hive entirely, publish a cast directly.
-    if (!wantsSkatehive && wantsFarcaster) {
+    // Farcaster-only WITHOUT a masked Hive post (replies / non-main-feed):
+    // publish a cast directly. Main-feed FC-only snaps fall through to the Hive
+    // flow below to create the @skateuser soft-post (forceSkateuser).
+    if (!wantsSkatehive && wantsFarcaster && !forceSkateuser) {
       if (!farcasterEligible || !farcasterLinkage) {
         toast({
           title: "Link your Farcaster account first.",
@@ -925,6 +1013,10 @@ const SnapComposer = React.memo(function SnapComposer({
           duration: 3000,
           isClosable: true,
         });
+        if (isMainFeedSnap) {
+          cancelSnapDraftSave();
+          clearSnapDraft();
+        }
         postBodyRef.current!.value = "";
         setCompressedImages([]);
         setSelectedGif(null);
@@ -1059,7 +1151,7 @@ const SnapComposer = React.memo(function SnapComposer({
         const permlink = crypto.randomUUID();
         let commentResponse: any = null;
 
-        if (user) {
+        if (user && !forceSkateuser) {
           commentResponse = await aioha.comment(
             pa,
             postPermlink,
@@ -1069,6 +1161,8 @@ const SnapComposer = React.memo(function SnapComposer({
             metadata
           );
         } else {
+          // forceSkateuser (Farcaster-only) → always post via the shared
+          // @skateuser account, even if the user has their own Hive identity.
           const response = await fetch("/api/userbase/hive/comment", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1080,6 +1174,7 @@ const SnapComposer = React.memo(function SnapComposer({
               body: finalCommentBody,
               json_metadata: metadata,
               type: "snap",
+              force_soft_post: forceSkateuser,
             }),
           });
           const data = await response.json();
@@ -1103,6 +1198,10 @@ const SnapComposer = React.memo(function SnapComposer({
             throw new Error("Unable to determine comment author");
           }
 
+          if (isMainFeedSnap) {
+            cancelSnapDraftSave();
+            clearSnapDraft();
+          }
           postBodyRef.current!.value = "";
           setCompressedImages([]);
           setSelectedGif(null);
@@ -1197,13 +1296,24 @@ const SnapComposer = React.memo(function SnapComposer({
           // empty response — breaking the embed preview permanently.
           if (willFarcaster) {
             const progressId = "snap-share-progress";
+            // Custom render (no default Chakra chrome) so the toast paints its
+            // content on the first frame — a default status toast briefly shows
+            // an empty frame before its title/description lay out.
+            const shareCover = videoThumbnailUrl || compressedImages[0]?.url || null;
             toast({
               id: progressId,
-              title: "Sharing snap…",
-              description: "Confirming on Hive…",
-              status: "loading",
               duration: null,
               isClosable: false,
+              position: publishToastPosition,
+              render: () => (
+                <PublishProgressToast
+                  cover={shareCover}
+                  title={t('compose.progress.title')}
+                  stage={t('compose.progress.confirmingHive')}
+                  progress={92}
+                  tone="loading"
+                />
+              ),
             });
 
             const confirmed = await waitForHivePost(commentAuthor, permlink, {
@@ -1216,11 +1326,15 @@ const SnapComposer = React.memo(function SnapComposer({
             }
 
             toast.update(progressId, {
-              title: "Sharing snap…",
-              description: "Posting to Farcaster…",
-              status: "loading",
-              duration: null,
-              isClosable: false,
+              render: () => (
+                <PublishProgressToast
+                  cover={shareCover}
+                  title={t('compose.progress.title')}
+                  stage={t('compose.progress.postingFarcaster')}
+                  progress={96}
+                  tone="loading"
+                />
+              ),
             });
 
             // Farcaster (awaited so the progress toast closes when done)
@@ -1352,6 +1466,7 @@ const SnapComposer = React.memo(function SnapComposer({
     farcasterChannel,
     farcasterEligible,
     farcasterLinkage,
+    publishToastPosition,
   ]);
 
   // After the publish dialog hands back processed media + caption, the relevant
@@ -1751,13 +1866,13 @@ const SnapComposer = React.memo(function SnapComposer({
           p={4}
           mb={1}
           borderRadius="base"
-          borderBottom={"1px"}
+          borderBottom={isReply ? "none" : "1px"}
           borderColor="muted"
         >
           <Textarea
             id="snap-composer-textarea"
             data-testid="snap-composer-textarea"
-            placeholder={t('compose.placeholder')}
+            placeholder={isReply ? t('compose.replyPlaceholder') : t('compose.placeholder')}
             bg="background"
             borderRadius={"base"}
             mb={3}
@@ -1767,6 +1882,8 @@ const SnapComposer = React.memo(function SnapComposer({
             isDisabled={isLoading}
             onKeyDown={handleKeyDown} // Attach the keydown handler
             onPaste={handlePaste}
+            onChange={() => scheduleSnapDraftSave()}
+            onBlur={() => doSaveSnapDraft()}
             _focusVisible={{ border: "tb1" }}
           />
 
@@ -1900,31 +2017,55 @@ const SnapComposer = React.memo(function SnapComposer({
             <HStack spacing={3} align="center" wrap="nowrap">
               {/* Media Upload Button */}
               <Box position="relative">
-                <IconButton
-                  id="snap-composer-media-upload-btn"
-                  data-testid="snap-composer-media-upload"
-                  aria-label={t('compose.uploadMedia')}
-                  icon={
-                    <FaImage color="var(--chakra-colors-primary)" size={22} />
-                  }
-                  variant="ghost"
-                  isDisabled={isLoading}
-                  border="2px solid transparent"
-                  borderRadius="full"
-                  height="48px"
-                  width="48px"
-                  p={0}
-                  mr={0}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  _hover={{
-                    borderColor: "primary",
-                    boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
-                  }}
-                  _active={{ borderColor: "accent" }}
-                  onClick={() => imageUploadInputRef.current?.click()}
-                />
+                {isReply ? (
+                  <IconButton
+                    id="snap-composer-media-upload-btn"
+                    data-testid="snap-composer-media-upload"
+                    aria-label={t('compose.uploadMedia')}
+                    icon={
+                      <FaImage color="var(--chakra-colors-primary)" size={22} />
+                    }
+                    isDisabled={isLoading}
+                    background="none"
+                    border="none"
+                    color="primary"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{ opacity: 0.7 }}
+                    onClick={() => imageUploadInputRef.current?.click()}
+                  />
+                ) : (
+                  <IconButton
+                    id="snap-composer-media-upload-btn"
+                    data-testid="snap-composer-media-upload"
+                    aria-label={t('compose.uploadMedia')}
+                    icon={
+                      <FaImage color="var(--chakra-colors-primary)" size={22} />
+                    }
+                    variant="ghost"
+                    isDisabled={isLoading}
+                    border="2px solid transparent"
+                    borderRadius="full"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{
+                      borderColor: "primary",
+                      boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
+                    }}
+                    _active={{ borderColor: "accent" }}
+                    onClick={() => imageUploadInputRef.current?.click()}
+                  />
+                )}
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.heic,.gif,.webp,video/*"
@@ -1951,31 +2092,59 @@ const SnapComposer = React.memo(function SnapComposer({
               </Box>
               {/* Giphy Button (only in reply modal) */}
               {post && (
-                <IconButton
-                  id="snap-composer-giphy-btn"
-                  data-testid="snap-composer-giphy"
-                  aria-label={t('compose.addGif')}
-                  icon={
-                    <TbGif size={22} color="var(--chakra-colors-primary)" />
-                  }
-                  variant="ghost"
-                  isDisabled={isLoading}
-                  border="2px solid transparent"
-                  borderRadius="full"
-                  height="48px"
-                  width="48px"
-                  p={0}
-                  mr={0}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  _hover={{
-                    borderColor: "primary",
-                    boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
-                  }}
-                  _active={{ borderColor: "accent" }}
-                  onClick={() => setGiphyModalOpen((open) => !open)}
-                />
+                isReply ? (
+                  <IconButton
+                    id="snap-composer-giphy-btn"
+                    data-testid="snap-composer-giphy"
+                    aria-label={t('compose.addGif')}
+                    icon={
+                      <TbGif size={22} color="var(--chakra-colors-primary)" />
+                    }
+                    isDisabled={isLoading}
+                    background="none"
+                    border="none"
+                    boxShadow="none"
+                    outline="none"
+                    color="primary"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{ opacity: 0.7 }}
+                    _active={{ background: "none", boxShadow: "none" }}
+                    _focus={{ boxShadow: "none" }}
+                    onClick={() => setGiphyModalOpen((open) => !open)}
+                  />
+                ) : (
+                  <IconButton
+                    id="snap-composer-giphy-btn"
+                    data-testid="snap-composer-giphy"
+                    aria-label={t('compose.addGif')}
+                    icon={
+                      <TbGif size={22} color="var(--chakra-colors-primary)" />
+                    }
+                    variant="ghost"
+                    isDisabled={isLoading}
+                    border="2px solid transparent"
+                    borderRadius="full"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{
+                      borderColor: "primary",
+                      boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
+                    }}
+                    _active={{ borderColor: "accent" }}
+                    onClick={() => setGiphyModalOpen((open) => !open)}
+                  />
+                )
               )}
               <Box display="none">
                 <ImageCompressor
@@ -1984,45 +2153,13 @@ const SnapComposer = React.memo(function SnapComposer({
                   isProcessing={isLoading}
                 />
               </Box>
-              {/* GIF Maker Button */}
-              <IconButton
-                id="snap-composer-gif-maker-btn"
-                data-testid="snap-composer-gif-maker"
-                aria-label={t('compose.gifMaker')}
-                icon={<TbGif color="var(--chakra-colors-primary)" size={22} />}
-                variant="ghost"
-                isDisabled={isLoading}
-                border="2px solid transparent"
-                borderRadius="full"
-                height="48px"
-                width="48px"
-                p={0}
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                _hover={{
-                  borderColor: "primary",
-                  boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
-                }}
-                _active={{ borderColor: "accent" }}
-                onClick={() => {
-                  // Reset the GIF maker before opening
-                  gifMakerWithSelectorRef.current?.reset();
-                  setGifMakerOpen(true);
-                }}
-              />
-              {/* Instagram Button - Always show, health check happens in modal */}
-              <Tooltip label={t('compose.importFromInstagram')} placement="top">
+              {/* GIF Maker Button — in reply mode it lives inside the Giphy panel instead */}
+              {!isReply && (
                 <IconButton
-                  id="snap-composer-instagram-btn"
-                  data-testid="snap-composer-instagram"
-                  aria-label={t('compose.importFromInstagram')}
-                  icon={
-                    <FaInstagram
-                      color="var(--chakra-colors-primary)"
-                      size={22}
-                    />
-                  }
+                  id="snap-composer-gif-maker-btn"
+                  data-testid="snap-composer-gif-maker"
+                  aria-label={t('compose.gifMaker')}
+                  icon={<TbGif color="var(--chakra-colors-primary)" size={22} />}
                   variant="ghost"
                   isDisabled={isLoading}
                   border="2px solid transparent"
@@ -2038,8 +2175,68 @@ const SnapComposer = React.memo(function SnapComposer({
                     boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
                   }}
                   _active={{ borderColor: "accent" }}
-                  onClick={() => setInstagramModalOpen(true)}
+                  onClick={() => {
+                    // Reset the GIF maker before opening
+                    gifMakerWithSelectorRef.current?.reset();
+                    setGifMakerOpen(true);
+                  }}
                 />
+              )}
+              {/* Instagram Button - Always show, health check happens in modal */}
+              <Tooltip label={t('compose.importFromInstagram')} placement="top">
+                {isReply ? (
+                  <IconButton
+                    id="snap-composer-instagram-btn"
+                    data-testid="snap-composer-instagram"
+                    aria-label={t('compose.importFromInstagram')}
+                    icon={
+                      <FaInstagram
+                        color="var(--chakra-colors-primary)"
+                        size={22}
+                      />
+                    }
+                    isDisabled={isLoading}
+                    background="none"
+                    border="none"
+                    color="primary"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{ opacity: 0.7 }}
+                    onClick={() => setInstagramModalOpen(true)}
+                  />
+                ) : (
+                  <IconButton
+                    id="snap-composer-instagram-btn"
+                    data-testid="snap-composer-instagram"
+                    aria-label={t('compose.importFromInstagram')}
+                    icon={
+                      <FaInstagram
+                        color="var(--chakra-colors-primary)"
+                        size={22}
+                      />
+                    }
+                    variant="ghost"
+                    isDisabled={isLoading}
+                    border="2px solid transparent"
+                    borderRadius="full"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{
+                      borderColor: "primary",
+                      boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
+                    }}
+                    _active={{ borderColor: "accent" }}
+                    onClick={() => setInstagramModalOpen(true)}
+                  />
+                )}
               </Tooltip>
             </HStack>
             <Box display={buttonSize === "sm" ? "inline-block" : undefined}>
@@ -2140,6 +2337,16 @@ const SnapComposer = React.memo(function SnapComposer({
                   setSelectedGif(gif);
                   setGiphyModalOpen(false); // Close modal after selecting a GIF
                 }}
+                onCreateGif={
+                  isReply
+                    ? () => {
+                        setGiphyModalOpen(false);
+                        // Reset the GIF maker before opening
+                        gifMakerWithSelectorRef.current?.reset();
+                        setGifMakerOpen(true);
+                      }
+                    : undefined
+                }
               />
             </Box>
           )}
@@ -2213,7 +2420,15 @@ const SnapComposer = React.memo(function SnapComposer({
           maxVideoDuration={15}
           canBypassTrim={canBypassLimit}
           onPublish={(result) => {
-            if (postBodyRef.current) postBodyRef.current.value = result.caption;
+            // The Hive post body is the master caption. For Farcaster-only
+            // posts the user may only have typed in the Farcaster (or IG) step,
+            // so fall back to those to avoid an empty-body post.
+            const hiveBody =
+              result.caption ||
+              result.farcasterCaption ||
+              result.igCaption ||
+              "";
+            if (postBodyRef.current) postBodyRef.current.value = hiveBody;
             igPublishRef.current = {
               igCaption: result.igCaption,
               collaborators: result.collaborators,
