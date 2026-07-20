@@ -340,17 +340,6 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
       }
     }, [isPlaying]);
 
-    // Seek during handle dragging (bypasses dragging check)
-    const seekDuringDrag = useCallback((time: number) => {
-      if (!videoRef.current) return;
-
-      const video = videoRef.current;
-      if (video.readyState < 2) return;
-
-      video.currentTime = time;
-      setCurrentTime(time);
-    }, []);
-
     // Optimized thumbnail generation with Web Workers (if available)
     const generateThumbnail = useCallback(async () => {
       if (!videoRef.current) return null;
@@ -920,11 +909,7 @@ const VideoTrimModal: React.FC<VideoTrimModalProps> = memo(
                               currentTime={currentTime}
                               startTime={startTime}
                               endTime={endTime}
-                              isValidSelection={isValidSelection}
-                              maxDuration={maxDuration}
-                              canBypass={canBypass}
                               onSeek={seekTo}
-                              onSeekDuringDrag={seekDuringDrag}
                               onStartTimeChange={setStartTime}
                               onEndTimeChange={setEndTime}
                               onDragStart={() => {
