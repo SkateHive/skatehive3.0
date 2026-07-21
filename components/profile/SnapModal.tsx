@@ -163,7 +163,10 @@ const SnapModal = ({
   const cleanBodyText = (body: string) => {
     if (!body) return "";
     let cleaned = body.replace(/!\[.*?\]\(.*?\)/g, "");
-    cleaned = cleaned.replace(/<iframe[^>]*>.*?<\/iframe>/gi, "");
+    // [\s\S]*? (not .*?) so this also matches multi-line iframes — the video
+    // embed markdown (generateVideoIframeMarkdown) spans several lines, and a
+    // plain "." never matches "\n" without the "s" flag.
+    cleaned = cleaned.replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, "");
     cleaned = cleaned.replace(/\n\s*\n/g, "\n").trim();
     return cleaned;
   };
