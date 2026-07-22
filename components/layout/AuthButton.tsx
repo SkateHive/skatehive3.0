@@ -297,6 +297,9 @@ export default function AuthButton() {
     if (isFarcasterAuthInProgress || isFarcasterConnected) return;
 
     setIsFarcasterAuthInProgress(true);
+    // The island opens its own sign-in modal (QR / deep link), so close this
+    // one first — two stacked SkateModals fight over focus trap and overlay.
+    setIsConnectionModalOpen(false);
     try {
       farcasterAuth.connect();
       // signIn() is auto-called by FarcasterAuthIslandClient when channelToken is ready
@@ -461,6 +464,7 @@ export default function AuthButton() {
             duration: 5000,
           });
         }}
+        onCancel={() => setIsFarcasterAuthInProgress(false)}
       />
       <MergeAccountModal
         isOpen={showMergeModal}

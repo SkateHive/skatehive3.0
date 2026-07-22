@@ -618,6 +618,10 @@ export default function FooterNavButtons() {
         return;
       }
 
+      // The island opens its own sign-in modal (QR / deep link), so close this
+      // one first — two stacked SkateModals fight over focus trap and overlay.
+      safeCloseConnectionModal();
+
       // Must call connect() first to create relay channel,
       // then signIn() after channelToken is set (handled by useEffect)
       connect();
@@ -1058,6 +1062,7 @@ export default function FooterNavButtons() {
       <FarcasterAuthIsland
         onSuccess={handleFarcasterSuccess}
         onError={handleFarcasterError}
+        onCancel={() => setIsFarcasterAuthInProgress(false)}
       />
     </>
   );

@@ -7,6 +7,8 @@ interface FarcasterAuthIslandProps {
   onError?: (error: any) => void;
   onSignOut?: () => void;
   onStatusResponse?: (data: any) => void;
+  /** Fired when the user dismisses the sign-in modal without completing it. */
+  onCancel?: () => void;
   autoConnect?: boolean;
   nonce?: () => Promise<string>;
 }

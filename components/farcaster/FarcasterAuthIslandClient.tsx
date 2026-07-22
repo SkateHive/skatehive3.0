@@ -2,8 +2,9 @@
 
 import { AuthKitProvider, useSignIn } from "@farcaster/auth-kit";
 import { APP_CONFIG } from "@/config/app.config";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { saveFarcasterSession } from "@/hooks/useFarcasterSession";
+import FarcasterSignInModal from "./FarcasterSignInModal";
 
 const isLocalhost =
   typeof window !== "undefined" && window.location.hostname === "localhost";
@@ -24,6 +25,8 @@ interface FarcasterAuthIslandClientProps {
   onError?: (error: any) => void;
   onSignOut?: () => void;
   onStatusResponse?: (data: any) => void;
+  /** Fired when the user dismisses the sign-in modal without completing it. */
+  onCancel?: () => void;
   autoConnect?: boolean;
   nonce?: () => Promise<string>;
 }
@@ -31,15 +34,17 @@ interface FarcasterAuthIslandClientProps {
 /**
  * Inner component that uses useSignIn — MUST be inside AuthKitProvider.
  *
- * No UI is rendered. connect/signIn are handled programmatically via
- * window.__farcasterAuth. The hidden <SignInButton> was removed to avoid
- * a competing useSignIn instance in the same AuthKitProvider.
+ * Renders the sign-in modal (QR on desktop, deep link on mobile) whenever a
+ * sign-in is in flight. connect/signIn are still driven programmatically via
+ * window.__farcasterAuth. The hidden <SignInButton> stays removed to avoid a
+ * competing useSignIn instance in the same AuthKitProvider.
  */
 function FarcasterAuthInner({
   onSuccess,
   onError,
   onSignOut,
   onStatusResponse,
+  onCancel,
   autoConnect = false,
   nonce,
 }: FarcasterAuthIslandClientProps) {
@@ -50,6 +55,9 @@ function FarcasterAuthInner({
   // in a ref and manually fire onSuccess when isSuccess + validSignature are set.
   const completedDataRef = useRef<any>(null);
   const didFireSuccessRef = useRef(false);
+
+  // Whether a sign-in attempt is in flight (drives the modal).
+  const [isFlowOpen, setIsFlowOpen] = useState(false);
 
   const {
     signIn,
@@ -84,6 +92,7 @@ function FarcasterAuthInner({
   useEffect(() => {
     if (isSuccess && validSignature && !didFireSuccessRef.current) {
       didFireSuccessRef.current = true;
+      setIsFlowOpen(false);
       const d = data || completedDataRef.current;
       if (d?.fid) {
         saveFarcasterSession({
@@ -110,9 +119,39 @@ function FarcasterAuthInner({
   connectRef.current = connect;
   reconnectRef.current = reconnect;
 
-  // Guards to prevent duplicate signIn/URL-open calls
+  // Guard to prevent duplicate signIn calls for the same channel
   const didSignInRef = useRef<string | null>(null);
-  const didOpenUrlRef = useRef<string | null>(null);
+
+  /**
+   * Start a sign-in attempt and show the modal.
+   *
+   * Resetting didFireSuccessRef matters: without it a second sign-in in the
+   * same page session would never fire onSuccess, so the session would never
+   * be persisted again after a disconnect.
+   */
+  const startFlow = useCallback(() => {
+    didFireSuccessRef.current = false;
+    completedDataRef.current = null;
+    didSignInRef.current = null;
+    setIsFlowOpen(true);
+    connectRef.current();
+  }, []);
+
+  const closeFlow = useCallback(() => {
+    setIsFlowOpen(false);
+    // Reset auth-kit so the next attempt gets a fresh channel instead of
+    // reusing a stale, already-consumed one.
+    signOutRef.current();
+    onCancel?.();
+  }, [onCancel]);
+
+  const retryFlow = useCallback(() => {
+    signOutRef.current();
+    // Let auth-kit's signOut state reset commit before opening a new channel —
+    // connect() in the same tick can be a no-op because auth-kit still thinks
+    // the old channel is live, which would make retry silently do nothing.
+    setTimeout(() => startFlow(), 0);
+  }, [startFlow]);
 
   // Auto-connect on mount if requested
   useEffect(() => {
@@ -121,17 +160,14 @@ function FarcasterAuthInner({
     }
   }, [autoConnect, channelToken]);
 
-  // When channelToken is ready, auto-call signIn() and open Farcaster
+  // When channelToken is ready, auto-call signIn() so the relay starts polling.
+  // The URL is NOT opened here — a programmatic window.open this far from the
+  // click gets popup-blocked, and desktop needs a QR anyway (see issue #94).
+  // FarcasterSignInModal renders the URL and opens it from a real click.
   useEffect(() => {
-    if (channelToken && url) {
-      if (didSignInRef.current !== channelToken) {
-        didSignInRef.current = channelToken;
-        signInRef.current();
-      }
-      if (didOpenUrlRef.current !== url) {
-        didOpenUrlRef.current = url;
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
+    if (channelToken && url && didSignInRef.current !== channelToken) {
+      didSignInRef.current = channelToken;
+      signInRef.current();
     }
   }, [channelToken, url]);
 
@@ -145,7 +181,8 @@ function FarcasterAuthInner({
         signOutRef.current();
         onSignOut?.();
       },
-      connect: () => connectRef.current(),
+      // connect() now also opens the sign-in modal — callers just call it.
+      connect: () => startFlow(),
       reconnect: () => reconnectRef.current(),
       isSuccess,
       isError,
@@ -161,9 +198,18 @@ function FarcasterAuthInner({
         delete (window as any).__farcasterAuth;
       }
     };
-  }, [isSuccess, isError, error, channelToken, url, data, validSignature, onSignOut]);
+  }, [isSuccess, isError, error, channelToken, url, data, validSignature, onSignOut, startFlow]);
 
-  return null;
+  return (
+    <FarcasterSignInModal
+      isOpen={isFlowOpen}
+      onClose={closeFlow}
+      url={url ?? null}
+      isError={isError}
+      error={error}
+      onRetry={retryFlow}
+    />
+  );
 }
 
 /**
