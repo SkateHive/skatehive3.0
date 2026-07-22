@@ -211,7 +211,11 @@ const SnapModal = ({
     );
     setActiveVotes(currentSnap.active_votes || []);
     setShowSlider(false);
-  }, [currentSnap, effectiveUser, hasSoftVote]);
+    // Deliberately keyed on author/permlink (not the currentSnap object) — the
+    // grid's snaps array is recreated on every render (see useUserSnaps' inline
+    // .map()), which would otherwise re-fire this on unrelated re-renders and
+    // stomp the accurate vote data the effect below just fetched.
+  }, [currentSnap.author, currentSnap.permlink, effectiveUser, hasSoftVote]);
 
   // The grid's snap list (api.skatehive.app feed / bridge.get_account_posts)
   // doesn't include the full active_votes array, so the vote count above
