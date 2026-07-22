@@ -6,18 +6,37 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { saveFarcasterSession } from "@/hooks/useFarcasterSession";
 import FarcasterSignInModal from "./FarcasterSignInModal";
 
-const isLocalhost =
-  typeof window !== "undefined" && window.location.hostname === "localhost";
+/**
+ * SIWE binds the signature to the origin that requested it, so `domain` and
+ * `siweUri` have to match wherever the app is actually being served.
+ *
+ * The previous version special-cased the literal hostname "localhost" and fell
+ * back to the hardcoded skatehive.app for everything else, which silently broke
+ * sign-in on 127.0.0.1, on a LAN IP (how you reach a dev server from a phone),
+ * and on every Vercel preview deployment. Reading window.location is correct in
+ * all of them at once.
+ *
+ * APP_CONFIG is only a non-browser fallback — this module is loaded with
+ * ssr:false, so in practice window is always present.
+ */
+function resolveSiweConfig() {
+  if (typeof window === "undefined") {
+    return {
+      siweUri: APP_CONFIG.ORIGIN || APP_CONFIG.BASE_URL,
+      domain: APP_CONFIG.DOMAIN,
+    };
+  }
+  return {
+    siweUri: window.location.origin,
+    // host, not hostname: the SIWE authority includes a non-default port.
+    domain: window.location.host,
+  };
+}
 
 const config = {
   relay: "https://relay.farcaster.xyz",
   rpcUrl: "https://mainnet.optimism.io",
-  siweUri: isLocalhost
-    ? `http://localhost:${typeof window !== "undefined" ? window.location.port : "3000"}`
-    : APP_CONFIG.BASE_URL || "https://skatehive.app",
-  domain: isLocalhost
-    ? "localhost"
-    : APP_CONFIG.DOMAIN || "skatehive.app",
+  ...resolveSiweConfig(),
 };
 
 interface FarcasterAuthIslandClientProps {

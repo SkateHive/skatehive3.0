@@ -61,7 +61,7 @@ export default function FooterNavButtons() {
 
   // Farcaster integration - use methods from island
   const farcasterMethods = useFarcasterAuthMethods();
-  const { signIn, signOut, connect, reconnect, isSuccess, isError } = farcasterMethods;
+  const { signOut, connect, reconnect, isSuccess, isError } = farcasterMethods;
 
   const {
     isAuthenticated: isFarcasterConnected,
@@ -622,8 +622,8 @@ export default function FooterNavButtons() {
       // one first — two stacked SkateModals fight over focus trap and overlay.
       safeCloseConnectionModal();
 
-      // Must call connect() first to create relay channel,
-      // then signIn() after channelToken is set (handled by useEffect)
+      // connect() creates the relay channel; the island calls signIn() once the
+      // channel token lands and renders the QR / deep link modal.
       connect();
     } catch {
       clearAuthTimeout(); // Clear safety timeout on error
@@ -639,12 +639,10 @@ export default function FooterNavButtons() {
     // Note: No finally block - let callbacks handle state reset for successful flows
   };
 
-  // Once connect() sets channelToken, call signIn() to start polling
-  React.useEffect(() => {
-    if (isFarcasterAuthInProgress && farcasterMethods.channelToken) {
-      signIn();
-    }
-  }, [isFarcasterAuthInProgress, farcasterMethods.channelToken, signIn]);
+  // signIn() is called by FarcasterAuthIslandClient as soon as the channel
+  // token lands. Doing it here as well opened a second poll against the same
+  // relay channel — and useFarcasterAuthMethods hands back a fresh proxy every
+  // render, so this effect re-fired far more often than it looked like it would.
 
   // Only render on client to avoid hydration mismatch
   React.useEffect(() => {
