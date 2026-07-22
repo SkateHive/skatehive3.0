@@ -278,7 +278,7 @@ const handleVote = useCallback(
             className={`upvote-container ${className}`}
           >
             {voted ? (
-              <LuCheck size={24} color="#22c55e" />
+              <LuCheck size={24} color="var(--chakra-colors-primary)" />
             ) : (
               <LuArrowUp size={24} color="var(--chakra-colors-text)" />
             )}
@@ -310,7 +310,7 @@ const handleVote = useCallback(
             className={`upvote-container ${className}`}
           >
             {voted ? (
-              <LuCheck size={24} color="#22c55e" />
+              <LuCheck size={24} color="var(--chakra-colors-primary)" />
             ) : (
               <LuArrowUp size={24} color="var(--chakra-colors-text)" />
             )}
@@ -320,7 +320,7 @@ const handleVote = useCallback(
           trigger={
             <Button
               variant="ghost"
-              color="gray.500"
+              color="primary"
               size={size}
               p={1}
               _hover={{ textDecoration: "underline" }}
@@ -360,7 +360,7 @@ const handleVote = useCallback(
               className={`upvote-container ${className}`}
             >
               {voted ? (
-                <LuCheck size={24} color="#22c55e" />
+                <LuCheck size={24} color="var(--chakra-colors-primary)" />
               ) : (
                 <LuArrowUp size={24} color="var(--chakra-colors-text)" />
               )}
@@ -370,7 +370,7 @@ const handleVote = useCallback(
             trigger={
               <Button
                 variant="ghost"
-                color="gray.500"
+                color="primary"
                 size={size}
                 p={1}
                 _hover={{ textDecoration: "underline" }}
@@ -471,7 +471,7 @@ const handleVote = useCallback(
             className={`upvote-container ${className}`}
           >
             {voted ? (
-              <LuCheck size={24} color="#22c55e" />
+              <LuCheck size={24} color="var(--chakra-colors-primary)" />
             ) : (
               <LuArrowUp size={24} color="var(--chakra-colors-text)" />
             )}
@@ -481,7 +481,7 @@ const handleVote = useCallback(
           trigger={
             <Button
               variant="ghost"
-              color="gray.500"
+              color="primary"
               size={size}
               p={1}
               _hover={{ textDecoration: "underline" }}

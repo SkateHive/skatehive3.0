@@ -318,8 +318,8 @@ const SnapModal = ({
     >
       <ModalOverlay bg="blackAlpha.900" />
       <ModalContent
-        bg="rgb(24, 24, 24)"
-        color="white"
+        bg="background"
+        color="text"
         h={{ base: "100vh", md: "85vh" }}
         borderRadius={{ base: 0, md: "lg" }}
       >
