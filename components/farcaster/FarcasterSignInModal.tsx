@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -14,6 +14,7 @@ import { SiFarcaster } from "react-icons/si";
 import * as QRCode from "qrcode";
 import SkateModal from "@/components/shared/SkateModal";
 import useIsMobile from "@/hooks/useIsMobile";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 interface FarcasterSignInModalProps {
   isOpen: boolean;
@@ -48,9 +49,18 @@ export default function FarcasterSignInModal({
   onRetry,
 }: FarcasterSignInModalProps) {
   const isMobile = useIsMobile();
+  const t = useTranslations();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
+  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copyResetRef.current) clearTimeout(copyResetRef.current);
+    },
+    []
+  );
 
   // Copy reads `url` at click time on purpose — the URL arrives asynchronously
   // after this modal mounts, so anything capturing it at mount would copy an
@@ -60,7 +70,8 @@ export default function FarcasterSignInModal({
     navigator.clipboard?.writeText(url).then(
       () => {
         setHasCopied(true);
-        setTimeout(() => setHasCopied(false), 2000);
+        if (copyResetRef.current) clearTimeout(copyResetRef.current);
+        copyResetRef.current = setTimeout(() => setHasCopied(false), 2000);
       },
       () => {
         // Clipboard can be denied by permissions — the QR and deep link remain.
@@ -119,15 +130,15 @@ export default function FarcasterSignInModal({
     <SkateModal
       isOpen={isOpen}
       onClose={onClose}
-      title="farcaster sign in"
+      title={t("auth.farcasterSignInTitle")}
       size="sm"
       isCentered
     >
       <Box p={5}>
         {failed ? (
-          <VStack spacing={4} py={4}>
+          <VStack spacing={4} py={4} role="alert" aria-live="assertive">
             <Text fontFamily="mono" fontSize="sm" color="red.400">
-              não foi possível conectar
+              {t("auth.farcasterConnectFailed")}
             </Text>
             <Text
               fontFamily="mono"
@@ -135,8 +146,7 @@ export default function FarcasterSignInModal({
               color="gray.400"
               textAlign="center"
             >
-              {error?.message ||
-                "o farcaster não respondeu a tempo. verifique sua conexão e tente de novo."}
+              {error?.message || t("auth.farcasterTimedOut")}
             </Text>
             <Button
               size="sm"
@@ -145,14 +155,14 @@ export default function FarcasterSignInModal({
               borderRadius={0}
               onClick={handleRetry}
             >
-              tentar de novo
+              {t("auth.farcasterRetry")}
             </Button>
           </VStack>
         ) : !url ? (
           <VStack spacing={3} py={8}>
             <Spinner color="primary" />
             <Text fontFamily="mono" fontSize="xs" color="gray.400">
-              abrindo canal seguro...
+              {t("auth.farcasterOpeningChannel")}
             </Text>
           </VStack>
         ) : isMobile ? (
@@ -163,7 +173,7 @@ export default function FarcasterSignInModal({
               color="gray.400"
               textAlign="center"
             >
-              aprove o login no app do farcaster e volte para cá
+              {t("auth.farcasterApproveHint")}
             </Text>
             <Button
               w="full"
@@ -173,7 +183,7 @@ export default function FarcasterSignInModal({
               leftIcon={<SiFarcaster />}
               onClick={handleOpenInApp}
             >
-              abrir no app farcaster
+              {t("auth.farcasterOpenApp")}
             </Button>
             <Button
               size="xs"
@@ -182,7 +192,9 @@ export default function FarcasterSignInModal({
               color="gray.500"
               onClick={onCopy}
             >
-              {hasCopied ? "link copiado" : "copiar link"}
+              {hasCopied
+                ? t("auth.farcasterLinkCopied")
+                : t("auth.farcasterCopyLink")}
             </Button>
           </VStack>
         ) : (
@@ -193,14 +205,14 @@ export default function FarcasterSignInModal({
               color="gray.400"
               textAlign="center"
             >
-              escaneie com a câmera ou com o app do farcaster
+              {t("auth.farcasterScanHint")}
             </Text>
 
             {qrDataUrl ? (
               <Box p={2} bg="white" borderRadius="sm">
                 <Image
                   src={qrDataUrl}
-                  alt="QR code para login com Farcaster"
+                  alt={t("auth.farcasterQrAlt")}
                   boxSize="220px"
                 />
               </Box>
@@ -218,7 +230,7 @@ export default function FarcasterSignInModal({
                 color="gray.500"
                 onClick={handleOpenInApp}
               >
-                abrir em nova aba
+                {t("auth.farcasterOpenNewTab")}
               </Button>
               <Button
                 size="xs"
@@ -227,7 +239,9 @@ export default function FarcasterSignInModal({
                 color="gray.500"
                 onClick={onCopy}
               >
-                {hasCopied ? "link copiado" : "copiar link"}
+                {hasCopied
+                  ? t("auth.farcasterLinkCopied")
+                  : t("auth.farcasterCopyLink")}
               </Button>
             </HStack>
           </VStack>

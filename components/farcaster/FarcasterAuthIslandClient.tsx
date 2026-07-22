@@ -145,12 +145,22 @@ function FarcasterAuthInner({
     onCancel?.();
   }, [onCancel]);
 
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    },
+    []
+  );
+
   const retryFlow = useCallback(() => {
     signOutRef.current();
     // Let auth-kit's signOut state reset commit before opening a new channel —
     // connect() in the same tick can be a no-op because auth-kit still thinks
     // the old channel is live, which would make retry silently do nothing.
-    setTimeout(() => startFlow(), 0);
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = setTimeout(() => startFlow(), 0);
   }, [startFlow]);
 
   // Auto-connect on mount if requested
