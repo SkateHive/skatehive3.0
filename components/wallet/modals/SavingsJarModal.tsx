@@ -23,7 +23,7 @@ interface SavingsJarModalProps {
   onSave: (input: JarInput) => Promise<{ success: boolean; error?: string }>;
 }
 
-const EMOJI_PRESETS = ["🐷", "🛹", "✈️", "🏆", "🎯", "🛼", "👟", "📷", "💸", "🏠"];
+const EMOJI_PRESETS = ["🫙", "🐷", "🛹", "✈️", "🏆", "🎯", "🛼", "👟", "📷", "💸", "🏠"];
 const COLOR_PRESETS = ["#34d399", "#f59e0b", "#ef4444", "#3b82f6", "#a855f7", "#ec4899"];
 
 /** Goal templates: picking one pre-fills the jar (Nubank-style guided create). */
@@ -31,7 +31,7 @@ const TEMPLATES = [
   { key: "tplDeck", hintKey: "tplDeckHint", icon: "🛹", target: "60", color: "#34d399" },
   { key: "tplTrip", hintKey: "tplTripHint", icon: "✈️", target: "300", color: "#3b82f6" },
   { key: "tplContest", hintKey: "tplContestHint", icon: "🏆", target: "25", color: "#f59e0b" },
-  { key: "tplScratch", hintKey: "tplScratchHint", icon: "🐷", target: "", color: "#a855f7" },
+  { key: "tplScratch", hintKey: "tplScratchHint", icon: "🫙", target: "", color: "#a855f7" },
 ] as const;
 
 type Step = 1 | 2 | 3;
@@ -51,7 +51,7 @@ export function SavingsJarModal({ isOpen, onClose, jar, onSave }: SavingsJarModa
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [deadline, setDeadline] = useState("");
-  const [icon, setIcon] = useState("🐷");
+  const [icon, setIcon] = useState("🫙");
   const [color, setColor] = useState("#34d399");
   const [isWishlist, setIsWishlist] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -62,7 +62,7 @@ export function SavingsJarModal({ isOpen, onClose, jar, onSave }: SavingsJarModa
       setName(jar?.name ?? "");
       setTarget(jar?.target_hbd != null ? String(jar.target_hbd) : "");
       setDeadline(jar?.deadline ?? "");
-      setIcon(jar?.icon ?? "🐷");
+      setIcon(jar?.icon ?? "🫙");
       setColor(jar?.color ?? "#34d399");
       setIsWishlist(jar?.is_wishlist ?? false);
     }
