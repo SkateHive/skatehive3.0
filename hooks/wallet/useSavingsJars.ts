@@ -76,6 +76,30 @@ async function parseError(res: Response, fallback: string): Promise<string> {
   }
 }
 
+const ALLOCATE_RETRY_ATTEMPTS = 3;
+const ALLOCATE_RETRY_DELAY_MS = 1500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Retry only the allocate step after a real on-chain transfer already
+ * succeeded. A deposit can land on a Hive node the API reads from before it
+ * has replicated, so the very next allocate call can transiently fail the
+ * savings check — this bridges that window without ever re-broadcasting the
+ * transaction (`opFn` is called exactly once by the caller, before this).
+ */
+async function withAllocateRetry(opFn: () => Promise<OpResult>): Promise<OpResult> {
+  let result: OpResult = { success: false, error: "Allocation failed" };
+  for (let attempt = 0; attempt < ALLOCATE_RETRY_ATTEMPTS; attempt++) {
+    result = await opFn();
+    if (result.success) return result;
+    if (attempt < ALLOCATE_RETRY_ATTEMPTS - 1) await sleep(ALLOCATE_RETRY_DELAY_MS);
+  }
+  return result;
+}
+
 /**
  * Cofrinhos (savings jars) client hook.
  *
@@ -263,17 +287,40 @@ export function useSavingsJars() {
     [authedFetch, refresh]
   );
 
-  /** Add wallet HBD into a jar: deposit to savings (real tx), then allocate. */
+  /**
+   * Add wallet HBD into a jar: deposit to savings (real tx), then allocate.
+   * The tx is broadcast exactly once; if the follow-up allocate keeps failing
+   * after retrying, the deposit itself already succeeded and the HBD is safe
+   * in the account's on-chain savings — surface that distinctly instead of
+   * reading as a failed deposit.
+   */
   const fundFromWallet = useCallback(
     async (id: string, amount: number): Promise<OpResult> => {
       const tx = await depositToSavings(amount, "HBD", "SkateHive cofrinho");
       if (!tx.success) return { success: false, error: tx.error };
-      return allocate(id, amount, { via: "wallet" });
+
+      const result = await withAllocateRetry(() =>
+        allocate(id, amount, { via: "wallet" })
+      );
+      if (!result.success) {
+        return {
+          success: false,
+          error:
+            "Deposit succeeded, but the jar wasn't updated yet. Your HBD is safe in savings — try Save again in a minute.",
+        };
+      }
+      return result;
     },
     [depositToSavings, allocate]
   );
 
-  /** Cash a jar out to the liquid wallet: withdraw on-chain first, then de-allocate. */
+  /**
+   * Cash a jar out to the liquid wallet: withdraw on-chain first, then
+   * de-allocate. `transfer_from_savings` only queues the transfer (Hive's
+   * 3-day delay), so on terminal allocate failure the jar is left claiming
+   * money that a real withdrawal is already in flight to remove — surfaced
+   * distinctly so the user knows to recheck the jar once it settles.
+   */
   const withdrawToWallet = useCallback(
     async (id: string, amount: number): Promise<OpResult> => {
       // Mirror fundFromWallet: do the real on-chain move first, and only touch
@@ -282,7 +329,18 @@ export function useSavingsJars() {
       // when the user cancels the Keychain popup.
       const tx = await withdrawFromSavings(amount, "HBD", "SkateHive cofrinho");
       if (!tx.success) return { success: false, error: tx.error };
-      return allocate(id, -amount, { via: "wallet" });
+
+      const result = await withAllocateRetry(() =>
+        allocate(id, -amount, { via: "wallet" })
+      );
+      if (!result.success) {
+        return {
+          success: false,
+          error:
+            "Withdrawal was submitted, but the jar wasn't updated. It settles in ~3 days — reopen this jar afterward to fix the balance.",
+        };
+      }
+      return result;
     },
     [withdrawFromSavings, allocate]
   );
