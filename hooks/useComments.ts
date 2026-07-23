@@ -57,10 +57,31 @@ export function useComments(
 
     const fetchAndUpdateComments = useCallback(async () => {
         setIsLoading(true);
+        setError(null);
         try {
-            const fetchedComments = await fetchComments(author, permlink, recursive);
-            setComments(fetchedComments);
+            // Fetch the top level first and render it immediately — when
+            // recursive, nested replies are filled in per top-level comment
+            // below without blocking this initial render.
+            const topLevel = await fetchComments(author, permlink, false);
+            setComments(topLevel);
             setIsLoading(false);
+
+            if (recursive) {
+                await Promise.all(
+                    topLevel.map(async (comment) => {
+                        if (!comment.children || comment.children <= 0) return;
+                        const replies = await fetchComments(comment.author, comment.permlink, true);
+                        const filteredReplies = filterAutoComments(replies);
+                        setComments((prev) =>
+                            prev.map((c) =>
+                                c.author === comment.author && c.permlink === comment.permlink
+                                    ? { ...c, replies: filteredReplies as any }
+                                    : c
+                            )
+                        );
+                    })
+                );
+            }
         } catch (err: any) {
             setError(err.message ? err.message : "Error loading comments");
             console.error(err);
