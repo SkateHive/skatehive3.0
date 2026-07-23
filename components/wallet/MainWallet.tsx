@@ -30,6 +30,7 @@ import { extractNumber } from "@/lib/utils/extractNumber";
 import { Asset } from "@hiveio/dhive";
 import HivePowerSection from "./HivePowerSection";
 import SkateBankSection from "./SkateBankSection";
+import SavingsJarsSection from "./SavingsJarsSection";
 import NFTSection from "./NFTSection";
 
 import { PortfolioProvider } from "@/contexts/PortfolioContext";
@@ -443,6 +444,10 @@ export default function MainWallet({ username }: MainWalletProps) {
                             hiveAccount?.savings_withdraw_requests || 0
                           }
                           onClaimInterest={handleClaimHbdInterest}
+                        />
+                        <SavingsJarsSection
+                          hbdBalance={hiveBalances.hbdBalance}
+                          hbdPrice={hbdPrice}
                         />
                       </VStack>
                     </TabPanel>
