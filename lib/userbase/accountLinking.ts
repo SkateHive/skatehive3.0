@@ -22,12 +22,17 @@ export interface LinkableIdentity {
 }
 
 /**
- * The Hive account that owns the userbase session, lowercased.
+ * The Hive account that owns the userbase session, lowercased, or null when the
+ * owner can't be determined unambiguously.
  *
- * Prefers the identity flagged primary, falling back to the first Hive
- * identity so a session whose rows predate the primary flag still resolves.
- * Returns null when the session has no Hive identity at all (email- or
- * wallet-only users), which callers treat as "nothing to compare against".
+ * A single Hive identity is the owner even without the primary flag set — rows
+ * can predate it. With several (e.g. after a merge), exactly one must be marked
+ * primary; zero or multiple primaries is genuine ambiguity. Because this handle
+ * feeds linking suggestions, an arbitrary pick could offer the wrong account's
+ * wallet or prompt a merge of unrelated accounts, so it fails closed and returns
+ * null rather than guessing. Also null when the session has no Hive identity at
+ * all (email- or wallet-only users) — callers treat null as "nothing to compare
+ * against".
  */
 export function resolveSessionHiveHandle(
   identities: readonly LinkableIdentity[] | null | undefined
@@ -37,26 +42,38 @@ export function resolveSessionHiveHandle(
   const hives = identities.filter(
     (identity) => identity.type === "hive" && !!identity.handle
   );
-  const owner = hives.find((identity) => identity.is_primary) || hives[0];
+  if (hives.length === 0) return null;
+  if (hives.length === 1) return hives[0].handle?.toLowerCase() || null;
 
-  return owner?.handle?.toLowerCase() || null;
+  const primaries = hives.filter((identity) => identity.is_primary);
+  if (primaries.length === 1) return primaries[0].handle?.toLowerCase() || null;
+  return null;
 }
 
 /**
  * Whether aioha's active account is an *additional* Hive login rather than the
- * account this session belongs to.
+ * account this session belongs to — i.e. one that must not be offered for
+ * linking.
  *
- * True only when the session already owns a Hive identity and the active
- * account is a different one — a deliberate second login, not an account we
- * just discovered. When the session owns no Hive identity yet, this is false so
- * the genuine "you connected Hive, want to link it?" flow still runs.
+ * When the session owns a Hive identity, the active account is additional if it
+ * differs from it: a deliberate second login, not an account we just discovered.
+ *
+ * When the session owns no Hive identity yet, the active account is the one to
+ * link only while it's the *sole* account aioha holds — the genuine "you
+ * connected Hive, want to link it?" flow. Once other logins are present none of
+ * them can be attributed to the session, so the active one is treated as
+ * additional too (same ambiguity rule as resolveMetadataSourceHandle).
  */
 export function isAdditionalHiveLogin(
   sessionHiveHandle: string | null,
-  activeHiveUser: string | null | undefined
+  activeHiveUser: string | null | undefined,
+  otherUsers?: Readonly<Record<string, unknown>> | null
 ): boolean {
-  if (!sessionHiveHandle || !activeHiveUser) return false;
-  return sessionHiveHandle !== activeHiveUser.toLowerCase();
+  if (!activeHiveUser) return false;
+  if (sessionHiveHandle) {
+    return sessionHiveHandle !== activeHiveUser.toLowerCase();
+  }
+  return !!otherUsers && Object.keys(otherUsers).length > 0;
 }
 
 /**

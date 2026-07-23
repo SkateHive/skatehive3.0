@@ -49,14 +49,23 @@ it("single Hive identity → that handle", () => {
   assert.strictEqual(resolveSessionHiveHandle([hive("alice")]), "alice");
 });
 
-it("prefers the primary over the first", () => {
+it("several identities, exactly one primary → that primary", () => {
   const identities = [hive("alice"), hive("bob", true)];
   assert.strictEqual(resolveSessionHiveHandle(identities), "bob");
 });
 
-it("falls back to the first when none is primary", () => {
+it("several identities, none primary → null (fail closed, no arbitrary pick)", () => {
   const identities = [hive("alice"), hive("bob")];
-  assert.strictEqual(resolveSessionHiveHandle(identities), "alice");
+  assert.strictEqual(resolveSessionHiveHandle(identities), null);
+});
+
+it("several identities, multiple primaries → null (ambiguous)", () => {
+  const identities = [hive("alice", true), hive("bob", true)];
+  assert.strictEqual(resolveSessionHiveHandle(identities), null);
+});
+
+it("a single Hive identity resolves even without the primary flag", () => {
+  assert.strictEqual(resolveSessionHiveHandle([hive("alice")]), "alice");
 });
 
 it("lowercases the handle", () => {
@@ -75,8 +84,17 @@ it("ignores non-Hive identities when picking", () => {
 
 console.log("\n📦 isAdditionalHiveLogin");
 
-it("session owns no Hive → false, so first-connect still prompts", () => {
+it("session owns no Hive, sole aioha account → false, so first-connect still prompts", () => {
   assert.strictEqual(isAdditionalHiveLogin(null, "alice"), false);
+  assert.strictEqual(isAdditionalHiveLogin(null, "alice", {}), false);
+  assert.strictEqual(isAdditionalHiveLogin(null, "alice", null), false);
+});
+
+it("session owns no Hive but aioha holds other logins → true (ambiguous, don't offer)", () => {
+  assert.strictEqual(
+    isAdditionalHiveLogin(null, "bob", { alice: "keychain" }),
+    true
+  );
 });
 
 it("no active aioha account → false", () => {
@@ -90,6 +108,13 @@ it("active account is the session owner → false", () => {
 
 it("active account differs from the session owner → true", () => {
   assert.strictEqual(isAdditionalHiveLogin("alice", "bob"), true);
+});
+
+it("session owner set: other logins don't change the differ check", () => {
+  assert.strictEqual(
+    isAdditionalHiveLogin("alice", "alice", { bob: "keychain" }),
+    false
+  );
 });
 
 it("comparison is case-insensitive", () => {

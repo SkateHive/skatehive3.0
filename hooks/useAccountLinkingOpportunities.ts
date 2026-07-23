@@ -135,7 +135,7 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
     // operation behind a one-line confirm. Users who genuinely need to combine two
     // profiles have the deliberate flow in settings, which previews the outcome
     // first (see UserbaseMergePanel).
-    if (hiveUser && !isAdditionalHiveLogin(sessionHiveHandle, activeHiveHandle)) {
+    if (hiveUser && !isAdditionalHiveLogin(sessionHiveHandle, activeHiveHandle, otherUsers)) {
       const hasHive = identities.some(
         (i) => i.type === "hive" && i.handle?.toLowerCase() === activeHiveHandle
       );
@@ -225,6 +225,7 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
     identities,
     hiveMetadataAccounts,
     sessionHiveHandle,
+    otherUsers,
     enabled,
   ]);
 
