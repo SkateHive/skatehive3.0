@@ -7,6 +7,11 @@ import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import useHiveAccount from "@/hooks/useHiveAccount";
+import {
+  resolveSessionHiveHandle,
+  resolveMetadataSourceHandle,
+  isAdditionalHiveLogin,
+} from "@/lib/userbase/accountLinking";
 
 export interface LinkingOpportunity {
   type: "hive" | "evm" | "farcaster";
@@ -42,14 +47,34 @@ interface IdentityRow {
  */
 export function useAccountLinkingOpportunities(enabled = true): AccountLinkingState {
   const { user: userbaseUser } = useUserbaseAuth();
-  const { user: hiveUser } = useAioha();
+  const { user: hiveUser, otherUsers } = useAioha();
   const { address: evmAddress, isConnected: isEvmConnected } = useAccount();
   const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } = useFarcasterSession();
-  const { hiveAccount } = useHiveAccount(hiveUser || "");
 
   // Use shared LinkedIdentityContext instead of independent fetch
   const { identities: contextIdentities, isLoading, refresh } = useLinkedIdentities();
-  const identities: IdentityRow[] = enabled ? contextIdentities : [];
+  const identities: IdentityRow[] = useMemo(
+    () => (enabled ? contextIdentities : []),
+    [enabled, contextIdentities]
+  );
+
+  // The Hive account that owns the current userbase session. Since multi-account
+  // login, aioha's active user can be a second account added in the same browser,
+  // which is a different person from the one this session belongs to. Linking
+  // suggestions must key off the session's account, not whatever aioha has active.
+  const sessionHiveHandle = useMemo(
+    () => resolveSessionHiveHandle(identities),
+    [identities]
+  );
+
+  // Falls back to the active account only when the session has no Hive identity
+  // yet *and* aioha holds just that one — the genuine "you just connected Hive,
+  // want to link it?" case. See resolveMetadataSourceHandle for why.
+  const metadataSourceHandle = useMemo(
+    () => resolveMetadataSourceHandle(sessionHiveHandle, hiveUser, otherUsers),
+    [sessionHiveHandle, hiveUser, otherUsers]
+  );
+  const { hiveAccount } = useHiveAccount(metadataSourceHandle || "");
 
   // Extract linked accounts from Hive metadata
   const hiveMetadataAccounts = useMemo(() => {
@@ -100,10 +125,19 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
     if (!enabled) return [];
     const ops: LinkingOpportunity[] = [];
     
-    // Check if current Hive wallet is linked
-    if (hiveUser) {
+    const activeHiveHandle = hiveUser?.toLowerCase() || null;
+
+    // Check if current Hive wallet is linked.
+    // When the session already owns a Hive identity and aioha's active account is
+    // a different one, that account is a deliberate second login (multi-account),
+    // not a discovery. Offering to link it here is how adding an account turned
+    // into an offer to *merge* two unrelated ones — a destructive, irreversible
+    // operation behind a one-line confirm. Users who genuinely need to combine two
+    // profiles have the deliberate flow in settings, which previews the outcome
+    // first (see UserbaseMergePanel).
+    if (hiveUser && !isAdditionalHiveLogin(sessionHiveHandle, activeHiveHandle)) {
       const hasHive = identities.some(
-        (i) => i.type === "hive" && i.handle?.toLowerCase() === hiveUser.toLowerCase()
+        (i) => i.type === "hive" && i.handle?.toLowerCase() === activeHiveHandle
       );
       ops.push({
         type: "hive",
@@ -190,6 +224,8 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
     farcasterProfile,
     identities,
     hiveMetadataAccounts,
+    sessionHiveHandle,
+    enabled,
   ]);
 
   const hasUnlinkedOpportunities = useMemo(() => {
