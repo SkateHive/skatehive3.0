@@ -1,0 +1,285 @@
+/**
+ * Unit tests for the cross-post curation queue's enqueue path.
+ * Run with: npx tsx lib/crosspost/__tests__/queue.test.ts
+ *
+ * These exercise the guarantees the partial unique index from migration 0029
+ * is supposed to give us, against a fake Postgres that actually enforces it
+ * (see fakeSupabase.ts):
+ *
+ *   - one ACTIVE request per (target, snap)
+ *   - a rejected/failed item FREES the slot, so the author can retry
+ *   - Instagram and Farcaster are independent slots for the same snap
+ *   - NULL author/permlink (Farcaster-only replies) never collide
+ *
+ * Not covered here — needs a real Postgres: RLS, jsonb round-tripping, and
+ * the true concurrency of two simultaneous inserts (the fake is single
+ * threaded, so the 23505 race is simulated rather than raced).
+ */
+
+import {
+  countQueueItemsForUser,
+  enqueueCrossPost,
+  findActiveQueueItem,
+  type InstagramQueuePayload,
+} from "../queue";
+import { createFakeSupabase, QUEUE_UNIQUES } from "./fakeSupabase";
+
+// Simple test runner (same pattern as lib/utils/__tests__)
+const tests: Array<() => void | Promise<void>> = [];
+let hasFailures = false;
+
+function describe(name: string, fn: () => void) {
+  console.log(`\n📦 ${name}`);
+  fn();
+}
+
+function it(name: string, fn: () => void | Promise<void>) {
+  tests.push(async () => {
+    try {
+      await fn();
+      console.log(`  ✅ ${name}`);
+    } catch (error) {
+      console.error(`  ❌ ${name}`);
+      console.error(`     ${error}`);
+      hasFailures = true;
+    }
+  });
+}
+
+function assertEqual<T>(actual: T, expected: T, message?: string) {
+  if (actual !== expected) {
+    throw new Error(message || `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
+function assertTrue(condition: boolean, message?: string) {
+  if (!condition) throw new Error(message || "Expected condition to be true");
+}
+
+function freshDb() {
+  return createFakeSupabase({
+    tables: { userbase_crosspost_queue: [] },
+    uniques: QUEUE_UNIQUES,
+  });
+}
+
+const IG_PAYLOAD: InstagramQueuePayload = {
+  caption: "kickflip down the 5-stair",
+  collaborators: ["skater.ig"],
+  image_url: null,
+  video_url: "https://ipfs.skatehive.app/ipfs/bafyvideo",
+  ig_media_type: "REELS",
+  permalink_url: "https://skatehive.app/post/skater/kickflip",
+};
+
+function igRequest(supabase: any, overrides: Record<string, any> = {}) {
+  return enqueueCrossPost({
+    supabase,
+    target: "instagram",
+    userId: "user-1",
+    requestedByHandle: "skater",
+    hiveAuthor: "skater",
+    hivePermlink: "kickflip",
+    payload: IG_PAYLOAD,
+    ...overrides,
+  });
+}
+
+describe("enqueue basics", () => {
+  it("files a request as pending_review with the payload intact", async () => {
+    const supabase = freshDb();
+    const result = await igRequest(supabase);
+
+    assertTrue(result.ok, "enqueue should succeed");
+    const rows = supabase.db.tables.userbase_crosspost_queue;
+    assertEqual(rows.length, 1);
+    assertEqual(rows[0].status, "pending_review");
+    assertEqual(rows[0].target, "instagram");
+    assertEqual(rows[0].requested_by_handle, "skater");
+    assertEqual(rows[0].payload.caption, IG_PAYLOAD.caption);
+  });
+
+  it("fails cleanly when there is no supabase client", async () => {
+    const result = await enqueueCrossPost({
+      supabase: null,
+      target: "instagram",
+      userId: "user-1",
+      requestedByHandle: "skater",
+      hiveAuthor: "skater",
+      hivePermlink: "kickflip",
+      payload: IG_PAYLOAD,
+    });
+    assertEqual(result.ok, false);
+    assertEqual((result as any).status, 500);
+  });
+});
+
+describe("one active request per snap", () => {
+  it("returns the existing item instead of queueing a duplicate", async () => {
+    const supabase = freshDb();
+    const first = await igRequest(supabase);
+    const second = await igRequest(supabase);
+
+    assertTrue(second.ok, "duplicate request should not be an error");
+    assertTrue(!!(second as any).duplicate, "second request should report a duplicate");
+    assertEqual((second as any).id, (first as any).id, "should point at the same item");
+    assertEqual(
+      supabase.db.tables.userbase_crosspost_queue.length,
+      1,
+      "no second row should be created"
+    );
+  });
+
+  it("treats an already-published item as a duplicate too", async () => {
+    const supabase = freshDb();
+    await igRequest(supabase);
+    supabase.db.tables.userbase_crosspost_queue[0].status = "published";
+
+    const again = await igRequest(supabase);
+    assertTrue(!!(again as any).duplicate, "published item still holds the slot");
+    assertEqual(supabase.db.tables.userbase_crosspost_queue.length, 1);
+  });
+
+  it("lets Instagram and Farcaster hold the same snap independently", async () => {
+    const supabase = freshDb();
+    await igRequest(supabase);
+    const fc = await enqueueCrossPost({
+      supabase,
+      target: "farcaster",
+      userId: "user-1",
+      requestedByHandle: "skater",
+      hiveAuthor: "skater",
+      hivePermlink: "kickflip",
+      payload: { text: "kickflip", embeds: [], channel_id: "skateboard" },
+    });
+
+    assertTrue(fc.ok && !(fc as any).duplicate, "different target is a different slot");
+    assertEqual(supabase.db.tables.userbase_crosspost_queue.length, 2);
+  });
+});
+
+describe("rejection frees the slot", () => {
+  it("allows a new request after the first was rejected", async () => {
+    const supabase = freshDb();
+    await igRequest(supabase);
+    supabase.db.tables.userbase_crosspost_queue[0].status = "rejected";
+
+    const retry = await igRequest(supabase);
+    assertTrue(retry.ok, "retry should succeed");
+    assertTrue(
+      !(retry as any).duplicate,
+      "a rejected item must not block a fresh request"
+    );
+    assertEqual(supabase.db.tables.userbase_crosspost_queue.length, 2);
+  });
+
+  it("allows a new request after a failed publish", async () => {
+    const supabase = freshDb();
+    await igRequest(supabase);
+    supabase.db.tables.userbase_crosspost_queue[0].status = "failed";
+
+    const retry = await igRequest(supabase);
+    assertTrue(!(retry as any).duplicate, "failed items must not hold the slot");
+    assertEqual(supabase.db.tables.userbase_crosspost_queue.length, 2);
+  });
+});
+
+describe("Farcaster-only replies (no Hive counterpart)", () => {
+  it("queues rows with NULL author/permlink without colliding", async () => {
+    const supabase = freshDb();
+    const payload = { text: "sick line", embeds: [], channel_id: null };
+
+    const a = await enqueueCrossPost({
+      supabase,
+      target: "farcaster",
+      userId: "user-1",
+      requestedByHandle: "skater",
+      hiveAuthor: null,
+      hivePermlink: null,
+      payload,
+    });
+    const b = await enqueueCrossPost({
+      supabase,
+      target: "farcaster",
+      userId: "user-1",
+      requestedByHandle: "skater",
+      hiveAuthor: null,
+      hivePermlink: null,
+      payload,
+    });
+
+    assertTrue(a.ok && b.ok, "both should be accepted");
+    assertTrue(
+      !(b as any).duplicate,
+      "NULLs are distinct in Postgres — these can't be deduped by the index"
+    );
+    assertEqual(
+      supabase.db.tables.userbase_crosspost_queue.length,
+      2,
+      "documents the known gap: identical FC-only replies are NOT deduped"
+    );
+  });
+});
+
+describe("findActiveQueueItem", () => {
+  it("ignores rejected and failed items", async () => {
+    const supabase = freshDb();
+    await igRequest(supabase);
+    supabase.db.tables.userbase_crosspost_queue[0].status = "rejected";
+
+    const found = await findActiveQueueItem({
+      supabase,
+      target: "instagram",
+      hiveAuthor: "skater",
+      hivePermlink: "kickflip",
+    });
+    assertEqual(found, null);
+  });
+
+  it("finds an item that is still in review", async () => {
+    const supabase = freshDb();
+    await igRequest(supabase);
+
+    const found = await findActiveQueueItem({
+      supabase,
+      target: "instagram",
+      hiveAuthor: "skater",
+      hivePermlink: "kickflip",
+    });
+    assertTrue(found !== null && found.status === "pending_review");
+  });
+});
+
+describe("countQueueItemsForUser (flood guard)", () => {
+  it("counts only the requested statuses, for the requested user", async () => {
+    const supabase = freshDb();
+    const rows = supabase.db.tables.userbase_crosspost_queue;
+    rows.push(
+      { id: "a", user_id: "user-1", status: "pending_review", created_at: "2026-07-01" },
+      { id: "b", user_id: "user-1", status: "pending_review", created_at: "2026-07-02" },
+      { id: "c", user_id: "user-1", status: "published", created_at: "2026-07-03" },
+      { id: "d", user_id: "user-2", status: "pending_review", created_at: "2026-07-04" }
+    );
+
+    const count = await countQueueItemsForUser({
+      supabase,
+      userId: "user-1",
+      statuses: ["pending_review"],
+    });
+    assertEqual(count, 2, "published rows and other users must not count");
+  });
+});
+
+// Run all tests
+(async () => {
+  for (const test of tests) {
+    await test();
+  }
+
+  if (hasFailures) {
+    console.log("\n❌ Some crosspost queue tests failed!\n");
+    process.exit(1);
+  } else {
+    console.log("\n✨ All crosspost queue tests completed!\n");
+  }
+})();
