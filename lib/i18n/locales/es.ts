@@ -1392,4 +1392,7 @@ export const es = {
     reportBug: 'Reportar bug',
     screenshotHint: '⌘/Ctrl+Enter para adjuntar captura de pantalla',
   },
+  editUserbaseProfile: {
+    handleTaken: 'Este identificador ya está en uso',
+  },
 };

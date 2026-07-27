@@ -261,11 +261,19 @@ export async function PATCH(request: NextRequest) {
       // Normalize handle
       const normalizedHandle = handle ? handle.trim().toLowerCase() : null;
       if (normalizedHandle) {
-        const { data: currentUser } = await supabase
+        const { data: currentUser, error: currentUserError } = await supabase
           .from("userbase_users")
           .select("handle")
           .eq("id", userId)
           .single();
+
+        if (currentUserError) {
+          console.error("Failed to load current handle:", currentUserError);
+          return NextResponse.json(
+            { error: "Failed to update profile" },
+            { status: 500 }
+          );
+        }
 
         // Skip validation/uniqueness checks when the handle is unchanged (no-op update)
         if (normalizedHandle !== currentUser?.handle) {

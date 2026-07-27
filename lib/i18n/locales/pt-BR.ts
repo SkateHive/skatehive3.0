@@ -1393,4 +1393,7 @@ export const ptBR = {
     reportBug: 'Reportar bug',
     screenshotHint: '⌘/Ctrl+Enter para anexar captura de tela',
   },
+  editUserbaseProfile: {
+    handleTaken: 'Este identificador já está em uso',
+  },
 };
