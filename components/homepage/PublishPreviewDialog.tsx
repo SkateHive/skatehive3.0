@@ -26,6 +26,7 @@ import {
   HStack,
   Image as ChakraImage,
   Input,
+  Spinner,
   Tag,
   TagCloseButton,
   TagLabel,
@@ -42,6 +43,7 @@ import { useTranslations } from "@/contexts/LocaleContext";
 import VideoTimeline from "./VideoTimeline";
 import { InstagramPostPreview } from "./InstagramPreviewModal";
 import type { CarouselMediaItem } from "@/lib/instagram/extractPostMedia";
+import { createTrimmedVideo, loadFFmpeg } from "@/lib/utils/videoTrim";
 
 export interface PublishImage {
   url: string;
@@ -170,6 +172,7 @@ export default function PublishPreviewDialog({
   const [masterCaption, setMasterCaption] = useState(initialCaption);
   const [farcasterCaption, setFarcasterCaption] = useState<string | null>(null);
   const [igCaption, setIgCaption] = useState<string | null>(null);
+  const [captionError, setCaptionError] = useState(false);
 
   // Lazily seed the per-network captions the first time their step is shown,
   // so they pick up edits made to the master caption on the Hive step.
@@ -207,14 +210,55 @@ export default function PublishPreviewDialog({
   const [endTime, setEndTime] = useState(0);
   const [coverUrl, setCoverUrl] = useState<string | null>(thumbnailUrl);
   const coverBlobRef = useRef<Blob | null>(null);
+  // Tracks whether the user has dragged a trim handle, so remounting the
+  // <video> (e.g. clicking back to the Trim step chip) doesn't reset it.
+  const hasUserTrimmedRef = useRef(false);
 
   const onLoadedMetadata = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
     setDuration(v.duration);
-    setStartTime(0);
-    setEndTime(canBypassTrim ? v.duration : Math.min(v.duration, maxVideoDuration));
+    if (!hasUserTrimmedRef.current) {
+      setStartTime(0);
+      setEndTime(canBypassTrim ? v.duration : Math.min(v.duration, maxVideoDuration));
+    }
   }, [canBypassTrim, maxVideoDuration]);
+
+  // Manually-applied trim preview: null until the user clicks TRIM, so the
+  // preview shows the full raw clip until then. Cleared whenever the handles
+  // move again, since it no longer matches the selected range.
+  const [isTrimming, setIsTrimming] = useState(false);
+  const [trimmedPreviewUrl, setTrimmedPreviewUrl] = useState<string | null>(null);
+  const [trimError, setTrimError] = useState<string | null>(null);
+
+  // Pre-load the FFmpeg WASM engine in the background as soon as the trim UI
+  // is needed, so the TRIM button is ready by the time the user reaches it.
+  const [ffmpegReady, setFfmpegReady] = useState(false);
+  useEffect(() => {
+    if (!hasRawVideo) return;
+    loadFFmpeg()
+      .then(() => setFfmpegReady(true))
+      .catch(() => setTrimError(t("compose.trimEngineLoadFailed")));
+  }, [hasRawVideo, t]);
+
+  const handleStartTimeChange = useCallback((time: number) => {
+    hasUserTrimmedRef.current = true;
+    setStartTime(time);
+    setTrimmedPreviewUrl(null);
+  }, []);
+
+  const handleEndTimeChange = useCallback((time: number) => {
+    hasUserTrimmedRef.current = true;
+    setEndTime(time);
+    setTrimmedPreviewUrl(null);
+  }, []);
+
+  // Revoke the trimmed preview blob URL whenever it's replaced or the dialog unmounts.
+  useEffect(() => {
+    return () => {
+      if (trimmedPreviewUrl) URL.revokeObjectURL(trimmedPreviewUrl);
+    };
+  }, [trimmedPreviewUrl]);
 
   const seekTo = useCallback((time: number) => {
     const v = videoRef.current;
@@ -246,6 +290,28 @@ export default function PublishPreviewDialog({
   }, []);
 
   const isValidSelection = !hasRawVideo || (endTime > startTime && (canBypassTrim || endTime - startTime <= maxVideoDuration + 0.05));
+  const needsTrim = hasRawVideo && (startTime > 0.05 || endTime < duration - 0.05);
+
+  // Manual "TRIM" button on step 1 — re-encodes the selected range so the
+  // preview (right panel + steps 2-4) shows the actual trimmed clip and its
+  // real duration. Publish-time trimming (runVideoPrep) is independent of
+  // this and always re-derives the trim from startTime/endTime.
+  const handleTrimClick = useCallback(async () => {
+    if (!videoFile) return;
+    setIsTrimming(true);
+    setTrimError(null);
+    try {
+      const blob = await createTrimmedVideo(videoFile, startTime, endTime);
+      setTrimmedPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(blob);
+      });
+    } catch (err) {
+      setTrimError(err instanceof Error ? err.message : t("compose.trimFailed"));
+    } finally {
+      setIsTrimming(false);
+    }
+  }, [videoFile, startTime, endTime, t]);
 
   // ── Publish ─────────────────────────────────────────────────────────
   // The dialog only COLLECTS inputs. The composer processes the video and
@@ -253,10 +319,10 @@ export default function PublishPreviewDialog({
   // close immediately instead of holding a loading state.
   const handlePublish = useCallback(() => {
     if (!normalizedPublishCaption) {
+      setCaptionError(true);
       goToStep(targets.hive ? "hive" : steps.find((s) => s !== "trim") ?? "hive");
       return;
     }
-    const needsTrim = hasRawVideo && (startTime > 0.05 || endTime < duration - 0.05);
     onPublish({
       caption: normalizedPublishCaption,
       farcasterCaption: effFarcaster,
@@ -265,12 +331,15 @@ export default function PublishPreviewDialog({
       trim: needsTrim ? { start: startTime, end: endTime } : null,
       coverBlob: coverBlobRef.current,
     });
-  }, [normalizedPublishCaption, effFarcaster, effIg, collaborators, hasRawVideo, startTime, endTime, duration, onPublish, goToStep, targets.hive, steps]);
+  }, [normalizedPublishCaption, effFarcaster, effIg, collaborators, needsTrim, startTime, endTime, onPublish, goToStep, targets.hive, steps]);
 
   // ── Media shape for preview cards ───────────────────────────────────
+  // Once the user applies a trim, every preview (steps 2-4 + right panel)
+  // shows the trimmed clip instead of the raw upload.
+  const effectiveVideoUrl = trimmedPreviewUrl || videoLocalUrl;
   const carouselItems = useMemo<CarouselMediaItem[]>(() => images.map((img) => ({ url: img.url, type: "image" as const })), [images]);
   const igMediaType: "IMAGE" | "REELS" | "CAROUSEL" = videoLocalUrl ? "REELS" : images.length >= 2 ? "CAROUSEL" : "IMAGE";
-  const igMediaUrl = videoLocalUrl || images[0]?.url || coverUrl || null;
+  const igMediaUrl = effectiveVideoUrl || images[0]?.url || coverUrl || null;
 
   const primaryLabel = hasForwardNext
     ? t("compose.prepare.next")
@@ -291,13 +360,12 @@ export default function PublishPreviewDialog({
             {idx === 0 ? t("compose.prepare.cancel") : t("compose.prepare.back")}
           </Button>
           <Button
-            bg="primary"
-            color="background"
+            variant="ghost"
+            color="text"
             onClick={hasForwardNext ? goNext : handlePublish}
-            isDisabled={!isValidSelection || (!hasForwardNext && !normalizedPublishCaption)}
+            isDisabled={!isValidSelection}
             fontFamily="mono"
             size="sm"
-            _hover={{ opacity: 0.85 }}
           >
             {primaryLabel}
           </Button>
@@ -351,22 +419,65 @@ export default function PublishPreviewDialog({
                     style={{ width: "100%", maxHeight: "300px", display: "block", background: "#000" }}
                   />
                 </Box>
-                {duration > 0 && (
-                  <VideoTimeline
-                    duration={duration}
-                    currentTime={currentTime}
-                    startTime={startTime}
-                    endTime={endTime}
-                    isValidSelection={isValidSelection}
-                    maxDuration={maxVideoDuration}
-                    canBypass={canBypassTrim}
-                    onSeek={seekTo}
-                    onStartTimeChange={setStartTime}
-                    onEndTimeChange={setEndTime}
-                    onDragStart={() => {}}
-                    onDragEnd={() => {}}
-                  />
-                )}
+                <Box display="flex" flexDirection="column" alignItems="center" width="100%" gap={3}>
+                  {duration > 0 && (
+                    <VideoTimeline
+                      duration={duration}
+                      currentTime={currentTime}
+                      startTime={startTime}
+                      endTime={endTime}
+                      onSeek={seekTo}
+                      onStartTimeChange={handleStartTimeChange}
+                      onEndTimeChange={handleEndTimeChange}
+                      onDragStart={() => {}}
+                      onDragEnd={() => {}}
+                    />
+                  )}
+                  {needsTrim && (
+                    <>
+                      <Button
+                        sx={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "var(--chakra-colors-primary)",
+                          color: "var(--chakra-colors-background)",
+                          border: "1px solid transparent",
+                          borderRadius: 0,
+                          fontWeight: "bold",
+                          "&:not([disabled]):hover": {
+                            background: "transparent",
+                            color: "var(--chakra-colors-primary)",
+                            border: "1px solid var(--chakra-colors-primary)",
+                          },
+                        }}
+                        variant="unstyled"
+                        px={4}
+                        py={2}
+                        size="xs"
+                        onClick={handleTrimClick}
+                        isDisabled={isTrimming || !ffmpegReady}
+                        fontFamily="mono"
+                      >
+                        {t("compose.trimButton")}
+                      </Button>
+                      {(isTrimming || (!ffmpegReady && !trimError)) && (
+                        <HStack spacing={2}>
+                          <Spinner size="xs" color="primary" />
+                          <Text fontFamily="mono" fontSize="2xs" color="dim">
+                            {isTrimming ? t("compose.trimProcessing") : t("compose.trimEngineLoading")}
+                          </Text>
+                        </HStack>
+                      )}
+                      {!isTrimming && trimmedPreviewUrl && (
+                        <Text fontFamily="mono" fontSize="2xs" color="success">{t("compose.trimApplied")}</Text>
+                      )}
+                    </>
+                  )}
+                  {trimError && (
+                    <Text fontFamily="mono" fontSize="2xs" color="error">{trimError}</Text>
+                  )}
+                </Box>
               </>
             )}
 
@@ -379,10 +490,12 @@ export default function PublishPreviewDialog({
                   <Box>
                     <Box borderRadius="md" overflow="hidden" bg="black" mb={2}>
                       {/* No onLoadedMetadata here — would reset the trim range
-                          set on step 1. Cover capture reads videoWidth directly. */}
+                          set on step 1. Cover capture reads videoWidth directly.
+                          Src is the trimmed preview once the user hits TRIM on
+                          step 1, so this already reflects the selected range. */}
                       <video
                         ref={videoRef}
-                        src={videoLocalUrl as string}
+                        src={effectiveVideoUrl as string}
                         controls
                         playsInline
                         preload="metadata"
@@ -404,8 +517,12 @@ export default function PublishPreviewDialog({
                 <CaptionField
                   label={t("compose.prepare.caption")}
                   value={masterCaption}
-                  onChange={setMasterCaption}
+                  onChange={(v) => {
+                    setMasterCaption(v);
+                    if (v.trim()) setCaptionError(false);
+                  }}
                   placeholder={t("compose.prepare.captionPlaceholder")}
+                  error={captionError && !normalizedPublishCaption ? t("compose.captionRequired") : undefined}
                 />
                 {targets.farcaster && (
                   <Text fontFamily="mono" fontSize="2xs" color="dim">
@@ -507,9 +624,9 @@ export default function PublishPreviewDialog({
                 collaborators={collaborators}
               />
             ) : step === "farcaster" ? (
-              <FarcasterCastPreview username={farcasterUsername || hiveAuthor} caption={effFarcaster} images={images} videoUrl={videoLocalUrl} thumbnailUrl={coverUrl} />
+              <FarcasterCastPreview username={farcasterUsername || hiveAuthor} caption={effFarcaster} images={images} videoUrl={effectiveVideoUrl} thumbnailUrl={coverUrl} />
             ) : (
-              <HivePostPreview author={hiveAuthor} caption={masterCaption} images={images} videoUrl={videoLocalUrl} thumbnailUrl={coverUrl} />
+              <HivePostPreview author={hiveAuthor} caption={masterCaption} images={images} videoUrl={effectiveVideoUrl} thumbnailUrl={coverUrl} />
             )}
           </Box>
         </Box>
@@ -526,6 +643,7 @@ function CaptionField({
   disabled,
   limit,
   placeholder,
+  error,
 }: {
   label: string;
   value: string;
@@ -533,6 +651,7 @@ function CaptionField({
   disabled?: boolean;
   limit?: number;
   placeholder?: string;
+  error?: string;
 }) {
   return (
     <Box>
@@ -553,11 +672,18 @@ function CaptionField({
         fontSize="sm"
         color="text"
         bg="background"
-        borderColor="border"
+        borderColor={error ? "error" : "border"}
+        borderWidth={error ? "2px" : "1px"}
         whiteSpace="pre-wrap"
         placeholder={placeholder}
         isDisabled={disabled}
+        isInvalid={!!error}
       />
+      {error && (
+        <Text fontFamily="mono" fontSize="2xs" color="error" mt={1}>
+          ⚠ {error}
+        </Text>
+      )}
     </Box>
   );
 }

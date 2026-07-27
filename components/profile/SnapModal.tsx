@@ -31,6 +31,7 @@ import {
 import { Discussion } from "@hiveio/dhive";
 import useEffectiveHiveUser from "@/hooks/useEffectiveHiveUser";
 import useSoftVoteOverlay from "@/hooks/useSoftVoteOverlay";
+import { callHiveApi } from "@/lib/hive/client-proxy";
 import VideoRenderer from "../layout/VideoRenderer";
 import SnapComposer from "../homepage/SnapComposer";
 import Snap from "../homepage/Snap";
@@ -118,6 +119,16 @@ const SnapModal = ({
   );
   const currentMedia = allMedia[currentMediaIndex];
   const isVideo = currentSnap.media.videos.includes(currentMedia);
+  // Odysee `$/embed/…` URLs are HTML embed pages — they must be played in an
+  // <iframe>, not the IPFS/MP4 VideoRenderer (which would 404 the poster and
+  // fail to load the source).
+  const isOdyseeEmbed = (() => {
+    try {
+      return /(^|\.)odysee\.com$/i.test(new URL(currentMedia || "").hostname);
+    } catch {
+      return false;
+    }
+  })();
   const { src: mediaSrc, onError: onMediaError } = useHeicFallback(currentMedia || "");
 
   const nextMedia = useCallback(() => {
@@ -163,7 +174,10 @@ const SnapModal = ({
   const cleanBodyText = (body: string) => {
     if (!body) return "";
     let cleaned = body.replace(/!\[.*?\]\(.*?\)/g, "");
-    cleaned = cleaned.replace(/<iframe[^>]*>.*?<\/iframe>/gi, "");
+    // [\s\S]*? (not .*?) so this also matches multi-line iframes — the video
+    // embed markdown (generateVideoIframeMarkdown) spans several lines, and a
+    // plain "." never matches "\n" without the "s" flag.
+    cleaned = cleaned.replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, "");
     cleaned = cleaned.replace(/\n\s*\n/g, "\n").trim();
     return cleaned;
   };
@@ -210,7 +224,47 @@ const SnapModal = ({
     );
     setActiveVotes(currentSnap.active_votes || []);
     setShowSlider(false);
-  }, [currentSnap, effectiveUser, hasSoftVote]);
+    // Deliberately keyed on author/permlink (not the currentSnap object) — the
+    // grid's snaps array is recreated on every render (see useUserSnaps' inline
+    // .map()), which would otherwise re-fire this on unrelated re-renders and
+    // stomp the accurate vote data the effect below just fetched.
+  }, [currentSnap.author, currentSnap.permlink, effectiveUser, hasSoftVote]);
+
+  // The grid's snap list (api.skatehive.app feed / bridge.get_account_posts)
+  // doesn't include the full active_votes array, so the vote count above
+  // starts at 0 even for snaps with real votes. Refresh from the full post
+  // content once the modal opens on this snap — same fix already applied to
+  // the feed's Snap.tsx for the same reason.
+  useEffect(() => {
+    let mounted = true;
+
+    const refreshVotes = async () => {
+      try {
+        const content = await callHiveApi("condenser_api.get_content", [
+          currentSnap.author,
+          currentSnap.permlink,
+        ]);
+        if (mounted && content?.active_votes && Array.isArray(content.active_votes)) {
+          setActiveVotes(content.active_votes);
+          setVoted(
+            hasSoftVote ||
+              content.active_votes.some(
+                (item: { voter: string }) =>
+                  item.voter?.toLowerCase() === effectiveUser?.toLowerCase()
+              )
+          );
+        }
+      } catch (error) {
+        // Silent fail - keep the (possibly empty) data already in state
+      }
+    };
+
+    refreshVotes();
+
+    return () => {
+      mounted = false;
+    };
+  }, [currentSnap.author, currentSnap.permlink, effectiveUser, hasSoftVote]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -277,8 +331,8 @@ const SnapModal = ({
     >
       <ModalOverlay bg="blackAlpha.900" />
       <ModalContent
-        bg="rgb(24, 24, 24)"
-        color="white"
+        bg="background"
+        color="text"
         h={{ base: "100vh", md: "85vh" }}
         borderRadius={{ base: 0, md: "lg" }}
       >
@@ -334,11 +388,24 @@ const SnapModal = ({
                   },
                 }}
               >
-                <VideoRenderer
-                  src={currentMedia}
-                  loop
-                  skipThumbnailLoad={true}
-                />
+                {isOdyseeEmbed ? (
+                  <Box
+                    as="iframe"
+                    src={currentMedia}
+                    title={`Odysee video by @${currentSnap.author}`}
+                    width="100%"
+                    height="100%"
+                    border="none"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <VideoRenderer
+                    src={currentMedia}
+                    loop
+                    skipThumbnailLoad={true}
+                  />
+                )}
               </Box>
             ) : (
               <Image

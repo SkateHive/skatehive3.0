@@ -169,13 +169,6 @@ const GIFMakerWithSelector = forwardRef<GIFMakerRef, GIFMakerWithSelectorProps>(
       }
     };
 
-    const seekDuringDrag = (time: number) => {
-      if (videoRef.current) {
-        videoRef.current.currentTime = time;
-        setCurrentTime(time);
-      }
-    };
-
     // Timeline change handlers
     const handleStartTimeChange = (newStartTime: number) => {
       setStartTime(newStartTime);
@@ -398,11 +391,7 @@ const GIFMakerWithSelector = forwardRef<GIFMakerRef, GIFMakerWithSelectorProps>(
                 currentTime={currentTime}
                 startTime={startTime || 0}
                 endTime={endTime || videoDuration}
-                isValidSelection={isValidSelection()}
-                maxDuration={6} // 6 second limit for GIFs
-                canBypass={false} // No bypass for GIFs
                 onSeek={seekTo}
-                onSeekDuringDrag={seekDuringDrag}
                 onStartTimeChange={handleStartTimeChange}
                 onEndTimeChange={handleEndTimeChange}
                 onDragStart={handleDragStart}
