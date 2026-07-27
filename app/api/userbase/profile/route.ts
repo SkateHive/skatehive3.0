@@ -261,18 +261,27 @@ export async function PATCH(request: NextRequest) {
       // Normalize handle
       const normalizedHandle = handle ? handle.trim().toLowerCase() : null;
       if (normalizedHandle) {
-        const validation = validateHiveUsernameFormat(normalizedHandle);
-        if (!validation.isValid) {
-          return NextResponse.json(
-            { error: validation.error || "Invalid Hive username format" },
-            { status: 400 }
-          );
-        }
-        if (await checkHiveAccountExists(normalizedHandle)) {
-          return NextResponse.json(
-            { error: "Handle already in use on Hive" },
-            { status: 409 }
-          );
+        const { data: currentUser } = await supabase
+          .from("userbase_users")
+          .select("handle")
+          .eq("id", userId)
+          .single();
+
+        // Skip validation/uniqueness checks when the handle is unchanged (no-op update)
+        if (normalizedHandle !== currentUser?.handle) {
+          const validation = validateHiveUsernameFormat(normalizedHandle);
+          if (!validation.isValid) {
+            return NextResponse.json(
+              { error: validation.error || "Invalid Hive username format" },
+              { status: 400 }
+            );
+          }
+          if (await checkHiveAccountExists(normalizedHandle)) {
+            return NextResponse.json(
+              { error: "Handle already in use on Hive" },
+              { status: 409 }
+            );
+          }
         }
       }
       updateData.handle = normalizedHandle;

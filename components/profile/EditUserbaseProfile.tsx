@@ -157,7 +157,7 @@ export default function EditUserbaseProfile({
 
       if (!response.ok) {
         if (response.status === 409) {
-          setHandleError("This handle is already taken");
+          setHandleError(data.error || "This handle is already taken");
           return;
         }
         throw new Error(data.error || "Failed to update profile");
