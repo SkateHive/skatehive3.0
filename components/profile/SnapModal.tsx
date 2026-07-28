@@ -354,7 +354,30 @@ const SnapModal = ({
             position="relative"
             overflow="hidden"
           >
-            {isVideo ? (
+            {allMedia.length === 0 ? (
+              // Text-only snap (the onboarding intro post is one): there is no
+              // media to fill this pane, so show the text rather than a blank
+              // frame. White is safe here because the pane is always bg="black".
+              <Box
+                w="100%"
+                h="100%"
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                px={8}
+                py={10}
+              >
+                <Text
+                  color="white"
+                  fontSize={{ base: "md", md: "lg" }}
+                  textAlign="center"
+                  whiteSpace="pre-wrap"
+                  wordBreak="break-word"
+                >
+                  {currentSnap.body}
+                </Text>
+              </Box>
+            ) : isVideo ? (
               <Box
                 w="100%"
                 h="100%"
@@ -421,7 +444,7 @@ const SnapModal = ({
             )}
 
             {/* Optional Download Button */}
-            {!isVideo && (
+            {!isVideo && allMedia.length > 0 && (
               <a
                 href={currentMedia}
                 download={currentMedia ? currentMedia.split("/").pop() || "media" : "media"}
