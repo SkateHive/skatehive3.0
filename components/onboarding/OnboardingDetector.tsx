@@ -22,21 +22,41 @@ import {
 } from "@chakra-ui/react";
 import { FiCamera, FiFileText, FiEdit3, FiCheck, FiX } from "react-icons/fi";
 import dynamic from "next/dynamic";
-import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
+import { useUserbaseAuth, type UserbaseUser } from "@/contexts/UserbaseAuthContext";
 import { useTranslations } from "@/lib/i18n/hooks";
-import { useHasHivePosts } from "@/hooks/useHasHivePosts";
+import { useHiveProfileSummary, type HiveProfileSummary } from "@/hooks/useHiveProfileSummary";
 import {
   ONBOARDING_FLAG_PHOTO,
   ONBOARDING_FLAG_BIO,
   ONBOARDING_FLAG_POST,
   ONBOARDING_ALL_DONE,
-  DICEBEAR_URL_PATTERN,
+  hasCustomAvatar,
 } from "./OnboardingModal";
 
 const OnboardingModal = dynamic(() => import("./OnboardingModal"), { ssr: false });
 
 // Accounts created before this date are excluded from onboarding.
 const ONBOARDING_LAUNCH_DATE = new Date("2026-04-22");
+
+/**
+ * Which steps the user has effectively already done — either through onboarding
+ * itself (the server-side bitmask) or by already having the data, whether on
+ * their Skatehive profile or on their linked Hive account.
+ */
+function getStepState(user: UserbaseUser, hiveProfile: HiveProfileSummary) {
+  const photoDone = hasCustomAvatar(user.avatar_url, hiveProfile.hasProfileImage);
+  // Skatehive never copies the Hive profile's `about` into userbase_users.bio,
+  // so without this check a user who already wrote a bio on Hive gets asked
+  // for it again.
+  const bioDone = !!user.bio?.trim() || hiveProfile.hasAbout;
+  const postDone = hiveProfile.hasPosts;
+  const effectiveStep =
+    (photoDone ? ONBOARDING_FLAG_PHOTO : 0) |
+    (bioDone ? ONBOARDING_FLAG_BIO : 0) |
+    (postDone ? ONBOARDING_FLAG_POST : 0) |
+    (user.onboarding_step ?? 0);
+  return { photoDone, bioDone, postDone, effectiveStep };
+}
 
 // sessionStorage keys
 const SS_SEEN = "onboarding_modal_seen"; // set after first auto-open
@@ -51,9 +71,10 @@ export default function OnboardingDetector() {
   const theme = useTheme();
   const t = useTranslations("onboarding");
 
-  // Whether the linked Hive account already has posts (intro post step skipped).
-  // `null` while still resolving — onboarding stays hidden until it settles.
-  const hasHivePosts = useHasHivePosts();
+  // Profile data the linked Hive account already carries on-chain — each signal
+  // skips the matching step. `null` while still resolving, so onboarding stays
+  // hidden until it settles.
+  const hiveProfile = useHiveProfileSummary();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCardDismissed, setIsCardDismissed] = useState(false);
@@ -63,16 +84,11 @@ export default function OnboardingDetector() {
   useEffect(() => {
     if (!user) return;
     if (hasAutoOpened.current) return;
-    // Wait for the Hive post check before deciding — avoids opening the modal
-    // on the intro post step for a user who already has Hive history.
-    if (hasHivePosts === null) return;
+    // Wait for the Hive profile check before deciding — avoids opening the
+    // modal on a step the user has already covered on their Hive account.
+    if (hiveProfile === null) return;
 
-    const hasCustomAvatar = !!user.avatar_url && !user.avatar_url.includes(DICEBEAR_URL_PATTERN);
-    const hasBio = !!user.bio?.trim();
-    const effectiveStep = (hasCustomAvatar ? ONBOARDING_FLAG_PHOTO : 0)
-      | (hasBio ? ONBOARDING_FLAG_BIO : 0)
-      | (hasHivePosts ? ONBOARDING_FLAG_POST : 0)
-      | (user.onboarding_step ?? 0);
+    const { effectiveStep } = getStepState(user, hiveProfile);
     const isDone = (effectiveStep & ONBOARDING_ALL_DONE) === ONBOARDING_ALL_DONE || isLocallyDone();
     if (isDone) return;
 
@@ -90,7 +106,7 @@ export default function OnboardingDetector() {
     }
 
     hasAutoOpened.current = true;
-  }, [user, hasHivePosts]);
+  }, [user, hiveProfile]);
 
   // ── Clean up SS_DONE once the server confirms onboarding_step === 7 ───────
   useEffect(() => {
@@ -116,30 +132,23 @@ export default function OnboardingDetector() {
   // the modal mid-flow and reset its state.
   if (!user) return null;
 
-  // Wait for the Hive post check to settle before rendering anything, so the
-  // card/modal never flashes the intro post step for a user who already has
-  // Hive history.
-  if (hasHivePosts === null) return null;
+  // Wait for the Hive profile check to settle before rendering anything, so the
+  // card/modal never flashes a step the user has already covered on Hive.
+  if (hiveProfile === null) return null;
 
   // Only show onboarding for accounts created after the feature launch date.
   // Existing users are excluded without any database migration.
   const createdAt = new Date(user.created_at);
   if (isNaN(createdAt.getTime()) || createdAt < ONBOARDING_LAUNCH_DATE) return null;
 
-  const step = user.onboarding_step ?? 0;
-  const hasCustomAvatar = !!user.avatar_url && !user.avatar_url.includes(DICEBEAR_URL_PATTERN);
-  const hasBio = !!user.bio?.trim();
-  const effectiveStep = (hasCustomAvatar ? ONBOARDING_FLAG_PHOTO : 0)
-    | (hasBio ? ONBOARDING_FLAG_BIO : 0)
-    | (hasHivePosts ? ONBOARDING_FLAG_POST : 0)
-    | step;
+  const { photoDone, bioDone, postDone, effectiveStep } = getStepState(user, hiveProfile);
   const isDone = (effectiveStep & ONBOARDING_ALL_DONE) === ONBOARDING_ALL_DONE || isLocallyDone();
   if (isDone) return null;
 
   const items = [
-    ...(!hasCustomAvatar ? [{ flag: ONBOARDING_FLAG_PHOTO, icon: FiCamera, label: t("cardPhoto") }] : []),
-    ...(!hasBio ? [{ flag: ONBOARDING_FLAG_BIO, icon: FiFileText, label: t("cardBio") }] : []),
-    ...(!hasHivePosts ? [{ flag: ONBOARDING_FLAG_POST, icon: FiEdit3, label: t("cardPost") }] : []),
+    ...(!photoDone ? [{ flag: ONBOARDING_FLAG_PHOTO, icon: FiCamera, label: t("cardPhoto") }] : []),
+    ...(!bioDone ? [{ flag: ONBOARDING_FLAG_BIO, icon: FiFileText, label: t("cardBio") }] : []),
+    ...(!postDone ? [{ flag: ONBOARDING_FLAG_POST, icon: FiEdit3, label: t("cardPost") }] : []),
   ];
 
   const pendingItems = items.filter(({ flag }) => !(effectiveStep & flag));
@@ -155,7 +164,7 @@ export default function OnboardingDetector() {
       <OnboardingModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        hasHivePosts={hasHivePosts}
+        hiveProfile={hiveProfile}
       />
 
       {/* Floating card — hidden when dismissed for session OR when modal is open */}

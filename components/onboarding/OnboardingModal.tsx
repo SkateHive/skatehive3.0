@@ -22,6 +22,7 @@ import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { useTranslations } from "@/lib/i18n/hooks";
 import { uploadToIpfs } from "@/lib/markdown/composeUtils";
 import { HIVE_CONFIG } from "@/config/app.config";
+import type { HiveProfileSummary } from "@/hooks/useHiveProfileSummary";
 
 // Bitmask flags — must match profile PATCH API
 export const ONBOARDING_FLAG_PHOTO = 1; // bit 0
@@ -31,6 +32,28 @@ export const ONBOARDING_ALL_DONE   = 7;
 
 // Default avatar generated on signup — not a custom upload
 export const DICEBEAR_URL_PATTERN = "dicebear.com";
+// Avatar bootstrapped for Hive logins. It's a proxy, not an upload: it renders
+// a generic placeholder when the Hive account has no profile_image set, so the
+// URL alone says nothing about whether the user has a real photo.
+const HIVE_PROXY_AVATAR_PATTERN = "images.hive.blog/u/";
+
+/**
+ * Whether the stored avatar is a real photo rather than a generated placeholder.
+ *
+ * `hiveHasProfileImage` comes from the linked Hive account's on-chain profile
+ * and is what makes the Hive proxy URL meaningful — without it, every Hive
+ * signup would look like it already had a custom avatar and silently skip the
+ * photo step.
+ */
+export function hasCustomAvatar(
+  avatarUrl: string | null | undefined,
+  hiveHasProfileImage: boolean
+): boolean {
+  if (!avatarUrl) return false;
+  if (avatarUrl.includes(DICEBEAR_URL_PATTERN)) return false;
+  if (avatarUrl.includes(HIVE_PROXY_AVATAR_PATTERN)) return hiveHasProfileImage;
+  return true;
+}
 
 const STEPS = ["photo", "bio", "post"] as const;
 type Step = (typeof STEPS)[number];
@@ -38,12 +61,12 @@ type Step = (typeof STEPS)[number];
 interface OnboardingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // True when the user's linked Hive account already has posts — the intro
-  // post step is skipped for them. `null` means the check is still resolving.
-  hasHivePosts?: boolean | null;
+  // Profile data the user's linked Hive account already carries on-chain — each
+  // signal skips the matching step. `null` means the check is still resolving.
+  hiveProfile?: HiveProfileSummary | null;
 }
 
-export default function OnboardingModal({ isOpen, onClose, hasHivePosts }: OnboardingModalProps) {
+export default function OnboardingModal({ isOpen, onClose, hiveProfile }: OnboardingModalProps) {
   const { user, refresh } = useUserbaseAuth();
   const toast = useToast();
   const t = useTranslations("onboarding");
@@ -55,12 +78,15 @@ export default function OnboardingModal({ isOpen, onClose, hasHivePosts }: Onboa
   // `if (!user) return null` before mounting this component).
   const [pendingSteps] = useState<Step[]>(() => {
     if (!user) return [];
-    const hasCustomAvatar = !!user.avatar_url && !user.avatar_url.includes(DICEBEAR_URL_PATTERN);
-    const hasBio = !!user.bio?.trim();
+    const photoDone = hasCustomAvatar(user.avatar_url, !!hiveProfile?.hasProfileImage);
+    // Skatehive never copies the Hive profile's `about` into userbase_users.bio,
+    // so without this check a user who already wrote a bio on Hive gets asked
+    // for it again.
+    const bioDone = !!user.bio?.trim() || !!hiveProfile?.hasAbout;
     return STEPS.filter((s) => {
-      if (s === "photo" && hasCustomAvatar) return false;
-      if (s === "bio" && hasBio) return false;
-      if (s === "post" && hasHivePosts) return false;
+      if (s === "photo" && photoDone) return false;
+      if (s === "bio" && bioDone) return false;
+      if (s === "post" && hiveProfile?.hasPosts) return false;
       const flag =
         s === "photo" ? ONBOARDING_FLAG_PHOTO :
         s === "bio"   ? ONBOARDING_FLAG_BIO :
@@ -107,39 +133,58 @@ export default function OnboardingModal({ isOpen, onClose, hasHivePosts }: Onboa
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  // Fire-and-forget PATCH — navigation never waits for the server response
-  const saveToServer = React.useCallback((payload: Record<string, unknown>, errorLabel?: string) => {
-    fetch("/api/userbase/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).catch(() => {
-      if (errorLabel) {
-        toast({ title: errorLabel, status: "error", duration: 3000 });
+  // PATCH the profile and report whether the server actually accepted it.
+  // A non-2xx response counts as a failure: without this check a rejected save
+  // would still mark the step complete client-side and drift from the server.
+  const saveToServer = React.useCallback(
+    async (payload: Record<string, unknown>, errorLabel?: string): Promise<boolean> => {
+      try {
+        const res = await fetch("/api/userbase/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(`Profile PATCH failed with ${res.status}`);
+        return true;
+      } catch {
+        if (errorLabel) {
+          toast({ title: errorLabel, status: "error", duration: 3000 });
+        }
+        return false;
       }
-    });
-  }, [toast]);
+    },
+    [toast]
+  );
 
   // Silently sync bitmask flags for data that already exists outside onboarding
   useEffect(() => {
     const currentStep = user?.onboarding_step ?? 0;
     let flagsToSync = 0;
-    const hasCustomAvatar = !!user?.avatar_url && !user.avatar_url.includes(DICEBEAR_URL_PATTERN);
-    if (!photoFlagSyncedRef.current && hasCustomAvatar && !(currentStep & ONBOARDING_FLAG_PHOTO)) {
+    const photoDone = hasCustomAvatar(user?.avatar_url, !!hiveProfile?.hasProfileImage);
+    if (!photoFlagSyncedRef.current && photoDone && !(currentStep & ONBOARDING_FLAG_PHOTO)) {
       photoFlagSyncedRef.current = true;
       flagsToSync |= ONBOARDING_FLAG_PHOTO;
     }
-    const hasBio = !!user?.bio?.trim();
-    if (!bioFlagSyncedRef.current && hasBio && !(currentStep & ONBOARDING_FLAG_BIO)) {
+    const bioDone = !!user?.bio?.trim() || !!hiveProfile?.hasAbout;
+    if (!bioFlagSyncedRef.current && bioDone && !(currentStep & ONBOARDING_FLAG_BIO)) {
       bioFlagSyncedRef.current = true;
       flagsToSync |= ONBOARDING_FLAG_BIO;
     }
-    if (!postFlagSyncedRef.current && hasHivePosts && !(currentStep & ONBOARDING_FLAG_POST)) {
+    if (!postFlagSyncedRef.current && hiveProfile?.hasPosts && !(currentStep & ONBOARDING_FLAG_POST)) {
       postFlagSyncedRef.current = true;
       flagsToSync |= ONBOARDING_FLAG_POST;
     }
-    if (flagsToSync) saveToServer({ onboarding_step_flag: flagsToSync });
-  }, [user, hasHivePosts, saveToServer]);
+    if (!flagsToSync) return;
+
+    // Roll the refs back if the sync fails so a later render retries, instead
+    // of leaving the server permanently behind this session's view of things.
+    saveToServer({ onboarding_step_flag: flagsToSync }).then((ok) => {
+      if (ok) return;
+      if (flagsToSync & ONBOARDING_FLAG_PHOTO) photoFlagSyncedRef.current = false;
+      if (flagsToSync & ONBOARDING_FLAG_BIO) bioFlagSyncedRef.current = false;
+      if (flagsToSync & ONBOARDING_FLAG_POST) postFlagSyncedRef.current = false;
+    });
+  }, [user, hiveProfile, saveToServer]);
 
   function advance() {
     if (stepIndex + 1 < pendingSteps.length) {
@@ -199,28 +244,29 @@ export default function OnboardingModal({ isOpen, onClose, hasHivePosts }: Onboa
     const hasNewPhoto = avatarPreview && avatarPreview !== user?.avatar_url;
     if (hasNewPhoto) {
       setIsSaving(true);
-      try {
-        await fetch("/api/userbase/profile", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            avatar_url: avatarPreview,
-            onboarding_step_flag: ONBOARDING_FLAG_PHOTO,
-          }),
-        });
-        completedFlagsRef.current |= ONBOARDING_FLAG_PHOTO;
-      } catch {
-        toast({ title: t("couldNotSavePhoto"), status: "error", duration: 3000 });
-      } finally {
-        setIsSaving(false);
-      }
+      const saved = await saveToServer(
+        { avatar_url: avatarPreview, onboarding_step_flag: ONBOARDING_FLAG_PHOTO },
+        t("couldNotSavePhoto")
+      );
+      setIsSaving(false);
+      // Stay on the step when the save fails, so the uploaded photo isn't lost
+      // and the user can retry. "skip" is still there to move on.
+      if (!saved) return;
+      completedFlagsRef.current |= ONBOARDING_FLAG_PHOTO;
     }
     advance();
   }
 
-  function saveBio() {
+  async function saveBio() {
     if (bio.trim()) {
-      saveToServer({ bio: bio.trim(), onboarding_step_flag: ONBOARDING_FLAG_BIO }, t("couldNotSaveBio"));
+      setIsSaving(true);
+      const saved = await saveToServer(
+        { bio: bio.trim(), onboarding_step_flag: ONBOARDING_FLAG_BIO },
+        t("couldNotSaveBio")
+      );
+      setIsSaving(false);
+      // Stay on the step when the save fails, so the typed bio isn't lost.
+      if (!saved) return;
       completedFlagsRef.current |= ONBOARDING_FLAG_BIO;
     }
     advance();
@@ -274,8 +320,11 @@ export default function OnboardingModal({ isOpen, onClose, hasHivePosts }: Onboa
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error ?? t("postFailed"));
       }
-      saveToServer({ onboarding_step_flag: ONBOARDING_FLAG_POST });
-      completedFlagsRef.current |= ONBOARDING_FLAG_POST;
+      // The post is already on-chain, so we advance either way — only the
+      // "everything was completed" bookkeeping waits on the server accepting
+      // the flag, so a failed sync doesn't hide the still-pending checklist.
+      const flagSaved = await saveToServer({ onboarding_step_flag: ONBOARDING_FLAG_POST });
+      if (flagSaved) completedFlagsRef.current |= ONBOARDING_FLAG_POST;
       toast({ title: t("postSuccess"), status: "success", duration: 4000 });
       advance();
     } catch (e: any) {
@@ -456,7 +505,7 @@ export default function OnboardingModal({ isOpen, onClose, hasHivePosts }: Onboa
             <ActionBar
               onSkip={advance}
               onNext={saveBio}
-              isLoading={false}
+              isLoading={isSaving}
               nextLabel={t("saveContinue")}
               isLast={stepIndex + 1 === totalSteps}
             />
