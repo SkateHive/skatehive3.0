@@ -264,7 +264,6 @@ The feed supports inline "mini-app" cards for special URLs. When a user posts a 
 
 | Platform | URL Pattern | Component | Features |
 |----------|-------------|-----------|----------|
-| Zora Coins | `zora.co/.../coin/...` | `ZoraCoinEmbed` | Coin price, market cap, CTA |
 | Builder DAO | `nouns.build/.../vote/...` | `BuilderProposalPreview` | Proposal status, vote counts |
 | Snapshot | `snapshot.box/#/...` | `SnapshotProposalPreview` | Vote status, choices |
 | POIDH Bounties | `skatehive.app/bounties/poidh/...` | `BountyPreview` | Reward in ETH+USD, claim modal |

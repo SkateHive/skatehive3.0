@@ -937,6 +937,8 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
           imageSrc={tempImageForCrop || ""}
           onCropComplete={handleCropComplete}
           aspectRatio={1000 / 1300}
+          outputMaxDimension={1300}
+          outputFileName="magazine-cover.jpg"
           title="Crop Magazine Cover"
         />
       </>

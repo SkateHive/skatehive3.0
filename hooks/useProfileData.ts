@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getProfile, getAccountWithPower } from "@/lib/hive/client-functions";
 import type { ProfileData } from "../components/profile/ProfilePage";
 import { VideoPart } from "@/types/VideoPart";
@@ -42,91 +42,183 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
         setProfileData((prev: ProfileData) => ({ ...prev, ...newData }));
     }, []);
 
-    useEffect(() => {
-        if (!username || !hasHiveAccount) return;
+    // Tracks the username that the most-recently-started Phase 2 fetch belongs to.
+    // Updated synchronously at the start of each effect run so any in-flight IIFE
+    // from a previous username can detect it is stale before calling setState.
+    const currentUsernameRef = useRef(username);
 
-        const fetchProfileInfo = async () => {
+    // Tracks the last follower count the bridge successfully returned, keyed by
+    // username. Prevents a lagging bridge refetch from overwriting a locally-
+    // confirmed adjustFollowerCount delta. Stored as {username, count} so that
+    // navigating between profiles resets the baseline naturally — a stored baseline
+    // for "alice" is ignored when the current fetch is for "bob", treating it as a
+    // first fetch and accepting the bridge value.
+    const bridgeFollowersBaselineRef = useRef<{ username: string; count: number } | null>(null);
+
+    useEffect(() => {
+        // Must run unconditionally before any early return so that
+        // adjustFollowerCount's guard (currentUsernameRef.current !== username)
+        // always reflects the current render's username, even when we skip the
+        // fetch because hiveAccount isn't loaded yet.
+        currentUsernameRef.current = username;
+
+        if (!username || !hasHiveAccount) return;
+        let cancelled = false;
+        let profileImage = "";
+        let coverImage = "";
+        let website = "";
+        let instagram = "";
+        let ethereum_address = "";
+        let video_parts: VideoPart[] = [];
+        let vote_weight = 51;
+        let zineCover = "";
+        let svs_profile = "";
+
+        if (postingMetadata) {
+            try {
+                const parsedMetadata = JSON.parse(postingMetadata);
+                const profile = parsedMetadata?.profile || {};
+                profileImage = profile.profile_image || "";
+                coverImage = profile.cover_image || "";
+                website = profile.website || "";
+                // IG handle: prefer direct field, fall back to nested
+                // social.instagram, then parse from a website URL.
+                if (typeof profile.instagram === "string") {
+                    instagram = profile.instagram.trim();
+                } else if (
+                    profile.social &&
+                    typeof profile.social.instagram === "string"
+                ) {
+                    instagram = profile.social.instagram.trim();
+                } else if (typeof profile.website === "string") {
+                    const m = profile.website.match(/instagram\.com\/([A-Za-z0-9._]+)/);
+                    if (m) instagram = m[1];
+                }
+            } catch (err) {
+                console.error("Failed to parse profile metadata", err);
+            }
+        }
+
+        if (jsonMetadata) {
+            try {
+                const rawMetadata = JSON.parse(jsonMetadata);
+                const parsedMetadata = migrateLegacyMetadata(rawMetadata);
+                ethereum_address = parsedMetadata.extensions?.wallets?.primary_wallet || "";
+                video_parts = parsedMetadata.extensions?.video_parts || [];
+                const defaultWeight = parsedMetadata.extensions?.settings?.voteSettings?.default_voting_weight;
+                vote_weight = typeof defaultWeight === 'number' ? Math.round(defaultWeight / 100) : 51;
+                zineCover = parsedMetadata.extensions?.settings?.appSettings?.zineCover || "";
+                svs_profile = parsedMetadata.extensions?.settings?.appSettings?.svs_profile || "";
+            } catch (err) {
+                console.error("Failed to parse json_metadata", err);
+            }
+        }
+
+        // Reset bridge fields in the same call so stale follower counts from
+        // the previous username don't show while Phase 2 is in-flight.
+        updateProfileData({ name: username, profileImage, coverImage, website, instagram, ethereum_address, video_parts, vote_weight, zineCover, svs_profile, followers: 0, following: 0, location: "", about: "", vp_percent: "0%", rc_percent: "0%" });
+
+        // --- Phase 2: bridge API (async, can fail independently) ---
+        (async () => {
             try {
                 debug.fetch("fetching profile + power", { username });
                 const profileInfo = await getProfile(username);
                 const powerInfo = await getAccountWithPower(username);
 
-                let profileImage = "";
-                let coverImage = "";
-                let website = "";
-                let instagram = "";
-                let ethereum_address = "";
-                let video_parts: VideoPart[] = [];
-                let vote_weight = 51;
-                let zineCover = "";
-                let svs_profile = "";
-
-                if (postingMetadata) {
-                    try {
-                        const parsedMetadata = JSON.parse(postingMetadata);
-                        const profile = parsedMetadata?.profile || {};
-                        profileImage = profile.profile_image || "";
-                        coverImage = profile.cover_image || "";
-                        website = profile.website || "";
-                        // IG handle: prefer direct field, fall back to nested
-                        // social.instagram, then parse from a website URL.
-                        if (typeof profile.instagram === "string") {
-                            instagram = profile.instagram.trim();
-                        } else if (
-                            profile.social &&
-                            typeof profile.social.instagram === "string"
-                        ) {
-                            instagram = profile.social.instagram.trim();
-                        } else if (typeof profile.website === "string") {
-                            const m = profile.website.match(/instagram\.com\/([A-Za-z0-9._]+)/);
-                            if (m) instagram = m[1];
-                        }
-                    } catch (err) {
-                        console.error("Failed to parse profile metadata", err);
+                if (cancelled || currentUsernameRef.current !== username) return;
+                // Apply whichever fetches succeeded independently — a failed
+                // bridge profile shouldn't suppress a successful power query.
+                if (!profileInfo) {
+                    console.warn(`Bridge profile fetch failed after retries for ${username}`);
+                } else {
+                    updateProfileData({
+                        name: profileInfo.metadata?.profile?.name || username,
+                        following: profileInfo.stats?.following || 0,
+                        location: profileInfo.metadata?.profile?.location || "",
+                        about: profileInfo.metadata?.profile?.about || "",
+                    });
+                    // Write followers only when the bridge has a genuinely new value —
+                    // if it returns the same count as the last accepted baseline the
+                    // indexer hasn't caught up yet, so we leave any local
+                    // adjustFollowerCount delta untouched.
+                    const bridgeCount = profileInfo.stats?.followers ?? 0;
+                    const baseline = bridgeFollowersBaselineRef.current;
+                    if (
+                        baseline === null ||
+                        baseline.username !== username ||
+                        bridgeCount !== baseline.count
+                    ) {
+                        bridgeFollowersBaselineRef.current = { username, count: bridgeCount };
+                        updateProfileData({ followers: bridgeCount });
                     }
                 }
-
-                if (jsonMetadata) {
-                    try {
-                        const rawMetadata = JSON.parse(jsonMetadata);
-                        const parsedMetadata = migrateLegacyMetadata(rawMetadata);
-                        ethereum_address = parsedMetadata.extensions?.wallets?.primary_wallet || "";
-                        video_parts = parsedMetadata.extensions?.video_parts || [];
-                        const defaultWeight = parsedMetadata.extensions?.settings?.voteSettings?.default_voting_weight;
-                        vote_weight = typeof defaultWeight === 'number' ? Math.round(defaultWeight / 100) : 51;
-                        zineCover = parsedMetadata.extensions?.settings?.appSettings?.zineCover || "";
-                        svs_profile = parsedMetadata.extensions?.settings?.appSettings?.svs_profile || "";
-                    } catch (err) {
-                        console.error("Failed to parse json_metadata", err);
-                    }
+                if (powerInfo?.data) {
+                    updateProfileData({
+                        vp_percent: powerInfo.data.vp_percent || "0%",
+                        rc_percent: powerInfo.data.rc_percent || "0%",
+                    });
                 }
-
-                setProfileData({
-                    profileImage,
-                    coverImage,
-                    website,
-                    name: profileInfo?.metadata?.profile?.name || username,
-                    followers: profileInfo?.stats?.followers || 0,
-                    following: profileInfo?.stats?.following || 0,
-                    location: profileInfo?.metadata?.profile?.location || "",
-                    about: profileInfo?.metadata?.profile?.about || "",
-                    ethereum_address,
-                    video_parts,
-                    vote_weight,
-                    vp_percent: powerInfo?.data?.vp_percent || "0%",
-                    rc_percent: powerInfo?.data?.rc_percent || "0%",
-                    zineCover,
-                    svs_profile,
-                    instagram,
-                });
-
             } catch (err) {
-                console.error("Failed to fetch profile info", err);
+                console.error("Failed to fetch bridge profile info", err);
             }
-        };
+        })();
 
-        fetchProfileInfo();
+        return () => { cancelled = true; };
     }, [username, hasHiveAccount, postingMetadata, jsonMetadata]);
 
-    return { profileData, updateProfileData };
+    // Re-runs Phase 2 on demand (manual reconciliation — not called after follow
+    // actions, which use adjustFollowerCount for an immediate optimistic update).
+    // Applies the same baseline guard and profileInfo/powerInfo decoupling as the
+    // Phase 2 effect IIFE so a manual refetch also can't clobber a local delta.
+    const refetchBridgeData = useCallback(async () => {
+        if (!username || !hasHiveAccount) return;
+        const requestUsername = username;
+        try {
+            const profileInfo = await getProfile(requestUsername);
+            const powerInfo = await getAccountWithPower(requestUsername);
+            if (currentUsernameRef.current !== requestUsername) return;
+            if (profileInfo) {
+                updateProfileData({
+                    name: profileInfo.metadata?.profile?.name || requestUsername,
+                    following: profileInfo.stats?.following || 0,
+                    location: profileInfo.metadata?.profile?.location || "",
+                    about: profileInfo.metadata?.profile?.about || "",
+                });
+                const bridgeCount = profileInfo.stats?.followers ?? 0;
+                const baseline = bridgeFollowersBaselineRef.current;
+                if (
+                    baseline === null ||
+                    baseline.username !== requestUsername ||
+                    bridgeCount !== baseline.count
+                ) {
+                    bridgeFollowersBaselineRef.current = { username: requestUsername, count: bridgeCount };
+                    updateProfileData({ followers: bridgeCount });
+                }
+            }
+            if (powerInfo?.data) {
+                updateProfileData({
+                    vp_percent: powerInfo.data.vp_percent || "0%",
+                    rc_percent: powerInfo.data.rc_percent || "0%",
+                });
+            }
+        } catch (err) {
+            console.error("Failed to refetch bridge profile info", err);
+        }
+    }, [username, hasHiveAccount, updateProfileData]);
+
+    // Applies a +1/-1 follower count delta immediately after a confirmed
+    // follow/unfollow, without waiting for the bridge API (which has indexing
+    // lag and would return the pre-action count for several seconds).
+    // The currentUsernameRef guard prevents a stale in-flight confirmation
+    // (user navigated to a different profile mid-action) from landing on the
+    // wrong profile's count.
+    const adjustFollowerCount = useCallback((delta: number) => {
+        if (currentUsernameRef.current !== username) return;
+        setProfileData((prev) => ({
+            ...prev,
+            followers: Math.max(0, prev.followers + delta),
+        }));
+    }, [username]);
+
+    return { profileData, updateProfileData, refetchBridgeData, adjustFollowerCount };
 }

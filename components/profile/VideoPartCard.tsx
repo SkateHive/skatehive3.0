@@ -16,29 +16,14 @@ const VideoPartCard = ({ videoPart, onRemove, isOwner }: VideoPartCardProps) => 
         return match ? `https://www.youtube.com/embed/${match[1]}` : null;
     };
 
-    const getZoraEmbedUrl = (url: string) => {
-        const urlParts = url.split('?');
-        if (urlParts.length === 2) {
-            const baseUrl = urlParts[0];
-            const queryParams = urlParts[1];
-            const newUrl = baseUrl + '/embed?' + queryParams;
-            return newUrl;
-        } else {
-            return url + '/embed';
-        }
-    };
-
     const getEmbedUrl = (url: string) => {
         if (url.includes('youtube.com') || url.includes('youtu.be')) {
             return getYoutubeEmbedUrl(url);
-        } else if (url.includes('zora.co')) {
-            return getZoraEmbedUrl(url);
         }
         return null;
     };
 
     const embedUrl = getEmbedUrl(videoPart.url);
-    const isZora = embedUrl && embedUrl.includes('zora.co');
 
     return (
         <Box
@@ -52,7 +37,7 @@ const VideoPartCard = ({ videoPart, onRemove, isOwner }: VideoPartCardProps) => 
             position="relative"
         >
             {embedUrl && (
-                <Box mb={4} position="relative" width="100%" paddingTop={isZora ? 'calc(56.25% + 72px)' : '56.25%'}>
+                <Box mb={4} position="relative" width="100%" paddingTop="56.25%">
                     <iframe
                         src={embedUrl}
                         style={{

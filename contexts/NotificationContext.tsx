@@ -12,6 +12,7 @@ import {
   fetchNewNotifications,
   getLastReadNotificationDate,
 } from "@/lib/hive/client-functions";
+import { parseHiveDate } from "@/lib/utils/hiveDate";
 
 interface NotificationContextProps {
   notifications: Notifications[];
@@ -54,7 +55,9 @@ export const NotificationProvider = ({
         getLastReadNotificationDate(effectiveUser),
       ]);
       setNotifications(notifs);
-      setLastReadDate(lastRead);
+      setLastReadDate((prev) =>
+        parseHiveDate(lastRead) > parseHiveDate(prev) ? lastRead : prev
+      );
     } catch (error) {
       // Error handled silently for production
     } finally {
@@ -81,38 +84,17 @@ export const NotificationProvider = ({
     setFarcasterEnabled(false);
   }, []);
 
-  // Helper function to safely parse dates
-  const parseNotificationDate = useCallback((dateString: string): Date => {
-    // Handle various date formats more robustly
-    try {
-      // If the date already has timezone info, use it as-is
-      if (
-        dateString.includes("Z") ||
-        dateString.includes("+") ||
-        dateString.includes("-")
-      ) {
-        return new Date(dateString);
-      }
-      // If no timezone info, assume it's UTC (common for blockchain timestamps)
-      return new Date(dateString + "Z");
-    } catch (error) {
-      return new Date(0); // Return epoch as fallback
-    }
-  }, []);
-
   // Memoize the notification count calculation to avoid recalculating on every render
   const newNotificationCount = useMemo(() => {
     if (!notifications || notifications.length === 0) return 0;
 
-    const lastReadTimestamp = new Date(lastReadDate).getTime();
+    const lastReadTimestamp = parseHiveDate(lastReadDate).getTime();
 
-    return notifications.filter((notification) => {
-      const notificationTimestamp = parseNotificationDate(
-        notification.date
-      ).getTime();
-      return notificationTimestamp > lastReadTimestamp;
-    }).length;
-  }, [notifications, lastReadDate, parseNotificationDate]);
+    return notifications.filter(
+      (notification) =>
+        parseHiveDate(notification.date).getTime() > lastReadTimestamp
+    ).length;
+  }, [notifications, lastReadDate]);
 
   // Load notifications when user changes
   useEffect(() => {

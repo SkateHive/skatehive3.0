@@ -29,7 +29,8 @@ import { getPayoutValue } from "@/lib/hive/client-functions";
 import {
   extractYoutubeLinks,
   extractImageUrls,
-} from "@/lib/utils/extractImageUrls"; // Import YouTube extraction function
+} from "@/lib/utils/extractImageUrls";
+import { normalizeMetadataImages } from "@/lib/utils/postThumbnail";
 import useHivePower from "@/hooks/useHivePower";
 import { useVoteWeightContext } from "@/contexts/VoteWeightContext";
 import { parseJsonMetadata } from "@/lib/hive/metadata-utils";
@@ -39,7 +40,7 @@ import { UpvoteButton } from "@/components/shared";
 import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
 import { BiDotsHorizontal } from "react-icons/bi";
 import ShareMenuButtons from "@/components/homepage/ShareMenuButtons";
-import { LuArrowUp, LuArrowDown, LuDollarSign } from "react-icons/lu";
+import { LuArrowUp, LuCheck } from "react-icons/lu";
 import VoteListPopover from "@/components/blog/VoteListModal";
 
 interface PostJsonMetadata {
@@ -106,7 +107,6 @@ export default function PostCard({
         (item) => item.voter.toLowerCase() === effectiveUser?.toLowerCase()
       )
   );
-  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     setActiveVotes(post.active_votes || []);
@@ -165,12 +165,6 @@ export default function PostCard({
   }, [body, listView]);
 
   const mediaData = useMemo(() => {
-    const metadataImages = metadata.image
-      ? Array.isArray(metadata.image)
-        ? metadata.image
-        : [metadata.image]
-      : [];
-
     const optimize = (imgs: string[]) =>
       Array.from(new Set(imgs))
         .filter((img) => typeof img === "string" && img.length > 0 && !failedImages.has(img))
@@ -178,20 +172,18 @@ export default function PostCard({
           optimizeImageUrl(img, IMAGE_SIZES.SIDEBAR_THUMB.w, IMAGE_SIZES.SIDEBAR_THUMB.h)
         );
 
+    // Priority chain mirrors extractPostThumbnail in lib/utils/postThumbnail.ts
     const validMarkdownImages = optimize(extractImageUrls(body));
     if (validMarkdownImages.length > 0) {
       return { imageUrls: validMarkdownImages };
     }
 
-    const validMetadataImages = optimize(metadataImages);
+    const validMetadataImages = optimize(normalizeMetadataImages(json_metadata));
     if (validMetadataImages.length > 0) {
       return { imageUrls: validMetadataImages };
     }
 
-    // No images anywhere — if the post embeds a YouTube video, use the video's
-    // thumbnail frame as the card thumbnail. mqdefault is already 320x180, so it
-    // is served directly (no proxy), and it also covers the list view, which
-    // only renders images.
+    // No images — use YouTube thumbnail frame if available (mqdefault = 320x180, no proxy needed)
     const ytThumbs = Array.from(
       new Set(
         extractYoutubeLinks(body)
@@ -204,7 +196,7 @@ export default function PostCard({
     }
 
     return { imageUrls: [default_thumbnail] };
-  }, [body, metadata.image, failedImages, default_thumbnail]);
+  }, [body, json_metadata, failedImages, default_thumbnail]);
 
   const { imageUrls } = mediaData;
   const hasMultipleImages = imageUrls.length > 1;
@@ -452,14 +444,10 @@ export default function PostCard({
             flexShrink={0}
           >
             <HStack
-              minW="72px"
               justify="center"
               px={2}
               py={1}
-              borderRadius="md"
               cursor="pointer"
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
               onClick={() => {
                 if (!voted && !isVoting) {
                   if (disableSlider) {
@@ -476,19 +464,19 @@ export default function PostCard({
               transition="opacity 0.2s"
             >
               <HStack spacing={1.5}>
-                {voted || isHovered ? (
+                {voted ? (
                   <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                    <LuArrowUp size={18} color="var(--chakra-colors-primary)" />
+                    <LuCheck size={18} color="var(--chakra-colors-primary)" />
                   </Box>
                 ) : (
                   <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                    <LuArrowDown size={18} color="var(--chakra-colors-primary)" />
+                    <LuArrowUp size={18} color="var(--chakra-colors-text)" />
                   </Box>
                 )}
-                <Text 
-                  fontSize="sm" 
+                <Text
+                  fontSize="sm"
                   fontWeight="medium"
-                  color="primary"
+                  color={voted ? "primary" : "text"}
                 >
                   {activeVotes.length}
                 </Text>
@@ -513,24 +501,26 @@ export default function PostCard({
                 <VoteListPopover
                   trigger={
                     <HStack
-                      minW="72px"
                       justify="center"
                       px={2}
                       py={1}
-                      borderRadius="md"
                       cursor="pointer"
                       opacity={0.9}
                       _hover={{ opacity: 0.7 }}
                       transition="opacity 0.2s"
                     >
-                      <HStack spacing={1.5}>
-                        <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                          <LuDollarSign size={18} color="var(--chakra-colors-primary)" />
-                        </Box>
-                        <Text 
-                          fontSize="sm" 
+                      <HStack spacing={0.5}>
+                        <Text
+                          fontSize="sm"
                           fontWeight="medium"
-                          color="primary"
+                          color={voted ? "primary" : "text"}
+                        >
+                          $
+                        </Text>
+                        <Text
+                          fontSize="sm"
+                          fontWeight="medium"
+                          color={voted ? "primary" : "text"}
                         >
                           {payoutValue.toFixed(2)}
                         </Text>
@@ -899,14 +889,10 @@ export default function PostCard({
                 w="100%"
               >
                 <HStack
-                  minW="72px"
                   justify="center"
                   px={2}
                   py={1}
-                  borderRadius="md"
                   cursor="pointer"
-                  onMouseEnter={() => setIsHovered(true)}
-                  onMouseLeave={() => setIsHovered(false)}
                   onClick={() => {
                     if (!voted && !isVoting) {
                       if (disableSlider) {
@@ -923,19 +909,19 @@ export default function PostCard({
                   transition="opacity 0.2s"
                 >
                   <HStack spacing={1.5}>
-                    {voted || isHovered ? (
+                    {voted ? (
                       <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                        <LuArrowUp size={18} color="var(--chakra-colors-primary)" />
+                        <LuCheck size={18} color="var(--chakra-colors-primary)" />
                       </Box>
                     ) : (
                       <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                        <LuArrowDown size={18} color="var(--chakra-colors-primary)" />
+                        <LuArrowUp size={18} color="var(--chakra-colors-text)" />
                       </Box>
                     )}
-                    <Text 
-                      fontSize="sm" 
+                    <Text
+                      fontSize="sm"
                       fontWeight="medium"
-                      color="primary"
+                      color={voted ? "primary" : "text"}
                     >
                       {activeVotes.length}
                     </Text>
@@ -960,24 +946,26 @@ export default function PostCard({
                     <VoteListPopover
                       trigger={
                         <HStack
-                          minW="72px"
                           justify="center"
                           px={2}
                           py={1}
-                          borderRadius="md"
                           cursor="pointer"
                           opacity={0.9}
                           _hover={{ opacity: 0.7 }}
                           transition="opacity 0.2s"
                         >
-                          <HStack spacing={1.5}>
-                            <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                              <LuDollarSign size={18} color="var(--chakra-colors-primary)" />
-                            </Box>
-                            <Text 
-                              fontSize="sm" 
+                          <HStack spacing={0.5}>
+                            <Text
+                              fontSize="sm"
                               fontWeight="medium"
-                              color="primary"
+                              color={voted ? "primary" : "text"}
+                            >
+                              $
+                            </Text>
+                            <Text
+                              fontSize="sm"
+                              fontWeight="medium"
+                              color={voted ? "primary" : "text"}
                             >
                               {payoutValue.toFixed(2)}
                             </Text>

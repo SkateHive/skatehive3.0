@@ -82,6 +82,8 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
+export const revalidate = 300; // ISR: render once, refresh every 5 min (static-safe page)
+
 export default function MainAuctionPage() {
   return <AuctionPage showNavigation={true} />;
 }

@@ -30,10 +30,11 @@ const OpenGraphPreview: React.FC<OpenGraphPreviewProps> = ({ url }) => {
   const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Skip OpenGraph preview for coin URLs, Snapshot URLs, game URLs, and Google Maps links since they're handled by specific components
+  // Skip OpenGraph preview for the removed internal coin route (dead link,
+  // would otherwise render a broken-page preview for old posts), Snapshot
+  // URLs, game URLs, and Google Maps links since they're handled by specific components
   const shouldSkip =
     url.includes("skatehive.app/coin") ||
-    url.includes("zora.co/coin") ||
     url.includes("snapshot.org") ||
     url.includes("snapshot.box") ||
     url.includes("demo.snapshot.org") ||

@@ -38,45 +38,50 @@ export async function GET(
   }
 
   try {
-    // Check if user has a sponsored Hive identity
-    const { data: identity, error: identityError } = await supabase
+    // A user is "lite" only if they have NO Hive identity at all. ANY Hive
+    // identity — created via sponsorship, linked manually, or inherited from an
+    // account merge — means they already own a Hive account, so the Sponsor CTA
+    // must be hidden. (The old query filtered is_sponsored=true, so a
+    // manually-linked/merge-inherited identity was misread as lite.)
+    const { data: identities, error: identityError } = await supabase
       .from("userbase_identities")
       .select("handle, is_sponsored, sponsor_user_id, metadata")
       .eq("user_id", userId)
-      .eq("type", "hive")
-      .eq("is_sponsored", true)
-      .single();
+      .eq("type", "hive");
 
-    // PGRST116 = "no rows found" - expected when user has no sponsored identity
-    if (identityError && identityError.code !== "PGRST116") {
+    if (identityError) {
       return NextResponse.json(
         { error: "Database error", details: identityError.message },
         { status: 500 }
       );
     }
 
-    if (!identity) {
-      return NextResponse.json({
-        sponsored: false,
-      });
+    const hiveIdentities = identities ?? [];
+
+    if (hiveIdentities.length === 0) {
+      return NextResponse.json({ has_hive_identity: false, sponsored: false });
     }
 
-    // Get sponsor username
+    // Prefer a sponsored identity (for the "sponsored by X" badge); else any.
+    const sponsoredIdentity = hiveIdentities.find((i) => i.is_sponsored);
+    const identity = sponsoredIdentity ?? hiveIdentities[0];
+
     let sponsorUsername = null;
-    if (identity.sponsor_user_id) {
+    if (sponsoredIdentity?.sponsor_user_id) {
       const { data: sponsorIdentity } = await supabase
         .from("userbase_identities")
         .select("handle")
-        .eq("user_id", identity.sponsor_user_id)
+        .eq("user_id", sponsoredIdentity.sponsor_user_id)
         .eq("type", "hive")
         .single();
 
       sponsorUsername =
-        sponsorIdentity?.handle || identity.metadata?.sponsor_username;
+        sponsorIdentity?.handle || sponsoredIdentity.metadata?.sponsor_username;
     }
 
     return NextResponse.json({
-      sponsored: true,
+      has_hive_identity: true,
+      sponsored: Boolean(sponsoredIdentity),
       hive_username: identity.handle,
       sponsor_username: sponsorUsername,
     });

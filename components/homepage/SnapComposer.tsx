@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useMemo, useCallback } from "react";
+import React, { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useSkateDialog } from "@/hooks/useSkateDialog";
@@ -38,6 +38,7 @@ import {
   InputGroup,
   InputLeftAddon,
   useToast,
+  useBreakpointValue,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { ChevronDownIcon } from "@chakra-ui/icons";
@@ -57,6 +58,12 @@ const InstagramModal = dynamic(() => import("./InstagramModal"), { ssr: false })
 // Outbound IG cross-post review/edit dialog (caption + collaborators).
 const InstagramCrossPostDialog = dynamic(() => import("./InstagramPreviewModal"), { ssr: false });
 import type { CrossPostContext } from "./InstagramPreviewModal";
+// Unified pre-publish review dialog (caption + Hive/Instagram/Farcaster previews).
+const PublishPreviewDialog = dynamic(() => import("./PublishPreviewDialog"), { ssr: false });
+import { publishSnapToInstagram } from "@/lib/instagram/publishSnap";
+import { createTrimmedVideo } from "@/lib/utils/videoTrim";
+import { uploadThumbnail } from "@/lib/utils/videoThumbnailUtils";
+import { processVideoOnServer } from "@/lib/utils/videoProcessing";
 import { IGif } from "@giphy/js-types";
 import { FaImage } from "react-icons/fa";
 import { FaInstagram } from "react-icons/fa";
@@ -81,9 +88,10 @@ import { ImageCompressorRef } from "@/lib/utils/ImageCompressor";
 import imageCompression from "browser-image-compression";
 import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
 
-import GIFMakerWithSelector, {
-  GIFMakerRef as GIFMakerWithSelectorRef,
-} from "./GIFMakerWithSelector";
+import type { GIFMakerRef as GIFMakerWithSelectorRef } from "./GIFMakerWithSelector";
+// FFmpeg (loaded inside this component) touches browser-only globals at
+// module init, which crashes SSR if bundled into the server render.
+const GIFMakerWithSelector = dynamic(() => import("./GIFMakerWithSelector"), { ssr: false });
 import useHivePower from "@/hooks/useHivePower";
 import { useInstagramHealth } from "@/hooks/useInstagramHealth";
 import { TbGif } from "react-icons/tb";
@@ -92,6 +100,7 @@ import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { buildSnapCastText, buildSnapCastEmbeds } from "@/lib/crosspost/snapCast";
+import { getSnapDraft, saveSnapDraft, clearSnapDraft } from "@/lib/compose/snapDraft";
 
 // Channels enabled for Farcaster cross-posting. Mirrors the server-side
 // whitelist in /api/farcaster/cast/route.ts — keep them in sync.
@@ -114,6 +123,64 @@ interface SnapComposerProps {
   onClose: () => void;
   submitLabel?: string;
   buttonSize?: "sm" | "md" | "lg";
+  /** When true, renders the reply-specific media button styles
+   *  (plain buttons, no hover effects). DestinationMenu renders in both modes.
+   *  Only the Snap.tsx inline reply composer opts into this. */
+  isReply?: boolean;
+}
+
+/** Rich progress toast for background video publishing: cover thumb + bar. */
+function PublishProgressToast({
+  cover,
+  title,
+  stage,
+  progress,
+  tone = "loading",
+}: {
+  cover: string | null;
+  title: string;
+  stage: string;
+  progress: number;
+  tone?: "loading" | "success" | "error";
+}) {
+  const accent = tone === "error" ? "red.400" : tone === "success" ? "green.400" : "primary";
+  return (
+    <Box
+      bg="background"
+      border="1px solid"
+      borderColor={accent}
+      borderRadius="md"
+      p={3}
+      boxShadow="lg"
+      minW="300px"
+      maxW="360px"
+    >
+      <HStack spacing={3} align="center">
+        {cover ? (
+          <Image src={cover} alt="" boxSize="46px" borderRadius="md" objectFit="cover" flexShrink={0} />
+        ) : (
+          <Box boxSize="46px" borderRadius="md" bg="muted" flexShrink={0} />
+        )}
+        <Box flex="1" minW={0}>
+          <Text fontFamily="mono" fontSize="sm" color="text" fontWeight="bold" noOfLines={1}>
+            {title}
+          </Text>
+          <Text fontFamily="mono" fontSize="2xs" color="dim" noOfLines={1}>
+            {stage}
+          </Text>
+          <Progress
+            value={progress}
+            size="xs"
+            colorScheme={tone === "error" ? "red" : "green"}
+            borderRadius="full"
+            mt={2}
+            hasStripe={tone === "loading"}
+            isAnimated={tone === "loading"}
+          />
+        </Box>
+      </HStack>
+    </Box>
+  );
 }
 
 const SnapComposer = React.memo(function SnapComposer({
@@ -124,6 +191,7 @@ const SnapComposer = React.memo(function SnapComposer({
   onClose,
   submitLabel,
   buttonSize = "lg",
+  isReply = false,
 }: SnapComposerProps) {
   const { user, aioha } = useAioha();
   const { handle: effectiveUser, canUseAppFeatures } = useEffectiveHiveUser();
@@ -160,6 +228,12 @@ const SnapComposer = React.memo(function SnapComposer({
     "skateboard"
   );
   const toast = useToast();
+  // Publishing progress shows as a top banner on mobile (Instagram-style pinned
+  // row) and a bottom-right toast on desktop.
+  const publishToastPosition = useBreakpointValue<"top" | "bottom-right">({
+    base: "top",
+    md: "bottom-right",
+  });
   const t = useTranslations();
   const { prompt, SkateDialogComponent } = useSkateDialog();
   const postBodyRef = useRef<HTMLTextAreaElement>(null);
@@ -184,6 +258,7 @@ const SnapComposer = React.memo(function SnapComposer({
   >([]);
 
   const imageUploadInputRef = useRef<HTMLInputElement>(null);
+  const snapDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // GIF maker state and refs (direct integration)
   const [isGifMakerOpen, setGifMakerOpen] = useState(false);
@@ -206,6 +281,22 @@ const SnapComposer = React.memo(function SnapComposer({
   const [igDialog, setIgDialog] = useState<CrossPostContext | null>(null);
   const isMainFeedSnap = pp === HIVE_CONFIG.THREADS.PERMLINK;
   const hasCrossPostMedia = compressedImages.length > 0 || !!videoUrl;
+
+  // Pre-publish review dialog: on Post with media, preview every destination
+  // before publishing. The ref lets the dialog re-invoke handleComment to
+  // actually publish without re-opening the dialog.
+  const publishConfirmedRef = useRef(false);
+  const [showPublishPreview, setShowPublishPreview] = useState(false);
+  // Set true after the dialog processes media + sets final URLs; an effect then
+  // runs handleComment on the next render so it reads the fresh state.
+  const [pendingPublish, setPendingPublish] = useState(false);
+  // True while a publish is processing in the background (video prep + posting).
+  // The composer hides its attached media while this is on, so the post "leaves"
+  // the composer and lives in the progress toast instead.
+  const [isPublishing, setIsPublishing] = useState(false);
+  // Per-network content the publish dialog collected (IG caption + collaborators,
+  // Farcaster caption). Read by handleComment when it fires the cross-posts.
+  const igPublishRef = useRef<{ igCaption: string; collaborators: string[]; farcasterCaption: string } | null>(null);
 
   // Cached IG handle status. 'unknown' until first lookup; 'present' means
   // the server already has a tag-able value (DB or Hive metadata); 'absent'
@@ -281,6 +372,64 @@ const SnapComposer = React.memo(function SnapComposer({
     };
   }, [isMainFeedSnap, canBypassLimit, igHandleStatus]);
 
+  // Restore snap draft on mount — main feed instance only (silent, no indicator)
+  useEffect(() => {
+    if (!isMainFeedSnap) return;
+    const draft = getSnapDraft();
+    if (!draft) return;
+    if (draft.body && postBodyRef.current) {
+      postBodyRef.current.value = draft.body;
+    }
+    if (draft.images.length > 0) {
+      setCompressedImages(
+        draft.images.map(({ url, caption }) => ({
+          url,
+          fileName: url.split("/").pop()?.split("?")[0] || "image",
+          caption,
+        }))
+      );
+    }
+    if (draft.videoUrl) {
+      setVideoUrl(draft.videoUrl);
+    }
+    // gifUrl: not restored — selectedGif requires a full IGif object and Giphy
+    // GIFs are preview-only (they don't make it into post bodies), so nothing is lost
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Autosave: debounced save after body/image/gif/video changes — main feed only
+  const doSaveSnapDraft = useCallback(() => {
+    if (!isMainFeedSnap) return;
+    const body = postBodyRef.current?.value || "";
+    const images = compressedImages.map((img) => ({ url: img.url, caption: img.caption }));
+    const gifUrl = selectedGif?.images?.downsized_medium?.url ?? null;
+    // blob: URLs are session-only local previews; only persist hosted URLs
+    const persistedVideoUrl = videoUrl?.startsWith("blob:") ? null : videoUrl;
+    if (!body.trim() && images.length === 0 && !gifUrl && !persistedVideoUrl) {
+      clearSnapDraft();
+      return;
+    }
+    saveSnapDraft({ body, images, gifUrl, videoUrl: persistedVideoUrl });
+  }, [isMainFeedSnap, compressedImages, selectedGif, videoUrl]);
+
+  const cancelSnapDraftSave = useCallback(() => {
+    if (snapDraftTimerRef.current) {
+      clearTimeout(snapDraftTimerRef.current);
+      snapDraftTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleSnapDraftSave = useCallback(() => {
+    if (!isMainFeedSnap) return;
+    cancelSnapDraftSave();
+    snapDraftTimerRef.current = setTimeout(doSaveSnapDraft, 1000);
+  }, [isMainFeedSnap, cancelSnapDraftSave, doSaveSnapDraft]);
+
+  // Fire debounced save when media state changes (main feed only)
+  useEffect(() => {
+    if (!isMainFeedSnap) return;
+    scheduleSnapDraftSave();
+  }, [isMainFeedSnap, scheduleSnapDraftSave]);
+
   const buttonText = useMemo(
     () => submitLabel || (post ? "Reply" : "Post"),
     [submitLabel, post]
@@ -344,46 +493,20 @@ const SnapComposer = React.memo(function SnapComposer({
     });
   };
 
-  // Handle video file selection (with duration check for SnapComposer)
+  // Handle video file selection. We DON'T trim/upload here anymore — the raw
+  // clip is held un-uploaded and a local preview is shown. Trim + cover + the
+  // transcoder upload all happen in the "prepare & publish" dialog when the
+  // user posts (so everything is edited in one place before publishing).
   const handleVideoFile = async (file: File) => {
     try {
-      // Clear any previous pending video file to prevent memory leaks
-      if (pendingVideoFile) {
-        setPendingVideoFile(null);
-      }
-      // Reset stale thumbnail from any prior video before we kick off a new one
+      // Revoke any previous local preview URL to avoid leaks.
+      if (videoUrl && videoUrl.startsWith("blob:")) URL.revokeObjectURL(videoUrl);
       setVideoThumbnailUrl(null);
-
-      const duration = await getVideoDuration(file);
-
-      // Always open trim modal for video editing options
-      // Users with >100HP can choose to use original or trim
-      // Users with <100HP must trim if over 15s
-      if (duration > 15 || canBypassLimit) {
-        setPendingVideoFile(file);
-        setIsTrimModalOpen(true);
-        return;
-      }
-
-      // Only for videos under 15s and users without bypass - upload directly.
-      // VideoUploader already owns onUploadStart/onUploadFinish, so do not
-      // double-book upload state here or cancel/retry flows can get stuck.
-      if (videoUploaderRef.current) {
-        await videoUploaderRef.current.handleFile(file);
-        // Fire-and-forget thumbnail capture from the local file so the
-        // snap's OG image / Farcaster frame can show a real preview.
-        // Runs in parallel with the transcode and is best-effort: if it
-        // fails the snap still posts (just without a frame thumbnail).
-        generateThumbnail(file, ffmpegRef, effectiveUser || undefined)
-          .then((thumbUrl) => {
-            if (thumbUrl) setVideoThumbnailUrl(thumbUrl);
-          })
-          .catch((err) =>
-            console.warn("[SnapComposer] Video thumbnail generation failed:", err)
-          );
-      }
+      const localUrl = URL.createObjectURL(file);
+      setPendingVideoFile(file); // raw file → handed to the publish dialog
+      setVideoUrl(localUrl); // local preview; replaced with the hosted URL on publish
     } catch (error) {
-      console.error("Error checking video duration:", error);
+      console.error("Error preparing video:", error);
       alert(
         t('compose.videoProcessFailed') + ": " +
         (error instanceof Error ? error.message : String(error))
@@ -766,6 +889,21 @@ const SnapComposer = React.memo(function SnapComposer({
   }, [effectiveUser, pa, pp]);
 
   const handleComment = useCallback(async () => {
+    // Pre-publish review — open the unified prepare/preview dialog FIRST (before
+    // the empty-caption guard) ONLY when it actually adds value: there's a raw
+    // video to trim/process, OR a genuinely-eligible cross-post target. A plain
+    // Hive image/text post (no eligible cross-post) skips straight to publishing.
+    const igEligibleNow =
+      instagramCrossPost && isMainFeedSnap && canBypassLimit && hasCrossPostMedia;
+    const fcEligibleNow =
+      postToFarcaster && isMainFeedSnap && farcasterEligible && !!farcasterLinkage;
+    const needsPrepareDialog = !!videoUrl || igEligibleNow || fcEligibleNow;
+    if (needsPrepareDialog && !publishConfirmedRef.current) {
+      setShowPublishPreview(true);
+      return;
+    }
+    publishConfirmedRef.current = false;
+
     const commentBody = postBodyRef.current?.value?.trim() ?? "";
     if (!commentBody) {
       alert(t('compose.emptyComment'));
@@ -773,7 +911,29 @@ const SnapComposer = React.memo(function SnapComposer({
     }
 
     const wantsSkatehive = postToHive;
-    const wantsFarcaster = postToFarcaster;
+    // Cross-posting only ever applies to the main-feed composer — a reply
+    // shouldn't fan out to Farcaster regardless of leftover toggle state.
+    const wantsFarcaster = postToFarcaster && isMainFeedSnap;
+    // Farcaster-only main-feed snaps still create a masked @skateuser Hive
+    // soft-post (overlaid with the user's identity) so there's always a
+    // SkateHive post page for the cast / Mini App to open. Replies (non-main-
+    // feed) keep the cast-only behavior in the branch below.
+    //
+    // The @skateuser soft-post is created via the userbase route, which REQUIRES
+    // a userbase session. A Keychain/aioha-only user (no userbase session) would
+    // get a 401 there and be unable to publish — so only force it when a
+    // userbase session exists; otherwise fall back to the cast-only branch.
+    // Only force the masked @skateuser soft-post when the user can ACTUALLY
+    // publish to Farcaster (eligible + linked). Otherwise a non-eligible FC-only
+    // user would create an orphan masked Hive post they can't back with a cast —
+    // instead they fall through to the branch below that prompts them to link.
+    const forceSkateuser =
+      !wantsSkatehive &&
+      wantsFarcaster &&
+      isMainFeedSnap &&
+      !!userbaseUser &&
+      farcasterEligible &&
+      !!farcasterLinkage;
 
     if (!wantsSkatehive && !wantsFarcaster) {
       toast({
@@ -785,8 +945,10 @@ const SnapComposer = React.memo(function SnapComposer({
       return;
     }
 
-    // Farcaster-only: skip Hive entirely, publish a cast directly.
-    if (!wantsSkatehive && wantsFarcaster) {
+    // Farcaster-only WITHOUT a masked Hive post (replies / non-main-feed):
+    // publish a cast directly. Main-feed FC-only snaps fall through to the Hive
+    // flow below to create the @skateuser soft-post (forceSkateuser).
+    if (!wantsSkatehive && wantsFarcaster && !forceSkateuser) {
       if (!farcasterEligible || !farcasterLinkage) {
         toast({
           title: "Link your Farcaster account first.",
@@ -804,7 +966,7 @@ const SnapComposer = React.memo(function SnapComposer({
         const fcUrl = isMainFeedSnap
           ? APP_CONFIG.ORIGIN
           : `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${pa}/${pp}`;
-        const castText = buildSnapCastText(commentBody, fcUrl);
+        const castText = buildSnapCastText(igPublishRef.current?.farcasterCaption || commentBody, fcUrl);
         // Snap → embed media directly (images first, else video). Reply →
         // embed the related post so it doesn't read as a standalone post.
         let embeds: { url: string }[] = [];
@@ -813,7 +975,9 @@ const SnapComposer = React.memo(function SnapComposer({
         } else if (compressedImages.length > 0) {
           embeds = compressedImages.slice(0, 2).map((img) => ({ url: img.url }));
         } else if (videoUrl) {
-          embeds = [{ url: videoUrl }];
+          // Farcaster can't inline-play an IPFS video → embed the SkateHive URL
+          // (Mini App) instead of the raw video, which only shows a broken card.
+          embeds = [{ url: fcUrl }];
         }
         const res = await fetch("/api/farcaster/cast", {
           method: "POST",
@@ -852,11 +1016,17 @@ const SnapComposer = React.memo(function SnapComposer({
           duration: 3000,
           isClosable: true,
         });
+        if (isMainFeedSnap) {
+          cancelSnapDraftSave();
+          clearSnapDraft();
+        }
         postBodyRef.current!.value = "";
         setCompressedImages([]);
         setSelectedGif(null);
         setVideoUrl(null);
         setVideoThumbnailUrl(null);
+        setPendingVideoFile(null);
+        setIsPublishing(false);
         onClose();
       } catch (err: any) {
         toast({
@@ -984,7 +1154,7 @@ const SnapComposer = React.memo(function SnapComposer({
         const permlink = crypto.randomUUID();
         let commentResponse: any = null;
 
-        if (user) {
+        if (user && !forceSkateuser) {
           commentResponse = await aioha.comment(
             pa,
             postPermlink,
@@ -994,6 +1164,8 @@ const SnapComposer = React.memo(function SnapComposer({
             metadata
           );
         } else {
+          // forceSkateuser (Farcaster-only) → always post via the shared
+          // @skateuser account, even if the user has their own Hive identity.
           const response = await fetch("/api/userbase/hive/comment", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1005,6 +1177,7 @@ const SnapComposer = React.memo(function SnapComposer({
               body: finalCommentBody,
               json_metadata: metadata,
               type: "snap",
+              force_soft_post: forceSkateuser,
             }),
           });
           const data = await response.json();
@@ -1028,11 +1201,17 @@ const SnapComposer = React.memo(function SnapComposer({
             throw new Error("Unable to determine comment author");
           }
 
+          if (isMainFeedSnap) {
+            cancelSnapDraftSave();
+            clearSnapDraft();
+          }
           postBodyRef.current!.value = "";
           setCompressedImages([]);
           setSelectedGif(null);
           setVideoUrl(null);
           setVideoThumbnailUrl(null);
+          setPendingVideoFile(null);
+          setIsPublishing(false);
 
           setIsProcessingGif(false);
 
@@ -1059,24 +1238,55 @@ const SnapComposer = React.memo(function SnapComposer({
             canBypassLimit &&
             (!!compressedImages[0]?.url || !!videoUrl);
 
-          // Open the IG review dialog IMMEDIATELY (before onClose) so it appears
-          // right after the user clicks Post and so the state update lands while
-          // this component is still mounted. It builds its own caption preview
-          // and publishes from the media URLs directly, so it must NOT wait on
-          // the Hive-confirm / Farcaster orchestration below.
+          // Instagram cross-post is published INLINE here (no second dialog) —
+          // the prepare & publish stepper already collected the IG caption +
+          // collaborators. Keychain signing happens inside publishSnapToInstagram.
           if (willInstagram) {
-            setIgDialog({
+            const igData = igPublishRef.current;
+            const igProgressId = "ig-crosspost-progress";
+            toast({
+              id: igProgressId,
+              title: "Posting to Instagram…",
+              status: "loading",
+              duration: null,
+              isClosable: false,
+            });
+            publishSnapToInstagram({
+              aioha,
+              walletUser: user,
+              requireSignature: !userbaseUser && !!user,
               hiveAuthor: commentAuthor,
               hivePermlink: permlink,
-              title: "",
               body: finalCommentBody,
               tags: snapsTags,
-              imageUrl:
-                compressedImages[0]?.url ||
-                (videoUrl ? videoThumbnailUrl : null),
+              imageUrl: compressedImages[0]?.url || (videoUrl ? videoThumbnailUrl : null),
               videoUrl: videoUrl || null,
               permalinkUrl: snapUrl,
-            });
+              caption: igData?.igCaption || finalCommentBody,
+              collaborators: igData?.collaborators || [],
+            })
+              .then((igResult) => {
+                toast.update(igProgressId, {
+                  title: igResult.success
+                    ? igResult.deduped
+                      ? "Already on Instagram"
+                      : "Posted to @skatehive on Instagram"
+                    : "Instagram cross-post failed",
+                  description: igResult.ig_permalink || igResult.error || undefined,
+                  status: igResult.success ? "success" : "error",
+                  duration: 8000,
+                  isClosable: true,
+                });
+              })
+              .catch((err) => {
+                toast.update(igProgressId, {
+                  title: "Instagram cross-post failed",
+                  description: err instanceof Error ? err.message : "Network or signing error.",
+                  status: "error",
+                  duration: 9000,
+                  isClosable: true,
+                });
+              });
           }
 
           onClose();
@@ -1089,13 +1299,24 @@ const SnapComposer = React.memo(function SnapComposer({
           // empty response — breaking the embed preview permanently.
           if (willFarcaster) {
             const progressId = "snap-share-progress";
+            // Custom render (no default Chakra chrome) so the toast paints its
+            // content on the first frame — a default status toast briefly shows
+            // an empty frame before its title/description lay out.
+            const shareCover = videoThumbnailUrl || compressedImages[0]?.url || null;
             toast({
               id: progressId,
-              title: "Sharing snap…",
-              description: "Confirming on Hive…",
-              status: "loading",
               duration: null,
               isClosable: false,
+              position: publishToastPosition,
+              render: () => (
+                <PublishProgressToast
+                  cover={shareCover}
+                  title={t('compose.progress.title')}
+                  stage={t('compose.progress.confirmingHive')}
+                  progress={92}
+                  tone="loading"
+                />
+              ),
             });
 
             const confirmed = await waitForHivePost(commentAuthor, permlink, {
@@ -1108,11 +1329,15 @@ const SnapComposer = React.memo(function SnapComposer({
             }
 
             toast.update(progressId, {
-              title: "Sharing snap…",
-              description: "Posting to Farcaster…",
-              status: "loading",
-              duration: null,
-              isClosable: false,
+              render: () => (
+                <PublishProgressToast
+                  cover={shareCover}
+                  title={t('compose.progress.title')}
+                  stage={t('compose.progress.postingFarcaster')}
+                  progress={96}
+                  tone="loading"
+                />
+              ),
             });
 
             // Farcaster (awaited so the progress toast closes when done)
@@ -1125,7 +1350,7 @@ const SnapComposer = React.memo(function SnapComposer({
               const farcasterUrl = isMainFeedSnap
                 ? snapUrl
                 : `${APP_CONFIG.ORIGIN.replace(/\/$/, "")}/post/${pa}/${pp}`;
-              const castText = buildSnapCastText(commentBody, farcasterUrl);
+              const castText = buildSnapCastText(igPublishRef.current?.farcasterCaption || commentBody, farcasterUrl);
               // Embed selection:
               //   - snap images → embed up to 2 image URLs directly (Warpcast
               //     renders inline image previews — best UX).
@@ -1244,7 +1469,125 @@ const SnapComposer = React.memo(function SnapComposer({
     farcasterChannel,
     farcasterEligible,
     farcasterLinkage,
+    publishToastPosition,
   ]);
+
+  // After the publish dialog hands back processed media + caption, the relevant
+  // state has been set; run the real publish now that it's fresh.
+  useEffect(() => {
+    if (!pendingPublish) return;
+    setPendingPublish(false);
+    publishConfirmedRef.current = true;
+    // Whatever happens (success, failure, early-return), stop hiding the
+    // composer media so a failed post's video reappears for retry.
+    Promise.resolve(handleComment()).finally(() => setIsPublishing(false));
+  }, [pendingPublish, handleComment]);
+
+  // Background video prep for the publish dialog: trim → cover → transcode,
+  // shown as a progress toast (top banner on mobile, bottom-right on desktop)
+  // so the dialog can close immediately instead of blocking. On success it sets
+  // the final media URLs and hands off to handleComment for the actual posting.
+  const runVideoPrep = useCallback(
+    async (result: { trim: { start: number; end: number } | null; coverBlob: Blob | null }) => {
+      const raw = pendingVideoFile;
+      if (!raw) {
+        setPendingPublish(true);
+        return;
+      }
+      const id = "publish-prep";
+      // Cover thumbnail for the toast — prefer the freshly captured frame.
+      const coverThumb = result.coverBlob
+        ? URL.createObjectURL(result.coverBlob)
+        : videoThumbnailUrl;
+
+      // Drive a fake-but-smooth progress bar; real transcode % overrides it.
+      let progress = 0;
+      let stage = "Trimming clip…";
+      let tone: "loading" | "success" | "error" = "loading";
+      let title = "Publishing your snap";
+      const paint = () =>
+        toast.update(id, {
+          render: () => (
+            <PublishProgressToast cover={coverThumb} title={title} stage={stage} progress={progress} tone={tone} />
+          ),
+        });
+      toast({
+        id,
+        duration: null,
+        isClosable: false,
+        position: publishToastPosition,
+        render: () => (
+          <PublishProgressToast cover={coverThumb} title={title} stage={stage} progress={progress} tone={tone} />
+        ),
+      });
+      const creep = setInterval(() => {
+        if (progress < 90) {
+          progress = Math.min(90, progress + 4);
+          paint();
+        }
+      }, 450);
+
+      const cleanup = () => {
+        clearInterval(creep);
+        if (coverThumb && coverThumb.startsWith("blob:")) URL.revokeObjectURL(coverThumb);
+      };
+
+      try {
+        const blob = result.trim
+          ? await createTrimmedVideo(raw, result.trim.start, result.trim.end)
+          : raw;
+        const uploadFile =
+          blob instanceof File ? blob : new File([blob], "clip.mp4", { type: "video/mp4" });
+
+        let cover = videoThumbnailUrl;
+        if (result.coverBlob) {
+          stage = "Uploading cover…";
+          progress = Math.max(progress, 20);
+          paint();
+          try {
+            const url = await uploadThumbnail(result.coverBlob, effectiveUser || undefined);
+            if (url) cover = url;
+          } catch (err) {
+            console.warn("[SnapComposer] cover upload failed:", err);
+          }
+        }
+
+        stage = "Uploading & transcoding video…";
+        paint();
+        const res = await processVideoOnServer(uploadFile, effectiveUser || "anonymous", {
+          userHP: hivePower ?? undefined,
+          onProgress: (p: number, s?: string) => {
+            progress = Math.max(progress, 30 + Math.round((p / 100) * 60));
+            if (s) stage = s;
+            paint();
+          },
+        });
+        if (!res.success || !res.url) throw new Error(res.error || "Video upload failed");
+
+        setVideoUrl(res.url);
+        setVideoThumbnailUrl(cover);
+        setPendingVideoFile(null);
+        cleanup();
+        progress = 100;
+        tone = "success";
+        title = "Video ready — publishing…";
+        stage = "Posting to your networks";
+        paint();
+        toast.update(id, { duration: 2500, isClosable: true });
+        setPendingPublish(true);
+      } catch (err) {
+        cleanup();
+        tone = "error";
+        title = "Couldn't prepare the video";
+        stage = err instanceof Error ? err.message : String(err);
+        paint();
+        toast.update(id, { duration: 9000, isClosable: true });
+        // Restore the composer's media so the user can retry.
+        setIsPublishing(false);
+      }
+    },
+    [pendingVideoFile, videoThumbnailUrl, effectiveUser, hivePower, toast, publishToastPosition]
+  );
 
   // Detect Ctrl+Enter or Command+Enter and submit - memoized
   const handleKeyDown = useCallback(
@@ -1526,13 +1869,13 @@ const SnapComposer = React.memo(function SnapComposer({
           p={4}
           mb={1}
           borderRadius="base"
-          borderBottom={"1px"}
+          borderBottom={isReply ? "none" : "1px"}
           borderColor="muted"
         >
           <Textarea
             id="snap-composer-textarea"
             data-testid="snap-composer-textarea"
-            placeholder={t('compose.placeholder')}
+            placeholder={isReply ? t('compose.replyPlaceholder') : t('compose.placeholder')}
             bg="background"
             borderRadius={"base"}
             mb={3}
@@ -1542,11 +1885,13 @@ const SnapComposer = React.memo(function SnapComposer({
             isDisabled={isLoading}
             onKeyDown={handleKeyDown} // Attach the keydown handler
             onPaste={handlePaste}
+            onChange={() => scheduleSnapDraftSave()}
+            onBlur={() => doSaveSnapDraft()}
             _focusVisible={{ border: "tb1" }}
           />
 
           {/* Media Preview Section - Videos and images side by side */}
-          {(compressedImages.length > 0 || selectedGif || videoUrl) && (
+          {!isPublishing && (compressedImages.length > 0 || selectedGif || videoUrl) && (
             <HStack spacing={3} mb={3} align="stretch" width="100%">
               {/* Video preview - equal width distribution */}
               {videoUrl && (
@@ -1675,31 +2020,55 @@ const SnapComposer = React.memo(function SnapComposer({
             <HStack spacing={3} align="center" wrap="nowrap">
               {/* Media Upload Button */}
               <Box position="relative">
-                <IconButton
-                  id="snap-composer-media-upload-btn"
-                  data-testid="snap-composer-media-upload"
-                  aria-label={t('compose.uploadMedia')}
-                  icon={
-                    <FaImage color="var(--chakra-colors-primary)" size={22} />
-                  }
-                  variant="ghost"
-                  isDisabled={isLoading}
-                  border="2px solid transparent"
-                  borderRadius="full"
-                  height="48px"
-                  width="48px"
-                  p={0}
-                  mr={0}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  _hover={{
-                    borderColor: "primary",
-                    boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
-                  }}
-                  _active={{ borderColor: "accent" }}
-                  onClick={() => imageUploadInputRef.current?.click()}
-                />
+                {isReply ? (
+                  <IconButton
+                    id="snap-composer-media-upload-btn"
+                    data-testid="snap-composer-media-upload"
+                    aria-label={t('compose.uploadMedia')}
+                    icon={
+                      <FaImage color="var(--chakra-colors-primary)" size={22} />
+                    }
+                    isDisabled={isLoading}
+                    background="none"
+                    border="none"
+                    color="primary"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{ opacity: 0.7 }}
+                    onClick={() => imageUploadInputRef.current?.click()}
+                  />
+                ) : (
+                  <IconButton
+                    id="snap-composer-media-upload-btn"
+                    data-testid="snap-composer-media-upload"
+                    aria-label={t('compose.uploadMedia')}
+                    icon={
+                      <FaImage color="var(--chakra-colors-primary)" size={22} />
+                    }
+                    variant="ghost"
+                    isDisabled={isLoading}
+                    border="2px solid transparent"
+                    borderRadius="full"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{
+                      borderColor: "primary",
+                      boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
+                    }}
+                    _active={{ borderColor: "accent" }}
+                    onClick={() => imageUploadInputRef.current?.click()}
+                  />
+                )}
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.heic,.gif,.webp,video/*"
@@ -1726,31 +2095,59 @@ const SnapComposer = React.memo(function SnapComposer({
               </Box>
               {/* Giphy Button (only in reply modal) */}
               {post && (
-                <IconButton
-                  id="snap-composer-giphy-btn"
-                  data-testid="snap-composer-giphy"
-                  aria-label={t('compose.addGif')}
-                  icon={
-                    <TbGif size={22} color="var(--chakra-colors-primary)" />
-                  }
-                  variant="ghost"
-                  isDisabled={isLoading}
-                  border="2px solid transparent"
-                  borderRadius="full"
-                  height="48px"
-                  width="48px"
-                  p={0}
-                  mr={0}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  _hover={{
-                    borderColor: "primary",
-                    boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
-                  }}
-                  _active={{ borderColor: "accent" }}
-                  onClick={() => setGiphyModalOpen((open) => !open)}
-                />
+                isReply ? (
+                  <IconButton
+                    id="snap-composer-giphy-btn"
+                    data-testid="snap-composer-giphy"
+                    aria-label={t('compose.addGif')}
+                    icon={
+                      <TbGif size={22} color="var(--chakra-colors-primary)" />
+                    }
+                    isDisabled={isLoading}
+                    background="none"
+                    border="none"
+                    boxShadow="none"
+                    outline="none"
+                    color="primary"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{ opacity: 0.7 }}
+                    _active={{ background: "none", boxShadow: "none" }}
+                    _focus={{ boxShadow: "none" }}
+                    onClick={() => setGiphyModalOpen((open) => !open)}
+                  />
+                ) : (
+                  <IconButton
+                    id="snap-composer-giphy-btn"
+                    data-testid="snap-composer-giphy"
+                    aria-label={t('compose.addGif')}
+                    icon={
+                      <TbGif size={22} color="var(--chakra-colors-primary)" />
+                    }
+                    variant="ghost"
+                    isDisabled={isLoading}
+                    border="2px solid transparent"
+                    borderRadius="full"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    mr={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{
+                      borderColor: "primary",
+                      boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
+                    }}
+                    _active={{ borderColor: "accent" }}
+                    onClick={() => setGiphyModalOpen((open) => !open)}
+                  />
+                )
               )}
               <Box display="none">
                 <ImageCompressor
@@ -1759,45 +2156,13 @@ const SnapComposer = React.memo(function SnapComposer({
                   isProcessing={isLoading}
                 />
               </Box>
-              {/* GIF Maker Button */}
-              <IconButton
-                id="snap-composer-gif-maker-btn"
-                data-testid="snap-composer-gif-maker"
-                aria-label={t('compose.gifMaker')}
-                icon={<TbGif color="var(--chakra-colors-primary)" size={22} />}
-                variant="ghost"
-                isDisabled={isLoading}
-                border="2px solid transparent"
-                borderRadius="full"
-                height="48px"
-                width="48px"
-                p={0}
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                _hover={{
-                  borderColor: "primary",
-                  boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
-                }}
-                _active={{ borderColor: "accent" }}
-                onClick={() => {
-                  // Reset the GIF maker before opening
-                  gifMakerWithSelectorRef.current?.reset();
-                  setGifMakerOpen(true);
-                }}
-              />
-              {/* Instagram Button - Always show, health check happens in modal */}
-              <Tooltip label={t('compose.importFromInstagram')} placement="top">
+              {/* GIF Maker Button — in reply mode it lives inside the Giphy panel instead */}
+              {!isReply && (
                 <IconButton
-                  id="snap-composer-instagram-btn"
-                  data-testid="snap-composer-instagram"
-                  aria-label={t('compose.importFromInstagram')}
-                  icon={
-                    <FaInstagram
-                      color="var(--chakra-colors-primary)"
-                      size={22}
-                    />
-                  }
+                  id="snap-composer-gif-maker-btn"
+                  data-testid="snap-composer-gif-maker"
+                  aria-label={t('compose.gifMaker')}
+                  icon={<TbGif color="var(--chakra-colors-primary)" size={22} />}
                   variant="ghost"
                   isDisabled={isLoading}
                   border="2px solid transparent"
@@ -1813,8 +2178,68 @@ const SnapComposer = React.memo(function SnapComposer({
                     boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
                   }}
                   _active={{ borderColor: "accent" }}
-                  onClick={() => setInstagramModalOpen(true)}
+                  onClick={() => {
+                    // Reset the GIF maker before opening
+                    gifMakerWithSelectorRef.current?.reset();
+                    setGifMakerOpen(true);
+                  }}
                 />
+              )}
+              {/* Instagram Button - Always show, health check happens in modal */}
+              <Tooltip label={t('compose.importFromInstagram')} placement="top">
+                {isReply ? (
+                  <IconButton
+                    id="snap-composer-instagram-btn"
+                    data-testid="snap-composer-instagram"
+                    aria-label={t('compose.importFromInstagram')}
+                    icon={
+                      <FaInstagram
+                        color="var(--chakra-colors-primary)"
+                        size={22}
+                      />
+                    }
+                    isDisabled={isLoading}
+                    background="none"
+                    border="none"
+                    color="primary"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{ opacity: 0.7 }}
+                    onClick={() => setInstagramModalOpen(true)}
+                  />
+                ) : (
+                  <IconButton
+                    id="snap-composer-instagram-btn"
+                    data-testid="snap-composer-instagram"
+                    aria-label={t('compose.importFromInstagram')}
+                    icon={
+                      <FaInstagram
+                        color="var(--chakra-colors-primary)"
+                        size={22}
+                      />
+                    }
+                    variant="ghost"
+                    isDisabled={isLoading}
+                    border="2px solid transparent"
+                    borderRadius="full"
+                    height="48px"
+                    width="48px"
+                    p={0}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    _hover={{
+                      borderColor: "primary",
+                      boxShadow: "0 0 0 2px var(--chakra-colors-primary)",
+                    }}
+                    _active={{ borderColor: "accent" }}
+                    onClick={() => setInstagramModalOpen(true)}
+                  />
+                )}
               </Tooltip>
             </HStack>
             <Box display={buttonSize === "sm" ? "inline-block" : undefined}>
@@ -1826,7 +2251,7 @@ const SnapComposer = React.memo(function SnapComposer({
                   color="background"
                   _hover={{ bg: "muted", color: "text", border: "tb1" }}
                   isLoading={isLoading}
-                  isDisabled={isLoading || isUploadingMedia || (!postToHive && !postToFarcaster)}
+                  isDisabled={isLoading || isUploadingMedia || (!postToHive && !(postToFarcaster && isMainFeedSnap))}
                   onClick={handleComment}
                   borderRadius={"none"}
                   fontWeight="bold"
@@ -1844,33 +2269,37 @@ const SnapComposer = React.memo(function SnapComposer({
                 >
                   {buttonText}
                 </Button>
-                <DestinationMenu
-                  postToHive={postToHive}
-                  postToFarcaster={postToFarcaster}
-                  postToInstagram={instagramCrossPost}
-                  setPostToHive={setPostToHive}
-                  setPostToFarcaster={setPostToFarcaster}
-                  setPostToInstagram={(v: boolean) => {
-                    // If the user is enabling IG cross-post for the first time
-                    // and we don't have a stored handle, prompt them so the
-                    // caption can @-tag instead of falling back to plain text.
-                    if (v && igHandleStatus === "absent") {
-                      setIgPromptInput("");
-                      setIgPromptOpen(true);
-                      return;
-                    }
-                    setInstagramCrossPost(v);
-                  }}
-                  farcasterChannel={farcasterChannel}
-                  setFarcasterChannel={setFarcasterChannel}
-                  farcasterEligible={farcasterEligible}
-                  farcasterSignerApproved={farcasterSignerApproved}
-                  farcasterUsername={farcasterLinkage?.username || null}
-                  instagramEligible={isMainFeedSnap && canBypassLimit}
-                  instagramHasMedia={hasCrossPostMedia}
-                  isLoading={isLoading}
-                  buttonSize={buttonSize}
-                />
+                {/* Cross-post destination picker — main-feed snaps only. A
+                    reply/comment always goes to Hive alone. */}
+                {isMainFeedSnap && (
+                  <DestinationMenu
+                    postToHive={postToHive}
+                    postToFarcaster={postToFarcaster}
+                    postToInstagram={instagramCrossPost}
+                    setPostToHive={setPostToHive}
+                    setPostToFarcaster={setPostToFarcaster}
+                    setPostToInstagram={(v: boolean) => {
+                      // If the user is enabling IG cross-post for the first time
+                      // and we don't have a stored handle, prompt them so the
+                      // caption can @-tag instead of falling back to plain text.
+                      if (v && igHandleStatus === "absent") {
+                        setIgPromptInput("");
+                        setIgPromptOpen(true);
+                        return;
+                      }
+                      setInstagramCrossPost(v);
+                    }}
+                    farcasterChannel={farcasterChannel}
+                    setFarcasterChannel={setFarcasterChannel}
+                    farcasterEligible={farcasterEligible}
+                    farcasterSignerApproved={farcasterSignerApproved}
+                    farcasterUsername={farcasterLinkage?.username || null}
+                    instagramEligible={isMainFeedSnap && canBypassLimit}
+                    instagramHasMedia={hasCrossPostMedia}
+                    isLoading={isLoading}
+                    buttonSize={buttonSize}
+                  />
+                )}
               </ButtonGroup>
             </Box>
           </HStack>
@@ -1915,6 +2344,16 @@ const SnapComposer = React.memo(function SnapComposer({
                   setSelectedGif(gif);
                   setGiphyModalOpen(false); // Close modal after selecting a GIF
                 }}
+                onCreateGif={
+                  isReply
+                    ? () => {
+                        setGiphyModalOpen(false);
+                        // Reset the GIF maker before opening
+                        gifMakerWithSelectorRef.current?.reset();
+                        setGifMakerOpen(true);
+                      }
+                    : undefined
+                }
               />
             </Box>
           )}
@@ -1961,6 +2400,57 @@ const SnapComposer = React.memo(function SnapComposer({
           context={igDialog}
           userHandle={user || effectiveUser || null}
           requireSignature={!userbaseUser && !!user}
+        />
+      )}
+
+      {/* Unified pre-publish review — opens on Post when media is attached.
+          Edit the caption once and preview Hive / Instagram / Farcaster, then
+          publish. Confirming re-invokes handleComment to run the real flow. */}
+      {showPublishPreview && (
+        <PublishPreviewDialog
+          isOpen
+          onClose={() => setShowPublishPreview(false)}
+          initialCaption={postBodyRef.current?.value ?? ""}
+          images={compressedImages}
+          videoFile={pendingVideoFile}
+          videoLocalUrl={pendingVideoFile ? videoUrl : null}
+          thumbnailUrl={videoThumbnailUrl}
+          hiveAuthor={user || effectiveUser || "skatehive"}
+          igHandle={igHandleValue}
+          farcasterUsername={farcasterLinkage?.username || null}
+          targets={{
+            hive: postToHive,
+            instagram:
+              instagramCrossPost && isMainFeedSnap && canBypassLimit && hasCrossPostMedia,
+            farcaster: postToFarcaster && isMainFeedSnap && farcasterEligible && !!farcasterLinkage,
+          }}
+          maxVideoDuration={15}
+          canBypassTrim={canBypassLimit}
+          onPublish={(result) => {
+            // The Hive post body is the master caption. For Farcaster-only
+            // posts the user may only have typed in the Farcaster (or IG) step,
+            // so fall back to those to avoid an empty-body post.
+            const hiveBody =
+              result.caption ||
+              result.farcasterCaption ||
+              result.igCaption ||
+              "";
+            if (postBodyRef.current) postBodyRef.current.value = hiveBody;
+            igPublishRef.current = {
+              igCaption: result.igCaption,
+              collaborators: result.collaborators,
+              farcasterCaption: result.farcasterCaption,
+            };
+            setShowPublishPreview(false);
+            // Video: process in the background (progress toast), then publish.
+            // Image/text: publish immediately (dialog already closed).
+            if (pendingVideoFile) {
+              setIsPublishing(true); // hide the video in the composer; toast owns it now
+              void runVideoPrep({ trim: result.trim, coverBlob: result.coverBlob });
+            } else {
+              setPendingPublish(true);
+            }
+          }}
         />
       )}
 

@@ -157,13 +157,24 @@ const PER_MB_TIMEOUT_MS = 10_000;
 const MAX_TIMEOUT_MS = 1_800_000; // 30 minutes
 
 // ---------------------------------------------------------------------------
-// Health check — always via same-origin proxy to avoid CORS from any region
+// Localhost dev: the transcoder workers only allowlist https://skatehive.app
+// for CORS, so direct browser fetches (health + upload) from localhost are
+// blocked by the browser even though the servers are up. Route through the
+// same-origin /api/video-proxy in dev — there's no Vercel body limit locally,
+// so the usual "upload direct to avoid 413" rule doesn't apply.
+// ---------------------------------------------------------------------------
+const isLocalhostDev =
+  typeof window !== "undefined" &&
+  /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+
+// ---------------------------------------------------------------------------
+// Health check — same-origin proxy when configured (or on localhost dev)
 // ---------------------------------------------------------------------------
 
 async function checkServerHealth(server: ServerConfig): Promise<boolean> {
   try {
     const directHealthUrl = `${server.url}/healthz`;
-    const healthUrl = server.useProxy
+    const healthUrl = server.useProxy || isLocalhostDev
       ? `/api/video-proxy?url=${encodeURIComponent(directHealthUrl)}`
       : directHealthUrl;
     const controller = new AbortController();
@@ -236,7 +247,7 @@ export async function processVideoOnServer(
     }
 
     // --- Upload attempt ---
-    const uploadPath = server.useProxy ? "via proxy" : "direct";
+    const uploadPath = server.useProxy || isLocalhostDev ? "via proxy" : "direct";
     console.log(
       `✅ [${correlationId}] ${server.name} healthy — uploading (${uploadPath})...`
     );
@@ -310,7 +321,13 @@ async function tryServer(
 
   // Upload directly to the transcoder host. Proxying file uploads through Vercel
   // causes 413 FUNCTION_PAYLOAD_TOO_LARGE before Mac Mini/Oracle can process them.
-  const transcodeUrl = `${serverBaseUrl}/transcode`;
+  // EXCEPTION: localhost dev — direct upload is CORS-blocked there, and the local
+  // dev server has no body limit, so route through the same-origin proxy.
+  const effectiveUseProxy = useProxy || isLocalhostDev;
+  const directTranscodeUrl = `${serverBaseUrl}/transcode`;
+  const transcodeUrl = effectiveUseProxy
+    ? `/api/video-proxy?url=${encodeURIComponent(directTranscodeUrl)}`
+    : directTranscodeUrl;
 
   let eventSource: EventSource | null = null;
 
@@ -333,7 +350,7 @@ async function tryServer(
 
     // SSE progress is only possible for direct uploads — proxied servers are not
     // reachable by the browser, so opening an EventSource to them would silently fail.
-    if (enhancedOptions?.onProgress && !useProxy) {
+    if (enhancedOptions?.onProgress && !effectiveUseProxy) {
       const progressUrl = `${serverBaseUrl}/progress/${correlationId}`;
       try {
         eventSource = new EventSource(progressUrl);

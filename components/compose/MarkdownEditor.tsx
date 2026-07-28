@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { Box, Textarea, HStack, IconButton, Button, Flex, Text, useColorModeValue } from "@chakra-ui/react";
 import { useDropzone } from "react-dropzone";
 import { EnhancedMarkdownRenderer } from "../markdown/EnhancedMarkdownRenderer";
 import { FaColumns } from "react-icons/fa";
 import { TbGif } from "react-icons/tb";
 import { MdPermMedia } from "react-icons/md";
-import GIFMakerWithSelector, { GIFMakerRef as GIFMakerWithSelectorRef } from "../homepage/GIFMakerWithSelector";
+import type { GIFMakerRef as GIFMakerWithSelectorRef } from "../homepage/GIFMakerWithSelector";
+// FFmpeg (loaded inside this component) touches browser-only globals at
+// module init, which crashes SSR if bundled into the server render.
+const GIFMakerWithSelector = dynamic(() => import("../homepage/GIFMakerWithSelector"), { ssr: false });
 
 interface MarkdownEditorProps {
   markdown: string;

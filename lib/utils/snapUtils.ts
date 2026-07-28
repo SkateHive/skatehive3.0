@@ -117,8 +117,8 @@ export const removeLastUrlFromContent = (content: string): string => {
   const lastUrl = extractLastUrl(content);
   if (!lastUrl) return content;
   
-  // Don't remove Zora coin URLs or game URLs as they should be rendered as special previews
-  if (lastUrl.includes('zora.co/coin') || lastUrl.includes('skatehive.app/coin') || lastUrl.includes('skatehive.app/games')) {
+  // Don't remove game URLs as they should be rendered as special previews
+  if (lastUrl.includes('skatehive.app/games')) {
     return content;
   }
   

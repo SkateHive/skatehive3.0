@@ -42,33 +42,6 @@ export function encryptSecret(plaintext: string) {
   });
 }
 
-export function decryptSecret(payload: string) {
-  let parsed: { iv: string; tag: string; data: string };
-  try {
-    parsed = JSON.parse(payload);
-  } catch (error) {
-    throw new Error("Invalid encrypted payload");
-  }
-
-  if (!parsed?.iv || !parsed?.tag || !parsed?.data) {
-    throw new Error("Invalid encrypted payload");
-  }
-
-  const key = getKey();
-  const iv = Buffer.from(parsed.iv, "base64");
-  const tag = Buffer.from(parsed.tag, "base64");
-  const data = Buffer.from(parsed.data, "base64");
-  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
-  decipher.setAuthTag(tag);
-
-  const decrypted = Buffer.concat([
-    decipher.update(data),
-    decipher.final(),
-  ]);
-
-  return decrypted.toString("utf8");
-}
-
 /**
  * Encrypts a Hive posting key for a specific user using AES-256-GCM
  * Returns encrypted key, IV, and auth tag separately for database storage

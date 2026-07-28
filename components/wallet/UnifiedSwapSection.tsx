@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
 import {
   Box,
   Text,
@@ -13,7 +13,7 @@ import {
   IconButton,
   useToast,
 } from "@chakra-ui/react";
-import { FaExchangeAlt, FaHive, FaInfoCircle } from "react-icons/fa";
+import { FaExchangeAlt, FaHive, FaInfoCircle, FaCog } from "react-icons/fa";
 import { useAioha } from "@aioha/react-ui";
 import { shimmerStyles } from "@/lib/utils/animations";
 import { KeyTypes } from "@aioha/aioha";
@@ -26,6 +26,8 @@ import { useTranslations } from "@/contexts/LocaleContext";
 import { useTheme } from "@/app/themeProvider";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import ERC20SwapSection from "./ERC20SwapSection";
+import SwapFeeAdminPanel from "./admin/SwapFeeAdminPanel";
+import { useSplitFeeAdmin } from "@/hooks/useSplitFeeAdmin";
 
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
@@ -330,11 +332,17 @@ function HiveSwapPanel({
 }
 
 // ─── Unified wrapper ──────────────────────────────────────────────────────────
+type SwapMode = "hive" | "erc20" | "admin";
+
 export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
+  const t = useTranslations();
   const { isConnected } = useAccount();
   const { user: hiveUser } = useAioha();
   const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } =
     useFarcasterSession();
+
+  // Admin gate for the fee-split panel (EVM owner or allowlist). Cheap reads only.
+  const { isAdmin: isSplitAdmin } = useSplitFeeAdmin();
 
   // Self-fetch prices when not provided by parent (e.g. /swap page)
   const selfPrices = useMarketPrices();
@@ -343,22 +351,40 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
   const isPriceLoading = props.isPriceLoading ?? selfPrices.isPriceLoading;
 
   const hasHive = !!hiveUser;
-  const farcasterVerifications = (farcasterProfile as any)?.verifications ?? [];
+  const farcasterVerifications =
+    (farcasterProfile as { verifications?: string[] } | null)?.verifications ?? [];
   const hasEVMLinked =
     isConnected || (isFarcasterConnected && farcasterVerifications.length > 0);
 
-  const [mode, setMode] = useState<"hive" | "erc20">(() =>
+  const showBothCore =
+    props.alwaysShowToggle || (hasHive && (hasEVMLinked || isConnected));
+
+  const tabs = useMemo<SwapMode[]>(() => {
+    const core: SwapMode[] = showBothCore
+      ? ["hive", "erc20"]
+      : hasHive
+        ? ["hive"]
+        : ["erc20"];
+    if (isSplitAdmin) core.push("admin");
+    return core;
+  }, [showBothCore, hasHive, isSplitAdmin]);
+
+  const [mode, setMode] = useState<SwapMode>(() =>
     props.alwaysShowToggle ? "erc20" : hasHive ? "hive" : "erc20",
   );
 
+  // Keep the active mode valid as tab availability changes.
   useEffect(() => {
-    if (props.alwaysShowToggle) return;
-    if (!hasHive && mode === "hive") setMode("erc20");
-    if (!hasEVMLinked && !isConnected && mode === "erc20" && hasHive)
-      setMode("hive");
-  }, [hasHive, hasEVMLinked, isConnected]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!tabs.includes(mode)) setMode(tabs[0]);
+  }, [tabs, mode]);
 
-  const showToggle = props.alwaysShowToggle || (hasHive && (hasEVMLinked || isConnected));
+  const showTabBar = tabs.length > 1;
+
+  const tabMeta: Record<SwapMode, { label: string; icon: React.ReactElement }> = {
+    hive: { label: t("swapAdmin.hiveTab"), icon: <FaHive /> },
+    erc20: { label: t("swapAdmin.erc20Tab"), icon: <FaExchangeAlt /> },
+    admin: { label: t("swapAdmin.tab"), icon: <FaCog /> },
+  };
 
   return (
     <Box
@@ -369,47 +395,34 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
       width="100%"
       sx={shimmerStyles}
     >
-      {showToggle ? (
+      {showTabBar ? (
         <HStack px={0} bg="primary" spacing={0}>
-          <Button
-            flex={1}
-            size="sm"
-            borderRadius="none"
-            fontFamily="mono"
-            fontWeight="black"
-            letterSpacing="widest"
-            fontSize="xs"
-            textTransform="uppercase"
-            bg={mode === "hive" ? "primary" : "transparent"}
-            color="background"
-            opacity={mode === "hive" ? 1 : 0.45}
-            leftIcon={<FaHive />}
-            onClick={() => setMode("hive")}
-            _hover={{ opacity: 1 }}
-            _active={{}}
-          >
-            Hive
-          </Button>
-          <Box w="1px" h="32px" bg="background" opacity={0.3} />
-          <Button
-            flex={1}
-            size="sm"
-            borderRadius="none"
-            fontFamily="mono"
-            fontWeight="black"
-            letterSpacing="widest"
-            fontSize="xs"
-            textTransform="uppercase"
-            bg={mode === "erc20" ? "primary" : "transparent"}
-            color="background"
-            opacity={mode === "erc20" ? 1 : 0.45}
-            leftIcon={<FaExchangeAlt />}
-            onClick={() => setMode("erc20")}
-            _hover={{ opacity: 1 }}
-            _active={{}}
-          >
-            ERC-20
-          </Button>
+          {tabs.map((tabKey, i) => (
+            <Fragment key={tabKey}>
+              {i > 0 && <Box w="1px" h="32px" bg="background" opacity={0.3} />}
+              <Button
+                flex={1}
+                size="sm"
+                px={1}
+                minW={0}
+                borderRadius="none"
+                fontFamily="mono"
+                fontWeight="black"
+                letterSpacing="wider"
+                fontSize="xs"
+                textTransform="uppercase"
+                bg={mode === tabKey ? "primary" : "transparent"}
+                color="background"
+                opacity={mode === tabKey ? 1 : 0.45}
+                leftIcon={tabMeta[tabKey].icon}
+                onClick={() => setMode(tabKey)}
+                _hover={{ opacity: 1 }}
+                _active={{}}
+              >
+                {tabMeta[tabKey].label}
+              </Button>
+            </Fragment>
+          ))}
         </HStack>
       ) : (
         <HStack px={3} py={2} bg="primary">
@@ -426,7 +439,7 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
             textTransform="uppercase"
             letterSpacing="widest"
           >
-            {mode === "hive" ? "Hive Swap" : "ERC-20 Swap"}
+            {mode === "hive" ? t("swapAdmin.hiveSwapTitle") : t("swapAdmin.erc20SwapTitle")}
           </Text>
         </HStack>
       )}
@@ -438,6 +451,8 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
             hbdPrice={hbdPrice}
             isPriceLoading={isPriceLoading}
           />
+        ) : mode === "admin" ? (
+          <SwapFeeAdminPanel />
         ) : (
           <ERC20SwapSection compact showFeeOption={props.showFeeOption} />
         )}

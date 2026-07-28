@@ -82,7 +82,7 @@ export function getIpfsGatewayUrls(url: string): string[] {
     const hash = url.replace('ipfs://', '');
     
     return [
-        `https://magic.decentralized-content.com/ipfs/${hash}`, // Zora's gateway (best for Zora content)
+        `https://magic.decentralized-content.com/ipfs/${hash}`, // Decentralized-content IPFS gateway
         `https://ipfs.io/ipfs/${hash}`,           // Public IPFS gateway (most reliable)
         `https://cloudflare-ipfs.com/ipfs/${hash}`, // Cloudflare IPFS gateway
         `https://gateway.pinata.cloud/ipfs/${hash}`, // Pinata public gateway

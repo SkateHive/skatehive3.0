@@ -170,7 +170,7 @@ async function main() {
       if (meta.display_priority !== 1) {
         issues.push('⚠️  Should have display_priority = 1');
       }
-      console.log(`    Type: 🟢 ETH_ADDRESS (for Zora)`);
+      console.log(`    Type: 🟢 ETH_ADDRESS`);
     } else if (addr === primaryWallet) {
       if (!meta.is_primary_wallet) {
         issues.push('⚠️  Should be marked as primary_wallet');
@@ -208,7 +208,7 @@ async function main() {
 
   if (!hasEthAddress && ethAddress) {
     console.log(`\n⚠️  ISSUE: Hive eth_address (${ethAddress}) is NOT in the database!`);
-    console.log(`   This is the address that should be used for Zora profile.`);
+    console.log(`   This is the address that should be linked to your profile.`);
     console.log(`   You need to re-link your Hive account to add this address.`);
   }
 
