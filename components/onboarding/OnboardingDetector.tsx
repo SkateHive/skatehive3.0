@@ -35,8 +35,39 @@ import {
 
 const OnboardingModal = dynamic(() => import("./OnboardingModal"), { ssr: false });
 
-// Accounts created before this date are excluded from onboarding.
-const ONBOARDING_LAUNCH_DATE = new Date("2026-04-22");
+// Onboarding is only for accounts created after the feature reached production.
+//
+// This is an env var rather than a hardcoded constant because a constant goes
+// stale while the PR waits for review: a date picked in April would have let
+// ~1.8k accounts that signed up in the meantime through the gate and shown all
+// of them the modal on deploy.
+//
+// Set NEXT_PUBLIC_ONBOARDING_LAUNCH_DATE (ISO date, e.g. "2026-07-29") to the
+// production deploy date. It's read at build time, so a change needs a rebuild.
+//
+// Unset or unparseable => onboarding stays off for everyone. Failing closed
+// keeps a missing env var a silent no-op instead of a surprise modal for every
+// existing user.
+const ONBOARDING_LAUNCH_DATE: Date | null = (() => {
+  const raw = process.env.NEXT_PUBLIC_ONBOARDING_LAUNCH_DATE?.trim();
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+})();
+
+/**
+ * Whether this account is new enough to be offered onboarding.
+ *
+ * Fails closed on every uncertain input — no configured launch date, or a
+ * missing/invalid created_at — so an existing user is never shown the flow by
+ * accident.
+ */
+function isEligibleForOnboarding(user: UserbaseUser): boolean {
+  if (!ONBOARDING_LAUNCH_DATE) return false;
+  const createdAt = user.created_at ? new Date(user.created_at) : null;
+  if (!createdAt || Number.isNaN(createdAt.getTime())) return false;
+  return createdAt >= ONBOARDING_LAUNCH_DATE;
+}
 
 /**
  * Which steps the user has effectively already done — either through onboarding
@@ -84,6 +115,9 @@ export default function OnboardingDetector() {
   useEffect(() => {
     if (!user) return;
     if (hasAutoOpened.current) return;
+    // Checked here as well as at render so an existing user never has the
+    // open timer scheduled or SS_SEEN written on their behalf.
+    if (!isEligibleForOnboarding(user)) return;
     // Wait for the Hive profile check before deciding — avoids opening the
     // modal on a step the user has already covered on their Hive account.
     if (hiveProfile === null) return;
@@ -136,10 +170,9 @@ export default function OnboardingDetector() {
   // card/modal never flashes a step the user has already covered on Hive.
   if (hiveProfile === null) return null;
 
-  // Only show onboarding for accounts created after the feature launch date.
-  // Existing users are excluded without any database migration.
-  const createdAt = new Date(user.created_at);
-  if (isNaN(createdAt.getTime()) || createdAt < ONBOARDING_LAUNCH_DATE) return null;
+  // Only accounts created after the feature reached production. Existing users
+  // are excluded without any database migration.
+  if (!isEligibleForOnboarding(user)) return null;
 
   const { photoDone, bioDone, postDone, effectiveStep } = getStepState(user, hiveProfile);
   const isDone = (effectiveStep & ONBOARDING_ALL_DONE) === ONBOARDING_ALL_DONE || isLocallyDone();
