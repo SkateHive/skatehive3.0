@@ -430,7 +430,7 @@ export const en = {
       snapSharedDesc: 'Cross-posts are with the curation team.',
       alreadyOnInstagram: 'Already on Instagram',
       postedToInstagram: 'Posted to @skatehive on Instagram',
-      postedToFarcaster: 'Posted to Farcaster!',
+      postedToFarcaster: 'Posted to Farcaster',
       reviewNotice:
         "The curation team reviews every cross-post before it goes to @skatehive. Confirming sends this — it doesn't post yet.",
       alreadyWithTeam: 'This snap is already with the curation team — nothing else to do.',

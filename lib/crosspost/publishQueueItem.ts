@@ -310,6 +310,8 @@ async function publishFarcasterItem(
  * immediately approves it — the row survives as an audit record, and there is
  * exactly one piece of code that talks to Meta / Neynar.
  */
+export const AUTO_PUBLISH_NOTE = "auto-published (curation queue disabled)";
+
 export async function publishQueueItemNow(
   supabase: any,
   id: string
@@ -317,12 +319,19 @@ export async function publishQueueItemNow(
   const claim = await claimQueueItem({
     supabase,
     id,
-    // No human reviewed this — leaving the curator fields null is what
-    // distinguishes an auto-publish from an approval in the audit trail.
     curatorHandle: null,
     curatorUserId: null,
   });
   if (!claim.ok) return { success: false, error: claim.error };
+
+  // Say so explicitly rather than leaving "reviewed_at set, reviewer null" as
+  // the only hint. Anyone auditing later shouldn't have to infer why a row has
+  // a review timestamp and no reviewer.
+  await supabase
+    .from(CROSSPOST_QUEUE_TABLE)
+    .update({ review_note: AUTO_PUBLISH_NOTE })
+    .eq("id", id);
+
   return publishQueueItem(supabase, claim.item);
 }
 

@@ -14,6 +14,9 @@
           },
           "app/api/instagram/force-post/route.ts": {
                   "maxDuration": 300
+          },
+          "app/api/instagram/post/route.ts": {
+                  "maxDuration": 300
           }
     },
     "headers": [

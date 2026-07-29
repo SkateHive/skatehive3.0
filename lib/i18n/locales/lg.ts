@@ -446,7 +446,7 @@ export const lg = {
       snapSharedDesc: 'Cross-posts ziri n\'abalonda.',
       alreadyOnInstagram: 'Kiri dda ku Instagram',
       postedToInstagram: 'Kiteekeddwa ku @skatehive ku Instagram',
-      postedToFarcaster: 'Kiteekeddwa ku Farcaster!',
+      postedToFarcaster: 'Kiteekeddwa ku Farcaster',
       reviewNotice:
         'Abalonda bekenneenya buli cross-post nga tennaba kutuuka ku @skatehive. Okukakasa kusindika — tekiteeka kati.',
       alreadyWithTeam: 'Snap eno eri dda n\'abalonda — tolina kirala kya kukola.',

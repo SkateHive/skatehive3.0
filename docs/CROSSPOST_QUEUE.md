@@ -176,11 +176,47 @@ the portal.
 
 ---
 
+## Rolling it out (and backing it out)
+
+`CROSSPOST_QUEUE_ENABLED` is the switch. The day the queue turns on, every
+cross-post stops publishing and waits for a curator — so it ships **off** and
+gets flipped once the portal's review screen is live.
+
+```bash
+CROSSPOST_QUEUE_ENABLED=              # off: publish immediately (pre-queue behavior)
+CROSSPOST_QUEUE_ENABLED=true          # everyone goes through review
+CROSSPOST_QUEUE_ENABLED=alice,bob     # only these Hive handles — canary
+```
+
+Suggested order, so no step is visible to users until you want it to be:
+
+1. Apply migrations `0029` + `0030`
+2. Deploy with the switch **off** — nothing changes for anyone
+3. Build the portal screen against the real (empty) table
+4. Set the switch to your own handle, run one cross-post end to end
+5. Set it to `true`
+
+With the switch off the request still files a queue row and immediately
+approves it, so there is only ever one code path talking to Meta and Neynar.
+Those rows carry `review_note = "auto-published (curation queue disabled)"`
+and no reviewer, which is how you tell them apart later.
+
+> **Drain before you switch off.** Items already in `pending_review` are not
+> released when the switch flips — they stay queued, nobody approves them, and
+> their authors are never told. Approve or reject what's in the queue first.
+
+> **Vercel needs a redeploy** for an environment variable change to take
+> effect. Backing out is "change the variable and redeploy", not instant — but
+> it beats a code revert, which would strand whatever is already queued.
+
 ## Environment
 
 ```bash
 # New — shared secret between this repo and the portal
 CROSSPOST_PORTAL_TOKEN=<long random string>
+
+# New — the rollout switch above. Ship it off.
+CROSSPOST_QUEUE_ENABLED=
 
 # Already required, unchanged
 ADMIN_USERS=curator1,curator2          # or NEXT_PUBLIC_ADMIN_USERS

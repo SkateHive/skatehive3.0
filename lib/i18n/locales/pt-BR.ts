@@ -447,7 +447,7 @@ export const ptBR = {
       snapSharedDesc: 'Os cross-posts estão com a curadoria.',
       alreadyOnInstagram: 'Já está no Instagram',
       postedToInstagram: 'Postado no @skatehive do Instagram',
-      postedToFarcaster: 'Postado no Farcaster!',
+      postedToFarcaster: 'Postado no Farcaster',
       reviewNotice:
         'A curadoria avalia todo cross-post antes de ir pro @skatehive. Confirmar envia o pedido — ainda não publica.',
       alreadyWithTeam: 'Esse snap já está com a curadoria — não precisa fazer mais nada.',

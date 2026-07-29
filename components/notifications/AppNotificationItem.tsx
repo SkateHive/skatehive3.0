@@ -13,6 +13,10 @@ import { Box, HStack, Icon, Link, Text, VStack } from "@chakra-ui/react";
 import { FaCheckCircle, FaExclamationTriangle, FaTimesCircle, FaBell } from "react-icons/fa";
 import type { AppNotification } from "@/contexts/NotificationContext";
 import { useTranslations } from "@/lib/i18n/hooks";
+import {
+  CROSSPOST_NOTIF_NS,
+  localizeCrossPostNotification,
+} from "@/lib/notifications/localizeCrossPost";
 import { formatNotificationDate } from "./utils";
 
 const TYPE_STYLE: Record<
@@ -24,61 +28,6 @@ const TYPE_STYLE: Record<
   crosspost_failed: { icon: FaExclamationTriangle, color: "red.400" },
 };
 
-type Translate = (key: string) => string;
-
-/**
- * The stored title/body are written server-side, in English, at the moment the
- * curator decides — so they can't follow the reader's language. The row also
- * stores `type` and `metadata`, which is everything needed to rebuild the copy
- * here instead. Falls back to the stored text for unknown types (or a locale
- * missing the key), so nothing ever renders blank.
- *
- * `t` has no interpolation, hence the per-platform keys: there are exactly two
- * platforms, so a suffix beats a placeholder.
- */
-function localize(
-  notification: AppNotification,
-  t: Translate
-): { title: string; body: string | null } {
-  const platform =
-    (notification.metadata?.target as string) === "farcaster" ? "Farcaster" : "Instagram";
-
-  // A missing key resolves to the key path itself (see LocaleContext), which is
-  // how we detect "not translated" and fall back.
-  const tr = (key: string): string | null => {
-    const value = t(key);
-    return value === `notificationsPage.crosspost.${key}` ? null : value;
-  };
-
-  const note = (notification.metadata?.note as string | undefined) || null;
-  const noteLabel = tr("rejectedNoteLabel");
-
-  switch (notification.type) {
-    case "crosspost_approved":
-      return {
-        title: tr(`approvedTitle${platform}`) ?? notification.title,
-        body: tr(`approvedBody${platform}`) ?? notification.body,
-      };
-    case "crosspost_rejected":
-      return {
-        title: tr(`rejectedTitle${platform}`) ?? notification.title,
-        // The curator's reason is free text in whatever language they wrote —
-        // only the label around it can be localized.
-        body: note
-          ? `${noteLabel ?? "Curation team:"} "${note}"`
-          : tr("rejectedBodyNoNote") ?? notification.body,
-      };
-    case "crosspost_failed":
-      return {
-        title: tr(`failedTitle${platform}`) ?? notification.title,
-        // The body is the platform's own error string — untranslatable, and
-        // more useful raw than paraphrased.
-        body: notification.body,
-      };
-    default:
-      return { title: notification.title, body: notification.body };
-  }
-}
 
 interface AppNotificationItemProps {
   notification: AppNotification;
@@ -92,10 +41,10 @@ export default function AppNotificationItem({
   notification,
   isNew: isNewOverride,
 }: AppNotificationItemProps) {
-  const t = useTranslations("notificationsPage.crosspost");
+  const t = useTranslations(CROSSPOST_NOTIF_NS);
   const style = TYPE_STYLE[notification.type] ?? { icon: FaBell, color: "primary" };
   const isNew = isNewOverride ?? !notification.read_at;
-  const { title, body } = localize(notification, t);
+  const { title, body } = localizeCrossPostNotification(notification, t);
   // created_at is an ISO timestamp from Postgres; formatNotificationDate is
   // shared with the Hive list so both halves read the same way.
   const formattedDate = formatNotificationDate(notification.created_at);

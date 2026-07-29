@@ -1367,6 +1367,10 @@ const SnapComposer = React.memo(function SnapComposer({
                     videoUrl: videoUrl || null,
                   })
                 : [{ url: farcasterUrl }];
+              // Reset before the request: on a network failure we never learn
+              // the answer, and leaving the previous publish's value here would
+              // make the closing toast describe the wrong thing.
+              wentToQueueRef.current = false;
               try {
                 const res = await fetch("/api/farcaster/cast", {
                   method: "POST",
@@ -1383,7 +1387,7 @@ const SnapComposer = React.memo(function SnapComposer({
                 const data = await res.json().catch(() => ({}));
                 // Absent when the queue is off for this user — the cast is
                 // already live, so the closing toast shouldn't say otherwise.
-                wentToQueueRef.current = data?.queued === true;
+                wentToQueueRef.current = res.ok && data?.queued === true;
                 if (!res.ok) {
                   if (data?.needsSigner) {
                     toast({

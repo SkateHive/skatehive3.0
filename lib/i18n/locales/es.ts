@@ -447,7 +447,7 @@ export const es = {
       snapSharedDesc: 'Los cross-posts están con el equipo de curaduría.',
       alreadyOnInstagram: 'Ya está en Instagram',
       postedToInstagram: 'Publicado en @skatehive en Instagram',
-      postedToFarcaster: '¡Publicado en Farcaster!',
+      postedToFarcaster: 'Publicado en Farcaster',
       reviewNotice:
         'El equipo de curaduría revisa cada cross-post antes de que llegue a @skatehive. Confirmar lo envía — todavía no publica.',
       alreadyWithTeam: 'Este snap ya está con el equipo de curaduría — no hay nada más que hacer.',
