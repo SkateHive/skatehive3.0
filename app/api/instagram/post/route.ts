@@ -11,8 +11,14 @@ import {
   countQueueItemsForUser,
   enqueueCrossPost,
   findActiveQueueItem,
+  isCrossPostQueueEnabled,
   type InstagramQueuePayload,
 } from "@/lib/crosspost/queue";
+import { publishQueueItemNow } from "@/lib/crosspost/publishQueueItem";
+
+// With the queue switched off this route publishes inline again, and Meta's
+// container polling runs well past the platform's default request ceiling.
+export const maxDuration = 300;
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -290,7 +296,9 @@ export async function POST(request: NextRequest) {
       ig_handle: igHandle ?? null,
       default_collaborators: igHandle ? [igHandle] : [],
       target_account: "@skatehive",
-      review_required: true,
+      // Drives the dialog's copy ("send for review" vs "post"). Keyed on the
+      // snap's author because the self flow requires author === requester.
+      review_required: isCrossPostQueueEnabled(hiveAuthor),
       queue: queued
         ? { id: queued.id, status: queued.status, created_at: queued.created_at }
         : null,
@@ -524,6 +532,20 @@ export async function POST(request: NextRequest) {
       already_queued: true,
       queue_id: enqueued.id,
       status: enqueued.duplicate.status,
+    });
+  }
+
+  // Queue off for this user → publish right away, exactly like before the
+  // queue existed. The row stays as the audit record.
+  if (!isCrossPostQueueEnabled(hiveHandleForHpCheck)) {
+    const outcome = await publishQueueItemNow(supabase, enqueued.id);
+    if (!outcome.success) {
+      return NextResponse.json({ error: outcome.error }, { status: 502 });
+    }
+    return NextResponse.json({
+      success: true,
+      ig_media_id: outcome.result?.ig_media_id ?? null,
+      ig_permalink: outcome.result?.ig_permalink ?? null,
     });
   }
 

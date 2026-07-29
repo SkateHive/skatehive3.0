@@ -447,6 +447,7 @@ export const ptBR = {
       snapSharedDesc: 'Os cross-posts estão com a curadoria.',
       alreadyOnInstagram: 'Já está no Instagram',
       postedToInstagram: 'Postado no @skatehive do Instagram',
+      postedToFarcaster: 'Postado no Farcaster!',
       reviewNotice:
         'A curadoria avalia todo cross-post antes de ir pro @skatehive. Confirmar envia o pedido — ainda não publica.',
       alreadyWithTeam: 'Esse snap já está com a curadoria — não precisa fazer mais nada.',
@@ -1237,6 +1238,20 @@ export const ptBR = {
     filterAll: 'Todos',
     filterSkatehive: 'Da SkateHive',
     appSectionTitle: 'Da SkateHive',
+    crosspost: {
+      approvedTitleInstagram: 'Seu snap está no ar no Instagram 🎉',
+      approvedTitleFarcaster: 'Seu snap está no ar no Farcaster 🎉',
+      approvedBodyInstagram: 'A curadoria aprovou seu cross-post pro @skatehive.',
+      approvedBodyFarcaster: 'A curadoria aprovou seu cross-post.',
+      rejectedTitleInstagram: 'Seu cross-post pro Instagram não foi selecionado',
+      rejectedTitleFarcaster: 'Seu cross-post pro Farcaster não foi selecionado',
+      rejectedBodyNoNote:
+        'A curadoria decidiu não publicar esse. Seu snap continua no ar na SkateHive.',
+      rejectedNoteLabel: 'Curadoria:',
+      failedTitleInstagram: 'Não deu pra publicar seu cross-post no Instagram',
+      failedTitleFarcaster: 'Não deu pra publicar seu cross-post no Farcaster',
+      seePost: 'Ver o post →',
+    },
     filterReply: 'Resposta',
     filterReplyComment: 'Resposta ao Comentário',
     filterMention: 'Menções',

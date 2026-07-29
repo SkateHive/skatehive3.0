@@ -20,6 +20,7 @@ import {
   countQueueItemsForUser,
   enqueueCrossPost,
   findActiveQueueItem,
+  isCrossPostQueueEnabled,
   type InstagramQueuePayload,
 } from "../queue";
 import { createFakeSupabase, QUEUE_UNIQUES } from "./fakeSupabase";
@@ -267,6 +268,58 @@ describe("countQueueItemsForUser (flood guard)", () => {
       statuses: ["pending_review"],
     });
     assertEqual(count, 2, "published rows and other users must not count");
+  });
+});
+
+describe("isCrossPostQueueEnabled (kill switch)", () => {
+  const original = process.env.CROSSPOST_QUEUE_ENABLED;
+  const withEnv = (value: string | undefined, fn: () => void) => {
+    if (value === undefined) delete process.env.CROSSPOST_QUEUE_ENABLED;
+    else process.env.CROSSPOST_QUEUE_ENABLED = value;
+    try {
+      fn();
+    } finally {
+      if (original === undefined) delete process.env.CROSSPOST_QUEUE_ENABLED;
+      else process.env.CROSSPOST_QUEUE_ENABLED = original;
+    }
+  };
+
+  it("defaults to OFF when unset — shipping must not silently change behavior", () => {
+    withEnv(undefined, () => assertEqual(isCrossPostQueueEnabled("skater"), false));
+  });
+
+  it("is off for the literal string false", () => {
+    withEnv("false", () => assertEqual(isCrossPostQueueEnabled("skater"), false));
+  });
+
+  it("is on for everyone when true", () => {
+    withEnv("true", () => {
+      assertEqual(isCrossPostQueueEnabled("skater"), true);
+      assertEqual(isCrossPostQueueEnabled("anyone-else"), true);
+    });
+  });
+
+  it("queues only the listed handles when given a canary list", () => {
+    withEnv("mtlouzada, xvlad", () => {
+      assertEqual(isCrossPostQueueEnabled("mtlouzada"), true);
+      assertEqual(isCrossPostQueueEnabled("xvlad"), true);
+      assertEqual(isCrossPostQueueEnabled("someone"), false);
+    });
+  });
+
+  it("ignores @ and case in the list and the handle", () => {
+    withEnv("@MtLouzada", () => {
+      assertEqual(isCrossPostQueueEnabled("mtlouzada"), true);
+      assertEqual(isCrossPostQueueEnabled("@MTLOUZADA"), true);
+    });
+  });
+
+  it("stays off for a user with no linked Hive handle when using a list", () => {
+    withEnv("mtlouzada", () => assertEqual(isCrossPostQueueEnabled(null), false));
+  });
+
+  it("is on for a handle-less user only when explicitly set to true", () => {
+    withEnv("true", () => assertEqual(isCrossPostQueueEnabled(null), true));
   });
 });
 

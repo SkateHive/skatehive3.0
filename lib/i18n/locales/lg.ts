@@ -446,6 +446,7 @@ export const lg = {
       snapSharedDesc: 'Cross-posts ziri n\'abalonda.',
       alreadyOnInstagram: 'Kiri dda ku Instagram',
       postedToInstagram: 'Kiteekeddwa ku @skatehive ku Instagram',
+      postedToFarcaster: 'Kiteekeddwa ku Farcaster!',
       reviewNotice:
         'Abalonda bekenneenya buli cross-post nga tennaba kutuuka ku @skatehive. Okukakasa kusindika — tekiteeka kati.',
       alreadyWithTeam: 'Snap eno eri dda n\'abalonda — tolina kirala kya kukola.',
@@ -1236,6 +1237,20 @@ export const lg = {
     filterAll: 'Byonna',
     filterSkatehive: 'Okuva ku SkateHive',
     appSectionTitle: 'Okuva ku SkateHive',
+    crosspost: {
+      approvedTitleInstagram: 'Snap yo eri ku Instagram 🎉',
+      approvedTitleFarcaster: 'Snap yo eri ku Farcaster 🎉',
+      approvedBodyInstagram: 'Abalonda bakkirizza cross-post yo ku @skatehive.',
+      approvedBodyFarcaster: 'Abalonda bakkirizza cross-post yo.',
+      rejectedTitleInstagram: 'Cross-post yo ku Instagram teyalondebwa',
+      rejectedTitleFarcaster: 'Cross-post yo ku Farcaster teyalondebwa',
+      rejectedBodyNoNote:
+        'Abalonda basalawo obutagiteeka. Snap yo ekyali ku SkateHive.',
+      rejectedNoteLabel: 'Abalonda:',
+      failedTitleInstagram: 'Cross-post yo ku Instagram tekyasobola kuteekebwa',
+      failedTitleFarcaster: 'Cross-post yo ku Farcaster tekyasobola kuteekebwa',
+      seePost: 'Laba ekiwandiiko →',
+    },
     filterReply: 'Ddamu',
     filterReplyComment: 'Ddamu okwa Comment',
     filterMention: 'Okugambira',

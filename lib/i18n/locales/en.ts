@@ -430,6 +430,7 @@ export const en = {
       snapSharedDesc: 'Cross-posts are with the curation team.',
       alreadyOnInstagram: 'Already on Instagram',
       postedToInstagram: 'Posted to @skatehive on Instagram',
+      postedToFarcaster: 'Posted to Farcaster!',
       reviewNotice:
         "The curation team reviews every cross-post before it goes to @skatehive. Confirming sends this — it doesn't post yet.",
       alreadyWithTeam: 'This snap is already with the curation team — nothing else to do.',
@@ -1220,6 +1221,23 @@ export const en = {
     filterAll: 'All',
     filterSkatehive: 'From SkateHive',
     appSectionTitle: 'From SkateHive',
+    // Cross-post outcomes. Rendered client-side from the notification's `type`
+    // + `metadata.target` so they follow the reader's language — the row's
+    // stored title/body is English (written server-side) and is only a fallback.
+    crosspost: {
+      approvedTitleInstagram: 'Your snap is live on Instagram 🎉',
+      approvedTitleFarcaster: 'Your snap is live on Farcaster 🎉',
+      approvedBodyInstagram: 'The curation team approved your cross-post to @skatehive.',
+      approvedBodyFarcaster: 'The curation team approved your cross-post.',
+      rejectedTitleInstagram: "Your Instagram cross-post wasn't picked up",
+      rejectedTitleFarcaster: "Your Farcaster cross-post wasn't picked up",
+      rejectedBodyNoNote:
+        'The curation team passed on this one. Your snap is still live on SkateHive.',
+      rejectedNoteLabel: 'Curation team:',
+      failedTitleInstagram: "Your Instagram cross-post couldn't be published",
+      failedTitleFarcaster: "Your Farcaster cross-post couldn't be published",
+      seePost: 'See the post →',
+    },
     filterReply: 'Reply',
     filterReplyComment: 'Reply to Comment',
     filterMention: 'Mentions',

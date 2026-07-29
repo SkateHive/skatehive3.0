@@ -304,6 +304,29 @@ async function publishFarcasterItem(
 }
 
 /**
+ * Enqueue-then-publish, used when the curation queue is switched OFF
+ * (see isCrossPostQueueEnabled). Rather than keeping a second publish path
+ * alive for the legacy behavior, the request still files a row and then
+ * immediately approves it — the row survives as an audit record, and there is
+ * exactly one piece of code that talks to Meta / Neynar.
+ */
+export async function publishQueueItemNow(
+  supabase: any,
+  id: string
+): Promise<PublishQueueItemResult> {
+  const claim = await claimQueueItem({
+    supabase,
+    id,
+    // No human reviewed this — leaving the curator fields null is what
+    // distinguishes an auto-publish from an approval in the audit trail.
+    curatorHandle: null,
+    curatorUserId: null,
+  });
+  if (!claim.ok) return { success: false, error: claim.error };
+  return publishQueueItem(supabase, claim.item);
+}
+
+/**
  * Publish an already-claimed queue item and write the outcome back to the row.
  * Always leaves the row in a terminal-ish state (`published` or `failed`) so
  * nothing can get stuck in `publishing`.

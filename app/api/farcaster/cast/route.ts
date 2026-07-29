@@ -4,8 +4,10 @@ import crypto from "crypto";
 import {
   countQueueItemsForUser,
   enqueueCrossPost,
+  isCrossPostQueueEnabled,
   type FarcasterQueuePayload,
 } from "@/lib/crosspost/queue";
+import { publishQueueItemNow } from "@/lib/crosspost/publishQueueItem";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -219,6 +221,19 @@ export async function POST(request: NextRequest) {
       already_queued: true,
       queue_id: enqueued.id,
       status: enqueued.duplicate.status,
+    });
+  }
+
+  // Queue off for this user → cast right away, exactly like before the queue
+  // existed. The row stays as the audit record.
+  if (!isCrossPostQueueEnabled(caster.hiveHandle)) {
+    const outcome = await publishQueueItemNow(supabase, enqueued.id);
+    if (!outcome.success) {
+      return NextResponse.json({ error: outcome.error }, { status: 500 });
+    }
+    return NextResponse.json({
+      success: true,
+      hash: outcome.result?.cast_hash ?? null,
     });
   }
 

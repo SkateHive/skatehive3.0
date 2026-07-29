@@ -23,6 +23,36 @@
  */
 export const CROSSPOST_QUEUE_TABLE = "userbase_crosspost_queue";
 
+/**
+ * Kill switch for the whole curation queue.
+ *
+ * The day this ships, every cross-post stops publishing and starts waiting for
+ * a curator. If the portal isn't up yet — or something goes wrong once it is —
+ * the feature has to be switchable without a revert, because a revert would
+ * strand whatever is already sitting in the queue.
+ *
+ *   CROSSPOST_QUEUE_ENABLED unset / "false"  → publish immediately (old behavior)
+ *   CROSSPOST_QUEUE_ENABLED="true"           → everyone goes through review
+ *   CROSSPOST_QUEUE_ENABLED="alice,bob"      → only those Hive handles are
+ *                                              queued; everyone else publishes
+ *                                              as before (canary)
+ *
+ * The handle compared is the requester's linked Hive account.
+ */
+export function isCrossPostQueueEnabled(hiveHandle: string | null): boolean {
+  const raw = (process.env.CROSSPOST_QUEUE_ENABLED || "").trim();
+  if (!raw || raw.toLowerCase() === "false") return false;
+  if (raw.toLowerCase() === "true") return true;
+
+  const allowed = raw
+    .split(",")
+    .map((h) => h.trim().replace(/^@/, "").toLowerCase())
+    .filter(Boolean);
+  if (allowed.length === 0) return false;
+  if (!hiveHandle) return false;
+  return allowed.includes(hiveHandle.trim().replace(/^@/, "").toLowerCase());
+}
+
 export type CrossPostTarget = "instagram" | "farcaster";
 
 export type CrossPostQueueStatus =

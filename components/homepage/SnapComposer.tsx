@@ -296,6 +296,10 @@ const SnapComposer = React.memo(function SnapComposer({
   // Per-network content the publish dialog collected (IG caption + collaborators,
   // Farcaster caption). Read by handleComment when it fires the cross-posts.
   const igPublishRef = useRef<{ igCaption: string; collaborators: string[]; farcasterCaption: string } | null>(null);
+  // Whether the last Farcaster cross-post went to the curation queue or was
+  // published straight away (queue switched off). Drives the closing toast's
+  // wording, which would otherwise claim a live cast is "with the curators".
+  const wentToQueueRef = useRef(false);
 
   // Cached IG handle status. 'unknown' until first lookup; 'present' means
   // the server already has a tag-able value (DB or Hive metadata); 'absent'
@@ -1012,11 +1016,17 @@ const SnapComposer = React.memo(function SnapComposer({
           }
           return;
         }
+        // `queued` is absent when the curation queue is switched off for this
+        // user — the cast already went out, so don't claim it's under review.
         toast({
           title: data?.already_queued
             ? t('compose.crosspost.alreadyQueued')
-            : t('compose.crosspost.sent'),
-          description: t('compose.crosspost.sentDescFarcaster'),
+            : data?.queued
+            ? t('compose.crosspost.sent')
+            : t('compose.crosspost.postedToFarcaster'),
+          description: data?.queued
+            ? t('compose.crosspost.sentDescFarcaster')
+            : undefined,
           status: "success",
           duration: 5000,
           isClosable: true,
@@ -1371,6 +1381,9 @@ const SnapComposer = React.memo(function SnapComposer({
                   }),
                 });
                 const data = await res.json().catch(() => ({}));
+                // Absent when the queue is off for this user — the cast is
+                // already live, so the closing toast shouldn't say otherwise.
+                wentToQueueRef.current = data?.queued === true;
                 if (!res.ok) {
                   if (data?.needsSigner) {
                     toast({
@@ -1383,7 +1396,7 @@ const SnapComposer = React.memo(function SnapComposer({
                     });
                   } else {
                     toast({
-                      title: "Couldn't send this to the curation team",
+                      title: t('compose.crosspost.sendFailed'),
                       description: data?.error || "Try again later.",
                       status: "warning",
                       duration: 6000,
@@ -1393,7 +1406,7 @@ const SnapComposer = React.memo(function SnapComposer({
                 }
               } catch (err: any) {
                 toast({
-                  title: "Couldn't send this to the curation team",
+                  title: t('compose.crosspost.sendFailed'),
                   description: err?.message || "Network error.",
                   status: "warning",
                   duration: 6000,
@@ -1406,11 +1419,14 @@ const SnapComposer = React.memo(function SnapComposer({
             await farcasterTask;
 
             // Close progress toast and show the final "shared" badge. The snap
-            // IS live on Hive — only the cross-posts are pending review.
+            // IS live on Hive; the cross-post is either pending review or, with
+            // the queue switched off, already out.
             toast.close(progressId);
             toast({
               title: "Snap shared 🛹",
-              description: t('compose.crosspost.snapSharedDesc'),
+              description: wentToQueueRef.current
+                ? t('compose.crosspost.snapSharedDesc')
+                : undefined,
               status: "success",
               duration: 4000,
               isClosable: true,

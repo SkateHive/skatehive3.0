@@ -352,6 +352,7 @@ export interface TranslationSchema {
       snapSharedDesc: string;
       alreadyOnInstagram: string;
       postedToInstagram: string;
+      postedToFarcaster: string;
       reviewNotice: string;
       alreadyWithTeam: string;
       sendForReview: string;
