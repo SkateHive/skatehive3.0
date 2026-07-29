@@ -200,6 +200,15 @@ export async function enqueueCrossPost(
   return { ok: true, id: data.id as string };
 }
 
+/**
+ * Deliberately returns null on a query error instead of throwing.
+ *
+ * This is a convenience lookup, not the guard: the partial unique index is
+ * what actually prevents a duplicate. If this read fails transiently, falling
+ * through to the insert is the correct outcome — the index either accepts the
+ * row or raises 23505, which enqueueCrossPost already handles. Throwing here
+ * would turn a recoverable read blip into a 500 for the user.
+ */
 export async function findActiveQueueItem(args: {
   supabase: any;
   target: CrossPostTarget;
@@ -217,7 +226,14 @@ export async function findActiveQueueItem(args: {
   return (data?.[0] as CrossPostQueueRow | undefined) ?? null;
 }
 
-/** Count a user's items in the given statuses since `sinceIso`. */
+/**
+ * Count a user's items in the given statuses since `sinceIso`.
+ *
+ * Throws on a query error rather than reporting zero. This backs the
+ * per-user pending cap, and a rate limit that silently reports "no pending
+ * items" whenever the database hiccups is a rate limit that fails OPEN —
+ * exactly backwards. Callers turn the throw into a 503.
+ */
 export async function countQueueItemsForUser(args: {
   supabase: any;
   userId: string;
@@ -230,7 +246,10 @@ export async function countQueueItemsForUser(args: {
     .eq("user_id", args.userId)
     .in("status", args.statuses);
   if (args.sinceIso) query = query.gte("created_at", args.sinceIso);
-  const { count } = await query;
+  const { count, error } = await query;
+  if (error) {
+    throw new Error(`Failed to count queued cross-posts: ${error.message}`);
+  }
   return count ?? 0;
 }
 

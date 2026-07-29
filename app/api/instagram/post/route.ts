@@ -453,11 +453,21 @@ export async function POST(request: NextRequest) {
   }
 
   // Queue-flood guard: cap how many of this user's requests can sit unreviewed.
-  const pendingCount = await countQueueItemsForUser({
-    supabase,
-    userId,
-    statuses: ["pending_review"],
-  });
+  // A failure here must not wave the request through — the cap is the only
+  // thing stopping one user from filling the curators' inbox.
+  let pendingCount: number;
+  try {
+    pendingCount = await countQueueItemsForUser({
+      supabase,
+      userId,
+      statuses: ["pending_review"],
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: "Couldn't check your pending cross-posts. Try again in a moment." },
+      { status: 503 }
+    );
+  }
   if (pendingCount >= PER_USER_PENDING_LIMIT) {
     return NextResponse.json(
       {

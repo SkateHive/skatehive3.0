@@ -295,8 +295,10 @@ async function publishFarcasterItem(
   }
   // Only build a permalink when we actually have both parts. A guessed URL in
   // a notification is worse than no link — it sends the author to a 404.
+  // farcaster.xyz, not warpcast.com: the client was renamed in 2025 and the
+  // old host only survives as a redirect.
   const castUrl =
-    fname && result.hash ? `https://warpcast.com/${fname}/${result.hash}` : null;
+    fname && result.hash ? `https://farcaster.xyz/${fname}/${result.hash}` : null;
   return {
     success: true,
     result: { cast_hash: result.hash ?? null, cast_url: castUrl },

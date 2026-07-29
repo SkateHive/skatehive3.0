@@ -30,8 +30,12 @@ export function localizeCrossPostNotification(
   const platform =
     (notification.metadata?.target as string) === "farcaster" ? "Farcaster" : "Instagram";
 
-  // A missing key resolves to the key path itself (see LocaleContext), which is
-  // how we detect "not translated" and fall back.
+  // LocaleContext already falls back to English when a key is missing from the
+  // active locale, so in practice this only fires if the key is missing from
+  // en.ts TOO — someone deleting or renaming it. Kept anyway: without it that
+  // mistake ships the raw key path ("notificationsPage.crosspost.approved…")
+  // into the user's inbox, whereas the stored English copy is at worst stale.
+  // Last-resort net, not the normal path.
   const tr = (key: string): string | null => {
     const value = t(key);
     return value === `${CROSSPOST_NOTIF_NS}.${key}` ? null : value;

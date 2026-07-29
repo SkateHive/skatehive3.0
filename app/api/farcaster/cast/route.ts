@@ -166,12 +166,20 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Queue-flood guard.
-  const pendingCount = await countQueueItemsForUser({
-    supabase,
-    userId: caster.userId,
-    statuses: ["pending_review"],
-  });
+  // Queue-flood guard. Fails CLOSED: if we can't count, we don't let it past.
+  let pendingCount: number;
+  try {
+    pendingCount = await countQueueItemsForUser({
+      supabase,
+      userId: caster.userId,
+      statuses: ["pending_review"],
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Couldn't check your pending cross-posts. Try again in a moment." },
+      { status: 503 }
+    );
+  }
   if (pendingCount >= PER_USER_PENDING_LIMIT) {
     return NextResponse.json(
       {

@@ -11,7 +11,8 @@
  * imported for real. With no credentials in the test env they fail fast and
  * deterministically, which is exactly the path we want to assert — that a
  * publish failure lands the row in `failed` with the reason, never leaving it
- * stuck in `publishing`.
+ * stuck in `publishing`. `./noCredentials` is what guarantees "no credentials"
+ * even on a machine that has them.
  *
  * Not covered — needs real credentials + Postgres:
  *   - a SUCCESSFUL Meta / Neynar publish and the userbase_instagram_posts
@@ -20,11 +21,10 @@
  *     sequenced rather than raced)
  */
 
-// Make sure no ambient credentials leak in and turn the deterministic failure
-// paths below into real network calls.
-delete process.env.NEYNAR_API_KEY;
-delete process.env.INSTAGRAM_ACCESS_TOKEN;
-delete process.env.INSTAGRAM_USER_ID;
+// MUST stay the first import: it clears the credential env vars before the
+// modules under test are evaluated. Doing it with inline statements would run
+// after the imports below, since import declarations are hoisted.
+import "./noCredentials";
 
 import {
   claimQueueItem,

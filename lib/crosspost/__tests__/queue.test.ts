@@ -269,6 +269,32 @@ describe("countQueueItemsForUser (flood guard)", () => {
     });
     assertEqual(count, 2, "published rows and other users must not count");
   });
+
+  it("throws on a query error instead of reporting zero", async () => {
+    // Reporting 0 would silently lift the cap every time the database hiccups —
+    // a rate limit that fails open. Callers turn this into a 503.
+    const brokenSupabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            in: async () => ({ count: null, error: { message: "connection reset" } }),
+          }),
+        }),
+      }),
+    };
+
+    let threw = false;
+    try {
+      await countQueueItemsForUser({
+        supabase: brokenSupabase,
+        userId: "user-1",
+        statuses: ["pending_review"],
+      });
+    } catch {
+      threw = true;
+    }
+    assertTrue(threw, "a failed count must not be treated as 'no pending items'");
+  });
 });
 
 describe("isCrossPostQueueEnabled (kill switch)", () => {
