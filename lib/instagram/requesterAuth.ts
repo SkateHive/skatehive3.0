@@ -1,24 +1,20 @@
 /**
- * Shared requester-authentication helpers for Instagram cross-post routes.
+ * Hive posting-key signature verification for Keychain-only requesters.
  *
- * Two ways to prove "who is making this request":
- *   1. userbase session cookie (email / wallet / Farcaster logins)
- *   2. a Hive posting-key signature (Keychain-only users)
+ * The other way to prove "who is making this request" — the userbase session
+ * cookie — is not Instagram-specific and lives in lib/userbase/session.ts.
  *
  * The self-serve route (/api/instagram/post) keeps its own inline copies; the
  * moderator force-post route uses these so the security-critical crypto isn't
  * re-implemented ad hoc.
  */
-import crypto from "crypto";
-import type { NextRequest } from "next/server";
+import type { Signature as SignatureType } from "@hiveio/dhive";
 import { PublicKey, Signature, cryptoUtils } from "@hiveio/dhive";
 import fetchAccount from "@/lib/hive/fetchAccount";
 
-export function hashToken(token: string): string {
-  return crypto.createHash("sha256").update(token).digest("hex");
-}
+export { hashToken, resolveSessionUserId } from "@/lib/userbase/session";
 
-export function parseSignature(signature: string): Signature | null {
+export function parseSignature(signature: string): SignatureType | null {
   let normalized = signature.trim().toLowerCase();
   if (normalized.startsWith("0x")) normalized = normalized.slice(2);
   if (!/^[0-9a-f]+$/.test(normalized)) return null;
@@ -26,28 +22,6 @@ export function parseSignature(signature: string): Signature | null {
   if (buffer.length === 65) return Signature.fromBuffer(buffer);
   if (buffer.length === 64) return new Signature(buffer, 0);
   return null;
-}
-
-/** Resolve a userbase user_id from the session refresh cookie, or null. */
-export async function resolveSessionUserId(
-  request: NextRequest,
-  supabase: any
-): Promise<string | null> {
-  if (!supabase) return null;
-  const refreshToken = request.cookies.get("userbase_refresh")?.value;
-  if (!refreshToken) return null;
-
-  const { data } = await supabase
-    .from("userbase_sessions")
-    .select("user_id, expires_at, revoked_at")
-    .eq("refresh_token_hash", hashToken(refreshToken))
-    .is("revoked_at", null)
-    .limit(1);
-
-  const session = data?.[0];
-  if (!session) return null;
-  if (new Date(session.expires_at) < new Date()) return null;
-  return session.user_id as string;
 }
 
 /**

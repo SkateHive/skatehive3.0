@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Text,
@@ -15,6 +15,7 @@ import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
 import { useNotifications } from "@/contexts/NotificationContext";
 import NotificationItem, { type NotificationItemData } from "./NotificationItem";
+import AppNotificationItem from "./AppNotificationItem";
 import {
   extractAuthorFromMessage,
   extractVoteValue,
@@ -31,12 +32,40 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
   const { user, aioha } = useAioha();
   const {
     notifications,
+    appNotifications,
     isLoading,
     lastReadDate,
     refreshNotifications,
     markNotificationsAsRead,
+    markAppNotificationsAsRead,
   } = useNotifications();
   const [filter, setFilter] = useState<string>("all");
+
+  // App notifications (cross-post approved / rejected …) are marked read just
+  // by opening this page — unlike the Hive ones, there's no custom_json to
+  // broadcast and no reason to make the user click a button. Snapshot which
+  // were unread on arrival so the accent bar survives the mark-read round trip.
+  const seenUnreadRef = useRef<Set<string> | null>(null);
+  const hasUnreadApp = appNotifications.some((n) => !n.read_at);
+  useEffect(() => {
+    if (!hasUnreadApp) return;
+    if (seenUnreadRef.current === null) {
+      seenUnreadRef.current = new Set(
+        appNotifications.filter((n) => !n.read_at).map((n) => n.id)
+      );
+    }
+    markAppNotificationsAsRead();
+    // appNotifications is intentionally not a dep: this should run when the
+    // list first has unread items, not every time the array identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasUnreadApp, markAppNotificationsAsRead]);
+
+  // The filter dropdown drives the Hive list; "skatehive" isolates the app
+  // list, and "all" shows both.
+  const visibleAppNotifications = useMemo(
+    () => (filter === "all" || filter === "skatehive" ? appNotifications : []),
+    [filter, appNotifications]
+  );
 
   async function handleMarkAsRead() {
     if (!user) {
@@ -138,10 +167,13 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
     return acc;
   }, []);
 
-  // Filter notifications by type
+  // Filter notifications by type. "skatehive" is the app-notification filter,
+  // so it hides the Hive list entirely.
   const filteredNotifications =
     filter === "all"
       ? mergedNotifications
+      : filter === "skatehive"
+      ? []
       : mergedNotifications.filter((n) => n.type === filter);
 
   // Get all unique types for dropdown
@@ -203,6 +235,9 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
           _hover={{ borderColor: "primary" }}
         >
           <option value="all">{t('filterAll')}</option>
+          {appNotifications.length > 0 && (
+            <option value="skatehive">{t('filterSkatehive')}</option>
+          )}
           {notificationTypeOrder
             .filter((type) => notifications.some((n) => n.type === type))
             .map((type) => (
@@ -211,6 +246,31 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
               </option>
             ))}
         </Select>
+
+        {/* App notifications first — they're actionable outcomes the user is
+            waiting on (a cross-post approved or passed on), not chain chatter. */}
+        {visibleAppNotifications.length > 0 && (
+          <Stack spacing={4} w="full" mb={{ base: 4, md: 6 }}>
+            <Text
+              fontSize="sm"
+              fontWeight="bold"
+              color="primary"
+              textTransform="uppercase"
+              letterSpacing="wider"
+            >
+              {t('appSectionTitle')}
+            </Text>
+            {visibleAppNotifications.map((n) => (
+              <AppNotificationItem
+                key={n.id}
+                notification={n}
+                // Unread now, OR unread when the user arrived (we've since
+                // marked it read behind their back).
+                isNew={!n.read_at || (seenUnreadRef.current?.has(n.id) ?? false)}
+              />
+            ))}
+          </Stack>
+        )}
         {isLoading ? (
           <Stack spacing={4} w="full">
             {[...Array(5)].map((_, i) => (
@@ -260,9 +320,10 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
               />
             ))}
           </Stack>
-        ) : (
+        ) : visibleAppNotifications.length === 0 ? (
+          // Only claim "no notifications" when BOTH lists are empty.
           <Text>{t('noNotifications')}</Text>
-        )}
+        ) : null}
       </Box>
     </Box>
   );

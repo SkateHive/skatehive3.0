@@ -43,6 +43,11 @@ import {
  *       leaked signature can't be replayed after the 5-min window).
  */
 
+// Same reason as the queue's approve route: this one still publishes inline,
+// and Meta's Reel/carousel container polling runs well past the platform
+// default request ceiling.
+export const maxDuration = 300;
+
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
