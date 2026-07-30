@@ -336,6 +336,29 @@ export interface TranslationSchema {
       title: string;
       confirmingHive: string;
       postingFarcaster: string;
+      /** Cross-posts now go to the curation queue instead of straight out. */
+      sendingForReview: string;
+    };
+    /** Copy for the cross-post curation queue (request → review → publish). */
+    crosspost: {
+      sending: string;
+      sendingShort: string;
+      sent: string;
+      sentDescInstagram: string;
+      sentDescFarcaster: string;
+      alreadyQueued: string;
+      sendFailed: string;
+      reviewFailed: string;
+      snapSharedDesc: string;
+      alreadyOnInstagram: string;
+      postedToInstagram: string;
+      postedToFarcaster: string;
+      reviewNotice: string;
+      alreadyWithTeam: string;
+      sendForReview: string;
+      awaitingReview: string;
+      requestingPostOn: string;
+      postingTo: string;
     };
   };
   skateDice: {

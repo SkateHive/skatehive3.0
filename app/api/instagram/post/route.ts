@@ -2,15 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import { PublicKey, Signature, cryptoUtils } from "@hiveio/dhive";
-import {
-  isInstagramConfigured,
-  publishImageToInstagram,
-  publishReelToInstagram,
-} from "@/lib/instagram/graph";
+import { isInstagramConfigured } from "@/lib/instagram/graph";
 import { buildInstagramCaption } from "@/lib/instagram/caption";
 import { getHivePowerForAccount } from "@/lib/hive/serverHivePower";
 import { resolveIgHandleForCaption } from "@/lib/instagram/resolveIgHandle";
 import fetchAccount from "@/lib/hive/fetchAccount";
+import {
+  countQueueItemsForUser,
+  enqueueCrossPost,
+  findActiveQueueItem,
+  isCrossPostQueueEnabled,
+  type InstagramQueuePayload,
+} from "@/lib/crosspost/queue";
+import { publishQueueItemNow } from "@/lib/crosspost/publishQueueItem";
+import { notifyCrossPostQueued } from "@/lib/notifications/appNotifications";
+
+// With the queue switched off this route publishes inline again, and Meta's
+// container polling runs well past the platform's default request ceiling.
+export const maxDuration = 300;
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -27,16 +36,15 @@ function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-/** Meta rejects collaborator invites for private/blocked/ineligible accounts
- *  ("User not visible" etc.). That's optional, so we retry without it rather
- *  than fail the whole cross-post. */
-function isCollaboratorVisibilityError(error: string | undefined) {
-  return /user not visible|collaborator|invite/i.test(error || "");
-}
-
-// Per-user 24h cap. No app-level global cap — Meta enforces its own
-// 25/account/24h ceiling, and surfacing that error organically is fine.
+// Per-user 24h cap on PUBLISHED cross-posts. No app-level global cap — Meta
+// enforces its own 25/account/24h ceiling, and surfacing that error
+// organically is fine.
 const PER_USER_24H_LIMIT = 7;
+
+// Separate cap on how many items one user can have sitting in the review
+// queue. Without it a single user could flood the curators' inbox, since
+// queueing no longer costs them a real Instagram slot.
+const PER_USER_PENDING_LIMIT = 5;
 
 // Trusted-user gate: cross-posting publishes to the shared @skatehive IG, so
 // only Hive accounts with enough stake are allowed. Matches the threshold used
@@ -178,8 +186,15 @@ async function resolveSignatureUserId(payload: {
 /**
  * POST /api/instagram/post
  *
- * Cross-post an already-published SkateHive Hive post to the shared @skatehive
- * Instagram Business account via Meta Graph API.
+ * Request that an already-published SkateHive Hive post be cross-posted to the
+ * shared @skatehive Instagram Business account.
+ *
+ * This route does NOT publish. Since the curation queue landed, it validates +
+ * builds the exact payload Meta would receive and files it as `pending_review`
+ * in `userbase_crosspost_queue`. The curation team publishes it from the
+ * portal (POST /api/crosspost/queue/{id}/approve), which is where the Meta
+ * calls actually happen. All the gates below (author binding, HP threshold,
+ * rate limits) still apply at request time so junk never reaches the queue.
  *
  * Body:
  *   - hive_author: string   (required) Hive username that owns the post
@@ -261,6 +276,17 @@ export async function POST(request: NextRequest) {
           ig_permalink: (dedupeRows[0].ig_permalink as string | null) ?? null,
         }
       : null;
+    // Surface an in-flight review so the dialog can say "already waiting for
+    // the curation team" instead of offering a button that would 200 with a
+    // duplicate.
+    const queued = previewUserId
+      ? await findActiveQueueItem({
+          supabase,
+          target: "instagram",
+          hiveAuthor,
+          hivePermlink,
+        })
+      : null;
     return NextResponse.json({
       success: true,
       preview: true,
@@ -271,6 +297,12 @@ export async function POST(request: NextRequest) {
       ig_handle: igHandle ?? null,
       default_collaborators: igHandle ? [igHandle] : [],
       target_account: "@skatehive",
+      // Drives the dialog's copy ("send for review" vs "post"). Keyed on the
+      // snap's author because the self flow requires author === requester.
+      review_required: isCrossPostQueueEnabled(hiveAuthor, "instagram"),
+      queue: queued
+        ? { id: queued.id, status: queued.status, created_at: queued.created_at }
+        : null,
       dedupe,
     });
   }
@@ -381,21 +413,16 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Dedupe / retry: same (author, permlink) is guarded by a UNIQUE index, so
-  // we have to detect existing rows BEFORE we'd insert.
-  //   - status=published → already done, return cached IDs.
-  //   - status=failed    → user gets to retry; we'll UPDATE the row below.
-  //   - status=queued + recent (<10 min) → assume an in-flight request, 409.
-  //   - status=queued + stale (≥10 min)  → previous attempt died half-way,
-  //                                         treat as retryable.
+  // Already live on Instagram → nothing to review, return the cached IDs.
   const { data: existingRows } = await supabase
     .from("userbase_instagram_posts")
-    .select("id, status, ig_media_id, ig_permalink, created_at")
+    .select("id, status, ig_media_id, ig_permalink")
     .eq("hive_author", hiveAuthor)
     .eq("hive_permlink", hivePermlink)
+    .eq("status", "published")
     .limit(1);
   const existing = existingRows?.[0];
-  if (existing && existing.status === "published") {
+  if (existing) {
     return NextResponse.json(
       {
         success: true,
@@ -406,24 +433,9 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   }
-  let existingRetryableId: string | null = null;
-  if (existing) {
-    const ageMs = Date.now() - new Date(existing.created_at).getTime();
-    if (existing.status === "failed" || (existing.status === "queued" && ageMs > 10 * 60 * 1000)) {
-      existingRetryableId = existing.id as string;
-    } else {
-      // status=queued and fresh: another request is mid-flight.
-      return NextResponse.json(
-        { error: "This snap is already being cross-posted. Try again in a minute." },
-        { status: 409 }
-      );
-    }
-  }
 
-  // Per-user rate limit (rolling 24h window). No app-level global cap — if
-  // we'd exceed Meta's 25/24h account ceiling, the publish call itself will
-  // surface that error from graph.instagram.com and the row gets recorded as
-  // failed with Meta's message.
+  // Per-user rate limit on PUBLISHED cross-posts (rolling 24h window). Items
+  // still awaiting review don't count here — they're capped separately below.
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count: userCount } = await supabase
     .from("userbase_instagram_posts")
@@ -436,6 +448,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: `You've already cross-posted to Instagram ${PER_USER_24H_LIMIT} times in the last 24 hours. Try again later.`,
+      },
+      { status: 429 }
+    );
+  }
+
+  // Queue-flood guard: cap how many of this user's requests can sit unreviewed.
+  // A failure here must not wave the request through — the cap is the only
+  // thing stopping one user from filling the curators' inbox.
+  let pendingCount: number;
+  try {
+    pendingCount = await countQueueItemsForUser({
+      supabase,
+      userId,
+      statuses: ["pending_review"],
+      target: "instagram",
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: "Couldn't check your pending cross-posts. Try again in a moment." },
+      { status: 503 }
+    );
+  }
+  if (pendingCount >= PER_USER_PENDING_LIMIT) {
+    return NextResponse.json(
+      {
+        error: `You already have ${pendingCount} cross-posts waiting for the curation team. Wait for those to be reviewed before sending more.`,
       },
       { status: 429 }
     );
@@ -471,105 +509,76 @@ export async function POST(request: NextRequest) {
 
   const mediaType: "IMAGE" | "REELS" = videoUrl ? "REELS" : "IMAGE";
 
-  // Insert (or update, on retry) a row in queued state so failures are
-  // recorded and dedupe works on subsequent attempts.
-  let queuedId: string;
-  if (existingRetryableId) {
-    const { data: updated, error: updateErr } = await supabase
-      .from("userbase_instagram_posts")
-      .update({
-        user_id: userId,
-        ig_media_type: mediaType,
-        caption,
-        image_url: imageUrl || null,
-        video_url: videoUrl || null,
-        status: "queued",
-        error: null,
-        ig_container_id: null,
-        ig_media_id: null,
-        ig_permalink: null,
-        published_at: null,
-      })
-      .eq("id", existingRetryableId)
-      .select("id")
-      .single();
-    if (updateErr || !updated) {
-      return NextResponse.json(
-        { error: updateErr?.message || "Failed to re-queue cross-post." },
-        { status: 500 }
-      );
+  // File it for review. The payload is the finished publish input — the portal
+  // posts exactly this, with no re-derivation, so what the curator reviews is
+  // what Meta receives.
+  const payload: InstagramQueuePayload = {
+    caption,
+    collaborators: collaborators ?? [],
+    image_url: imageUrl || null,
+    video_url: videoUrl || null,
+    ig_media_type: mediaType,
+    permalink_url: permalinkUrl,
+    title,
+    tags,
+  };
+
+  const enqueued = await enqueueCrossPost({
+    supabase,
+    target: "instagram",
+    userId,
+    requestedByHandle: hiveHandleForHpCheck,
+    hiveAuthor,
+    hivePermlink,
+    payload,
+  });
+
+  if (!enqueued.ok) {
+    return NextResponse.json({ error: enqueued.error }, { status: enqueued.status });
+  }
+
+  if (enqueued.duplicate) {
+    return NextResponse.json({
+      success: true,
+      queued: true,
+      already_queued: true,
+      queue_id: enqueued.id,
+      status: enqueued.duplicate.status,
+    });
+  }
+
+  // Queue off for this user → publish right away, exactly like before the
+  // queue existed. The row stays as the audit record.
+  if (!isCrossPostQueueEnabled(hiveHandleForHpCheck, "instagram")) {
+    const outcome = await publishQueueItemNow(supabase, enqueued.id);
+    if (!outcome.success) {
+      return NextResponse.json({ error: outcome.error }, { status: 502 });
     }
-    queuedId = updated.id as string;
-  } else {
-    const { data: queued, error: insertErr } = await supabase
-      .from("userbase_instagram_posts")
-      .insert({
-        user_id: userId,
-        hive_author: hiveAuthor,
-        hive_permlink: hivePermlink,
-        ig_media_type: mediaType,
-        caption,
-        image_url: imageUrl || null,
-        video_url: videoUrl || null,
-        status: "queued",
-      })
-      .select("id")
-      .single();
-    if (insertErr || !queued) {
-      // Most likely the unique index fired because of a race with another request.
-      return NextResponse.json(
-        { error: insertErr?.message || "Failed to record cross-post." },
-        { status: 500 }
-      );
-    }
-    queuedId = queued.id as string;
+    // No queued notification here: nothing is waiting for review, and the
+    // response already tells the composer to show the normal "posted" toast.
+    return NextResponse.json({
+      success: true,
+      ig_media_id: outcome.result?.ig_media_id ?? null,
+      ig_permalink: outcome.result?.ig_permalink ?? null,
+    });
   }
 
-  // `collaborators` resolved above (dialog override or mapped author). Each
-  // gets an IG Collab invite so the post can also land on their own feed.
-  // If Meta rejects a collaborator (private/ineligible account), retry once
-  // without invites rather than failing the whole cross-post.
-  let publishResult = videoUrl
-    ? await publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined, collaborators })
-    : await publishImageToInstagram({ imageUrl, caption, collaborators });
-  let collaboratorRetryError: string | null = null;
-  if (
-    !publishResult.success &&
-    collaborators &&
-    collaborators.length > 0 &&
-    isCollaboratorVisibilityError(publishResult.error)
-  ) {
-    collaboratorRetryError = publishResult.error;
-    publishResult = videoUrl
-      ? await publishReelToInstagram({ videoUrl, caption, coverUrl: imageUrl || undefined })
-      : await publishImageToInstagram({ imageUrl, caption });
-  }
-
-  if (!publishResult.success) {
-    const error = collaboratorRetryError
-      ? `${publishResult.error} (also retried without collaborator after: ${collaboratorRetryError})`
-      : publishResult.error;
-    await supabase
-      .from("userbase_instagram_posts")
-      .update({ status: "failed", error })
-      .eq("id", queuedId);
-    return NextResponse.json({ error }, { status: 502 });
-  }
-
-  await supabase
-    .from("userbase_instagram_posts")
-    .update({
-      status: "published",
-      ig_container_id: publishResult.containerId,
-      ig_media_id: publishResult.mediaId,
-      ig_permalink: publishResult.permalink || null,
-      published_at: new Date().toISOString(),
-    })
-    .eq("id", queuedId);
+  // Give the author something durable to come back to. The composer's toast
+  // covers the moment; this survives it, so a request that sits for days isn't
+  // indistinguishable from nothing having happened.
+  await notifyCrossPostQueued({
+    supabase,
+    userId,
+    queueId: enqueued.id,
+    target: "instagram",
+    hivePermlink,
+    permalinkUrl,
+  });
 
   return NextResponse.json({
     success: true,
-    ig_media_id: publishResult.mediaId,
-    ig_permalink: publishResult.permalink || null,
+    queued: true,
+    queue_id: enqueued.id,
+    status: "pending_review",
   });
 }

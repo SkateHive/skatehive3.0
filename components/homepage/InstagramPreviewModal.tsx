@@ -2,8 +2,14 @@
 
 /**
  * Shared Instagram cross-post review dialog. Used by BOTH flows:
- *   - mode="self"      : a user cross-posting their own snap   → /api/instagram/post
+ *   - mode="self"      : a user requesting a cross-post of their own snap
+ *                        → /api/instagram/post, which QUEUES it for the
+ *                          curation team rather than publishing (see
+ *                          lib/crosspost/queue.ts). The dialog says "send for
+ *                          review", not "post".
  *   - mode="moderator" : an admin force-posting any snap       → /api/instagram/force-post
+ *                        (publishes immediately — the curation team IS the
+ *                         approval step, so it doesn't queue behind itself)
  *
  * It first fetches a server-built preview (default caption + resolved IG
  * handle + media), then lets the user EDIT before publishing:
@@ -46,6 +52,7 @@ import { KeyTypes } from "@aioha/aioha";
 import { FaInstagram, FaPlus } from "react-icons/fa";
 import { FiHeart, FiMessageCircle, FiSend, FiBookmark, FiMoreHorizontal } from "react-icons/fi";
 import SkateModal from "@/components/shared/SkateModal";
+import { useTranslations } from "@/lib/i18n/hooks";
 import { suggestCaptionCTAs, appendSuggestion } from "@/lib/instagram/captionSuggestions";
 import type { CarouselMediaItem } from "@/lib/instagram/extractPostMedia";
 
@@ -76,6 +83,10 @@ interface PreviewData {
   default_collaborators?: string[];
   target_account: string;
   moderator?: string | null;
+  /** Self flow: confirming files this for curation review instead of posting. */
+  review_required?: boolean;
+  /** An existing queue item for this snap, if one is already in review. */
+  queue?: { id: string; status: string; created_at: string } | null;
   dedupe: { status: string; ig_permalink: string | null } | null;
 }
 
@@ -91,8 +102,9 @@ interface InstagramCrossPostDialogProps {
    *  who already have a userbase session cookie (cookie auth is enough), so
    *  they don't get a needless Keychain popup. Defaults to true. */
   requireSignature?: boolean;
-  /** Called after a successful publish (e.g. to update the parent UI). */
-  onPosted?: (data: { ig_permalink?: string; deduped?: boolean }) => void;
+  /** Called after a successful publish, or after the request was queued for
+   *  curation review (`queued: true`), e.g. to update the parent UI. */
+  onPosted?: (data: { ig_permalink?: string; deduped?: boolean; queued?: boolean }) => void;
 }
 
 /** Strip @, lowercase, keep only legal IG handle chars. */
@@ -110,6 +122,7 @@ export default function InstagramCrossPostDialog({
   onPosted,
 }: InstagramCrossPostDialogProps) {
   const toast = useToast();
+  const t = useTranslations("compose.crosspost");
   const { aioha, user: walletUser } = useAioha();
 
   const endpoint = mode === "moderator" ? "/api/instagram/force-post" : "/api/instagram/post";
@@ -232,6 +245,8 @@ export default function InstagramCrossPostDialog({
   // ── Confirm: sign (if needed) + publish for real ────────────────────
   const handleConfirm = useCallback(async () => {
     if (!preview) return;
+    // Self flow queues for curation; moderator force-post still publishes.
+    const requiresReview = preview.review_required === true;
     setIsPosting(true);
     try {
       const payload: Record<string, unknown> = {
@@ -294,19 +309,32 @@ export default function InstagramCrossPostDialog({
       });
       const data = await res.json().catch(() => ({}));
 
-      if (res.ok && (data?.success || data?.ig_permalink || data?.deduped)) {
+      if (res.ok && (data?.success || data?.ig_permalink || data?.deduped || data?.queued)) {
+        const title = data.deduped
+          ? t("alreadyOnInstagram")
+          : data.already_queued
+          ? t("alreadyQueued")
+          : data.queued
+          ? t("sent")
+          : t("postedToInstagram");
         toast({
-          title: data.deduped ? "Already on Instagram" : "Posted to @skatehive on Instagram",
-          description: data.ig_permalink || undefined,
+          title,
+          description: data.queued
+            ? t("sentDescInstagram")
+            : data.ig_permalink || undefined,
           status: "success",
           duration: 8000,
           isClosable: true,
         });
-        onPosted?.({ ig_permalink: data.ig_permalink, deduped: data.deduped });
+        onPosted?.({
+          ig_permalink: data.ig_permalink,
+          deduped: data.deduped,
+          queued: data.queued,
+        });
         onClose();
       } else {
         toast({
-          title: "Instagram cross-post failed",
+          title: requiresReview ? t("reviewFailed") : "Instagram cross-post failed",
           description: data?.error || `HTTP ${res.status}`,
           status: "error",
           duration: 9000,
@@ -315,7 +343,7 @@ export default function InstagramCrossPostDialog({
       }
     } catch (err: any) {
       toast({
-        title: "Instagram cross-post failed",
+        title: requiresReview ? t("reviewFailed") : "Instagram cross-post failed",
         description: err?.message || "Network or signing error.",
         status: "error",
         duration: 9000,
@@ -342,12 +370,18 @@ export default function InstagramCrossPostDialog({
     toast,
     onClose,
     onPosted,
+    t,
   ]);
 
   const isReel = preview?.media_type === "REELS";
   const mediaUrl = preview?.video_url || preview?.image_url || null;
   const alreadyPublished = preview?.dedupe?.status === "published";
   const captionOver = caption.length > IG_CAPTION_LIMIT;
+  // Self flow: confirming files a request for the curation team, it doesn't
+  // publish. The preview endpoint only returns ACTIVE queue items, so any
+  // value here means this snap is already waiting on (or through) review.
+  const reviewRequired = preview?.review_required === true;
+  const alreadyQueued = !!preview?.queue;
 
   // Smart CTA / hashtag suggestions derived from the snap text + current
   // caption (trick names, spot references, evergreen CTAs).
@@ -380,12 +414,19 @@ export default function InstagramCrossPostDialog({
             leftIcon={<FaInstagram />}
             onClick={handleConfirm}
             isLoading={isPosting}
-            loadingText={isReel ? "Publishing Reel…" : "Publishing…"}
+            loadingText={
+              reviewRequired
+                ? t("sendingShort")
+                : isReel
+                ? "Publishing Reel…"
+                : "Publishing…"
+            }
             isDisabled={
               !preview ||
               !!previewError ||
               isLoadingPreview ||
               alreadyPublished ||
+              alreadyQueued ||
               captionOver ||
               !caption.trim() ||
               (isCarousel && selectedItems.length === 0)
@@ -396,6 +437,10 @@ export default function InstagramCrossPostDialog({
           >
             {alreadyPublished
               ? "Already published"
+              : alreadyQueued
+              ? t("awaitingReview")
+              : reviewRequired
+              ? t("sendForReview")
               : `Post to ${preview?.target_account || "Instagram"}`}
           </Button>
         </HStack>
@@ -429,7 +474,7 @@ export default function InstagramCrossPostDialog({
               <HStack spacing={2}>
                 <FaInstagram color="var(--chakra-colors-primary)" />
                 <Text fontFamily="mono" fontSize="sm" color="text">
-                  Posting to{" "}
+                  {reviewRequired ? t("requestingPostOn") : t("postingTo")}{" "}
                   <Text as="span" color="primary">
                     {preview.target_account}
                   </Text>
@@ -451,6 +496,24 @@ export default function InstagramCrossPostDialog({
                 </Text>
               )}
             </HStack>
+
+            {alreadyQueued && !alreadyPublished && (
+              <Alert status="info">
+                <AlertIcon />
+                <Text fontFamily="mono" fontSize="sm">
+                  {t("alreadyWithTeam")}
+                </Text>
+              </Alert>
+            )}
+
+            {reviewRequired && !alreadyQueued && !alreadyPublished && (
+              <Alert status="info">
+                <AlertIcon />
+                <Text fontFamily="mono" fontSize="sm">
+                  {t("reviewNotice")}
+                </Text>
+              </Alert>
+            )}
 
             {alreadyPublished && (
               <Alert status="warning">
