@@ -118,6 +118,12 @@ importers:
       '@vercel/postgres':
         specifier: ^0.10.0
         version: 0.10.0(utf-8-validate@6.0.6)
+      '@vsc.eco/crosschain-core':
+        specifier: ^0.0.3
+        version: 0.0.3
+      '@vsc.eco/crosschain-sdk':
+        specifier: ^0.0.3
+        version: 0.0.3(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))
       '@wagmi/cli':
         specifier: ^2.3.1
         version: 2.10.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
@@ -2859,6 +2865,17 @@ packages:
     resolution: {integrity: sha512-fSD23DxGND40IzSkXjcFcxr53t3Tiym59Is0jSYIFpG4/0f0KO9SGtcp1sXiebvPaGe7N/tU05cH4yt2S6/IPg==}
     engines: {node: '>=18.14'}
     deprecated: '@vercel/postgres is deprecated. If you are setting up a new database, you can choose an alternate storage solution from the Vercel Marketplace. If you had an existing Vercel Postgres database, it should have been migrated to Neon as a native Vercel integration. You can find more details and the guide to migrate to Neon''s SDKs here: https://neon.com/docs/guides/vercel-postgres-transition-guide'
+
+  '@vsc.eco/crosschain-core@0.0.3':
+    resolution: {integrity: sha512-ZumGOwoVP04etO5m/3mGd5jbb9oais1OFFMll6sj8RFlE/zfCunRwQ5N3HJS5aXPTSy3248Q4XZkQ/b157Sq8Q==}
+
+  '@vsc.eco/crosschain-sdk@0.0.3':
+    resolution: {integrity: sha512-/8k1n4WoA2JDoKk7/dV8bj8b/DcZApDo5fPdm4HhH+pCsW3j6m8g3Hd8EW8CWGwLhruy5cCKkLZjA3XgF/wYow==}
+    peerDependencies:
+      '@aioha/aioha': ^1.8.0
+    peerDependenciesMeta:
+      '@aioha/aioha':
+        optional: true
 
   '@wagmi/cli@2.10.0':
     resolution: {integrity: sha512-2tYt6Bp1q26mWexH+XE6dMpPB5/Gp/3OVtE2SeeJ/gNHKLZmVF/TuoZR75mpJKTpofyvpz/fnuMCkUxzbc/kRw==}
@@ -10982,6 +10999,14 @@ snapshots:
       ws: 8.19.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
     transitivePeerDependencies:
       - utf-8-validate
+
+  '@vsc.eco/crosschain-core@0.0.3': {}
+
+  '@vsc.eco/crosschain-sdk@0.0.3(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))':
+    dependencies:
+      '@vsc.eco/crosschain-core': 0.0.3
+    optionalDependencies:
+      '@aioha/aioha': 1.8.2(webextension-polyfill@0.10.0)
 
   '@wagmi/cli@2.10.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)':
     dependencies:
