@@ -1,27 +1,41 @@
 -- 0031_crosspost_portal_role.sql
 -- Lets the SkateHive portal work the cross-post queue with a scoped role.
 --
--- Both queue tables are FORCE ROW LEVEL SECURITY with a single policy keyed on
--- `auth.jwt() ->> 'role' = 'service_role'`. On a direct Postgres connection
--- auth.jwt() is NULL, so that policy is false and the portal would read zero
--- rows and fail every insert — with the GRANTs correct. RLS, not permissions.
+-- The alternative — and what the portal reaches for by default — is
+-- SUPABASE_SERVICE_ROLE_KEY. That key bypasses RLS on every userbase table:
+-- userbase_hive_keys (users' encrypted Hive posting keys), sessions, magic
+-- links, 2000+ profiles. A portal compromise would then be an account-takeover
+-- event rather than "someone posted a bad clip to Instagram".
 --
--- The alternative was handing the portal SUPABASE_SERVICE_ROLE_KEY, which
--- bypasses RLS on every userbase table, including userbase_hive_keys (users'
--- encrypted posting keys), sessions and magic links. A portal compromise would
--- then be a full account-takeover event rather than "someone posted a bad clip
--- to Instagram". Hence a role scoped to the two tables this feature owns.
+-- This role can touch two tables and nothing else. Both are FORCE ROW LEVEL
+-- SECURITY with a service-role-only policy, so GRANTs alone leave it reading
+-- zero rows — the policies below are what actually let it in.
 
 -- ── The role ────────────────────────────────────────────────────────────
--- Created without LOGIN on purpose: the password must not live in git. After
--- applying this, grant access with (outside version control):
+-- NOLOGIN on purpose. The portal reaches Supabase through PostgREST, which
+-- connects as `authenticator` and then switches into whatever role the JWT's
+-- `role` claim names — the same mechanism behind the anon and service_role
+-- keys. No password is involved, so there is nothing here to keep out of git.
 --
---   ALTER ROLE portal_curation WITH LOGIN PASSWORD '<generated>';
---
+-- The portal mints its own key: a JWT signed with the project's JWT secret
+-- (HS256) carrying {"role": "portal_curation", "iss": "supabase", ...}, sent
+-- as both `apikey` and `Authorization: Bearer <jwt>`.
 do $$
 begin
   if not exists (select 1 from pg_roles where rolname = 'portal_curation') then
     create role portal_curation nologin;
+  end if;
+end
+$$;
+
+-- Without this PostgREST cannot assume the role and every portal request fails
+-- before reaching a policy: `authenticator` must be a member of any role it is
+-- allowed to switch into. Guarded so the migration still applies on a plain
+-- Postgres that has no `authenticator`.
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'authenticator') then
+    grant portal_curation to authenticator;
   end if;
 end
 $$;

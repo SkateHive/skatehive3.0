@@ -143,24 +143,45 @@ for that user (`publishQueueItemNow`), which is the pre-queue behavior.
 
 ## Auth
 
-**The portal** connects to Postgres as `portal_curation` (migration 0031):
+The portal talks to Supabase as **`portal_curation`** (migration 0031):
 `SELECT`/`UPDATE` on the queue, `INSERT` on notifications, nothing else.
 
-Both tables are `FORCE ROW LEVEL SECURITY` with a service-role-only policy, so
-GRANTs alone are not enough — 0031 adds the matching policies. Without them the
-portal reads zero rows and every insert fails, with permissions that look right.
+### Why not the service-role key
 
-The role is created `NOLOGIN` on purpose; give it a password outside version
-control:
+Because that key opens every `userbase_*` table — `userbase_hive_keys` (users'
+encrypted Hive posting keys), sessions, magic links, 2000+ profiles. With it, a
+compromised portal is an account-takeover event. With `portal_curation`, the
+worst case is a mangled cross-post queue.
 
-```sql
-ALTER ROLE portal_curation WITH LOGIN PASSWORD '<generated>';
+It is one line of config on the portal's side, so there is no good reason to
+run on the master key.
+
+### Wiring it up
+
+PostgREST connects as `authenticator` and switches into whatever role the JWT's
+`role` claim names — exactly how the anon and service_role keys work. So the
+portal mints its own key rather than being handed one:
+
+```js
+// Sign with the project's JWT secret (Settings → API → JWT Secret), HS256.
+jwt.sign(
+  { role: "portal_curation", iss: "supabase", iat: now, exp: now + YEARS },
+  SUPABASE_JWT_SECRET
+);
 ```
 
-Do **not** hand the portal `SUPABASE_SERVICE_ROLE_KEY` instead. It bypasses RLS
-on every userbase table, including `userbase_hive_keys` (users' encrypted
-posting keys), sessions and magic links — turning a portal compromise into an
-account-takeover event.
+Send it as both `apikey` and `Authorization: Bearer <jwt>`. Everything else in
+the portal's Supabase client stays the same.
+
+Migration 0031 does the two things that make this work: `GRANT portal_curation
+TO authenticator` (without it PostgREST can't assume the role at all), and RLS
+policies `TO portal_curation` on both tables — the existing policies are
+service-role-only, so GRANTs alone would still read zero rows.
+
+One thing the scoped role buys structurally: its update policy carries
+`with check (status <> 'publishing')`, so the database refuses to let the
+portal write the app's compare-and-swap status. On the service-role key that
+guard doesn't apply — RLS is bypassed — and it goes back to being a convention.
 
 **A logged-in SkateHive admin** — userbase session cookie plus a linked Hive
 handle on `ADMIN_USERS` — can still hit the HTTP endpoints above, for working
@@ -184,10 +205,16 @@ CROSSPOST_QUEUE_ENABLED=alice,bob     # only these Hive handles — canary
 Suggested order, so no step is visible to users until you want it to be:
 
 1. Apply migrations `0029`, `0030` and `0031`
-2. Give `portal_curation` a password and point the portal at it
+2. Mint the `portal_curation` JWT and switch the portal off the service-role
+   key (see Auth above) — do it now, while the queue is still empty and a
+   mistake costs nothing
 3. Deploy with the switch **off** — nothing changes for anyone
-4. Portal's preflight against the real (empty) tables
-5. Set the switch to your own handle, run one cross-post end to end
+4. Run the portal's preflight against the real (empty) tables, on the new key.
+   It checks every column, a queue UPDATE and a notification INSERT, so it also
+   proves the role has what it needs
+5. Set the switch to your own handle, run one cross-post end to end —
+   rejection first (exercises the database and the notification without
+   publishing anything), then a photo, then a Reel
 6. Set it to `true`
 
 Until step 1 the portal's queue tab is inert: the tables don't exist, so it
