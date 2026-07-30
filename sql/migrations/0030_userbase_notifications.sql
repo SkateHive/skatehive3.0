@@ -55,3 +55,9 @@ create policy "Service role can manage userbase_notifications"
   with check (auth.jwt() ->> 'role' = 'service_role');
 
 revoke all on table public.userbase_notifications from anon, authenticated;
+
+-- INSERT for both writers (this app files `crosspost_queued`, the portal files
+-- the outcomes); SELECT and UPDATE for this app's inbox and mark-as-read.
+-- Explicit for the same reason as 0029: a missing default privilege should
+-- surface as a permission error, not a PGRST205.
+grant select, insert, update on table public.userbase_notifications to service_role;

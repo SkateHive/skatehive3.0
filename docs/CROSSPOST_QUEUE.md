@@ -143,45 +143,32 @@ for that user (`publishQueueItemNow`), which is the pre-queue behavior.
 
 ## Auth
 
-The portal talks to Supabase as **`portal_curation`** (migration 0031):
-`SELECT`/`UPDATE` on the queue, `INSERT` on notifications, nothing else.
+The portal reads and writes both tables over **PostgREST with the userbase
+service-role key** it already has (`SUPABASE_USERBASE_URL` +
+`SUPABASE_USERBASE_SERVICE_ROLE_KEY`). No new credential, no new environment
+variable — the portal's deployment can't take one.
 
-### Why not the service-role key
+RLS stays enabled on both tables; `service_role` bypasses it.
 
-Because that key opens every `userbase_*` table — `userbase_hive_keys` (users'
-encrypted Hive posting keys), sessions, magic links, 2000+ profiles. With it, a
-compromised portal is an account-takeover event. With `portal_curation`, the
-worst case is a mangled cross-post queue.
+### The tradeoff, stated plainly
 
-It is one line of config on the portal's side, so there is no good reason to
-run on the master key.
+That key opens every `userbase_*` table, not just these two —
+`userbase_hive_keys` (users' encrypted Hive posting keys), sessions, magic
+links, 2000+ profiles. A compromised portal is therefore an account-takeover
+risk, not just a mangled cross-post queue.
 
-### Wiring it up
+It also means one guarantee is weaker than it looks: `status = 'publishing'` is
+this app's compare-and-swap, and the portal must never write it. With a scoped
+role that would be enforced by an RLS `with check`; on the service-role key RLS
+is bypassed, so it is back to being a convention both sides keep.
 
-PostgREST connects as `authenticator` and switches into whatever role the JWT's
-`role` claim names — exactly how the anon and service_role keys work. So the
-portal mints its own key rather than being handed one:
-
-```js
-// Sign with the project's JWT secret (Settings → API → JWT Secret), HS256.
-jwt.sign(
-  { role: "portal_curation", iss: "supabase", iat: now, exp: now + YEARS },
-  SUPABASE_JWT_SECRET
-);
-```
-
-Send it as both `apikey` and `Authorization: Bearer <jwt>`. Everything else in
-the portal's Supabase client stays the same.
-
-Migration 0031 does the two things that make this work: `GRANT portal_curation
-TO authenticator` (without it PostgREST can't assume the role at all), and RLS
-policies `TO portal_curation` on both tables — the existing policies are
-service-role-only, so GRANTs alone would still read zero rows.
-
-One thing the scoped role buys structurally: its update policy carries
-`with check (status <> 'publishing')`, so the database refuses to let the
-portal write the app's compare-and-swap status. On the service-role key that
-guard doesn't apply — RLS is bypassed — and it goes back to being a convention.
+**Migration 0031 is the fix, and it is written but not applied.** It creates a
+`portal_curation` role that can touch only these two tables, grants it to
+`authenticator` so PostgREST can switch into it, and adds the matching
+policies. Adopting it needs one thing the portal doesn't have today: somewhere
+to put a second key. If that constraint ever lifts, run 0031 and have the
+portal sign a JWT with `{"role": "portal_curation"}` against the project's JWT
+secret — everything else in its Supabase client stays the same.
 
 **A logged-in SkateHive admin** — userbase session cookie plus a linked Hive
 handle on `ADMIN_USERS` — can still hit the HTTP endpoints above, for working
@@ -204,18 +191,33 @@ CROSSPOST_QUEUE_ENABLED=alice,bob     # only these Hive handles — canary
 
 Suggested order, so no step is visible to users until you want it to be:
 
-1. Apply migrations `0029`, `0030` and `0031`
-2. Mint the `portal_curation` JWT and switch the portal off the service-role
-   key (see Auth above) — do it now, while the queue is still empty and a
-   mistake costs nothing
-3. Deploy with the switch **off** — nothing changes for anyone
-4. Run the portal's preflight against the real (empty) tables, on the new key.
-   It checks every column, a queue UPDATE and a notification INSERT, so it also
-   proves the role has what it needs
-5. Set the switch to your own handle, run one cross-post end to end —
-   rejection first (exercises the database and the notification without
-   publishing anything), then a photo, then a Reel
-6. Set it to `true`
+1. Apply migrations `0029` and `0030`. **Not 0031** — see Auth above; it is
+   kept for the day the portal can hold a second key. This is what unblocks the
+   portal, and it can happen before the code ships: empty tables affect nobody
+2. Deploy with the switch **off** — nothing changes for anyone
+3. Run the portal's preflight without `--read-only`. It checks every column and
+   exercises a queue UPDATE and a notification INSERT, which is the first real
+   verification either side has had
+4. Set the switch to your own handle and go in this order: a **rejection**
+   first — it exercises the database and the notification without publishing
+   anything — then a photo, then a Reel
+5. Set it to `true`
+
+Migrations run manually, one file at a time:
+
+```bash
+node scripts/database/run-migration.js sql/migrations/0029_userbase_crosspost_queue.sql
+```
+
+It reads `DATABASE_URL` from `.env.local` and wraps the file in a transaction.
+Merging a PR does not apply anything.
+
+If the portal still reports `PGRST205` a minute after step 1, PostgREST hasn't
+picked up the new tables yet:
+
+```sql
+NOTIFY pgrst, 'reload schema';
+```
 
 Until step 1 the portal's queue tab is inert: the tables don't exist, so it
 shows a message and publishes nothing.

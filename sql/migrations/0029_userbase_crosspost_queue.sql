@@ -88,3 +88,11 @@ create policy "Service role can manage userbase_crosspost_queue"
   with check (auth.jwt() ->> 'role' = 'service_role');
 
 revoke all on table public.userbase_crosspost_queue from anon, authenticated;
+
+-- Both writers reach this over PostgREST with a service-role key: this app
+-- (enqueue) and the SkateHive portal (review decisions). Supabase's default
+-- privileges normally cover new tables in `public`, but granting explicitly
+-- turns a misconfigured project into a plain permission error instead of a
+-- confusing PGRST205 that reads like "the table doesn't exist".
+-- No DELETE: rows are the audit trail.
+grant select, insert, update on table public.userbase_crosspost_queue to service_role;
