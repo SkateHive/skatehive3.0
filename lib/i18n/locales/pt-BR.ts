@@ -1248,10 +1248,6 @@ export const ptBR = {
       publishedTitleFarcaster: 'Seu cross-post está no ar no Farcaster',
       publishedBodyInstagram: 'Toca pra ver no Instagram.',
       publishedBodyFarcaster: 'Toca pra ver no Farcaster.',
-      approvedTitleInstagram: 'Seu snap está no ar no Instagram 🎉',
-      approvedTitleFarcaster: 'Seu snap está no ar no Farcaster 🎉',
-      approvedBodyInstagram: 'A curadoria aprovou seu cross-post pro @skatehive.',
-      approvedBodyFarcaster: 'A curadoria aprovou seu cross-post.',
       rejectedTitleInstagram: 'Seu cross-post pro Instagram não foi selecionado',
       rejectedTitleFarcaster: 'Seu cross-post pro Farcaster não foi selecionado',
       rejectedBodyNoNote:

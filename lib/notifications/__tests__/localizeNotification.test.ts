@@ -10,7 +10,7 @@
  * The fallback detection is the fragile part: a missing key resolves to the key
  * PATH (see LocaleContext.getNestedValue), so the only way to tell "translated"
  * from "missing" is comparing against that path. Get it wrong and the UI
- * silently renders "notificationsPage.crosspost.approvedTitleInstagram" to
+ * silently renders "notificationsPage.crosspost.publishedTitleInstagram" to
  * users. These tests pin that down.
  */
 
@@ -63,9 +63,11 @@ const untranslated = (key: string) => `${CROSSPOST_NOTIF_NS}.${key}`;
 function notification(overrides: Partial<AppNotification> = {}): AppNotification {
   return {
     id: "n1",
-    type: "crosspost_approved",
-    title: "Your snap is live on Instagram 🎉",
-    body: "The curation team approved your cross-post to @skatehive.",
+    // `published` is the default fixture because it is the type with copy that
+    // varies per platform, which is what most of these assert on.
+    type: "crosspost_published",
+    title: "Your cross-post is live on Instagram",
+    body: "Tap to see it on Instagram.",
     link: null,
     metadata: { target: "instagram", queue_id: "q1" },
     read_at: null,
@@ -77,8 +79,8 @@ function notification(overrides: Partial<AppNotification> = {}): AppNotification
 describe("platform selection", () => {
   it("uses the Instagram keys when metadata.target is instagram", () => {
     const { title, body } = localize(notification(), translated);
-    assertEqual(title, "[approvedTitleInstagram]");
-    assertEqual(body, "[approvedBodyInstagram]");
+    assertEqual(title, "[publishedTitleInstagram]");
+    assertEqual(body, "[publishedBodyInstagram]");
   });
 
   it("uses the Farcaster keys when metadata.target is farcaster", () => {
@@ -86,14 +88,14 @@ describe("platform selection", () => {
       notification({ metadata: { target: "farcaster" } }),
       translated
     );
-    assertEqual(title, "[approvedTitleFarcaster]");
+    assertEqual(title, "[publishedTitleFarcaster]");
   });
 
   it("defaults to Instagram when metadata has no target", () => {
     const { title } = localize(notification({ metadata: {} }), translated);
     assertEqual(
       title,
-      "[approvedTitleInstagram]",
+      "[publishedTitleInstagram]",
       "Instagram is the main case — an unknown target shouldn't render blank"
     );
   });

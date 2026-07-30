@@ -34,13 +34,12 @@ const TYPE_STYLE: Record<
   crosspost_queued: { icon: FaHourglassHalf, color: "blue.300" },
   crosspost_scheduled: { icon: FaRegClock, color: "purple.300" },
   crosspost_published: { icon: FaCheckCircle, color: "green.400" },
-  crosspost_approved: { icon: FaCheckCircle, color: "green.400" },
   crosspost_rejected: { icon: FaTimesCircle, color: "orange.400" },
   crosspost_failed: { icon: FaExclamationTriangle, color: "red.400" },
 };
 
 /** Types whose link points at the published post rather than a raw URL. */
-const LINKS_TO_POST = new Set(["crosspost_published", "crosspost_approved"]);
+const LINKS_TO_POST = new Set(["crosspost_published"]);
 
 
 interface AppNotificationItemProps {

@@ -70,74 +70,45 @@ author can ask again after a rejection.
 
 ---
 
-## Endpoints
+## There is no HTTP API for the queue
 
-All four require curator auth (below). All return JSON.
+An earlier design had this app expose list / detail / approve / reject
+endpoints for the portal to drive. The portal reads and writes the tables
+directly instead, so those routes were removed rather than left as a second way
+in — approve in particular was a live double-post risk, since an admin could
+have published an item the portal had already claimed and scheduled.
 
-### `GET /api/crosspost/queue`
+**The table is the contract.** The portal's queries go straight at
+`userbase_crosspost_queue` and `userbase_notifications`; the schema below is
+what it can rely on.
 
-The inbox.
+This app still publishes inline in exactly one case: the kill switch being off
+for that user (`publishQueueItemNow`), which is the pre-queue behavior.
 
-| Query | Default | Notes |
-|---|---|---|
-| `status` | `pending_review` | comma-separated, or `all` |
-| `target` | both | `instagram` \| `farcaster` |
-| `author` | — | filter by Hive author |
-| `limit` | `50` | 1–100 |
-| `offset` | `0` | |
-| `order` | `oldest` | `oldest` (FIFO) \| `newest` |
+### What the portal reads and writes
 
-```json
-{
-  "success": true,
-  "total": 12,
-  "limit": 50,
-  "offset": 0,
-  "items": [
-    {
-      "id": "uuid",
-      "target": "instagram",
-      "status": "pending_review",
-      "hive_author": "skater",
-      "hive_permlink": "kickflip-5-stair",
-      "requested_by_handle": "skater",
-      "payload": {
-        "caption": "…",
-        "collaborators": ["skater.ig"],
-        "image_url": null,
-        "video_url": "https://ipfs.skatehive.app/ipfs/…",
-        "ig_media_type": "REELS",
-        "permalink_url": "https://skatehive.app/post/skater/kickflip-5-stair"
-      },
-      "requester": { "handle": "skater", "display_name": "…", "avatar_url": "…" },
-      "created_at": "2026-07-27T18:04:11Z"
-    }
-  ]
-}
-```
+| | Columns |
+|---|---|
+| **reads** | `id`, `user_id`, `requested_by_handle`, `target`, `hive_author`, `hive_permlink`, `status`, `payload`, `reviewed_by_handle`, `reviewed_at`, `review_note`, `attempts`, `published_at`, `publish_error`, `result`, `created_at`, `updated_at` |
+| **writes** | `payload`, `status`, `reviewed_by_handle`, `reviewed_at`, `review_note`, `published_at`, `publish_error`, `result`, `updated_at` |
+| **never writes** | `status = 'publishing'` — the app's compare-and-swap |
 
-### `GET /api/crosspost/queue/{id}`
+It filters `target = 'instagram'` on every query. `reviewed_by_user_id` stays
+null; the portal doesn't resolve the uuid from a handle.
 
-One item in full, plus `requester`. For the review screen.
-
-### `POST /api/crosspost/queue/{id}/reject`
+`payload` for an Instagram item:
 
 ```jsonc
-{ "note": "clip is too dark, ask for a re-upload" }
+{
+  "caption": "…",                 // ≤2200, editable by the curator
+  "collaborators": ["skater.ig"], // IG Collab handles, ≤3
+  "image_url": null,
+  "video_url": "https://ipfs.skatehive.app/ipfs/…",
+  "media_items": [{ "type": "video", "url": "…" }],  // 2+ = carousel
+  "ig_media_type": "REELS",       // IMAGE | REELS | CAROUSEL
+  "permalink_url": "https://skatehive.app/post/skater/kickflip"
+}
 ```
-
-Frees the slot so the author can request the same snap again later, and writes
-the author a `crosspost_rejected` notification.
-
-### There is no approve endpoint
-
-There used to be. It published to Instagram from this app, which is now the
-portal's job — and keeping both alive meant an admin could approve an item the
-portal had already claimed and scheduled, posting it twice to @skatehive.
-Removed rather than guarded, since nothing calls it.
-
-The app still publishes inline in exactly one case: the kill switch being off
-for that user (`publishQueueItemNow`), which is the pre-queue behavior.
 
 ---
 
@@ -170,10 +141,8 @@ to put a second key. If that constraint ever lifts, run 0031 and have the
 portal sign a JWT with `{"role": "portal_curation"}` against the project's JWT
 secret — everything else in its Supabase client stays the same.
 
-**A logged-in SkateHive admin** — userbase session cookie plus a linked Hive
-handle on `ADMIN_USERS` — can still hit the HTTP endpoints above, for working
-the queue from inside the app. `CROSSPOST_PORTAL_TOKEN` also still authorizes
-them server-to-server.
+There is no in-app path for a curator. Reviewing happens in the portal; this
+app only enqueues and notifies.
 
 ---
 
@@ -238,18 +207,17 @@ reviewer, which is how you tell them apart later.
 ## Environment
 
 ```bash
-# New — shared secret between this repo and the portal
-CROSSPOST_PORTAL_TOKEN=<long random string>
-
-# New — the rollout switch above. Ship it off.
+# The only new variable. The rollout switch above — ship it off.
 CROSSPOST_QUEUE_ENABLED=
 
 # Already required, unchanged
-ADMIN_USERS=curator1,curator2          # or NEXT_PUBLIC_ADMIN_USERS
 SUPABASE_URL= / SUPABASE_SERVICE_ROLE_KEY=
 NEYNAR_API_KEY=
 # …plus the existing Meta/Instagram Graph vars
 ```
+
+The portal needs nothing new either: it reuses the userbase Supabase URL and
+service-role key it already had.
 
 ---
 
@@ -315,29 +283,31 @@ Endpoints: `GET /api/userbase/notifications` (list + `unread_count`),
 
 ---
 
-## Notes for whoever builds the portal screen
+## Things to keep in mind when touching this
 
-- Poll `GET /api/crosspost/queue?status=pending_review&order=oldest`. There's no
-  webhook.
-- Render `payload` directly — it's what the platform will receive. For Instagram
-  the useful preview fields are `caption`, `collaborators`, `video_url` /
-  `image_url`, `ig_media_type`; for Farcaster, `text`, `embeds`, `channel_id`.
-- `permalink_url` in the payload links back to the snap on SkateHive, so a
-  curator can see it in context before deciding.
-- Approve is **not** idempotent-safe to spam: treat a `409` as "someone beat you
-  to it" and refresh the list.
-- A `failed` item can be approved again once the cause is fixed (expired media,
-  revoked signer, Meta rate limit).
+- **`payload` is what the platform receives.** It's frozen at request time and
+  the curator edits it in place; nothing re-derives it later. Changing its shape
+  means changing the portal too.
+- **Media is referenced, not stored.** `payload` holds IPFS URLs. An item that
+  sits in review for weeks can outlive its media — the longer the queue, the
+  more likely a preview breaks and the publish fails.
+- **Nothing prunes the table.** Published, rejected and failed rows stay
+  forever. Fine at this volume; worth an archive job eventually.
+- **A `failed` item can be retried** once the cause is fixed (expired media,
+  Meta rate limit). It doesn't hold the dedupe slot.
+- **`crosspost_queued` is the app's alone** — see above. If the enqueue path
+  moves, that notification has to move with it.
 
 ---
 
-## Follow-ups not built here
+## Follow-ups not built
 
-- **Scheduling.** `approved` exists as a status but nothing consumes it. A
-  "publish at 18:00" flow would set `approved` + a `scheduled_for` column and
-  need a cron worker to drain it. Today approval publishes immediately.
-- **Push / email.** Notifications are in-app only — the user has to open
+- **Push / email.** Notifications are in-app only, so the author has to open
   SkateHive to see them. `userbase_notifications` rows are the natural trigger
-  if a push or email channel is added later.
-- **"My pending cross-posts" view.** The author can see the outcome once a
-  curator decides, but has no way to check what's still in review.
+  if a channel is added later.
+- **"My pending cross-posts" view.** The author gets told when a decision
+  lands, but can't check what's still in review.
+- **Farcaster curation.** It publishes immediately because nobody reviews it.
+  If that changes, add it to `CURATED_TARGETS` and give the portal a screen —
+  in that order, or the rows strand.
+- **Scoped database role.** Migration 0031, written and unapplied. See Auth.

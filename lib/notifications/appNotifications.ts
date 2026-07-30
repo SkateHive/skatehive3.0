@@ -16,19 +16,17 @@
  *   crosspost_rejected  — the portal (curator passed)
  *   crosspost_scheduled — the portal (approved for a future time)
  *   crosspost_published — the portal (it is live)
- *   crosspost_failed    — the portal (gave up publishing), or this app when an
- *                         immediate publish fails with the queue switched off
- *   crosspost_approved  — legacy: written by the app's own approve route
- *                         before the portal took over publishing. Kept so rows
- *                         already in the table still render.
+ *   crosspost_failed    — the portal (gave up publishing)
+ *
+ * An unknown type still renders: the localizer falls back to the row's stored
+ * title/body, so adding one on the portal side can't blank out an inbox.
  */
 export type AppNotificationType =
   | "crosspost_queued"
   | "crosspost_rejected"
   | "crosspost_scheduled"
   | "crosspost_published"
-  | "crosspost_failed"
-  | "crosspost_approved";
+  | "crosspost_failed";
 
 export interface CreateAppNotificationInput {
   supabase: any;

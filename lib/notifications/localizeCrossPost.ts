@@ -44,8 +44,18 @@ export function formatScheduledFor(
       timeStyle: "short",
     }).format(date);
   } catch {
-    // Unknown locale tag — the date still matters more than the formatting.
-    return date.toISOString();
+    // A malformed locale tag makes Intl throw. Retry on the runtime default
+    // rather than falling through to toISOString(): the caller's whole reason
+    // for existing is that "2026-08-01T21:00:00Z" is not something to show a
+    // user, and a null here falls back to the stored copy instead.
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -95,11 +105,6 @@ export function localizeCrossPostNotification(
       return {
         title: tr(`publishedTitle${platform}`) ?? notification.title,
         body: tr(`publishedBody${platform}`) ?? notification.body,
-      };
-    case "crosspost_approved":
-      return {
-        title: tr(`approvedTitle${platform}`) ?? notification.title,
-        body: tr(`approvedBody${platform}`) ?? notification.body,
       };
     case "crosspost_rejected":
       return {

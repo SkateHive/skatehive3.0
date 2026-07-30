@@ -134,7 +134,7 @@ describe("never breaks the caller", () => {
     const ok = await createAppNotification({
       supabase,
       userId: "user-1",
-      type: "crosspost_approved",
+      type: "crosspost_queued",
       title: "hi",
     });
     assertEqual(ok, false);
@@ -144,7 +144,7 @@ describe("never breaks the caller", () => {
     const ok = await createAppNotification({
       supabase: explodingSupabase(),
       userId: "user-1",
-      type: "crosspost_approved",
+      type: "crosspost_queued",
       title: "hi",
     });
     assertEqual(ok, false, "a dead connection must not propagate to the curator");
@@ -155,7 +155,7 @@ describe("never breaks the caller", () => {
       await createAppNotification({
         supabase: null,
         userId: "user-1",
-        type: "crosspost_approved",
+        type: "crosspost_queued",
         title: "hi",
       }),
       false
@@ -164,7 +164,7 @@ describe("never breaks the caller", () => {
       await createAppNotification({
         supabase: freshDb(),
         userId: "",
-        type: "crosspost_approved",
+        type: "crosspost_queued",
         title: "hi",
       }),
       false

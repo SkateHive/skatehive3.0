@@ -1248,10 +1248,6 @@ export const es = {
       publishedTitleFarcaster: 'Tu cross-post está publicado en Farcaster',
       publishedBodyInstagram: 'Toca para verlo en Instagram.',
       publishedBodyFarcaster: 'Toca para verlo en Farcaster.',
-      approvedTitleInstagram: 'Tu snap está publicado en Instagram 🎉',
-      approvedTitleFarcaster: 'Tu snap está publicado en Farcaster 🎉',
-      approvedBodyInstagram: 'El equipo de curaduría aprobó tu cross-post a @skatehive.',
-      approvedBodyFarcaster: 'El equipo de curaduría aprobó tu cross-post.',
       rejectedTitleInstagram: 'Tu cross-post a Instagram no fue seleccionado',
       rejectedTitleFarcaster: 'Tu cross-post a Farcaster no fue seleccionado',
       rejectedBodyNoNote:

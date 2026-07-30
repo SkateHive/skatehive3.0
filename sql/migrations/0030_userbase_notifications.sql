@@ -15,7 +15,10 @@ create table if not exists public.userbase_notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.userbase_users(id) on delete cascade,
 
-  -- crosspost_approved | crosspost_rejected | crosspost_failed | …
+  -- crosspost_queued | crosspost_rejected | crosspost_scheduled |
+  -- crosspost_published | crosspost_failed | …
+  -- Deliberately unconstrained: the SkateHive portal writes most of these, and
+  -- a CHECK here would mean a migration every time it adds one.
   type text not null,
 
   title text not null,

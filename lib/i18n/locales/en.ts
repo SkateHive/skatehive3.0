@@ -1235,10 +1235,6 @@ export const en = {
       publishedTitleFarcaster: 'Your cross-post is live on Farcaster',
       publishedBodyInstagram: 'Tap to see it on Instagram.',
       publishedBodyFarcaster: 'Tap to see it on Farcaster.',
-      approvedTitleInstagram: 'Your snap is live on Instagram 🎉',
-      approvedTitleFarcaster: 'Your snap is live on Farcaster 🎉',
-      approvedBodyInstagram: 'The curation team approved your cross-post to @skatehive.',
-      approvedBodyFarcaster: 'The curation team approved your cross-post.',
       rejectedTitleInstagram: "Your Instagram cross-post wasn't picked up",
       rejectedTitleFarcaster: "Your Farcaster cross-post wasn't picked up",
       rejectedBodyNoNote:

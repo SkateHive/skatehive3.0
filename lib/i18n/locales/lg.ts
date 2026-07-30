@@ -1247,10 +1247,6 @@ export const lg = {
       publishedTitleFarcaster: 'Cross-post yo eri ku Farcaster',
       publishedBodyInstagram: 'Nyiga okugiraba ku Instagram.',
       publishedBodyFarcaster: 'Nyiga okugiraba ku Farcaster.',
-      approvedTitleInstagram: 'Snap yo eri ku Instagram 🎉',
-      approvedTitleFarcaster: 'Snap yo eri ku Farcaster 🎉',
-      approvedBodyInstagram: 'Abalonda bakkirizza cross-post yo ku @skatehive.',
-      approvedBodyFarcaster: 'Abalonda bakkirizza cross-post yo.',
       rejectedTitleInstagram: 'Cross-post yo ku Instagram teyalondebwa',
       rejectedTitleFarcaster: 'Cross-post yo ku Farcaster teyalondebwa',
       rejectedBodyNoNote:
