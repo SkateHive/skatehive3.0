@@ -197,16 +197,47 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // A cast with no Hive counterpart (Farcaster-only reply) queues with NULL
-  // author/permlink — NULLs don't collide in the active-item unique index.
-  const hiveAuthor =
+  // ── Bind the dedupe key to the authenticated author ────────────────
+  //
+  // (target, hive_author, hive_permlink) is a partial unique index covering
+  // the ACTIVE statuses, and `published` is one of them. Taking these straight
+  // from the body would let any signed-in user reserve someone else's pair:
+  // their own cast goes out on their own signer, but the row lands under the
+  // victim's handle and holds the slot forever, so the real author can never
+  // cross-post that snap again. A permanent, one-request denial of service on
+  // another account. /api/instagram/post has bound this since day one; this
+  // route grew the columns later and never got the check.
+  //
+  // Dropped to NULL rather than 403 on mismatch, because the mismatch is the
+  // NORMAL case for a lite account: its snap is authored by the shared
+  // @skateuser key, and it may have no linked Hive identity at all. Rejecting
+  // would break those users to close a hole they aren't in. NULLs are distinct
+  // in the index, so those rows simply don't reserve anything — which is
+  // correct, since a shared-account permlink was never theirs to claim.
+  const claimedAuthor =
     typeof body?.hive_author === "string" && body.hive_author.trim()
       ? body.hive_author.trim()
       : null;
-  const hivePermlink =
+  const claimedPermlink =
     typeof body?.hive_permlink === "string" && body.hive_permlink.trim()
       ? body.hive_permlink.trim()
       : null;
+
+  const ownsClaimedAuthor =
+    !!claimedAuthor &&
+    !!caster.hiveHandle &&
+    claimedAuthor.toLowerCase() === caster.hiveHandle.toLowerCase();
+
+  if (claimedAuthor && !ownsClaimedAuthor) {
+    console.warn(
+      `[crosspost] dropping unverified dedupe key: user ${caster.userId} ` +
+        `(hive: ${caster.hiveHandle ?? "none"}) claimed @${claimedAuthor}`
+    );
+  }
+
+  // Both or neither — a permlink without its author reserves nothing useful.
+  const hiveAuthor = ownsClaimedAuthor ? claimedAuthor : null;
+  const hivePermlink = ownsClaimedAuthor ? claimedPermlink : null;
 
   const payload: FarcasterQueuePayload = {
     text: text.trim(),

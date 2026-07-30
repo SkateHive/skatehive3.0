@@ -220,6 +220,77 @@ describe("Farcaster-only replies (no Hive counterpart)", () => {
       "documents the known gap: identical FC-only replies are NOT deduped"
     );
   });
+
+  it("a NULL author can't squat on a real author's slot", async () => {
+    // The route drops an unverified hive_author to NULL (see
+    // app/api/farcaster/cast/route.ts). This is what that buys: the dropped row
+    // reserves nothing, so the real author's request still goes through.
+    // Before the binding, one request from any signed-in user could hold
+    // (farcaster, victim, permlink) in `published` forever and lock the author
+    // out of cross-posting that snap for good.
+    const supabase = freshDb();
+    const payload = { text: "not mine", embeds: [], channel_id: null };
+
+    // Attacker's request, author dropped to NULL by the route.
+    await enqueueCrossPost({
+      supabase,
+      target: "farcaster",
+      userId: "attacker",
+      requestedByHandle: "attacker",
+      hiveAuthor: null,
+      hivePermlink: null,
+      payload,
+    });
+
+    // The real author, later.
+    const victim = await enqueueCrossPost({
+      supabase,
+      target: "farcaster",
+      userId: "victim",
+      requestedByHandle: "victim",
+      hiveAuthor: "victim",
+      hivePermlink: "victims-snap",
+      payload,
+    });
+
+    assertTrue(victim.ok, "the author's own request must succeed");
+    assertTrue(
+      !(victim as any).duplicate,
+      "nobody else's row may hold the author's slot"
+    );
+  });
+
+  it("an occupied slot really does lock the author out (why the binding matters)", async () => {
+    // The other half of the proof: if an unverified author DID reach the row,
+    // a `published` Farcaster item — and Farcaster publishes immediately —
+    // holds the slot permanently, because `published` is an ACTIVE status.
+    const supabase = freshDb();
+    supabase.db.tables.userbase_crosspost_queue.push({
+      id: "squatted",
+      user_id: "attacker",
+      target: "farcaster",
+      hive_author: "victim",
+      hive_permlink: "victims-snap",
+      status: "published",
+      payload: {},
+      created_at: "2026-07-30T10:00:00Z",
+    });
+
+    const victim = await enqueueCrossPost({
+      supabase,
+      target: "farcaster",
+      userId: "victim",
+      requestedByHandle: "victim",
+      hiveAuthor: "victim",
+      hivePermlink: "victims-snap",
+      payload: { text: "mine", embeds: [], channel_id: null },
+    });
+
+    assertTrue(
+      !!(victim as any).duplicate,
+      "documents the impact: the author is turned away by someone else's row"
+    );
+  });
 });
 
 describe("findActiveQueueItem", () => {
