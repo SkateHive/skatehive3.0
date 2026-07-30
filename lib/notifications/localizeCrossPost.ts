@@ -23,9 +23,36 @@ export const CROSSPOST_NOTIF_NS = "notificationsPage.crosspost";
  * `t` has no interpolation, hence the per-platform keys: there are exactly two
  * platforms, so a suffix beats a placeholder.
  */
+/**
+ * Render the portal's ISO 8601 `scheduled_for` in the reader's own timezone and
+ * locale. The curator picks a moment in time, not a wall-clock string — an
+ * author in another timezone must see when it lands for THEM.
+ *
+ * Returns null on anything unparseable so the caller can fall back instead of
+ * showing "Invalid Date".
+ */
+export function formatScheduledFor(
+  iso: string | null | undefined,
+  locale?: string
+): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat(locale || undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(date);
+  } catch {
+    // Unknown locale tag — the date still matters more than the formatting.
+    return date.toISOString();
+  }
+}
+
 export function localizeCrossPostNotification(
   notification: AppNotification,
-  t: Translate
+  t: Translate,
+  locale?: string
 ): { title: string; body: string | null } {
   const platform =
     (notification.metadata?.target as string) === "farcaster" ? "Farcaster" : "Instagram";
@@ -45,6 +72,30 @@ export function localizeCrossPostNotification(
   const noteLabel = tr("rejectedNoteLabel");
 
   switch (notification.type) {
+    case "crosspost_queued":
+      return {
+        title: tr("queuedTitle") ?? notification.title,
+        body: tr(`queuedBody${platform}`) ?? notification.body,
+      };
+    case "crosspost_scheduled": {
+      const when = formatScheduledFor(
+        notification.metadata?.scheduled_for as string | undefined,
+        locale
+      );
+      const template = tr("scheduledBody");
+      return {
+        title: tr("scheduledTitle") ?? notification.title,
+        // Without a readable date the sentence is worse than the stored copy,
+        // so an unparseable scheduled_for falls back rather than printing
+        // "Goes live on Invalid Date".
+        body: when && template ? template.replace("{when}", when) : notification.body,
+      };
+    }
+    case "crosspost_published":
+      return {
+        title: tr(`publishedTitle${platform}`) ?? notification.title,
+        body: tr(`publishedBody${platform}`) ?? notification.body,
+      };
     case "crosspost_approved":
       return {
         title: tr(`approvedTitle${platform}`) ?? notification.title,

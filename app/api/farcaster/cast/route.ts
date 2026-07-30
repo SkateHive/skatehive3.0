@@ -232,9 +232,11 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Queue off for this user → cast right away, exactly like before the queue
-  // existed. The row stays as the audit record.
-  if (!isCrossPostQueueEnabled(caster.hiveHandle)) {
+  // Farcaster is not a curated target (the portal reviews Instagram only), so
+  // this branch always runs today: the row is filed as an audit record and the
+  // cast goes out immediately. Queueing it would leave it in `pending_review`
+  // forever with nobody to review it.
+  if (!isCrossPostQueueEnabled(caster.hiveHandle, "farcaster")) {
     const outcome = await publishQueueItemNow(supabase, enqueued.id);
     if (!outcome.success) {
       return NextResponse.json({ error: outcome.error }, { status: 500 });

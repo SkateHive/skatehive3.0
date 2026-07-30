@@ -15,6 +15,7 @@ import {
   type InstagramQueuePayload,
 } from "@/lib/crosspost/queue";
 import { publishQueueItemNow } from "@/lib/crosspost/publishQueueItem";
+import { notifyCrossPostQueued } from "@/lib/notifications/appNotifications";
 
 // With the queue switched off this route publishes inline again, and Meta's
 // container polling runs well past the platform's default request ceiling.
@@ -298,7 +299,7 @@ export async function POST(request: NextRequest) {
       target_account: "@skatehive",
       // Drives the dialog's copy ("send for review" vs "post"). Keyed on the
       // snap's author because the self flow requires author === requester.
-      review_required: isCrossPostQueueEnabled(hiveAuthor),
+      review_required: isCrossPostQueueEnabled(hiveAuthor, "instagram"),
       queue: queued
         ? { id: queued.id, status: queued.status, created_at: queued.created_at }
         : null,
@@ -507,9 +508,9 @@ export async function POST(request: NextRequest) {
 
   const mediaType: "IMAGE" | "REELS" = videoUrl ? "REELS" : "IMAGE";
 
-  // File it for review. The payload is the finished publish input — the
-  // approve endpoint posts exactly this, with no re-derivation, so what the
-  // curator reviews is what Meta receives.
+  // File it for review. The payload is the finished publish input — the portal
+  // posts exactly this, with no re-derivation, so what the curator reviews is
+  // what Meta receives.
   const payload: InstagramQueuePayload = {
     caption,
     collaborators: collaborators ?? [],
@@ -547,17 +548,31 @@ export async function POST(request: NextRequest) {
 
   // Queue off for this user → publish right away, exactly like before the
   // queue existed. The row stays as the audit record.
-  if (!isCrossPostQueueEnabled(hiveHandleForHpCheck)) {
+  if (!isCrossPostQueueEnabled(hiveHandleForHpCheck, "instagram")) {
     const outcome = await publishQueueItemNow(supabase, enqueued.id);
     if (!outcome.success) {
       return NextResponse.json({ error: outcome.error }, { status: 502 });
     }
+    // No queued notification here: nothing is waiting for review, and the
+    // response already tells the composer to show the normal "posted" toast.
     return NextResponse.json({
       success: true,
       ig_media_id: outcome.result?.ig_media_id ?? null,
       ig_permalink: outcome.result?.ig_permalink ?? null,
     });
   }
+
+  // Give the author something durable to come back to. The composer's toast
+  // covers the moment; this survives it, so a request that sits for days isn't
+  // indistinguishable from nothing having happened.
+  await notifyCrossPostQueued({
+    supabase,
+    userId,
+    queueId: enqueued.id,
+    target: "instagram",
+    hivePermlink,
+    permalinkUrl,
+  });
 
   return NextResponse.json({
     success: true,

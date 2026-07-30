@@ -9,9 +9,6 @@
           "app/api/video-proxy/route.ts": {
                   "maxDuration": 300
           },
-          "app/api/crosspost/queue/*/approve/route.ts": {
-                  "maxDuration": 300
-          },
           "app/api/instagram/force-post/route.ts": {
                   "maxDuration": 300
           },

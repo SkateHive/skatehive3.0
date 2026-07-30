@@ -1225,6 +1225,16 @@ export const en = {
     // + `metadata.target` so they follow the reader's language — the row's
     // stored title/body is English (written server-side) and is only a fallback.
     crosspost: {
+      queuedTitle: 'Your snap is with the curation team',
+      queuedBodyInstagram: "They'll review it and post it to @skatehive if it fits the feed.",
+      queuedBodyFarcaster: "They'll review it and cast it if it fits the feed.",
+      scheduledTitle: 'Cross-post approved',
+      // {when} is replaced with the scheduled time in the reader's timezone.
+      scheduledBody: 'Going live on {when}.',
+      publishedTitleInstagram: 'Your cross-post is live on Instagram',
+      publishedTitleFarcaster: 'Your cross-post is live on Farcaster',
+      publishedBodyInstagram: 'Tap to see it on Instagram.',
+      publishedBodyFarcaster: 'Tap to see it on Farcaster.',
       approvedTitleInstagram: 'Your snap is live on Instagram 🎉',
       approvedTitleFarcaster: 'Your snap is live on Farcaster 🎉',
       approvedBodyInstagram: 'The curation team approved your cross-post to @skatehive.',

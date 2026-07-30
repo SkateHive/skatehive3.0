@@ -10,9 +10,17 @@
  */
 
 import { Box, HStack, Icon, Link, Text, VStack } from "@chakra-ui/react";
-import { FaCheckCircle, FaExclamationTriangle, FaTimesCircle, FaBell } from "react-icons/fa";
+import {
+  FaBell,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaHourglassHalf,
+  FaRegClock,
+  FaTimesCircle,
+} from "react-icons/fa";
 import type { AppNotification } from "@/contexts/NotificationContext";
 import { useTranslations } from "@/lib/i18n/hooks";
+import { useLocale } from "@/contexts/LocaleContext";
 import {
   CROSSPOST_NOTIF_NS,
   localizeCrossPostNotification,
@@ -23,10 +31,16 @@ const TYPE_STYLE: Record<
   string,
   { icon: typeof FaBell; color: string }
 > = {
+  crosspost_queued: { icon: FaHourglassHalf, color: "blue.300" },
+  crosspost_scheduled: { icon: FaRegClock, color: "purple.300" },
+  crosspost_published: { icon: FaCheckCircle, color: "green.400" },
   crosspost_approved: { icon: FaCheckCircle, color: "green.400" },
   crosspost_rejected: { icon: FaTimesCircle, color: "orange.400" },
   crosspost_failed: { icon: FaExclamationTriangle, color: "red.400" },
 };
+
+/** Types whose link points at the published post rather than a raw URL. */
+const LINKS_TO_POST = new Set(["crosspost_published", "crosspost_approved"]);
 
 
 interface AppNotificationItemProps {
@@ -42,9 +56,12 @@ export default function AppNotificationItem({
   isNew: isNewOverride,
 }: AppNotificationItemProps) {
   const t = useTranslations(CROSSPOST_NOTIF_NS);
+  const { locale } = useLocale();
   const style = TYPE_STYLE[notification.type] ?? { icon: FaBell, color: "primary" };
   const isNew = isNewOverride ?? !notification.read_at;
-  const { title, body } = localizeCrossPostNotification(notification, t);
+  // The locale is passed through so a scheduled time renders in the reader's
+  // own timezone and number/date conventions, not the curator's.
+  const { title, body } = localizeCrossPostNotification(notification, t, locale);
   // created_at is an ISO timestamp from Postgres; formatNotificationDate is
   // shared with the Hive list so both halves read the same way.
   const formattedDate = formatNotificationDate(notification.created_at);
@@ -99,7 +116,7 @@ export default function AppNotificationItem({
               display="inline-block"
               wordBreak="break-all"
             >
-              {notification.type === "crosspost_approved" ? t("seePost") : notification.link}
+              {LINKS_TO_POST.has(notification.type) ? t("seePost") : notification.link}
             </Link>
           )}
 

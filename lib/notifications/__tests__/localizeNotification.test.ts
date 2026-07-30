@@ -16,6 +16,7 @@
 
 import {
   CROSSPOST_NOTIF_NS,
+  formatScheduledFor,
   localizeCrossPostNotification as localize,
 } from "../localizeCrossPost";
 import type { AppNotification } from "../../../contexts/NotificationContext";
@@ -95,6 +96,88 @@ describe("platform selection", () => {
       "[approvedTitleInstagram]",
       "Instagram is the main case — an unknown target shouldn't render blank"
     );
+  });
+});
+
+describe("the four types the portal writes", () => {
+  it("localizes the queued notice the app files at click time", () => {
+    const { title, body } = localize(
+      notification({ type: "crosspost_queued", metadata: { target: "instagram" } }),
+      translated
+    );
+    assertEqual(title, "[queuedTitle]");
+    assertEqual(body, "[queuedBodyInstagram]");
+  });
+
+  it("localizes a published notice", () => {
+    const { title, body } = localize(
+      notification({ type: "crosspost_published", metadata: { target: "instagram" } }),
+      translated
+    );
+    assertEqual(title, "[publishedTitleInstagram]");
+    assertEqual(body, "[publishedBodyInstagram]");
+  });
+
+  it("substitutes the scheduled time into the body", () => {
+    const { title, body } = localize(
+      notification({
+        type: "crosspost_scheduled",
+        metadata: { target: "instagram", scheduled_for: "2026-08-01T21:00:00Z" },
+      }),
+      (key) => (key === "scheduledBody" ? "Going live on {when}." : `[${key}]`),
+      "en-US"
+    );
+    assertEqual(title, "[scheduledTitle]");
+    assertTrue(
+      (body || "").startsWith("Going live on ") && !(body || "").includes("{when}"),
+      "the placeholder must be replaced, not printed"
+    );
+    assertTrue(
+      !(body || "").includes("2026-08-01T21:00:00Z"),
+      "the raw ISO string must not reach the user"
+    );
+  });
+
+  it("falls back rather than rendering Invalid Date on a broken timestamp", () => {
+    const n = notification({
+      type: "crosspost_scheduled",
+      body: "stored body",
+      metadata: { target: "instagram", scheduled_for: "not a date" },
+    });
+    const { body } = localize(n, translated, "en-US");
+    assertEqual(body, "stored body");
+  });
+
+  it("falls back when scheduled_for is missing entirely", () => {
+    const n = notification({
+      type: "crosspost_scheduled",
+      body: "stored body",
+      metadata: { target: "instagram" },
+    });
+    assertEqual(localize(n, translated, "en-US").body, "stored body");
+  });
+});
+
+describe("formatScheduledFor", () => {
+  it("renders an ISO instant in the given locale", () => {
+    const out = formatScheduledFor("2026-08-01T21:00:00Z", "en-US");
+    assertTrue(!!out && out.includes("2026"), `expected a formatted date, got ${out}`);
+    assertTrue(
+      !(out || "").includes("T") && !(out || "").includes("Z"),
+      "must not leak the ISO format at the user"
+    );
+  });
+
+  it("returns null for null, empty and unparseable input", () => {
+    assertEqual(formatScheduledFor(null), null);
+    assertEqual(formatScheduledFor(undefined), null);
+    assertEqual(formatScheduledFor(""), null);
+    assertEqual(formatScheduledFor("tomorrow-ish"), null);
+  });
+
+  it("survives an unknown locale tag instead of throwing", () => {
+    const out = formatScheduledFor("2026-08-01T21:00:00Z", "not-a-locale");
+    assertTrue(!!out, "a bad locale must not lose the date entirely");
   });
 });
 

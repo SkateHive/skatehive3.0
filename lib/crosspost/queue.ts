@@ -24,12 +24,25 @@
 export const CROSSPOST_QUEUE_TABLE = "userbase_crosspost_queue";
 
 /**
+ * Targets the curation queue actually covers.
+ *
+ * Instagram only. The portal's review screen filters `target = 'instagram'`,
+ * so a queued Farcaster row would have no owner and sit in `pending_review`
+ * forever, with its author never hearing back. Farcaster also casts under the
+ * user's OWN account rather than the shared brand account, which is the weaker
+ * case for curation to begin with — so it publishes immediately, as before.
+ *
+ * Add a target here only once somebody actually reviews it.
+ */
+export const CURATED_TARGETS: CrossPostTarget[] = ["instagram"];
+
+/**
  * Kill switch for the whole curation queue.
  *
- * The day this ships, every cross-post stops publishing and starts waiting for
- * a curator. If the portal isn't up yet — or something goes wrong once it is —
- * the feature has to be switchable without a revert, because a revert would
- * strand whatever is already sitting in the queue.
+ * The day this ships, every curated cross-post stops publishing and starts
+ * waiting for a curator. If the portal isn't up yet — or something goes wrong
+ * once it is — the feature has to be switchable without a revert, because a
+ * revert would strand whatever is already sitting in the queue.
  *
  *   CROSSPOST_QUEUE_ENABLED unset / "false"  → publish immediately (old behavior)
  *   CROSSPOST_QUEUE_ENABLED="true"           → everyone goes through review
@@ -37,9 +50,15 @@ export const CROSSPOST_QUEUE_TABLE = "userbase_crosspost_queue";
  *                                              queued; everyone else publishes
  *                                              as before (canary)
  *
- * The handle compared is the requester's linked Hive account.
+ * The handle compared is the requester's linked Hive account. `target` is
+ * checked first: an uncurated platform never queues, whatever the switch says.
  */
-export function isCrossPostQueueEnabled(hiveHandle: string | null): boolean {
+export function isCrossPostQueueEnabled(
+  hiveHandle: string | null,
+  target: CrossPostTarget = "instagram"
+): boolean {
+  if (!CURATED_TARGETS.includes(target)) return false;
+
   const raw = (process.env.CROSSPOST_QUEUE_ENABLED || "").trim();
   if (!raw || raw.toLowerCase() === "false") return false;
   if (raw.toLowerCase() === "true") return true;

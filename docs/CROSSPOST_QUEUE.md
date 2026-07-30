@@ -1,22 +1,29 @@
 # Cross-post curation queue
 
-Every user-initiated cross-post now lands in a review queue instead of going
-straight to Instagram or Farcaster. The social-media/curation team decides
-**if** and **when** each one ships, from the SkateHive portal (separate repo).
+An Instagram cross-post no longer publishes on the spot. It lands in a review
+queue and the social-media team decides **if** and **when** it ships, from the
+SkateHive portal (separate repo).
 
 ```
-SnapComposer ──▶ POST /api/instagram/post  ──┐
-                 POST /api/farcaster/cast  ──┴─▶ userbase_crosspost_queue
-                                                   status = pending_review
-                                                          │
-   Portal ──▶ GET  /api/crosspost/queue ────────────────── │ (the inbox)
-          ──▶ POST /api/crosspost/queue/{id}/approve ──────┴─▶ Meta / Neynar
-          ──▶ POST /api/crosspost/queue/{id}/reject
+SnapComposer ──▶ POST /api/instagram/post ──▶ userbase_crosspost_queue
+                                                status = pending_review
+                                                       │
+                            Portal reads the queue ────┤
+                            Portal publishes to IG ────┤
+                            Portal writes the outcome ─┘
+                                                       │
+                            userbase_notifications ────┴─▶ the author
 ```
 
-**The portal never touches Meta, Neynar or Supabase directly.** It drives this
-API, so the publishing credentials stay in one place (this repo). Building the
-portal screen means calling four endpoints — nothing more.
+**The portal owns publishing.** It reads the queue over a scoped Postgres role
+(`portal_curation`, migration 0031), runs its own Instagram pipeline with
+transcode and retry, and writes the result back onto the row. This app's job is
+to file the request, guard it, and tell the author what happened.
+
+> **Farcaster does not queue.** The portal reviews Instagram only, so a queued
+> cast would sit in `pending_review` with nobody to review it. It also posts to
+> the user's own account rather than the shared brand one, which was always the
+> weaker case for curation. See `CURATED_TARGETS` in `lib/crosspost/queue.ts`.
 
 ---
 
@@ -25,34 +32,41 @@ portal screen means calling four endpoints — nothing more.
 | Concern | Where it lives |
 |---|---|
 | Author gates (own snap, 100 HP, rate limits) | request time, `/api/instagram/post` |
-| What gets posted (caption, embeds, media) | frozen into `payload` at request time |
-| Whether it gets posted at all | curator, at approve time |
-| Meta / Neynar credentials | this repo only |
+| What gets posted (caption, media) | frozen into `payload` at request time |
+| Whether and when it gets posted | the portal |
+| Publishing to Instagram | the portal's pipeline |
+| Telling the author | `userbase_notifications`, rendered by this app |
 
-The payload stored on the row is the **finished publish input**. The approve
-endpoint is a dumb executor — it never re-derives content, so what the curator
-reviews is exactly what the platform receives.
-
-The one thing re-resolved at publish time is the **Farcaster signer**: it's read
-from `userbase_identities` when the cast actually goes out, so a signer the user
-revoked while the item sat in review fails loudly instead of posting.
+The payload stored on the row is the **finished publish input** — caption
+already built, media URLs already validated. The portal may edit the caption
+and collaborators before publishing, but it never has to re-derive anything.
 
 ---
 
 ## Statuses
 
-| Status | Meaning |
-|---|---|
-| `pending_review` | Waiting for the curation team. The default. |
-| `approved` | Reserved for a future "schedule for later" flow. |
-| `publishing` | A publish is in flight (compare-and-swap guard). |
-| `published` | Live on the platform. `result` holds the IDs. |
-| `rejected` | Curator passed. **Frees the slot** — the author can request again. |
-| `failed` | Publish attempt errored. `publish_error` has the reason; retryable. |
+| Status | Written by | Meaning |
+|---|---|---|
+| `pending_review` | app | Waiting for the curation team. The default. |
+| `approved` | portal | Claimed — publishing now, or scheduled for later. |
+| `publishing` | **app only** | An immediate publish is in flight (see below). |
+| `published` | portal | Live. `result` holds the IDs. |
+| `rejected` | portal | Curator passed. **Frees the slot** — the author can request again. |
+| `failed` | portal / app | Publish errored. `publish_error` has the reason; retryable. |
+
+The portal's transitions are `pending_review → approved` and then
+`approved → published | failed`.
+
+`publishing` is **exclusively** this app's compare-and-swap, used when the kill
+switch is off and the request publishes inline. It is the guard that stops two
+writers from double-posting, so the portal must never write it — migration 0031
+enforces that in the RLS policy (`with check (status <> 'publishing')`) rather
+than trusting convention.
 
 A partial unique index on `(target, hive_author, hive_permlink)` covering
 `pending_review / approved / publishing / published` means one active request
-per snap per platform. Rejected and failed rows don't hold the slot.
+per snap per platform. Rejected and failed rows don't hold the slot, so an
+author can ask again after a rejection.
 
 ---
 
@@ -106,73 +120,52 @@ The inbox.
 
 One item in full, plus `requester`. For the review screen.
 
-### `POST /api/crosspost/queue/{id}/approve`
-
-Publishes **now**. All body fields optional — last-minute curator edits:
-
-```jsonc
-{
-  "caption": "…",              // Instagram legenda override (≤2200)
-  "collaborators": ["handle"], // Instagram Collab handles (≤3)
-  "text": "…",                 // Farcaster cast text override (≤1024)
-  "channel_id": "skateboard",  // Farcaster channel (whitelisted)
-  "note": "bumped for the weekend push"
-}
-```
-
-Only these keys are honored — the portal can't rewrite `hive_author` or the
-media URLs after the author's gates ran.
-
-```json
-{ "success": true, "queue_id": "uuid", "status": "published",
-  "target": "instagram", "approved_by": "curator",
-  "result": { "ig_media_id": "…", "ig_permalink": "https://instagram.com/p/…" } }
-```
-
-On failure: `502` with `{ "error": "...", "status": "failed" }`. The row is left
-`failed` with the message, so the portal can show it and retry later.
-
-`409` means someone else already published it or is publishing right now — the
-item is compare-and-swapped into `publishing` before any network call, so two
-curators clicking Approve at once can't double-post. The swap pins `updated_at`
-as an optimistic lock, so whoever writes first wins and the other matches zero
-rows.
-
-**Stuck-row escape.** Publishing a Reel can block for minutes, so a request
-dying mid-publish is realistic. A row left in `publishing` for more than
-`STALE_PUBLISHING_MS` (10 min) becomes claimable again — without that it would
-be unapprovable forever, with no fix but manual SQL. The approve route also
-declares `maxDuration = 300` so the platform's default ceiling doesn't cause
-the timeout in the first place.
-
 ### `POST /api/crosspost/queue/{id}/reject`
 
 ```jsonc
 { "note": "clip is too dark, ask for a re-upload" }
 ```
 
-Frees the slot so the author can request the same snap again later.
+Frees the slot so the author can request the same snap again later, and writes
+the author a `crosspost_rejected` notification.
+
+### There is no approve endpoint
+
+There used to be. It published to Instagram from this app, which is now the
+portal's job — and keeping both alive meant an admin could approve an item the
+portal had already claimed and scheduled, posting it twice to @skatehive.
+Removed rather than guarded, since nothing calls it.
+
+The app still publishes inline in exactly one case: the kill switch being off
+for that user (`publishQueueItemNow`), which is the pre-queue behavior.
 
 ---
 
 ## Auth
 
-Two accepted callers.
+**The portal** connects to Postgres as `portal_curation` (migration 0031):
+`SELECT`/`UPDATE` on the queue, `INSERT` on notifications, nothing else.
 
-**1. The portal (server-to-server)** — set `CROSSPOST_PORTAL_TOKEN` in both
-repos and send:
+Both tables are `FORCE ROW LEVEL SECURITY` with a service-role-only policy, so
+GRANTs alone are not enough — 0031 adds the matching policies. Without them the
+portal reads zero rows and every insert fails, with permissions that look right.
 
+The role is created `NOLOGIN` on purpose; give it a password outside version
+control:
+
+```sql
+ALTER ROLE portal_curation WITH LOGIN PASSWORD '<generated>';
 ```
-x-skatehive-portal-token: <CROSSPOST_PORTAL_TOKEN>
-x-skatehive-curator: <hive-handle>     # who clicked, for the audit trail
-```
 
-Keep this on the portal's **server** side (route handler / server action). It's
-a full publish credential — never ship it to the browser.
+Do **not** hand the portal `SUPABASE_SERVICE_ROLE_KEY` instead. It bypasses RLS
+on every userbase table, including `userbase_hive_keys` (users' encrypted
+posting keys), sessions and magic links — turning a portal compromise into an
+account-takeover event.
 
-**2. A logged-in SkateHive admin** — userbase session cookie + a linked Hive
-handle on `ADMIN_USERS`. Lets the queue be worked from inside the app without
-the portal.
+**A logged-in SkateHive admin** — userbase session cookie plus a linked Hive
+handle on `ADMIN_USERS` — can still hit the HTTP endpoints above, for working
+the queue from inside the app. `CROSSPOST_PORTAL_TOKEN` also still authorizes
+them server-to-server.
 
 ---
 
@@ -190,16 +183,20 @@ CROSSPOST_QUEUE_ENABLED=alice,bob     # only these Hive handles — canary
 
 Suggested order, so no step is visible to users until you want it to be:
 
-1. Apply migrations `0029` + `0030`
-2. Deploy with the switch **off** — nothing changes for anyone
-3. Build the portal screen against the real (empty) table
-4. Set the switch to your own handle, run one cross-post end to end
-5. Set it to `true`
+1. Apply migrations `0029`, `0030` and `0031`
+2. Give `portal_curation` a password and point the portal at it
+3. Deploy with the switch **off** — nothing changes for anyone
+4. Portal's preflight against the real (empty) tables
+5. Set the switch to your own handle, run one cross-post end to end
+6. Set it to `true`
+
+Until step 1 the portal's queue tab is inert: the tables don't exist, so it
+shows a message and publishes nothing.
 
 With the switch off the request still files a queue row and immediately
-approves it, so there is only ever one code path talking to Meta and Neynar.
-Those rows carry `review_note = "auto-published (curation queue disabled)"`
-and no reviewer, which is how you tell them apart later.
+publishes it, so there is only ever one code path talking to Meta. Those rows
+carry `review_note = "auto-published (curation queue disabled)"` and no
+reviewer, which is how you tell them apart later.
 
 > **Drain before you switch off.** Items already in `pending_review` are not
 > released when the switch flips — they stay queued, nobody approves them, and
@@ -229,23 +226,39 @@ NEYNAR_API_KEY=
 
 ## The author finds out
 
-Approve and reject both write a notification for the requesting author, so a
-decision is never silent.
-
 SkateHive's notification page reads Hive's `bridge.account_notifications` —
 blockchain events only. A curation decision has no Hive counterpart, so
 migration `0030` adds `userbase_notifications`, an app-owned store, and the
 page renders it as a **"From SkateHive"** section above the Hive list. The
 sidebar badge sums both sources.
 
-| Event | Notification |
-|---|---|
-| Approved + published | *"Your snap is live on Instagram 🎉"* — links to the published post |
-| Rejected | *"Your Instagram cross-post wasn't picked up"* — quotes the curator's `note` when there is one |
-| Approved but the platform refused | *"…couldn't be published"* — carries the error, since causes like a revoked Farcaster signer are the author's to fix |
+| `type` | Written by | When | `metadata` used |
+|---|---|---|---|
+| `crosspost_queued` | app | the request is filed | — |
+| `crosspost_rejected` | portal | curator passed | `note` — quoted, in whatever language it was written |
+| `crosspost_scheduled` | portal | approved for a future time | `scheduled_for` — ISO 8601, rendered in the reader's timezone |
+| `crosspost_published` | portal | it is live | `ig_permalink` (also in `link`) |
+| `crosspost_failed` | portal / app | publishing gave up | — |
+
+All carry `queue_id`, `target` and `hive_permlink`.
+
+**`crosspost_queued` is the app's alone**, and it matters more than it looks.
+Without it, marking cross-post produces nothing the author can point at, maybe
+for days — indistinguishable from a bug. They click again, hit the duplicate
+guard, and an action that never gave feedback starts returning an error. The
+composer's toast covers the moment; this row is what they find later. The
+portal can't write it: at click time it doesn't know the request exists.
+
+There is deliberately no notification for "approved, publishing now" — the post
+lands within minutes and `crosspost_published` follows with the link. Only a
+schedule more than ~15 minutes out sends `crosspost_scheduled` first.
+
+The copy is rebuilt client-side from `type` + `metadata`
+(`lib/notifications/localizeCrossPost.ts`), so it follows the reader's language
+across all four locales; the stored `title`/`body` are an English fallback.
 
 Writing a notification never blocks the action: `lib/notifications/appNotifications.ts`
-swallows and logs its errors, so a failed insert can't 500 a curator's approve.
+swallows and logs its errors, so a failed insert can't 500 the caller.
 
 Notifications are marked read simply by opening the page — there's no
 custom_json to broadcast like the Hive ones, so there's no reason to make the

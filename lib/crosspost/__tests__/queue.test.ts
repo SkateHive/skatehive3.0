@@ -325,6 +325,22 @@ describe("isCrossPostQueueEnabled (kill switch)", () => {
     });
   });
 
+  it("never queues Farcaster, even switched fully on", () => {
+    // The portal reviews Instagram only. A queued Farcaster row would have no
+    // owner and sit in pending_review forever, with its author never told.
+    withEnv("true", () => {
+      assertEqual(isCrossPostQueueEnabled("skater", "farcaster"), false);
+      assertEqual(isCrossPostQueueEnabled("skater", "instagram"), true);
+    });
+  });
+
+  it("never queues Farcaster for a canary handle either", () => {
+    withEnv("skater", () => {
+      assertEqual(isCrossPostQueueEnabled("skater", "farcaster"), false);
+      assertEqual(isCrossPostQueueEnabled("skater", "instagram"), true);
+    });
+  });
+
   it("queues only the listed handles when given a canary list", () => {
     withEnv("mtlouzada, xvlad", () => {
       assertEqual(isCrossPostQueueEnabled("mtlouzada"), true);
