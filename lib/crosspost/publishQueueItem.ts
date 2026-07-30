@@ -214,8 +214,13 @@ async function publishInstagramItem(
 
   // Mirror the result into the existing IG registry so dedupe, the per-user
   // 24h cap and the composer preview keep working off one table.
+  //
+  // Losing this write is worse than it looks: the post is live on Meta but
+  // invisible to all three of those gates, so the same snap can be requested
+  // and published to @skatehive a second time. It can't fail the publish —
+  // that already happened — but it must not disappear silently either.
   if (item.hive_author && item.hive_permlink) {
-    await supabase
+    const { error: mirrorError } = await supabase
       .from("userbase_instagram_posts")
       .upsert(
         {
@@ -235,6 +240,13 @@ async function publishInstagramItem(
         },
         { onConflict: "hive_author,hive_permlink" }
       );
+    if (mirrorError) {
+      console.error(
+        `[crosspost] PUBLISHED but not mirrored: @${item.hive_author}/${item.hive_permlink} ` +
+          `(ig_media_id=${publishResult.mediaId}) — dedupe and the 24h cap will not see it. ` +
+          mirrorError.message
+      );
+    }
   }
 
   return {
@@ -357,7 +369,7 @@ export async function publishQueueItem(
   }
 
   const now = new Date().toISOString();
-  await supabase
+  let writeBack = supabase
     .from(CROSSPOST_QUEUE_TABLE)
     .update(
       outcome.success
@@ -377,6 +389,26 @@ export async function publishQueueItem(
           }
     )
     .eq("id", item.id);
+
+  // Only write back if we still hold the claim. STALE_PUBLISHING_MS means a
+  // second executor can legitimately take over a row whose first attempt looked
+  // dead; if that first attempt then wakes up, matching on `id` alone would let
+  // it stamp its stale outcome over the live one — even flipping a row someone
+  // is actively publishing to `published`. Pinning the claim's updated_at makes
+  // the late writer match zero rows instead.
+  //
+  // This keeps the bookkeeping honest. It does NOT undo a double publish: if
+  // both attempts reached Meta, two posts exist. That is the cost of having a
+  // time-based escape at all, and the 10-minute window is sized to make it rare.
+  if (item.updated_at) writeBack = writeBack.eq("updated_at", item.updated_at);
+
+  const { error: writeBackError } = await writeBack;
+  if (writeBackError) {
+    console.warn(
+      `[crosspost] could not record outcome for ${item.id}:`,
+      writeBackError.message
+    );
+  }
 
   return outcome;
 }

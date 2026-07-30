@@ -73,8 +73,9 @@ create index if not exists userbase_crosspost_queue_target_status_idx
 create index if not exists userbase_crosspost_queue_user_id_idx
   on public.userbase_crosspost_queue(user_id);
 
--- RLS: service role only. The portal reads through the SkateHive API (which
--- holds the Meta / Neynar credentials), never through the anon Supabase key.
+-- RLS: service role only. Both writers — this app and the SkateHive portal —
+-- go through PostgREST with a service-role key, which bypasses RLS. The anon
+-- and authenticated roles never touch this table (revoked below).
 alter table public.userbase_crosspost_queue enable row level security;
 alter table public.userbase_crosspost_queue force row level security;
 

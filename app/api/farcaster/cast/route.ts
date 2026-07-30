@@ -166,13 +166,21 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Queue-flood guard. Fails CLOSED: if we can't count, we don't let it past.
+  // Queue-flood guard, scoped to this platform. Unscoped it would count the
+  // user's pending INSTAGRAM reviews — Farcaster rows never sit in
+  // pending_review — and hand out a 429 telling them to wait for a review that
+  // has nothing to do with casting, which nothing they do here would clear.
+  // Today that makes this count always zero; it starts mattering the day
+  // Farcaster joins CURATED_TARGETS.
+  //
+  // Fails CLOSED: if we can't count, we don't let it past.
   let pendingCount: number;
   try {
     pendingCount = await countQueueItemsForUser({
       supabase,
       userId: caster.userId,
       statuses: ["pending_review"],
+      target: "farcaster",
     });
   } catch {
     return NextResponse.json(

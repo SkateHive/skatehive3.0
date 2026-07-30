@@ -1,25 +1,27 @@
 /**
  * Cross-post review queue.
  *
- * Every user-initiated cross-post (Instagram or Farcaster) is ENQUEUED here
- * instead of being published immediately. The curation team reviews the queue
- * in the SkateHive portal and decides if / when each item ships.
+ * An Instagram cross-post is ENQUEUED here instead of published immediately.
+ * The curation team reviews it in the SkateHive portal, which decides if and
+ * when it ships. Farcaster is not a curated target — see CURATED_TARGETS.
  *
  * Shape of the flow:
  *
- *   SnapComposer ──▶ /api/instagram/post   ──┐
- *                    /api/farcaster/cast   ──┴─▶ enqueueCrossPost()  → pending_review
+ *   SnapComposer ──▶ /api/instagram/post ──▶ enqueueCrossPost() → pending_review
+ *                                                      │
+ *                             Portal reads the table ──┤  (PostgREST, direct)
+ *                             Portal publishes to IG ──┤
+ *                             Portal writes the outcome┘
  *
- *   Portal ──▶ GET  /api/crosspost/queue                 (list)
- *          ──▶ POST /api/crosspost/queue/{id}/approve    → publishQueueItem() → published
- *          ──▶ POST /api/crosspost/queue/{id}/reject     → rejected
+ * There is no HTTP API here for the portal to drive — the TABLE is the
+ * contract. See docs/CROSSPOST_QUEUE.md for the columns it reads and writes.
  *
  * The payload stored on the row is the FULLY NORMALIZED publish input (caption
- * already built, embeds already picked, media URLs already validated), so the
- * approve path is a dumb executor — it never re-derives content. What it does
- * NOT store is anything secret: the Farcaster signer uuid is re-resolved from
- * `userbase_identities` at publish time so a signer the user revoked in the
- * meantime correctly fails instead of posting.
+ * already built, embeds already picked, media URLs already validated), so
+ * whoever publishes is a dumb executor and never re-derives content. What it
+ * does NOT store is anything secret: the Farcaster signer uuid is re-resolved
+ * from `userbase_identities` at publish time, so a signer the user revoked in
+ * the meantime correctly fails instead of posting.
  */
 export const CROSSPOST_QUEUE_TABLE = "userbase_crosspost_queue";
 
@@ -257,6 +259,9 @@ export async function countQueueItemsForUser(args: {
   supabase: any;
   userId: string;
   statuses: CrossPostQueueStatus[];
+  /** Scope to one platform. Leaving it out counts across all of them, which is
+   *  almost never what a per-platform cap wants — see the callers. */
+  target?: CrossPostTarget;
   sinceIso?: string;
 }): Promise<number> {
   let query = args.supabase
@@ -264,6 +269,7 @@ export async function countQueueItemsForUser(args: {
     .select("id", { count: "exact", head: true })
     .eq("user_id", args.userId)
     .in("status", args.statuses);
+  if (args.target) query = query.eq("target", args.target);
   if (args.sinceIso) query = query.gte("created_at", args.sinceIso);
   const { count, error } = await query;
   if (error) {

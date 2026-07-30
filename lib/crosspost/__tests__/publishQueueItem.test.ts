@@ -356,6 +356,41 @@ describe("publishQueueItem — failures never leave a row stuck", () => {
     assertEqual(item.status, "failed");
   });
 
+  it("does not clobber a newer claim when a stale attempt finally returns", async () => {
+    // The 10-minute escape means two executors can hold the same row. When the
+    // first one wakes up, its write-back must be a no-op — otherwise it stamps
+    // a stale outcome over the live claim, or flips a row someone is actively
+    // publishing straight to `failed`.
+    const supabase = dbWith([pendingItem({ status: "publishing" })]);
+    const row = supabase.db.tables.userbase_crosspost_queue[0] as any;
+
+    // What the first attempt is holding: the claim as it was when it started.
+    const staleItem = { ...row, updated_at: "2026-07-27T10:00:00.000Z" };
+    // Meanwhile a second executor claimed and moved the row on.
+    row.updated_at = "2026-07-27T10:30:00.000Z";
+    row.reviewed_by_handle = "curator-b";
+
+    await publishQueueItem(supabase, staleItem);
+
+    assertEqual(
+      row.status,
+      "publishing",
+      "the live claim must survive the late writer"
+    );
+    assertEqual(row.reviewed_by_handle, "curator-b");
+    assertEqual(row.attempts, 0, "the stale attempt must not bump the counter either");
+  });
+
+  it("still writes back when it is the one holding the claim", async () => {
+    const supabase = dbWith([pendingItem({ status: "publishing" })]);
+    const row = supabase.db.tables.userbase_crosspost_queue[0] as any;
+
+    await publishQueueItem(supabase, row);
+
+    assertEqual(row.status, "failed", "IG is unconfigured in tests, so it fails");
+    assertEqual(row.attempts, 1);
+  });
+
   it("refuses a Farcaster item with no user to cast on behalf of", async () => {
     const supabase = dbWith([
       pendingItem({

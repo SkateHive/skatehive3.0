@@ -270,6 +270,37 @@ describe("countQueueItemsForUser (flood guard)", () => {
     assertEqual(count, 2, "published rows and other users must not count");
   });
 
+  it("scopes to one platform so an Instagram backlog can't 429 a cast", async () => {
+    // Unscoped, a user with Instagram items in review would be told to wait
+    // before casting to Farcaster — for a review that has nothing to do with
+    // casting, and that nothing they do on Farcaster would clear.
+    const supabase = freshDb();
+    supabase.db.tables.userbase_crosspost_queue.push(
+      { id: "a", user_id: "u", target: "instagram", status: "pending_review", created_at: "1" },
+      { id: "b", user_id: "u", target: "instagram", status: "pending_review", created_at: "2" },
+      { id: "c", user_id: "u", target: "farcaster", status: "pending_review", created_at: "3" }
+    );
+
+    assertEqual(
+      await countQueueItemsForUser({
+        supabase,
+        userId: "u",
+        statuses: ["pending_review"],
+        target: "farcaster",
+      }),
+      1
+    );
+    assertEqual(
+      await countQueueItemsForUser({
+        supabase,
+        userId: "u",
+        statuses: ["pending_review"],
+        target: "instagram",
+      }),
+      2
+    );
+  });
+
   it("throws on a query error instead of reporting zero", async () => {
     // Reporting 0 would silently lift the cap every time the database hiccups —
     // a rate limit that fails open. Callers turn this into a 503.

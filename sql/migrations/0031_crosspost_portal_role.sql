@@ -44,7 +44,29 @@ grant usage on schema public to portal_curation;
 
 -- ── userbase_crosspost_queue: read the inbox, write the decision ────────
 -- No INSERT: only the app enqueues. No DELETE: the row is the audit trail.
-grant select, update on table public.userbase_crosspost_queue to portal_curation;
+grant select on table public.userbase_crosspost_queue to portal_curation;
+
+-- UPDATE is granted COLUMN BY COLUMN, and the omissions are the point. A
+-- table-wide grant would let this role rewrite `user_id`, `hive_author` and
+-- `hive_permlink` — retargeting a queued item at a different author — or swap
+-- the media URLs inside `payload` between the curator approving and the post
+-- going out. The RLS policy below only constrains `status`, so it would not
+-- catch either. Least privilege has to be spelled out to be real.
+--
+-- `payload` IS here: editing the caption and collaborators before publishing is
+-- the curator's job. `attempts`, `target`, `created_at` and the identity
+-- columns are not, and now cannot be touched.
+grant update (
+  payload,
+  status,
+  reviewed_by_handle,
+  reviewed_at,
+  review_note,
+  published_at,
+  publish_error,
+  result,
+  updated_at
+) on table public.userbase_crosspost_queue to portal_curation;
 
 drop policy if exists "Portal can read the crosspost queue"
   on public.userbase_crosspost_queue;

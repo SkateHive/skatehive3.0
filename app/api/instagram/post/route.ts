@@ -462,6 +462,7 @@ export async function POST(request: NextRequest) {
       supabase,
       userId,
       statuses: ["pending_review"],
+      target: "instagram",
     });
   } catch (err: any) {
     return NextResponse.json(
