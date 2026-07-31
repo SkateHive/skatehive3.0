@@ -22,32 +22,74 @@ export interface LinkableIdentity {
 }
 
 /**
- * The Hive account that owns the userbase session, lowercased, or null when the
- * owner can't be determined unambiguously.
+ * Who owns the userbase session, on the Hive side.
+ *
+ * The two failure modes must stay distinguishable, because they authorise
+ * opposite things downstream:
+ *
+ * - `none` — the session holds no Hive identity (email- or wallet-only user).
+ *   There is nothing to compare against, and aioha's sole account may legitimately
+ *   be the one the user is connecting right now.
+ * - `ambiguous` — the session holds Hive identities but no single one can be
+ *   named as the owner. Something *is* attributed to this session, we just can't
+ *   tell what, so no account may stand in for it.
+ *
+ * Collapsing both to `null` would let an ambiguous session take the `none` path
+ * and mine an unrelated account's profile for linkable addresses.
+ */
+export type SessionHiveOwnership =
+  | { status: "resolved"; handle: string }
+  | { status: "none"; handle: null }
+  | { status: "ambiguous"; handle: null };
+
+/**
+ * Resolve which Hive account owns the userbase session.
  *
  * A single Hive identity is the owner even without the primary flag set — rows
  * can predate it. With several (e.g. after a merge), exactly one must be marked
- * primary; zero or multiple primaries is genuine ambiguity. Because this handle
- * feeds linking suggestions, an arbitrary pick could offer the wrong account's
- * wallet or prompt a merge of unrelated accounts, so it fails closed and returns
- * null rather than guessing. Also null when the session has no Hive identity at
- * all (email- or wallet-only users) — callers treat null as "nothing to compare
- * against".
+ * primary. Zero primaries among several is genuine ambiguity; multiple primaries
+ * of a type can't occur (the DB has a unique index on `(user_id, type) where
+ * is_primary`), but is handled the same way rather than trusted.
+ *
+ * Because the resolved handle feeds linking suggestions, an arbitrary pick could
+ * offer the wrong account's wallet or prompt a merge of unrelated accounts, so
+ * this fails closed rather than guessing.
+ */
+export function resolveSessionHiveOwnership(
+  identities: readonly LinkableIdentity[] | null | undefined
+): SessionHiveOwnership {
+  const hives = (identities ?? []).filter(
+    (identity) => identity.type === "hive" && !!identity.handle
+  );
+  if (hives.length === 0) return { status: "none", handle: null };
+
+  const resolved = (identity: LinkableIdentity): SessionHiveOwnership => {
+    const handle = identity.handle?.toLowerCase();
+    // Unreachable via the filter above; keeps the return type honest.
+    return handle
+      ? { status: "resolved", handle }
+      : { status: "ambiguous", handle: null };
+  };
+
+  if (hives.length === 1) return resolved(hives[0]);
+
+  const primaries = hives.filter((identity) => identity.is_primary);
+  if (primaries.length === 1) return resolved(primaries[0]);
+  return { status: "ambiguous", handle: null };
+}
+
+/**
+ * The Hive account that owns the session, lowercased, or null when it can't be
+ * named — either because there is none or because it's ambiguous.
+ *
+ * Convenience for callers that only need the handle to compare against (the
+ * distinction doesn't change a comparison). Anything that *acts* on the absence
+ * must use {@link resolveSessionHiveOwnership} instead.
  */
 export function resolveSessionHiveHandle(
   identities: readonly LinkableIdentity[] | null | undefined
 ): string | null {
-  if (!identities?.length) return null;
-
-  const hives = identities.filter(
-    (identity) => identity.type === "hive" && !!identity.handle
-  );
-  if (hives.length === 0) return null;
-  if (hives.length === 1) return hives[0].handle?.toLowerCase() || null;
-
-  const primaries = hives.filter((identity) => identity.is_primary);
-  if (primaries.length === 1) return primaries[0].handle?.toLowerCase() || null;
-  return null;
+  return resolveSessionHiveOwnership(identities).handle;
 }
 
 /**
@@ -63,16 +105,21 @@ export function resolveSessionHiveHandle(
  * connected Hive, want to link it?" flow. Once other logins are present none of
  * them can be attributed to the session, so the active one is treated as
  * additional too (same ambiguity rule as resolveMetadataSourceHandle).
+ *
+ * When session ownership is ambiguous the active account is always additional,
+ * whatever aioha holds: the session does own a Hive identity, we just can't name
+ * it, so nothing may stand in for it.
  */
 export function isAdditionalHiveLogin(
-  sessionHiveHandle: string | null,
+  ownership: SessionHiveOwnership,
   activeHiveUser: string | null | undefined,
   otherUsers?: Readonly<Record<string, unknown>> | null
 ): boolean {
   if (!activeHiveUser) return false;
-  if (sessionHiveHandle) {
-    return sessionHiveHandle !== activeHiveUser.toLowerCase();
+  if (ownership.status === "resolved") {
+    return ownership.handle !== activeHiveUser.toLowerCase();
   }
+  if (ownership.status === "ambiguous") return true;
   return !!otherUsers && Object.keys(otherUsers).length > 0;
 }
 
@@ -80,18 +127,23 @@ export function isAdditionalHiveLogin(
  * Which Hive account's on-chain profile metadata may be mined for linkable
  * addresses, or null when no account can be safely attributed to this session.
  *
- * The session's own Hive identity always wins. Without one, the active account
- * is only trustworthy when it is the *sole* account aioha holds — if several are
- * logged in and none is linked to the session, there is no way to tell which one
- * the session belongs to, and mining the active one would offer a stranger's
- * wallet for linking.
+ * The session's own Hive identity always wins. With *no* Hive identity, the
+ * active account is trustworthy only when it is the sole account aioha holds —
+ * if several are logged in and none is linked to the session, there is no way to
+ * tell which one the session belongs to, and mining the active one would offer a
+ * stranger's wallet for linking.
+ *
+ * Ambiguous ownership never falls back, not even to a sole aioha account: the
+ * session is known to own Hive identities that aren't the active one, so the
+ * active account is a stranger to it by construction.
  */
 export function resolveMetadataSourceHandle(
-  sessionHiveHandle: string | null,
+  ownership: SessionHiveOwnership,
   activeHiveUser: string | null | undefined,
   otherUsers: Readonly<Record<string, unknown>> | null | undefined
 ): string | null {
-  if (sessionHiveHandle) return sessionHiveHandle;
+  if (ownership.status === "resolved") return ownership.handle;
+  if (ownership.status === "ambiguous") return null;
   if (!activeHiveUser) return null;
   if (otherUsers && Object.keys(otherUsers).length > 0) return null;
   return activeHiveUser.toLowerCase();

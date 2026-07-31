@@ -8,7 +8,7 @@ import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import {
-  resolveSessionHiveHandle,
+  resolveSessionHiveOwnership,
   resolveMetadataSourceHandle,
   isAdditionalHiveLogin,
 } from "@/lib/userbase/accountLinking";
@@ -58,12 +58,14 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
     [enabled, contextIdentities]
   );
 
-  // The Hive account that owns the current userbase session. Since multi-account
+  // Who owns the current userbase session on the Hive side. Since multi-account
   // login, aioha's active user can be a second account added in the same browser,
   // which is a different person from the one this session belongs to. Linking
   // suggestions must key off the session's account, not whatever aioha has active.
-  const sessionHiveHandle = useMemo(
-    () => resolveSessionHiveHandle(identities),
+  // Carries "none" vs "ambiguous" rather than a bare null: only the former may
+  // fall back to the active account.
+  const sessionHiveOwnership = useMemo(
+    () => resolveSessionHiveOwnership(identities),
     [identities]
   );
 
@@ -71,8 +73,8 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
   // yet *and* aioha holds just that one — the genuine "you just connected Hive,
   // want to link it?" case. See resolveMetadataSourceHandle for why.
   const metadataSourceHandle = useMemo(
-    () => resolveMetadataSourceHandle(sessionHiveHandle, hiveUser, otherUsers),
-    [sessionHiveHandle, hiveUser, otherUsers]
+    () => resolveMetadataSourceHandle(sessionHiveOwnership, hiveUser, otherUsers),
+    [sessionHiveOwnership, hiveUser, otherUsers]
   );
   const { hiveAccount } = useHiveAccount(metadataSourceHandle || "");
 
@@ -135,7 +137,7 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
     // operation behind a one-line confirm. Users who genuinely need to combine two
     // profiles have the deliberate flow in settings, which previews the outcome
     // first (see UserbaseMergePanel).
-    if (hiveUser && !isAdditionalHiveLogin(sessionHiveHandle, activeHiveHandle, otherUsers)) {
+    if (hiveUser && !isAdditionalHiveLogin(sessionHiveOwnership, activeHiveHandle, otherUsers)) {
       const hasHive = identities.some(
         (i) => i.type === "hive" && i.handle?.toLowerCase() === activeHiveHandle
       );
@@ -224,7 +226,7 @@ export function useAccountLinkingOpportunities(enabled = true): AccountLinkingSt
     farcasterProfile,
     identities,
     hiveMetadataAccounts,
-    sessionHiveHandle,
+    sessionHiveOwnership,
     otherUsers,
     enabled,
   ]);

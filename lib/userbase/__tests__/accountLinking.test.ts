@@ -5,11 +5,13 @@
 
 import assert from "node:assert";
 import {
+  resolveSessionHiveOwnership,
   resolveSessionHiveHandle,
   resolveMetadataSourceHandle,
   isAdditionalHiveLogin,
   isMultiAccountTransition,
   type LinkableIdentity,
+  type SessionHiveOwnership,
 } from "../accountLinking";
 
 let hasFailures = false;
@@ -32,6 +34,56 @@ const hive = (
   is_primary = false
 ): LinkableIdentity => ({ type: "hive", handle, is_primary });
 const evm = (): LinkableIdentity => ({ type: "evm", handle: null });
+
+const owns = (handle: string): SessionHiveOwnership => ({
+  status: "resolved",
+  handle,
+});
+const ownsNothing: SessionHiveOwnership = { status: "none", handle: null };
+const ownsAmbiguously: SessionHiveOwnership = {
+  status: "ambiguous",
+  handle: null,
+};
+
+console.log("\n📦 resolveSessionHiveOwnership");
+
+it("no identities → none", () => {
+  assert.deepStrictEqual(resolveSessionHiveOwnership([]), ownsNothing);
+  assert.deepStrictEqual(resolveSessionHiveOwnership(null), ownsNothing);
+  assert.deepStrictEqual(resolveSessionHiveOwnership(undefined), ownsNothing);
+});
+
+it("session without a Hive identity → none, not ambiguous", () => {
+  assert.deepStrictEqual(resolveSessionHiveOwnership([evm()]), ownsNothing);
+});
+
+it("single Hive identity → resolved", () => {
+  assert.deepStrictEqual(
+    resolveSessionHiveOwnership([hive("alice")]),
+    owns("alice")
+  );
+});
+
+it("several identities, exactly one primary → resolved to that primary", () => {
+  assert.deepStrictEqual(
+    resolveSessionHiveOwnership([hive("alice"), hive("bob", true)]),
+    owns("bob")
+  );
+});
+
+it("several identities, none primary → ambiguous, distinct from none", () => {
+  assert.deepStrictEqual(
+    resolveSessionHiveOwnership([hive("alice"), hive("bob")]),
+    ownsAmbiguously
+  );
+});
+
+it("several identities, multiple primaries → ambiguous", () => {
+  assert.deepStrictEqual(
+    resolveSessionHiveOwnership([hive("alice", true), hive("bob", true)]),
+    ownsAmbiguously
+  );
+});
 
 console.log("\n📦 resolveSessionHiveHandle");
 
@@ -85,69 +137,104 @@ it("ignores non-Hive identities when picking", () => {
 console.log("\n📦 isAdditionalHiveLogin");
 
 it("session owns no Hive, sole aioha account → false, so first-connect still prompts", () => {
-  assert.strictEqual(isAdditionalHiveLogin(null, "alice"), false);
-  assert.strictEqual(isAdditionalHiveLogin(null, "alice", {}), false);
-  assert.strictEqual(isAdditionalHiveLogin(null, "alice", null), false);
+  assert.strictEqual(isAdditionalHiveLogin(ownsNothing, "alice"), false);
+  assert.strictEqual(isAdditionalHiveLogin(ownsNothing, "alice", {}), false);
+  assert.strictEqual(isAdditionalHiveLogin(ownsNothing, "alice", null), false);
 });
 
-it("session owns no Hive but aioha holds other logins → true (ambiguous, don't offer)", () => {
+it("session owns no Hive but aioha holds other logins → true (can't attribute, don't offer)", () => {
   assert.strictEqual(
-    isAdditionalHiveLogin(null, "bob", { alice: "keychain" }),
+    isAdditionalHiveLogin(ownsNothing, "bob", { alice: "keychain" }),
     true
   );
 });
 
+it("ambiguous ownership, sole aioha account → true (must not take the none path)", () => {
+  // The regression: with ownership collapsed to null this took the "no Hive
+  // identity" branch and offered a stranger's account for linking.
+  assert.strictEqual(isAdditionalHiveLogin(ownsAmbiguously, "carol", {}), true);
+  assert.strictEqual(isAdditionalHiveLogin(ownsAmbiguously, "carol", null), true);
+  assert.strictEqual(isAdditionalHiveLogin(ownsAmbiguously, "carol"), true);
+});
+
+it("ambiguous ownership → true even for an account the session may own", () => {
+  assert.strictEqual(isAdditionalHiveLogin(ownsAmbiguously, "alice", {}), true);
+});
+
 it("no active aioha account → false", () => {
-  assert.strictEqual(isAdditionalHiveLogin("alice", null), false);
-  assert.strictEqual(isAdditionalHiveLogin("alice", undefined), false);
+  assert.strictEqual(isAdditionalHiveLogin(owns("alice"), null), false);
+  assert.strictEqual(isAdditionalHiveLogin(owns("alice"), undefined), false);
+  assert.strictEqual(isAdditionalHiveLogin(ownsAmbiguously, null), false);
 });
 
 it("active account is the session owner → false", () => {
-  assert.strictEqual(isAdditionalHiveLogin("alice", "alice"), false);
+  assert.strictEqual(isAdditionalHiveLogin(owns("alice"), "alice"), false);
 });
 
 it("active account differs from the session owner → true", () => {
-  assert.strictEqual(isAdditionalHiveLogin("alice", "bob"), true);
+  assert.strictEqual(isAdditionalHiveLogin(owns("alice"), "bob"), true);
 });
 
 it("session owner set: other logins don't change the differ check", () => {
   assert.strictEqual(
-    isAdditionalHiveLogin("alice", "alice", { bob: "keychain" }),
+    isAdditionalHiveLogin(owns("alice"), "alice", { bob: "keychain" }),
     false
   );
 });
 
 it("comparison is case-insensitive", () => {
-  assert.strictEqual(isAdditionalHiveLogin("alice", "ALICE"), false);
+  assert.strictEqual(isAdditionalHiveLogin(owns("alice"), "ALICE"), false);
 });
 
 console.log("\n📦 resolveMetadataSourceHandle");
 
 it("session's own Hive identity always wins", () => {
   assert.strictEqual(
-    resolveMetadataSourceHandle("alice", "bob", { bob: "keychain" }),
+    resolveMetadataSourceHandle(owns("alice"), "bob", { bob: "keychain" }),
     "alice"
   );
 });
 
 it("no session Hive and no active account → null", () => {
-  assert.strictEqual(resolveMetadataSourceHandle(null, null, null), null);
+  assert.strictEqual(resolveMetadataSourceHandle(ownsNothing, null, null), null);
 });
 
 it("no session Hive, single aioha account → that account", () => {
-  assert.strictEqual(resolveMetadataSourceHandle(null, "alice", {}), "alice");
-  assert.strictEqual(resolveMetadataSourceHandle(null, "alice", null), "alice");
+  assert.strictEqual(
+    resolveMetadataSourceHandle(ownsNothing, "alice", {}),
+    "alice"
+  );
+  assert.strictEqual(
+    resolveMetadataSourceHandle(ownsNothing, "alice", null),
+    "alice"
+  );
 });
 
-it("no session Hive, several aioha accounts → null (owner is ambiguous)", () => {
+it("no session Hive, several aioha accounts → null (owner can't be attributed)", () => {
   assert.strictEqual(
-    resolveMetadataSourceHandle(null, "bob", { alice: "keychain" }),
+    resolveMetadataSourceHandle(ownsNothing, "bob", { alice: "keychain" }),
+    null
+  );
+});
+
+it("ambiguous ownership, sole aioha account → null (never falls back)", () => {
+  // The regression: an ambiguous session must not mine the active account's
+  // profile for linkable addresses just because aioha holds only that one.
+  assert.strictEqual(
+    resolveMetadataSourceHandle(ownsAmbiguously, "carol", {}),
+    null
+  );
+  assert.strictEqual(
+    resolveMetadataSourceHandle(ownsAmbiguously, "carol", null),
     null
   );
 });
 
 it("lowercases the fallback account", () => {
-  assert.strictEqual(resolveMetadataSourceHandle(null, "AlIcE", {}), "alice");
+  assert.strictEqual(
+    resolveMetadataSourceHandle(ownsNothing, "AlIcE", {}),
+    "alice"
+  );
 });
 
 console.log("\n📦 isMultiAccountTransition");
