@@ -74,7 +74,6 @@ import {
   uploadImage,
 } from "@/lib/hive/client-functions";
 import HiveClient from "@/lib/hive/hiveclient";
-import { waitForHivePost } from "@/lib/hive/waitForPost";
 import { APP_CONFIG, HIVE_CONFIG } from "@/config/app.config";
 import { extractIPFSHash } from "@/lib/utils/ipfsMetadata";
 import {
@@ -297,6 +296,10 @@ const SnapComposer = React.memo(function SnapComposer({
   // Per-network content the publish dialog collected (IG caption + collaborators,
   // Farcaster caption). Read by handleComment when it fires the cross-posts.
   const igPublishRef = useRef<{ igCaption: string; collaborators: string[]; farcasterCaption: string } | null>(null);
+  // Whether the last Farcaster cross-post went to the curation queue or was
+  // published straight away (queue switched off). Drives the closing toast's
+  // wording, which would otherwise claim a live cast is "with the curators".
+  const wentToQueueRef = useRef(false);
 
   // Cached IG handle status. 'unknown' until first lookup; 'present' means
   // the server already has a tag-able value (DB or Hive metadata); 'absent'
@@ -986,6 +989,9 @@ const SnapComposer = React.memo(function SnapComposer({
             text: castText,
             embeds: embeds.length > 0 ? embeds : undefined,
             channel_id: farcasterChannel || undefined,
+            // No Hive counterpart in this branch (Farcaster-only reply), so
+            // the queue row carries no author/permlink — just the context URL.
+            permalink_url: fcUrl,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -1001,7 +1007,7 @@ const SnapComposer = React.memo(function SnapComposer({
             });
           } else {
             toast({
-              title: "Failed to post to Farcaster.",
+              title: t('compose.crosspost.sendFailed'),
               description: data?.error || "Unknown error.",
               status: "error",
               duration: 5000,
@@ -1010,10 +1016,19 @@ const SnapComposer = React.memo(function SnapComposer({
           }
           return;
         }
+        // `queued` is absent when the curation queue is switched off for this
+        // user — the cast already went out, so don't claim it's under review.
         toast({
-          title: "Posted to Farcaster!",
+          title: data?.already_queued
+            ? t('compose.crosspost.alreadyQueued')
+            : data?.queued
+            ? t('compose.crosspost.sent')
+            : t('compose.crosspost.postedToFarcaster'),
+          description: data?.queued
+            ? t('compose.crosspost.sentDescFarcaster')
+            : undefined,
           status: "success",
-          duration: 3000,
+          duration: 5000,
           isClosable: true,
         });
         if (isMainFeedSnap) {
@@ -1030,7 +1045,7 @@ const SnapComposer = React.memo(function SnapComposer({
         onClose();
       } catch (err: any) {
         toast({
-          title: "Failed to post to Farcaster.",
+          title: "Couldn't send this to the curation team.",
           description: err?.message || "Network error.",
           status: "error",
           duration: 5000,
@@ -1246,7 +1261,7 @@ const SnapComposer = React.memo(function SnapComposer({
             const igProgressId = "ig-crosspost-progress";
             toast({
               id: igProgressId,
-              title: "Posting to Instagram…",
+              title: t('compose.crosspost.sending'),
               status: "loading",
               duration: null,
               isClosable: false,
@@ -1269,10 +1284,16 @@ const SnapComposer = React.memo(function SnapComposer({
                 toast.update(igProgressId, {
                   title: igResult.success
                     ? igResult.deduped
-                      ? "Already on Instagram"
-                      : "Posted to @skatehive on Instagram"
-                    : "Instagram cross-post failed",
-                  description: igResult.ig_permalink || igResult.error || undefined,
+                      ? t('compose.crosspost.alreadyOnInstagram')
+                      : igResult.alreadyQueued
+                      ? t('compose.crosspost.alreadyQueued')
+                      : igResult.queued
+                      ? t('compose.crosspost.sent')
+                      : t('compose.crosspost.postedToInstagram')
+                    : t('compose.crosspost.reviewFailed'),
+                  description: igResult.queued
+                    ? t('compose.crosspost.sentDescInstagram')
+                    : igResult.ig_permalink || igResult.error || undefined,
                   status: igResult.success ? "success" : "error",
                   duration: 8000,
                   isClosable: true,
@@ -1280,7 +1301,7 @@ const SnapComposer = React.memo(function SnapComposer({
               })
               .catch((err) => {
                 toast.update(igProgressId, {
-                  title: "Instagram cross-post failed",
+                  title: t('compose.crosspost.reviewFailed'),
                   description: err instanceof Error ? err.message : "Network or signing error.",
                   status: "error",
                   duration: 9000,
@@ -1292,11 +1313,12 @@ const SnapComposer = React.memo(function SnapComposer({
           onClose();
 
           // ── Farcaster cross-post orchestration ───────────────────────
-          // Wait for the snap to be indexable on Hive BEFORE firing the
-          // Farcaster cast. Otherwise Warpcast / scrapers can hit
-          // /post/{author}/{permlink} during the ~3s block confirmation
-          // window, get "Snap not found" metadata back, and cache that
-          // empty response — breaking the embed preview permanently.
+          // The cast is no longer published here — it's filed for the
+          // curation team, who cast it later from the portal. That also
+          // removes the old "wait for the snap to be indexable on Hive"
+          // step: by the time a curator approves, Hive has long settled, so
+          // there's no scraper race to lose and no reason to make the user
+          // sit through it.
           if (willFarcaster) {
             const progressId = "snap-share-progress";
             // Custom render (no default Chakra chrome) so the toast paints its
@@ -1312,35 +1334,14 @@ const SnapComposer = React.memo(function SnapComposer({
                 <PublishProgressToast
                   cover={shareCover}
                   title={t('compose.progress.title')}
-                  stage={t('compose.progress.confirmingHive')}
-                  progress={92}
-                  tone="loading"
-                />
-              ),
-            });
-
-            const confirmed = await waitForHivePost(commentAuthor, permlink, {
-              timeoutMs: 5000,
-            });
-            if (!confirmed) {
-              console.warn(
-                `[snap-share] Hive confirm timed out for @${commentAuthor}/${permlink} — cross-posting anyway`
-              );
-            }
-
-            toast.update(progressId, {
-              render: () => (
-                <PublishProgressToast
-                  cover={shareCover}
-                  title={t('compose.progress.title')}
-                  stage={t('compose.progress.postingFarcaster')}
+                  stage={t('compose.progress.sendingForReview')}
                   progress={96}
                   tone="loading"
                 />
               ),
             });
 
-            // Farcaster (awaited so the progress toast closes when done)
+            // Queue the cast (awaited so the progress toast closes when done)
             const farcasterTask: Promise<void> = (async () => {
               if (!willFarcaster) return;
               // A top-level main-feed snap IS the content → link the snap and
@@ -1366,6 +1367,10 @@ const SnapComposer = React.memo(function SnapComposer({
                     videoUrl: videoUrl || null,
                   })
                 : [{ url: farcasterUrl }];
+              // Reset before the request: on a network failure we never learn
+              // the answer, and leaving the previous publish's value here would
+              // make the closing toast describe the wrong thing.
+              wentToQueueRef.current = false;
               try {
                 const res = await fetch("/api/farcaster/cast", {
                   method: "POST",
@@ -1374,9 +1379,15 @@ const SnapComposer = React.memo(function SnapComposer({
                     text: castText,
                     embeds,
                     channel_id: farcasterChannel || undefined,
+                    hive_author: commentAuthor,
+                    hive_permlink: permlink,
+                    permalink_url: farcasterUrl,
                   }),
                 });
                 const data = await res.json().catch(() => ({}));
+                // Absent when the queue is off for this user — the cast is
+                // already live, so the closing toast shouldn't say otherwise.
+                wentToQueueRef.current = res.ok && data?.queued === true;
                 if (!res.ok) {
                   if (data?.needsSigner) {
                     toast({
@@ -1389,7 +1400,7 @@ const SnapComposer = React.memo(function SnapComposer({
                     });
                   } else {
                     toast({
-                      title: "Farcaster cross-post failed",
+                      title: t('compose.crosspost.sendFailed'),
                       description: data?.error || "Try again later.",
                       status: "warning",
                       duration: 6000,
@@ -1399,7 +1410,7 @@ const SnapComposer = React.memo(function SnapComposer({
                 }
               } catch (err: any) {
                 toast({
-                  title: "Farcaster cross-post failed",
+                  title: t('compose.crosspost.sendFailed'),
                   description: err?.message || "Network error.",
                   status: "warning",
                   duration: 6000,
@@ -1408,15 +1419,20 @@ const SnapComposer = React.memo(function SnapComposer({
               }
             })();
 
-            // Wait for Farcaster (IG is handled by the dialog opened above).
+            // Wait for the queue request (IG is handled by the dialog opened above).
             await farcasterTask;
 
-            // Close progress toast and show the final "shared" badge.
+            // Close progress toast and show the final "shared" badge. The snap
+            // IS live on Hive; the cross-post is either pending review or, with
+            // the queue switched off, already out.
             toast.close(progressId);
             toast({
               title: "Snap shared 🛹",
+              description: wentToQueueRef.current
+                ? t('compose.crosspost.snapSharedDesc')
+                : undefined,
               status: "success",
-              duration: 3000,
+              duration: 4000,
               isClosable: true,
             });
           } else if (willInstagram) {

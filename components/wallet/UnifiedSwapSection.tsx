@@ -13,7 +13,8 @@ import {
   IconButton,
   useToast,
 } from "@chakra-ui/react";
-import { FaExchangeAlt, FaHive, FaInfoCircle, FaCog } from "react-icons/fa";
+import { FaExchangeAlt, FaHive, FaInfoCircle, FaCog, FaBitcoin } from "react-icons/fa";
+import CrossChainSwapPanel from "./CrossChainSwapPanel";
 import { useAioha } from "@aioha/react-ui";
 import { shimmerStyles } from "@/lib/utils/animations";
 import { KeyTypes } from "@aioha/aioha";
@@ -332,7 +333,7 @@ function HiveSwapPanel({
 }
 
 // ─── Unified wrapper ──────────────────────────────────────────────────────────
-type SwapMode = "hive" | "erc20" | "admin";
+type SwapMode = "hive" | "crosschain" | "erc20" | "admin";
 
 export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
   const t = useTranslations();
@@ -365,6 +366,8 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
       : hasHive
         ? ["hive"]
         : ["erc20"];
+    // Hive-Engine (L2) + Magi cross-chain (→ BTC) — available to any Hive user.
+    if (hasHive) core.splice(1, 0, "crosschain");
     if (isSplitAdmin) core.push("admin");
     return core;
   }, [showBothCore, hasHive, isSplitAdmin]);
@@ -382,6 +385,7 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
 
   const tabMeta: Record<SwapMode, { label: string; icon: React.ReactElement }> = {
     hive: { label: t("swapAdmin.hiveTab"), icon: <FaHive /> },
+    crosschain: { label: "BTC / L2", icon: <FaBitcoin /> },
     erc20: { label: t("swapAdmin.erc20Tab"), icon: <FaExchangeAlt /> },
     admin: { label: t("swapAdmin.tab"), icon: <FaCog /> },
   };
@@ -451,6 +455,8 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
             hbdPrice={hbdPrice}
             isPriceLoading={isPriceLoading}
           />
+        ) : mode === "crosschain" ? (
+          <CrossChainSwapPanel />
         ) : mode === "admin" ? (
           <SwapFeeAdminPanel />
         ) : (

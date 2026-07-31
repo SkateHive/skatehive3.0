@@ -6,6 +6,7 @@ import {
   Icon,
   Image,
   Spinner,
+  Text,
   useDisclosure,
 } from "@chakra-ui/react";
 import { Discussion } from "@hiveio/dhive";
@@ -91,6 +92,21 @@ type SnapWithMedia = Discussion & {
   };
 };
 
+/**
+ * Readable preview for a snap with no image or video — the onboarding intro
+ * post is exactly this shape, and before it had a card here it was invisible
+ * on the author's own profile.
+ */
+function toTextPreview(body: string): string {
+  return body
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "") // markdown images
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // keep link text, drop the URL
+    .replace(/<[^>]+>/g, "") // stray html
+    .replace(/[*_`>#]/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 const SoftSnapGridItem = React.memo(
   ({ snap, onClick }: { snap: SnapWithMedia; onClick: () => void }) => {
     const firstImage = snap.media.images[0];
@@ -98,6 +114,7 @@ const SoftSnapGridItem = React.memo(
     const hasMultipleMedia =
       snap.media.images.length + snap.media.videos.length > 1;
     const { src: imageSrc, onError: onImageError } = useHeicFallback(firstImage || "");
+    const textPreview = !firstImage && !firstVideo ? toTextPreview(snap.body || "") : "";
 
     return (
       <Box
@@ -125,6 +142,27 @@ const SoftSnapGridItem = React.memo(
         ) : firstVideo ? (
           <Box width="100%" overflow="hidden">
             <VideoPreview src={firstVideo} onClick={onClick} />
+          </Box>
+        ) : textPreview ? (
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            minHeight="200px"
+            px={4}
+            py={6}
+            bg="muted"
+          >
+            <Text
+              fontSize="sm"
+              color="text"
+              textAlign="center"
+              whiteSpace="pre-wrap"
+              wordBreak="break-word"
+              noOfLines={8}
+            >
+              {textPreview}
+            </Text>
           </Box>
         ) : (
           <Box
@@ -162,14 +200,17 @@ export default function SoftSnapsGrid({ snaps }: SoftSnapsGridProps) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedSnapIndex, setSelectedSnapIndex] = useState<number>(0);
 
-  // Process snaps to add media info
+  // Process snaps to add media info. Text-only snaps are kept — they render as
+  // a text card. Dropping them hid the author's own posts from their profile.
   const snapsWithMedia = useMemo(() => {
     return snaps
       .map((snap) => ({
         ...snap,
         media: extractMediaFromSnap(snap),
       }))
-      .filter((snap) => snap.media.hasMedia) as SnapWithMedia[];
+      .filter(
+        (snap) => snap.media.hasMedia || toTextPreview(snap.body || "").length > 0
+      ) as SnapWithMedia[];
   }, [snaps]);
 
   const handleSnapClick = useCallback(

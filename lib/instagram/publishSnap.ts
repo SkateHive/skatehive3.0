@@ -1,11 +1,15 @@
 /**
- * Inline Instagram cross-post for the self (user) flow.
+ * Inline Instagram cross-post REQUEST for the self (user) flow.
  *
  * Extracted from InstagramCrossPostDialog so the unified "prepare & publish"
- * stepper can publish to Instagram directly (no second dialog) right after the
+ * stepper can fire the request directly (no second dialog) right after the
  * Hive post is created — it needs the snap's author/permlink for dedup +
  * attribution. Keychain signing happens here (5-min replay window) when there's
  * no userbase session cookie to authorize against.
+ *
+ * Nothing is published here: /api/instagram/post files the request for the
+ * curation team, who publish it from the portal. `queued: true` on the result
+ * means "accepted for review", NOT "live on Instagram".
  */
 import { KeyTypes } from "@aioha/aioha";
 
@@ -33,6 +37,10 @@ export interface PublishSnapResult {
   success: boolean;
   ig_permalink?: string;
   deduped?: boolean;
+  /** Accepted into the curation queue — not published yet. */
+  queued?: boolean;
+  /** This snap was already sitting in the queue. */
+  alreadyQueued?: boolean;
   error?: string;
 }
 
@@ -77,8 +85,14 @@ export async function publishSnapToInstagram(
   });
   const data = await res.json().catch(() => ({}));
 
-  if (res.ok && (data?.success || data?.ig_permalink || data?.deduped)) {
-    return { success: true, ig_permalink: data.ig_permalink, deduped: data.deduped };
+  if (res.ok && (data?.success || data?.ig_permalink || data?.deduped || data?.queued)) {
+    return {
+      success: true,
+      ig_permalink: data.ig_permalink,
+      deduped: data.deduped,
+      queued: data.queued,
+      alreadyQueued: data.already_queued,
+    };
   }
   return { success: false, error: data?.error || `HTTP ${res.status}` };
 }

@@ -283,7 +283,7 @@ export async function GET(request: NextRequest) {
 
     const { data: sessionRows, error: sessionError } = await supabase
       .from('userbase_sessions')
-      .select('id, user_id, expires_at, revoked_at, userbase_users(id, handle, display_name, avatar_url, status, onboarding_step)')
+      .select('id, user_id, expires_at, revoked_at, userbase_users(id, handle, display_name, avatar_url, bio, status, onboarding_step, created_at)')
       .eq('refresh_token_hash', refreshTokenHash)
       .is('revoked_at', null)
       .limit(1);
@@ -342,7 +342,7 @@ export async function GET(request: NextRequest) {
           .from("userbase_users")
           .update(updates)
           .eq("id", user.id)
-          .select("id, handle, display_name, avatar_url, status, onboarding_step")
+          .select("id, handle, display_name, avatar_url, bio, status, onboarding_step, created_at")
           .single();
         if (updatedUser) {
           user = updatedUser;
