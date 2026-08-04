@@ -61,32 +61,64 @@ export interface HiveSyncResult {
   spotsConsidered: number;
   upserted: number;
   skippedNoCoords: number;
-  stoppedReason: "cursor_reached" | "no_more_pages" | "page_limit" | "error";
-  cursorBefore: string | null;
-  cursorAfter: string | null;
+  stoppedReason:
+    | "caught_up"
+    | "no_more_pages"
+    | "page_limit"
+    | "error";
+  /**
+   * source_id count in spotmap_spots for source="hive" before and after
+   * the sync ran. Handy for the admin panel to show "N new" without a
+   * second query.
+   */
+  hiveCountBefore: number;
+  hiveCountAfter: number;
 }
+
+// Consecutive fully-known pages before we call the catalog caught up. One
+// isn't enough — a single boundary page whose records all landed pre-sync
+// would falsely halt us before we reach late-indexed older posts.
+const CATCH_UP_STREAK = 2;
 
 /**
  * Pulls skatespots from the external Hive API page-by-page, newest first,
- * and stops when we encounter a spot whose `created` is <= the highest
- * `hive_created` already in spotmap_spots. The first run has no cursor and
- * walks the entire feed (bounded by MAX_PAGES_PER_RUN).
+ * and upserts every unseen record. Stops when it has seen `CATCH_UP_STREAK`
+ * consecutive pages containing zero new source_ids, or when the pagination
+ * runs out, or at MAX_PAGES_PER_RUN.
+ *
+ * Why not a `hive_created` cursor: the upstream indexer at
+ * api.skatehive.app is not real-time — Snap comments in particular can be
+ * indexed hours or days after they're published. A created-date cursor
+ * short-circuits the sync as soon as it sees a record OLDER than the
+ * highest stored `hive_created`, which means late-arriving posts (very
+ * common for the mobile app, which publishes as Snaps) never enter the
+ * sync flow. Tracking source_ids instead is idempotent and survives that
+ * indexing lag.
  */
 export async function syncHiveSpots(): Promise<HiveSyncResult> {
   const supabase = getSpotmapSupabase();
   if (!supabase) throw new Error("Supabase not configured");
 
-  // Find the cursor — highest hive_created we've already stored.
-  const { data: cursorRow } = await supabase
-    .from("spotmap_spots")
-    .select("hive_created")
-    .eq("source", "hive")
-    .order("hive_created", { ascending: false })
-    .limit(1);
-
-  const cursor = cursorRow?.[0]?.hive_created
-    ? new Date(cursorRow[0].hive_created as string)
-    : null;
+  // Load every existing hive source_id into a Set. The table is small
+  // (~hundreds of rows) and this single query lets each page decide
+  // "all known?" locally without any extra round-trips.
+  const known = new Set<string>();
+  {
+    const pageSize = 1000;
+    let from = 0;
+    for (;;) {
+      const { data, error } = await supabase
+        .from("spotmap_spots")
+        .select("source_id")
+        .eq("source", "hive")
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      for (const row of data) known.add(row.source_id as string);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+  }
 
   const result: HiveSyncResult = {
     pagesFetched: 0,
@@ -95,12 +127,13 @@ export async function syncHiveSpots(): Promise<HiveSyncResult> {
     upserted: 0,
     skippedNoCoords: 0,
     stoppedReason: "no_more_pages",
-    cursorBefore: cursor ? cursor.toISOString() : null,
-    cursorAfter: null,
+    hiveCountBefore: known.size,
+    hiveCountAfter: known.size,
   };
 
   let page = 1;
   let stop = false;
+  let consecutiveKnownPages = 0;
 
   while (page <= MAX_PAGES_PER_RUN && !stop) {
     const url = `${APP_CONFIG.API_BASE_URL}/api/v2/skatespots?limit=${PAGE_SIZE}&page=${page}`;
@@ -120,33 +153,35 @@ export async function syncHiveSpots(): Promise<HiveSyncResult> {
     result.recordsSeen += payload.data.length;
 
     const toUpsert: SpotmapUpsertInput[] = [];
+    let pageHadNew = false;
 
     for (const record of payload.data) {
       // Tag filter (the external endpoint already returns skatespots, but
       // belt-and-braces in case the upstream filter loosens).
       if (!hasSkatespotTag(record)) continue;
 
+      const source_id = `${record.author}/${record.permlink}`;
+      if (known.has(source_id)) continue;
+      pageHadNew = true;
+
       const createdIso = hiveTimeToIso(record.created);
       if (!createdIso) continue;
-
-      // Cursor check: stop the whole sync as soon as we hit known territory.
-      if (cursor && new Date(createdIso) <= cursor) {
-        result.stoppedReason = "cursor_reached";
-        stop = true;
-        break;
-      }
 
       result.spotsConsidered += 1;
 
       const parsed = parseSpotBody(record.body);
       if (parsed.lat == null || parsed.lng == null) {
         result.skippedNoCoords += 1;
+        // Still mark as known — retrying next run won't help without a
+        // body edit, and it would keep the "caught up" streak from ever
+        // firing on catalogs where several rows are unparseable.
+        known.add(source_id);
         continue;
       }
 
       toUpsert.push({
         source: "hive",
-        source_id: `${record.author}/${record.permlink}`,
+        source_id,
         name: parsed.name || record.title || "Skate spot",
         description: parsed.description || null,
         lat: parsed.lat,
@@ -167,6 +202,7 @@ export async function syncHiveSpots(): Promise<HiveSyncResult> {
         hive_created: createdIso,
         hive_last_update: hiveTimeToIso(record.last_update),
       });
+      known.add(source_id);
     }
 
     if (toUpsert.length > 0) {
@@ -181,7 +217,12 @@ export async function syncHiveSpots(): Promise<HiveSyncResult> {
       result.upserted += count ?? toUpsert.length;
     }
 
-    if (stop) break;
+    consecutiveKnownPages = pageHadNew ? 0 : consecutiveKnownPages + 1;
+    if (consecutiveKnownPages >= CATCH_UP_STREAK) {
+      result.stoppedReason = "caught_up";
+      stop = true;
+      break;
+    }
 
     if (!payload.pagination?.hasNextPage) {
       result.stoppedReason = "no_more_pages";
@@ -195,13 +236,7 @@ export async function syncHiveSpots(): Promise<HiveSyncResult> {
     result.stoppedReason = "page_limit";
   }
 
-  const { data: afterRow } = await supabase
-    .from("spotmap_spots")
-    .select("hive_created")
-    .eq("source", "hive")
-    .order("hive_created", { ascending: false })
-    .limit(1);
-  result.cursorAfter = afterRow?.[0]?.hive_created ?? null;
+  result.hiveCountAfter = known.size;
 
   return result;
 }

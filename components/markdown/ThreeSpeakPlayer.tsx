@@ -266,6 +266,7 @@ function ThreeSpeakPoster({
     >
       {poster && (
         <img
+          className="embed-poster"
           src={poster}
           alt=""
           loading="lazy"

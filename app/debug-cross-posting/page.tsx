@@ -167,11 +167,13 @@ export default function DebugCrossPostingPage() {
     setVideoUrl(preset.videoUrl);
   };
 
-  // ── Optional: actually send the cast (Farcaster only — IG is gated
-  //    on HP and would spam @skatehive, so we never send IG from here).
+  // ── Optional: file this cast for real (Farcaster only — IG is gated on HP
+  //    and would spam @skatehive, so we never send IG from here).
+  //    Since the curation queue landed this no longer casts: it lands in
+  //    userbase_crosspost_queue as pending_review like any user request.
   const [isSending, setIsSending] = useState(false);
   const sendCastForReal = async () => {
-    if (!confirm("Send this cast to YOUR Farcaster account?")) return;
+    if (!confirm("Send this cast to the curation queue for review?")) return;
     setIsSending(true);
     try {
       const res = await fetch("/api/farcaster/cast", {
@@ -186,14 +188,14 @@ export default function DebugCrossPostingPage() {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         toast({
-          title: "Cast sent",
-          description: data?.hash ? `hash: ${data.hash}` : undefined,
+          title: data?.already_queued ? "Already in the queue" : "Queued for review",
+          description: data?.queue_id ? `queue_id: ${data.queue_id}` : undefined,
           status: "success",
           duration: 5000,
         });
       } else {
         toast({
-          title: `Cast failed (HTTP ${res.status})`,
+          title: `Queueing failed (HTTP ${res.status})`,
           description: data?.error || "see network tab",
           status: "error",
           duration: 8000,
@@ -455,12 +457,13 @@ export default function DebugCrossPostingPage() {
                   onClick={sendCastForReal}
                   isDisabled={!castText || castText.length > CAST_MAX_CHARS}
                 >
-                  send for real →
+                  send for review →
                 </Button>
               </ButtonGroup>
               <Text fontSize="2xs" color="dim" mt={2} fontFamily="mono">
-                Hits POST /api/farcaster/cast on your behalf (cookie or
-                Hive-signature auth). Posts to your real Farcaster.
+                Hits POST /api/farcaster/cast on your behalf (cookie auth). It
+                does NOT cast — it files the request in the curation queue,
+                where the social team approves or rejects it.
               </Text>
             </Box>
 

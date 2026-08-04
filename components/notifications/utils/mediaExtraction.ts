@@ -1,4 +1,5 @@
 import { getImageUrls } from "@/lib/hive/metadata-utils";
+import { parseHiveDate } from "@/lib/utils/hiveDate";
 
 export interface ExtractedMedia {
   previewUrl: string | null;
@@ -242,7 +243,7 @@ export function sanitizeNotificationBody(
  * Format notification date for display
  */
 export function formatNotificationDate(dateString: string): string {
-  return new Date(dateString + "Z").toLocaleString("en-US", {
+  return parseHiveDate(dateString).toLocaleString("en-US", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -260,12 +261,7 @@ export function isNotificationNew(
   notificationDate: string,
   lastReadDate: string
 ): boolean {
-  const notificationDateStr = notificationDate.endsWith("Z")
-    ? notificationDate
-    : `${notificationDate}Z`;
-  const notifDate = new Date(notificationDateStr);
-  const lastRead = new Date(lastReadDate);
-  return notifDate > lastRead;
+  return parseHiveDate(notificationDate) > parseHiveDate(lastReadDate);
 }
 
 /**

@@ -103,7 +103,10 @@ export default function SnapsGrid({ username, hasSoftSnaps }: SnapsGridProps) {
       const videoUrls = snaps
         .filter((snap) => snap.media.videos.length > 0)
         .slice(0, 6) // Only preload first 6 videos
-        .map((snap) => snap.media.videos[0]);
+        .map((snap) => snap.media.videos[0])
+        // Skip Odysee embed pages — preloadThumbnails resolves posters via the
+        // IPFS metadata route, which 404s for platform embed URLs.
+        .filter((url) => !/(^|\.)odysee\.com/i.test(url));
 
       if (videoUrls.length > 0) {
         preloadThumbnails(videoUrls).catch((error) => {

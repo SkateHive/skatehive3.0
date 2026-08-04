@@ -2,10 +2,6 @@ import { Box, Image, Text } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { TokenDetail, blockchainDictionary } from "../../../types/portfolio";
 import { getTokenLogoSync } from "../../../lib/utils/portfolioUtils";
-import { getZoraToken } from "../../../lib/utils/zoraEnrichment";
-
-// Simple in-memory cache so we don't re-fetch the same Zora coin on every render
-const zoraImageCache = new Map<string, string | null>();
 
 interface TokenLogoProps {
   token: TokenDetail;
@@ -27,7 +23,6 @@ const CHAIN_IDS: Record<string, number> = {
   "binance-smart-chain": 56,
   bsc: 56,
   degen: 666666666,
-  zora: 7777777,
 };
 
 /** Map network name → Trust Wallet assets chain folder */
@@ -74,13 +69,7 @@ function buildLogoSources(token: TokenDetail): string[] {
 
   const sources: string[] = [];
 
-  // 1. Zora enrichment cache — highest quality official images
-  const zoraEnriched = getZoraToken(address);
-  if (zoraEnriched?.logo) {
-    sources.push(zoraEnriched.logo);
-  }
-
-  // 2. GeckoTerminal cache (sync, already fetched via portfolioUtils)
+  // 1. GeckoTerminal cache (sync, already fetched via portfolioUtils)
   const networkInfo =
     blockchainDictionary[network] || blockchainDictionary[token.network];
   const cached = getTokenLogoSync(token.token, networkInfo, token.network);
@@ -161,35 +150,8 @@ export default function TokenLogo({
 }: TokenLogoProps) {
   const networkInfo = blockchainDictionary[token.network];
   const isHiveToken = token.network === "hive";
-  const isZoraToken = token.network?.toLowerCase() === "zora";
-  const tokenAddress = token.token.address?.toLowerCase();
 
-  const [zoraImage, setZoraImage] = useState<string | null>(() => {
-    if (!isZoraToken || !tokenAddress) return null;
-    return zoraImageCache.get(tokenAddress) ?? null;
-  });
-
-  useEffect(() => {
-    if (!isZoraToken || !tokenAddress) return;
-    if (zoraImageCache.has(tokenAddress)) {
-      const cached = zoraImageCache.get(tokenAddress) ?? null;
-      setZoraImage(cached);
-      return;
-    }
-    fetch(`/api/zora/coin?address=${tokenAddress}&chainId=7777777`)
-      .then((r) => r.json())
-      .then((data) => {
-        const img: string | null = data.image ?? null;
-        zoraImageCache.set(tokenAddress, img);
-        if (img) setZoraImage(img);
-      })
-      .catch(() => {
-        zoraImageCache.set(tokenAddress, null);
-      });
-  }, [isZoraToken, tokenAddress]);
-
-  const baseSources = buildLogoSources(token);
-  const sources = zoraImage ? [zoraImage, ...baseSources] : baseSources;
+  const sources = buildLogoSources(token);
 
   const fallbackElement = (
     <Box

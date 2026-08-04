@@ -53,7 +53,6 @@ EMAIL_RECOVERYACC=             # Recovery email address
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID= # From https://cloud.walletconnect.com
 NEXT_PUBLIC_ALCHEMY_KEY=              # From https://alchemy.com
 NEXT_PUBLIC_ONCHAINKIT_API_KEY=       # From Coinbase
-NEXT_PUBLIC_ZORA_API_KEY=             # From Zora
 ```
 
 #### 6. File Storage (Pinata/IPFS)

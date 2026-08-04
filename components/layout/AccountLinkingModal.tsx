@@ -306,7 +306,7 @@ export default function AccountLinkingModal({
     const username = handle || userbaseUser?.handle || hiveUser;
     if (!username) return;
 
-    const viewMode = type === "hive" ? "" : type === "evm" ? "?view=zora" : "?view=farcaster";
+    const viewMode = type === "farcaster" ? "?view=farcaster" : "";
     router.push(`/user/${username}${viewMode}`);
   }, [router, userbaseUser, hiveUser]);
 
@@ -490,7 +490,7 @@ export default function AccountLinkingModal({
       await refresh();
       setJustLinked(true);
 
-      // Route to Zora profile
+      // Route to profile
       setTimeout(() => {
         routeAfterLink("evm");
       }, 1000);

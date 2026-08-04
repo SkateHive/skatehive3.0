@@ -11,7 +11,7 @@ import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useReport } from "@/contexts/ReportContext";
 import Sidebar from "@/components/layout/Sidebar";
-import FooterNavButtons from "@/components/layout/FooterNavButtons";
+import MobileTabBar from "@/components/layout/MobileTabBar";
 import FooterLinks from "@/components/layout/FooterLinks";
 import SplashScreen from "@/components/layout/SplashScreen";
 import { Providers } from "./providers";
@@ -24,6 +24,7 @@ const SearchOverlay = dynamic(() => import("@/components/shared/SearchOverlay"),
 const AirdropModal = dynamic(() => import("@/components/airdrop/AirdropModal"), { ssr: false });
 const ReportModal = dynamic(() => import("@/components/report/ReportModal"), { ssr: false });
 const AccountLinkingDetector = dynamic(() => import("@/components/layout/AccountLinkingDetector"), { ssr: false });
+const OnboardingDetector = dynamic(() => import("@/components/onboarding/OnboardingDetector"), { ssr: false });
 const CommunityToasts = dynamic(() => import("@/components/homepage/CommunityToasts"), { ssr: false });
 const IOSAppBanner = dynamic(() => import("@/components/shared/IOSAppBanner"), { ssr: false });
 const HZCEasterEgg = dynamic(() => import("@/components/shared/HZCEasterEgg"), { ssr: false });
@@ -165,11 +166,14 @@ function InnerLayout({
   // ReportContext lives inside <Providers>, so useReport() is safe here
   const { isOpen: isReportOpen, openReport, closeReport, reportOptions } = useReport();
 
-  // Pages with infinite scroll should not show footer
+  // Pages with infinite scroll should not show footer. /home is the curated
+  // media magazine — it keeps the app sidebar but supplies its own index rail +
+  // footer, so suppress the app FooterLinks there.
   const hasInfiniteScroll =
     pathname === "/" ||
     pathname?.startsWith("/user/") ||
     pathname === "/magazine" ||
+    pathname === "/home" ||
     pathname === "/blog" ||
     pathname?.startsWith("/blog/tag/") ||
     pathname === "/videos" ||
@@ -232,6 +236,9 @@ function InnerLayout({
       {/* Account Linking Detector - auto-prompts when wallets are connected */}
       <AccountLinkingDetector />
 
+      {/* Onboarding Detector - guides new users through profile setup */}
+      <OnboardingDetector />
+
       {/* HZC Easter Egg */}
       <HZCEasterEgg onTrigger={() => searchProps?.setIsSearchOpen(false)} />
 
@@ -242,6 +249,7 @@ function InnerLayout({
           overflowY="auto"
           overflowX="hidden"
           height="100vh"
+          pb={{ base: "calc(60px + env(safe-area-inset-bottom))", md: 0 }}
           sx={{
             scrollbarWidth: "none",
             "&::-webkit-scrollbar": {
@@ -253,7 +261,7 @@ function InnerLayout({
           {!isMobile && !hasInfiniteScroll && <FooterLinks />}
         </Box>
       </Flex>
-      {isMobile && <FooterNavButtons />}
+      {isMobile && <MobileTabBar />}
     </Container>
   );
 }

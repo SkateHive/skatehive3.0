@@ -3,12 +3,11 @@ import { Box, Text, Skeleton } from "@chakra-ui/react";
 import { usePortfolioContext } from "@/contexts/PortfolioContext";
 import { useLocale } from "@/contexts/LocaleContext";
 
-type ChainFilter = "all" | "hive" | "evm" | "farcaster" | "zora";
+type ChainFilter = "all" | "hive" | "evm" | "farcaster";
 
 interface TotalPortfolioValueProps {
   totalHiveAssetsValue: number;
   chainFilter: ChainFilter;
-  zoraTotalValue?: number;
   isLoading?: boolean;
 }
 
@@ -17,13 +16,11 @@ const LABELS: Record<ChainFilter, string> = {
   hive: "Hive Balance",
   evm: "EVM Balance",
   farcaster: "Farcaster Balance",
-  zora: "Zora Balance",
 };
 
 export default function TotalPortfolioValue({
   totalHiveAssetsValue,
   chainFilter,
-  zoraTotalValue = 0,
   isLoading,
 }: TotalPortfolioValueProps) {
   const { locale } = useLocale();
@@ -45,7 +42,6 @@ export default function TotalPortfolioValue({
         .reduce((sum, p) => sum + (p?.totalNetWorth || 0), 0);
       return evmBase + evmVerified;
     }
-    if (chainFilter === "zora") return zoraTotalValue;
     if (chainFilter === "farcaster") return farcasterPortfolio?.totalNetWorth || 0;
     // "all"
     return totalHiveAssetsValue + (aggregatedPortfolio?.totalNetWorth || 0);
