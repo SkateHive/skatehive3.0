@@ -1,5 +1,18 @@
 // This file defines the structure that all translation files must follow
 export interface TranslationSchema {
+  swapTokens: {
+    searchPlaceholder: string;
+    popular: string;
+    myTokens: string;
+    recent: string;
+    clear: string;
+    tokens: string;
+    showMore: string;
+    showLess: string;
+    importing: string;
+    imported: string;
+    noResults: string;
+  };
   swapAdmin: {
     tab: string;
     hiveTab: string;

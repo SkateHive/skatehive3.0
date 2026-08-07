@@ -3,23 +3,22 @@ import { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
   Box, Text, Button, Input, HStack, VStack, Image,
   Spinner, Tooltip, useToast, Checkbox,
-  Modal, ModalOverlay, ModalContent, ModalBody, ModalCloseButton,
-  InputGroup, InputLeftElement, InputRightElement, useDisclosure, Wrap, WrapItem,
+  InputGroup, InputRightElement, useDisclosure,
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
-import { FaExchangeAlt, FaInfoCircle, FaSearch, FaChevronDown, FaCheck, FaCog } from "react-icons/fa";
-import { useAccount, useBalance, useChainId, useSendTransaction, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { FaExchangeAlt, FaInfoCircle, FaChevronDown, FaCog } from "react-icons/fa";
+import { useAccount, useBalance, useChainId, useSendTransaction, useWaitForTransactionReceipt, useWriteContract, useSwitchChain } from "wagmi";
 import { parseUnits, formatUnits, formatEther, maxUint256, UserRejectedRequestError } from "viem";
 import { PortfolioContext } from "@/contexts/PortfolioContext";
+import TokenSelectorModal from "./TokenSelectorModal";
+import {
+  defaultPair, getSwapChain, isNativeToken, networkToChainId, type SwapToken,
+} from "@/lib/evm/swapTokens";
 
 const shimmer = keyframes`
   0%   { background-position: -200% center; }
   100% { background-position:  200% center; }
 `;
-
-// ─── Token Definitions ───────────────────────────────────────────────────────
-
-const NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
 const ERC20_ABI = [
   {
@@ -33,301 +32,6 @@ const ERC20_ABI = [
     outputs: [{ type: "bool" }],
   },
 ] as const;
-
-interface TokenInfo {
-  symbol: string;
-  address: string;
-  decimals: number;
-  logo?: string;
-  name?: string;
-  balance?: string;
-}
-
-const STANDARD_TOKENS_BY_CHAIN: Record<number, TokenInfo[]> = {
-  // Base
-  8453: [
-    { symbol: "ETH",   address: NATIVE,                                        decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "WETH",  address: "0x4200000000000000000000000000000000000006",  decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "USDC",  address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",  decimals: 6,  logo: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png" },
-    { symbol: "DAI",   address: "0x50c5725949a6f0c72e6c4a641f24049a917db0cb",  decimals: 18 },
-    { symbol: "DEGEN", address: "0x4ed4e862860bed51a9570b96d89af5e1b0efefed",  decimals: 18, logo: "/logos/degen.png" },
-    { symbol: "HIGHER",address: "0x0578d8a44db98b23bf096a382e016e29a5ce0ffe",  decimals: 18, logo: "/logos/higher.png" },
-  ],
-  // Ethereum
-  1: [
-    { symbol: "ETH",  address: NATIVE,                                         decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "WETH", address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",   decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "USDC", address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",   decimals: 6 },
-    { symbol: "USDT", address: "0xdac17f958d2ee523a2206206994597c13d831ec7",   decimals: 6 },
-    { symbol: "DAI",  address: "0x6b175474e89094c44da98b954eedeac495271d0f",   decimals: 18 },
-  ],
-  // Arbitrum
-  42161: [
-    { symbol: "ETH",  address: NATIVE,                                         decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "WETH", address: "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",   decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "USDC", address: "0xaf88d065e77c8cc2239327c5edb3a432268e5831",   decimals: 6 },
-    { symbol: "ARB",  address: "0x912ce59144191c1204e64559fe8253a0e49e6548",   decimals: 18 },
-  ],
-};
-
-const CHAIN_NAMES: Record<number, string> = { 8453: "Base", 1: "Ethereum", 42161: "Arbitrum" };
-
-// ─── Token Logo Helper ──────────────────────────────────────────────────────
-
-function TokenLogo({ token, size = "28px" }: { token: TokenInfo; size?: string }) {
-  if (token.logo) {
-    return (
-      <Image src={token.logo} w={size} h={size} objectFit="contain" borderRadius="full" alt=""
-        fallback={
-          <Box w={size} h={size} borderRadius="full" bg="border" display="flex"
-            alignItems="center" justifyContent="center">
-            <Text fontSize="xs" fontWeight="bold" color="text">{token.symbol[0]}</Text>
-          </Box>
-        } />
-    );
-  }
-  return (
-    <Box w={size} h={size} borderRadius="full" bg="border" display="flex"
-      alignItems="center" justifyContent="center">
-      <Text fontSize="xs" fontWeight="bold" color="text">{token.symbol[0]}</Text>
-    </Box>
-  );
-}
-
-// ─── Token Row ──────────────────────────────────────────────────────────────
-
-function TokenRow({ token, isSelected, isExcluded, onClick }: {
-  token: TokenInfo;
-  isSelected: boolean;
-  isExcluded: boolean;
-  onClick: () => void;
-}) {
-  const bal = token.balance ? parseFloat(token.balance) : null;
-  return (
-    <HStack
-      px={3} py={2.5}
-      cursor={isExcluded ? "not-allowed" : "pointer"}
-      opacity={isExcluded ? 0.3 : 1}
-      bg={isSelected ? "muted" : "transparent"}
-      borderLeft="2px solid"
-      borderColor={isSelected ? "primary" : "transparent"}
-      _hover={isExcluded ? {} : { bg: "muted", borderColor: "primary" }}
-      transition="all 0.1s"
-      onClick={onClick}
-      spacing={3}
-    >
-      <TokenLogo token={token} size="32px" />
-      <VStack spacing={0} align="start" flex={1} minW={0}>
-        <HStack spacing={1}>
-          <Text fontSize="sm" fontWeight="black" fontFamily="mono" color="text" isTruncated>
-            {token.symbol}
-          </Text>
-          {token.name && token.name !== token.symbol && (
-            <Text fontSize="xs" color="dim" fontFamily="mono" isTruncated>
-              {token.name}
-            </Text>
-          )}
-        </HStack>
-        <Text fontSize="9px" color="dim" fontFamily="mono" noOfLines={1}>
-          {token.address === NATIVE ? "Native coin" : `${token.address.slice(0, 6)}...${token.address.slice(-4)}`}
-        </Text>
-      </VStack>
-      <VStack spacing={0} align="end" flexShrink={0}>
-        {bal !== null && bal > 0 ? (
-          <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="text">
-            {bal < 0.0001 ? bal.toExponential(2) : bal < 1 ? bal.toFixed(4) : bal < 1000 ? bal.toFixed(2) : Math.floor(bal).toLocaleString()}
-          </Text>
-        ) : isSelected ? (
-          <FaCheck color="var(--chakra-colors-primary)" size={12} />
-        ) : null}
-      </VStack>
-    </HStack>
-  );
-}
-
-// ─── Token Picker (Matcha-style modal) ──────────────────────────────────────
-
-const POPULAR_SYMBOLS = ["ETH", "USDC", "DEGEN", "HIGHER"];
-
-function TokenPicker({
-  selected,
-  tokens,
-  onSelect,
-  label,
-  exclude,
-}: {
-  selected: TokenInfo;
-  tokens: TokenInfo[];
-  onSelect: (t: TokenInfo) => void;
-  label: string;
-  exclude?: string;
-}) {
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [query, setQuery] = useState("");
-
-  const popular = useMemo(
-    () => tokens.filter((t) => POPULAR_SYMBOLS.includes(t.symbol)),
-    [tokens],
-  );
-
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    if (!q) return tokens;
-    return tokens.filter(
-      (t) =>
-        t.symbol.toLowerCase().includes(q) ||
-        (t.name?.toLowerCase().includes(q)) ||
-        t.address.toLowerCase().includes(q),
-    );
-  }, [query, tokens]);
-
-  const handleSelect = (t: TokenInfo) => {
-    if (t.address === exclude) return;
-    onSelect(t);
-    setQuery("");
-    onClose();
-  };
-
-  return (
-    <>
-      <Button
-        size="sm"
-        variant="outline"
-        borderColor="border"
-        borderRadius="none"
-        fontFamily="mono"
-        fontWeight="black"
-        color="text"
-        px={2}
-        flexShrink={0}
-        onClick={onOpen}
-        leftIcon={<TokenLogo token={selected} size="18px" />}
-        rightIcon={<FaChevronDown size={10} />}
-        _hover={{ borderColor: "primary", color: "primary" }}
-        aria-label={label}
-      >
-        {selected.symbol}
-      </Button>
-
-      <Modal isOpen={isOpen} onClose={() => { setQuery(""); onClose(); }} size="md" isCentered>
-        <ModalOverlay backdropFilter="blur(6px)" bg="blackAlpha.700" />
-        <ModalContent
-          bg="background"
-          border="2px solid"
-          borderColor="primary"
-          borderRadius="none"
-          mx={4}
-          maxH="85vh"
-        >
-          <ModalCloseButton color="dim" top={3} right={3} />
-          <ModalBody px={0} py={0}>
-            {/* Search */}
-            <Box px={4} pt={4} pb={3}>
-              <InputGroup size="lg">
-                <InputLeftElement pointerEvents="none" h="100%">
-                  <FaSearch color="var(--chakra-colors-dim)" />
-                </InputLeftElement>
-                <Input
-                  placeholder="Search supported tokens by name or address"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  bg="muted"
-                  border="1px solid"
-                  borderColor="border"
-                  borderRadius="none"
-                  fontFamily="mono"
-                  fontSize="sm"
-                  color="text"
-                  h="48px"
-                  _placeholder={{ color: "dim" }}
-                  _focus={{ borderColor: "primary", boxShadow: "none" }}
-                  autoFocus
-                />
-              </InputGroup>
-            </Box>
-
-            {/* Popular tokens row */}
-            {!query && popular.length > 0 && (
-              <Box px={4} pb={3}>
-                <Text fontSize="10px" fontFamily="mono" color="dim" textTransform="uppercase"
-                  letterSpacing="wider" mb={2}>
-                  Popular
-                </Text>
-                <Wrap spacing={2}>
-                  {popular.map((t) => {
-                    const isSel = t.address === selected.address;
-                    const isExcl = t.address === exclude;
-                    return (
-                      <WrapItem key={t.address}>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          borderColor={isSel ? "primary" : "border"}
-                          borderRadius="full"
-                          fontFamily="mono"
-                          fontWeight="bold"
-                          fontSize="xs"
-                          color={isSel ? "primary" : "text"}
-                          opacity={isExcl ? 0.3 : 1}
-                          cursor={isExcl ? "not-allowed" : "pointer"}
-                          leftIcon={<TokenLogo token={t} size="16px" />}
-                          onClick={() => handleSelect(t)}
-                          _hover={isExcl ? {} : { borderColor: "primary", bg: "muted" }}
-                          h="32px"
-                          px={3}
-                        >
-                          {t.symbol}
-                        </Button>
-                      </WrapItem>
-                    );
-                  })}
-                </Wrap>
-              </Box>
-            )}
-
-            {/* Divider */}
-            <Box h="1px" bg="border" />
-
-            {/* Token list */}
-            <VStack
-              spacing={0}
-              align="stretch"
-              maxH="400px"
-              overflowY="auto"
-              sx={{
-                "&::-webkit-scrollbar": { w: "4px" },
-                "&::-webkit-scrollbar-thumb": { bg: "border", borderRadius: "2px" },
-              }}
-            >
-              {filtered.length > 0 && (
-                <Text fontSize="10px" fontFamily="mono" color="dim" textTransform="uppercase"
-                  letterSpacing="wider" px={4} pt={3} pb={1}>
-                  Tokens
-                </Text>
-              )}
-              {filtered.map((t) => (
-                <TokenRow
-                  key={t.address}
-                  token={t}
-                  isSelected={t.address === selected.address}
-                  isExcluded={t.address === exclude}
-                  onClick={() => handleSelect(t)}
-                />
-              ))}
-
-              {/* No results */}
-              {query && filtered.length === 0 && (
-                <Box py={6} textAlign="center">
-                  <Text fontSize="xs" color="dim" fontFamily="mono">No tokens found</Text>
-                </Box>
-              )}
-            </VStack>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-    </>
-  );
-}
 
 // ─── Error helpers ──────────────────────────────────────────────────────────
 
@@ -345,6 +49,64 @@ function friendlyError(e: unknown): string {
   );
 }
 
+// ─── Token selector trigger ──────────────────────────────────────────────────
+
+function SelectorTrigger({
+  token,
+  onSelect,
+  excludeAddress,
+  activeChainId,
+  label,
+}: {
+  token: SwapToken;
+  onSelect: (t: SwapToken) => void;
+  excludeAddress?: string;
+  activeChainId: number;
+  label: string;
+}) {
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        borderColor="border"
+        borderRadius="none"
+        fontFamily="mono"
+        fontWeight="black"
+        color="text"
+        px={2}
+        flexShrink={0}
+        onClick={onOpen}
+        aria-label={label}
+        leftIcon={
+          <Image
+            src={token.logo}
+            w="18px"
+            h="18px"
+            objectFit="contain"
+            borderRadius="full"
+            alt=""
+            fallback={<Box w="18px" h="18px" borderRadius="full" bg="border" />}
+          />
+        }
+        rightIcon={<FaChevronDown size={10} />}
+        _hover={{ borderColor: "primary", color: "primary" }}
+      >
+        {token.symbol}
+      </Button>
+      <TokenSelectorModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onSelect={onSelect}
+        selectedAddress={token.address}
+        excludeAddress={excludeAddress}
+        activeChainId={activeChainId}
+      />
+    </>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface ERC20SwapSectionProps {
@@ -358,45 +120,15 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const toast = useToast();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
   const { data: ethBalance } = useBalance({ address });
 
-  // ── Build unified token list ────────────────────────────────────────────
-  const standardTokens = useMemo(
-    () => STANDARD_TOKENS_BY_CHAIN[chainId] ?? STANDARD_TOKENS_BY_CHAIN[8453],
-    [chainId],
-  );
-
-  // Use portfolio balances (already fetched by PortfolioProvider) — safe when outside provider
   const portfolioCtx = useContext(PortfolioContext);
   const portfolioTokens = portfolioCtx?.aggregatedPortfolio?.tokens;
 
-  const allTokens = useMemo(() => {
-    const ethBal = ethBalance ? formatEther(ethBalance.value) : undefined;
-
-    // Build a quick lookup: lowercase address → balance number
-    const balanceMap = new Map<string, number>();
-    if (portfolioTokens) {
-      for (const pt of portfolioTokens) {
-        const addr = (pt.token?.address ?? pt.address ?? "").toLowerCase();
-        const bal = pt.token?.balance ?? 0;
-        if (addr && bal > 0) balanceMap.set(addr, bal);
-      }
-    }
-
-    return standardTokens.map((t) => {
-      // ETH: use wagmi balance (more accurate/realtime)
-      if (t.address === NATIVE) {
-        return ethBal ? { ...t, balance: ethBal } : t;
-      }
-      // ERC-20: use portfolio API balance
-      const bal = balanceMap.get(t.address.toLowerCase());
-      return bal ? { ...t, balance: String(bal) } : t;
-    });
-  }, [standardTokens, ethBalance, portfolioTokens]);
-
   // ── Core state ──────────────────────────────────────────────────────────
-  const [sellToken, setSellToken] = useState<TokenInfo>(standardTokens[0]);
-  const [buyToken, setBuyToken] = useState<TokenInfo>(standardTokens[2] ?? standardTokens[1]);
+  const [sellToken, setSellToken] = useState<SwapToken>(() => defaultPair(chainId).sell);
+  const [buyToken, setBuyToken] = useState<SwapToken>(() => defaultPair(chainId).buy);
   const [sellAmount, setSellAmount] = useState("");
   const [supportFee, setSupportFee] = useState(true);
 
@@ -414,15 +146,22 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   // ── Shared state ────────────────────────────────────────────────────────
   const [isFetching, setIsFetching] = useState(false);
 
-  // ── Balance of the currently selected sell token (from enriched list) ────
+  // ── Balance of the currently selected sell token ─────────────────────────
   const sellBalance = useMemo(() => {
-    const match = allTokens.find(
-      (t) => t.address.toLowerCase() === sellToken.address.toLowerCase(),
-    );
-    return match?.balance ? parseFloat(match.balance) : 0;
-  }, [allTokens, sellToken]);
+    if (isNativeToken(sellToken.address)) {
+      return ethBalance ? parseFloat(formatEther(ethBalance.value)) : 0;
+    }
+    if (portfolioTokens) {
+      for (const pt of portfolioTokens) {
+        if (networkToChainId(pt.network ?? "") !== sellToken.chainId) continue;
+        const addr = (pt.token?.address ?? pt.address ?? "").toLowerCase();
+        if (addr === sellToken.address.toLowerCase()) return pt.token?.balance ?? 0;
+      }
+    }
+    return 0;
+  }, [sellToken, ethBalance, portfolioTokens]);
 
-  const isNativeSell = sellToken.address === NATIVE;
+  const isNativeSell = isNativeToken(sellToken.address);
 
   const setAmountFromBalance = useCallback(
     (fraction: number) => {
@@ -440,14 +179,52 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const insufficientBalance =
     !!sellAmount && parseFloat(sellAmount) > 0 && parseFloat(sellAmount) > sellBalance;
 
-  // Reset tokens when chain changes
+  // Realign tokens whenever the wallet chain changes and no longer matches
+  // (e.g. the user switched network directly in their wallet).
   useEffect(() => {
-    const list = STANDARD_TOKENS_BY_CHAIN[chainId] ?? STANDARD_TOKENS_BY_CHAIN[8453];
-    setSellToken(list[0]);
-    setBuyToken(list[2] ?? list[1]);
-    setSellAmount("");
-    setPrice(null);
+    if (sellToken.chainId !== chainId || buyToken.chainId !== chainId) {
+      const dp = defaultPair(chainId);
+      setSellToken(dp.sell);
+      setBuyToken(dp.buy);
+      setSellAmount("");
+      setPrice(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chainId]);
+
+  // Pick a token; if it lives on another chain, switch the wallet network too.
+  const selectToken = useCallback(
+    async (side: "sell" | "buy", token: SwapToken) => {
+      if (token.chainId === chainId) {
+        if (side === "sell") setSellToken(token);
+        else setBuyToken(token);
+        setSellAmount("");
+        setPrice(null);
+        return;
+      }
+      // Cross-chain: set the whole pair for the new chain, then switch network.
+      const dp = defaultPair(token.chainId);
+      const sameAddr = (a: SwapToken) => a.address.toLowerCase() === token.address.toLowerCase();
+      const other =
+        side === "sell" ? (sameAddr(dp.buy) ? dp.sell : dp.buy) : (sameAddr(dp.sell) ? dp.buy : dp.sell);
+      setSellToken(side === "sell" ? token : other);
+      setBuyToken(side === "buy" ? token : other);
+      setSellAmount("");
+      setPrice(null);
+      try {
+        await switchChain({ chainId: token.chainId });
+      } catch (e) {
+        const back = defaultPair(chainId);
+        setSellToken(back.sell);
+        setBuyToken(back.buy);
+        if (isUserRejection(e))
+          toast({ title: "Network switch cancelled", status: "info", duration: 2000, isClosable: true });
+        else
+          toast({ title: "Could not switch network", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
+      }
+    },
+    [chainId, switchChain, toast],
+  );
 
   // ── Debounced quote fetch (0x Protocol) ───────────────────────────────
   useEffect(() => {
@@ -475,7 +252,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
 
         const spender = data?.issues?.allowance?.spender ?? data?.allowanceTarget;
         const needsAllow =
-          sellToken.address !== NATIVE &&
+          !isNativeToken(sellToken.address) &&
           !!data?.issues?.allowance &&
           !!spender;
         setNeedsApproval(needsAllow);
@@ -595,7 +372,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const canSwap =
     isConnected && !!price?.liquidityAvailable && !needsApproval && !isLoading && !!sellAmount && !insufficientBalance;
 
-  const routeLabel = `via 0x · ${CHAIN_NAMES[chainId] ?? "Unknown"}`;
+  const routeLabel = `via 0x · ${getSwapChain(chainId)?.name ?? "Unknown"}`;
 
   const handleFlip = () => {
     const newSell = buyToken;
@@ -747,12 +524,12 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
                   _placeholder={{ color: "dim" }}
                 />
               </HStack>
-              <TokenPicker
-                selected={sellToken}
-                tokens={allTokens}
-                onSelect={(t) => { setSellToken(t); setSellAmount(""); setPrice(null); }}
+              <SelectorTrigger
+                token={sellToken}
+                onSelect={(t) => selectToken("sell", t)}
+                excludeAddress={buyToken.address}
+                activeChainId={chainId}
                 label="Sell token"
-                exclude={buyToken.address}
               />
             </HStack>
           </Box>
@@ -780,12 +557,12 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
                   {isFetching ? <Spinner size="sm" /> : estimatedOut}
                 </Text>
               </HStack>
-              <TokenPicker
-                selected={buyToken}
-                tokens={allTokens}
-                onSelect={(t) => { setBuyToken(t); setSellAmount(""); setPrice(null); }}
+              <SelectorTrigger
+                token={buyToken}
+                onSelect={(t) => selectToken("buy", t)}
+                excludeAddress={sellToken.address}
+                activeChainId={chainId}
                 label="Buy token"
-                exclude={sellToken.address}
               />
             </HStack>
           </Box>
