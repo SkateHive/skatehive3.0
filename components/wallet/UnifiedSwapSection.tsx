@@ -13,7 +13,7 @@ import {
   IconButton,
   useToast,
 } from "@chakra-ui/react";
-import { FaExchangeAlt, FaHive, FaInfoCircle, FaCog, FaBitcoin } from "react-icons/fa";
+import { FaExchangeAlt, FaHive, FaInfoCircle, FaCog, FaBitcoin, FaLink } from "react-icons/fa";
 import CrossChainSwapPanel from "./CrossChainSwapPanel";
 import { useAioha } from "@aioha/react-ui";
 import { shimmerStyles } from "@/lib/utils/animations";
@@ -27,6 +27,7 @@ import { useTranslations } from "@/contexts/LocaleContext";
 import { useTheme } from "@/app/themeProvider";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import ERC20SwapSection from "./ERC20SwapSection";
+import BridgeSection from "./BridgeSection";
 import SwapFeeAdminPanel from "./admin/SwapFeeAdminPanel";
 import { useSplitFeeAdmin } from "@/hooks/useSplitFeeAdmin";
 
@@ -333,7 +334,7 @@ function HiveSwapPanel({
 }
 
 // ─── Unified wrapper ──────────────────────────────────────────────────────────
-type SwapMode = "hive" | "crosschain" | "erc20" | "admin";
+type SwapMode = "hive" | "crosschain" | "erc20" | "bridge" | "admin";
 
 export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
   const t = useTranslations();
@@ -368,6 +369,9 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
         : ["erc20"];
     // Hive-Engine (L2) + Magi cross-chain (→ BTC) — available to any Hive user.
     if (hasHive) core.splice(1, 0, "crosschain");
+    // EVM bridge (LI.FI) sits next to the ERC-20 swap.
+    const erc20Idx = core.indexOf("erc20");
+    if (erc20Idx >= 0) core.splice(erc20Idx + 1, 0, "bridge");
     if (isSplitAdmin) core.push("admin");
     return core;
   }, [showBothCore, hasHive, isSplitAdmin]);
@@ -387,6 +391,7 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
     hive: { label: t("swapAdmin.hiveTab"), icon: <FaHive /> },
     crosschain: { label: "BTC / L2", icon: <FaBitcoin /> },
     erc20: { label: t("swapAdmin.erc20Tab"), icon: <FaExchangeAlt /> },
+    bridge: { label: t("bridge.tab"), icon: <FaLink /> },
     admin: { label: t("swapAdmin.tab"), icon: <FaCog /> },
   };
 
@@ -457,6 +462,8 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
           />
         ) : mode === "crosschain" ? (
           <CrossChainSwapPanel />
+        ) : mode === "bridge" ? (
+          <BridgeSection />
         ) : mode === "admin" ? (
           <SwapFeeAdminPanel />
         ) : (
