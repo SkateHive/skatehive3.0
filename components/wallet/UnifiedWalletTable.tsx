@@ -44,8 +44,8 @@ import DesktopTokenTable from "./components/DesktopTokenTable";
 import TokenLogo from "./components/TokenLogo";
 import { SendHiveModal, SendHBDModal } from "./modals";
 
-// Tokens that cannot be sent directly (locked / staked)
-const NON_SENDABLE = new Set(["HP", "HBDS"]);
+// Tokens that cannot be sent directly (locked / staked / no send flow)
+const NON_SENDABLE = new Set(["HP", "HBDS", "BTC"]);
 
 type ChainFilter = "all" | "hive" | "evm" | "farcaster";
 
@@ -58,6 +58,11 @@ interface UnifiedWalletTableProps {
   hivePrice: number | null;
   hbdPrice: number | null;
   hiveUser?: string;
+  /** Self-claimed BTC address (from Hive metadata); enables the aggregated BTC row. */
+  btcAddress?: string;
+  /** Confirmed on-chain BTC balance, or null while loading / unavailable. */
+  btcBalance?: number | null;
+  btcPrice?: number | null;
 }
 
 function makeSyntheticToken(
@@ -101,6 +106,44 @@ function makeSyntheticToken(
     },
     updatedAt: "",
     source: "hive" as any,
+  };
+}
+
+// Synthetic BTC token — non-EVM, injected client-side like the Hive tokens.
+function makeBtcToken(balance: number, price: number | null): TokenDetail {
+  const usd = balance * (price || 0);
+  const id = "bitcoin-native";
+  return {
+    address: id,
+    assetCaip: `bitcoin:native/${id}`,
+    key: id,
+    network: "bitcoin",
+    token: {
+      address: id,
+      balance,
+      balanceRaw: String(balance),
+      balanceUSD: usd,
+      canExchange: true,
+      coingeckoId: "bitcoin",
+      createdAt: "",
+      decimals: 8,
+      externallyVerified: false,
+      hide: false,
+      holdersEnabled: false,
+      id,
+      label: null,
+      name: "Bitcoin",
+      networkId: 0,
+      price: price || 0,
+      priceUpdatedAt: "",
+      status: "active",
+      symbol: "BTC",
+      totalSupply: "",
+      updatedAt: "",
+      verified: true,
+    },
+    updatedAt: "",
+    source: "bitcoin" as any,
   };
 }
 
@@ -318,6 +361,9 @@ export default function UnifiedWalletTable({
   hivePrice,
   hbdPrice,
   hiveUser,
+  btcAddress,
+  btcBalance,
+  btcPrice,
 }: UnifiedWalletTableProps) {
   const { isConnected, address } = useAccount();
   const { isAuthenticated: isFarcasterConnected } = useFarcasterSession();
@@ -389,6 +435,8 @@ export default function UnifiedWalletTable({
 
   const handleSendToken = useCallback(
     (tokenDetail: TokenDetail, logoUrl?: string) => {
+      // BTC has no send flow — clicking the row is a no-op.
+      if (tokenDetail.network === "bitcoin") return;
       if (tokenDetail.network === "hive") {
         if (tokenDetail.token.symbol === "HIVE") {
           onSendHiveOpen();
@@ -443,6 +491,12 @@ export default function UnifiedWalletTable({
     return tokens;
   }, [hiveUser, hiveBalance, hivePower, hbdBalance, hbdSavingsBalance, hivePrice, hbdPrice]);
 
+  // Synthetic BTC token (only when the user has a self-claimed address with a balance)
+  const btcTokens = useMemo<TokenDetail[]>(() => {
+    if (!btcAddress || btcBalance == null || btcBalance <= 0) return [];
+    return [makeBtcToken(btcBalance, btcPrice ?? null)];
+  }, [btcAddress, btcBalance, btcPrice]);
+
   // Filter EVM tokens by source
   const filteredEVMTokens = useMemo<TokenDetail[]>(() => {
     const all = aggregatedPortfolio?.tokens || [];
@@ -456,12 +510,18 @@ export default function UnifiedWalletTable({
   // Merge, consolidate, filter (Hive tokens always bypass dust filter)
   const consolidatedTokens = useMemo(() => {
     const showHive = chainFilter === "all" || chainFilter === "hive";
-    const combined = [...(showHive ? hiveTokens : []), ...filteredEVMTokens];
+    // BTC is non-EVM/non-Hive — only surface it in the aggregated "all" view.
+    const showBtc = chainFilter === "all";
+    const combined = [
+      ...(showHive ? hiveTokens : []),
+      ...(showBtc ? btcTokens : []),
+      ...filteredEVMTokens,
+    ];
     const consolidated = consolidateTokensBySymbol(combined);
 
     const filtered = consolidated.filter((token) => {
-      // Hive tokens always show regardless of dust filter
-      if (token.chains.some((c) => c.network === "hive")) return true;
+      // Hive + BTC tokens always show regardless of dust filter
+      if (token.chains.some((c) => c.network === "hive" || c.network === "bitcoin")) return true;
       if (!hideSmallBalances) return true;
       return token.totalBalanceUSD >= minBalanceThreshold || token.symbol.toLowerCase() === "higher";
     });
@@ -469,7 +529,7 @@ export default function UnifiedWalletTable({
     return sortConsolidatedTokensByBalance(filtered);
   // logoUpdateTrigger forces re-evaluation so fresh Zora logo cache is picked up
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hiveTokens, filteredEVMTokens, hideSmallBalances, chainFilter, logoUpdateTrigger]);
+  }, [hiveTokens, btcTokens, filteredEVMTokens, hideSmallBalances, chainFilter, logoUpdateTrigger]);
 
   // EVM is still loading but we already have Hive tokens to show
   const showEVMSkeleton = isLoading && (chainFilter === "all" || chainFilter === "evm" || chainFilter === "farcaster");

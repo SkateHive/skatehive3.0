@@ -9,6 +9,7 @@ interface TotalPortfolioValueProps {
   totalHiveAssetsValue: number;
   chainFilter: ChainFilter;
   zoraTotalValue?: number;
+  btcValue?: number;
   isLoading?: boolean;
 }
 
@@ -24,6 +25,7 @@ export default function TotalPortfolioValue({
   totalHiveAssetsValue,
   chainFilter,
   zoraTotalValue = 0,
+  btcValue = 0,
   isLoading,
 }: TotalPortfolioValueProps) {
   const { locale } = useLocale();
@@ -47,8 +49,8 @@ export default function TotalPortfolioValue({
     }
     if (chainFilter === "zora") return zoraTotalValue;
     if (chainFilter === "farcaster") return farcasterPortfolio?.totalNetWorth || 0;
-    // "all"
-    return totalHiveAssetsValue + (aggregatedPortfolio?.totalNetWorth || 0);
+    // "all" — Hive + EVM aggregate + self-claimed BTC
+    return totalHiveAssetsValue + (aggregatedPortfolio?.totalNetWorth || 0) + btcValue;
   }, [
     chainFilter,
     totalHiveAssetsValue,
@@ -56,6 +58,8 @@ export default function TotalPortfolioValue({
     farcasterPortfolio?.totalNetWorth,
     farcasterVerifiedPortfolios,
     aggregatedPortfolio?.totalNetWorth,
+    zoraTotalValue,
+    btcValue,
   ]);
 
   if (displayValue === 0 && chainFilter === "all" && !loading) return null;

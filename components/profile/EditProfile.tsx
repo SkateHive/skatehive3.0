@@ -29,6 +29,7 @@ import { KeychainSDK, KeychainKeyTypes, Broadcast } from "keychain-sdk";
 import { Operation } from "@hiveio/dhive";
 import { mergeHiveProfileMetadata } from "@/lib/hive/profile-metadata";
 import { sanitize as sanitizeIgHandle } from "@/lib/instagram/resolveIgHandle";
+import { validateBtcAddress, normalizeBtcAddress } from "@/lib/utils/validateBtcAddress";
 import MergeAccountModal from "./MergeAccountModal";
 import fetchAccount from "@/lib/hive/fetchAccount";
 import {
@@ -61,6 +62,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
       zineCover: "",
       svs_profile: "",
       instagram: "",
+      btc_address: "",
     });
     const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
@@ -105,6 +107,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
           zineCover: profileData.zineCover || "",
           svs_profile: profileData.svs_profile || "",
           instagram: profileData.instagram || "",
+          btc_address: profileData.btc_address || "",
         });
         setProfileImageFile(null);
         setCoverImageFile(null);
@@ -423,6 +426,14 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
           return;
         }
 
+        // Validate the (optional) Bitcoin address before broadcasting.
+        const btcRaw = (formData.btc_address || "").trim();
+        if (btcRaw && !validateBtcAddress(btcRaw)) {
+          setError("Invalid Bitcoin address");
+          return;
+        }
+        const btcNormalized = btcRaw ? normalizeBtcAddress(btcRaw) : "";
+
         // Upload images if files are selected
         if (profileImageFile) {
           const url = await uploadToIpfs(
@@ -462,6 +473,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
             extensionsPatch: {
               wallets: {
                 primary_wallet: profileData.ethereum_address || "",
+                btc_address: btcNormalized,
               },
               video_parts: profileData.video_parts || [],
               settings: {
@@ -522,10 +534,31 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
           // ignore — Hive write is the source of truth
         }
 
+        // Mirror the BTC address into userbase_identities (type='btc') so the
+        // DB stays in sync with Hive metadata. Non-fatal like the IG mirror.
+        try {
+          if (btcNormalized) {
+            await fetch("/api/userbase/profile/btc", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ address: btcNormalized, source: "edit_profile" }),
+            });
+          } else {
+            await fetch("/api/userbase/profile/btc", {
+              method: "DELETE",
+              credentials: "include",
+            });
+          }
+        } catch {
+          // ignore — Hive write is the source of truth
+        }
+
         // Update parent component with new data
         const updatedData = {
           ...formData,
           instagram: sanitizedIg || "",
+          btc_address: btcNormalized,
           profileImage: finalProfileImage,
           coverImage: finalCoverImage,
           zineCover: finalZineCover,
@@ -817,6 +850,28 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
                 </FormControl>
 
                 {EthereumWalletSection}
+
+                <FormControl
+                  isInvalid={
+                    !!formData.btc_address.trim() &&
+                    !validateBtcAddress(formData.btc_address)
+                  }
+                >
+                  <FormLabel>Bitcoin Address</FormLabel>
+                  <Input
+                    value={formData.btc_address}
+                    onChange={handleFormChange("btc_address")}
+                    placeholder="bc1... / 1... / 3..."
+                    fontFamily="mono"
+                    size="sm"
+                  />
+                  {!!formData.btc_address.trim() &&
+                    !validateBtcAddress(formData.btc_address) && (
+                      <Text fontSize="xs" color="red.400" mt={1}>
+                        That doesn&apos;t look like a valid Bitcoin address.
+                      </Text>
+                    )}
+                </FormControl>
 
                 <FormControl>
                   <Flex gap={2} align="center">

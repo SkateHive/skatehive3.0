@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useFarcasterSession } from "../../hooks/useFarcasterSession";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import useMarketPrices from "@/hooks/useMarketPrices";
+import { useBtcBalance } from "@/hooks/useBtcBalance";
+import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
 import { useBankActions } from "@/hooks/wallet";
 import { useAccount } from "wagmi";
 import { useTranslations } from "@/contexts/LocaleContext";
@@ -79,8 +81,22 @@ export default function MainWallet({ username }: MainWalletProps) {
   const [chainFilter, setChainFilter] = useState<ChainFilter>("all");
   const [hivePower, setHivePower] = useState<string | undefined>(undefined);
 
-  const { hivePrice, hbdPrice, isPriceLoading } = useMarketPrices();
+  const { hivePrice, hbdPrice, btcPrice, isPriceLoading } = useMarketPrices();
   const toast = useToast();
+
+  // Self-claimed BTC address from Hive metadata → aggregated wallet row.
+  const btcAddress = useMemo(() => {
+    const raw = hiveAccount?.json_metadata;
+    if (!raw) return "";
+    try {
+      const migrated = migrateLegacyMetadata(JSON.parse(raw));
+      return migrated.extensions?.wallets?.btc_address || "";
+    } catch {
+      return "";
+    }
+  }, [hiveAccount?.json_metadata]);
+
+  const { balanceBtc } = useBtcBalance(btcAddress);
   const t = useTranslations();
 
   const {
@@ -221,6 +237,11 @@ export default function MainWallet({ username }: MainWalletProps) {
     () => zoraHeld.reduce((sum, c) => sum + parseFloat(c.valueUsd ?? "0"), 0),
     [zoraHeld],
   );
+
+  const btcValue = useMemo(() => {
+    if (!balanceBtc || !btcPrice) return 0;
+    return balanceBtc * btcPrice;
+  }, [balanceBtc, btcPrice]);
 
   const hasLinkedFarcaster = linkedIdentities.some((i) => i.type === "farcaster");
   const hasEVM = isMounted && (isConnected || isFarcasterConnected || hasLinkedFarcaster);
@@ -381,6 +402,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                       totalHiveAssetsValue={totalHiveAssetsValue}
                       chainFilter={chainFilter}
                       zoraTotalValue={zoraTotalValue}
+                      btcValue={btcValue}
                     />
 
                     {/* Chain filter pills */}
@@ -439,6 +461,9 @@ export default function MainWallet({ username }: MainWalletProps) {
                           hivePrice={hivePrice}
                           hbdPrice={hbdPrice}
                           hiveUser={user}
+                          btcAddress={btcAddress}
+                          btcBalance={balanceBtc}
+                          btcPrice={btcPrice}
                         />
 
                         {/* Hive activity history */}
