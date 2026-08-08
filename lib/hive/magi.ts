@@ -9,6 +9,14 @@
  */
 
 import { createMagi, createDefaultPoolProvider, CoinAmount, MAINNET_CONFIG, type MagiClient } from "@vsc.eco/crosschain-sdk";
+import { withSwapOpRcLimit } from "@vsc.eco/crosschain-core";
+import { KeyTypes } from "@aioha/aioha";
+
+/** Minimal Aioha surface we need to broadcast the [deposit, swap] ops ourselves. */
+type AiohaLike = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  signAndBroadcastTx: (ops: any[], keyType: any) => Promise<{ success: boolean; result?: string; error?: string }>;
+};
 
 export type MagiAssetIn = "HIVE" | "HBD";
 export type MagiAssetOut = "BTC";
@@ -20,7 +28,14 @@ export const isValidBtcAddress = (a: string) => BTC_ADDRESS_RE.test((a || "").tr
 
 /** Create a Magi client bound to the app's Aioha (for signing via quickSwap). */
 export function getMagiClient(aioha: unknown): MagiClient {
-  return createMagi({ config: MAINNET_CONFIG, pools: createDefaultPoolProvider(), aioha: aioha as never });
+  // IMPORTANT: pass the indexer URL. createDefaultPoolProvider() with no indexerUrl
+  // returns EMPTY pools (SDK: `const entries = indexerUrl ? … : []`), so every quote
+  // comes back expectedOutput=0 and looks like "no liquidity" — it isn't.
+  return createMagi({
+    config: MAINNET_CONFIG,
+    pools: createDefaultPoolProvider(undefined, MAINNET_CONFIG.indexerUrl),
+    aioha: aioha as never,
+  });
 }
 
 function fmtUnits(raw: bigint, decimals: number): string {
@@ -74,9 +89,52 @@ export async function getMagiPreview(client: MagiClient, p: MagiSwapInput): Prom
   };
 }
 
-/** Execute: builds (with RC sim) + signs + broadcasts via the client's Aioha. */
-export async function executeMagiSwap(client: MagiClient, p: MagiSwapInput): Promise<string> {
+/**
+ * Execute a Magi swap: build the [deposit, swap] ops, gate on the checks that
+ * actually matter, and broadcast atomically via Aioha.
+ *
+ * We do NOT use `client.quickSwap` — it hard-throws on `checkSwapRc.!simOk`, and
+ * that sim runs the swap op against the CURRENT VSC ledger, which can't see the
+ * deposit op riding in the SAME broadcast (ops[0]). The VSC node credits the
+ * deposit synchronously before the swap op executes, so the atomic broadcast
+ * succeeds — the sim's `ledger_error: insufficient balance` is a false negative
+ * for any account without a pre-existing VSC balance (i.e. every first-time
+ * swapper). Verified end-to-end on mainnet (2 HBD → BTC settled on-chain).
+ */
+export async function executeMagiSwap(client: MagiClient, aioha: AiohaLike, p: MagiSwapInput): Promise<string> {
   if (!isValidBtcAddress(p.recipient)) throw new Error("Enter a valid Bitcoin address");
-  const res = await client.quickSwap(toSdkInput(p));
-  return res.txId;
+
+  const build = await client.buildQuickSwap(toSdkInput(p));
+  if (!(build.preview.expectedOutput > 0n)) {
+    throw new Error("Magi has no BTC liquidity for this pair right now — try again later");
+  }
+
+  // The real, knowable pre-broadcast gate (the VSC sim can't see Hive L1): does the
+  // user hold enough LIQUID HIVE/HBD for the deposit? (savings/staked don't count.)
+  const needRaw = CoinAmount.fromDecimal(p.amountIn, p.assetIn).raw;
+  const l1 = await client.getBalance(p.username, p.assetIn);
+  if (l1 !== null && l1 < needRaw) {
+    throw new Error(`Not enough liquid ${p.assetIn} — need ${p.amountIn}, have ${fmtUnits(l1, DECIMALS[p.assetIn])} (savings can't be swapped directly)`);
+  }
+
+  // RC + sim gate: bypass ONLY the pre-deposit ledger false-negative; still fail on
+  // any other sim error and on real RC shortfalls.
+  const rc = await client.checkSwapRc({ username: p.username, build });
+  const preDepositGap = !rc.simOk && rc.err === "ledger_error" && /insufficient balance/i.test(rc.errMsg ?? "");
+  if (!rc.simOk && !preDepositGap) {
+    throw new Error(rc.errMsg || rc.err || "Magi simulation failed — try again");
+  }
+  if (rc.simOk && !rc.sufficient) {
+    throw new Error("Not enough Resource Credits for this swap — power up HIVE or wait for RC to recharge.");
+  }
+
+  // Size the swap op's rc_limit from the sim only when the sim actually ran; otherwise
+  // keep the SDK's default (a broadcastRcLimit from an aborted sim is meaningless).
+  const ops = [...build.ops];
+  if (rc.simOk) ops[ops.length - 1] = withSwapOpRcLimit(ops[ops.length - 1], rc.broadcastRcLimit);
+
+  // Atomic broadcast: VSC processes deposit → swap in order within this one Hive tx.
+  const res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
+  if (!res?.success) throw new Error(res?.error || "Broadcast rejected");
+  return res.result || "";
 }
