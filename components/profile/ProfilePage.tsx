@@ -185,6 +185,8 @@ export interface ProfileData {
   location: string;
   about: string;
   ethereum_address?: string;
+  /** Self-claimed Bitcoin address (Hive extensions.wallets.btc_address). */
+  btc_address?: string;
   video_parts?: VideoPart[];
   vote_weight?: number;
   vp_percent?: string;

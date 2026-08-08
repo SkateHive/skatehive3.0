@@ -30,6 +30,7 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
         location: "",
         about: "",
         ethereum_address: "",
+        btc_address: "",
         video_parts: [],
         vote_weight: 51, // Default vote weight
         vp_percent: "0%",
@@ -69,6 +70,7 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
         let website = "";
         let instagram = "";
         let ethereum_address = "";
+        let btc_address = "";
         let video_parts: VideoPart[] = [];
         let vote_weight = 51;
         let zineCover = "";
@@ -104,6 +106,7 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
                 const rawMetadata = JSON.parse(jsonMetadata);
                 const parsedMetadata = migrateLegacyMetadata(rawMetadata);
                 ethereum_address = parsedMetadata.extensions?.wallets?.primary_wallet || "";
+                btc_address = parsedMetadata.extensions?.wallets?.btc_address || "";
                 video_parts = parsedMetadata.extensions?.video_parts || [];
                 const defaultWeight = parsedMetadata.extensions?.settings?.voteSettings?.default_voting_weight;
                 vote_weight = typeof defaultWeight === 'number' ? Math.round(defaultWeight / 100) : 51;
@@ -116,7 +119,7 @@ export default function useProfileData(username: string, hiveAccount: HiveAccoun
 
         // Reset bridge fields in the same call so stale follower counts from
         // the previous username don't show while Phase 2 is in-flight.
-        updateProfileData({ name: username, profileImage, coverImage, website, instagram, ethereum_address, video_parts, vote_weight, zineCover, svs_profile, followers: 0, following: 0, location: "", about: "", vp_percent: "0%", rc_percent: "0%" });
+        updateProfileData({ name: username, profileImage, coverImage, website, instagram, ethereum_address, btc_address, video_parts, vote_weight, zineCover, svs_profile, followers: 0, following: 0, location: "", about: "", vp_percent: "0%", rc_percent: "0%" });
 
         // --- Phase 2: bridge API (async, can fail independently) ---
         (async () => {

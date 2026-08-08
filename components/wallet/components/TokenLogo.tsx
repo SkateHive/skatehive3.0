@@ -50,6 +50,7 @@ function buildLogoSources(token: TokenDetail): string[] {
     hp: "/logos/hiveLogo.png",
     hbd: "/logos/hbd_logo.png",
     hbds: "/logos/hbd_logo.png",
+    btc: "/logos/bitcoin_logo.svg",
     eth: "/logos/ethereum_logo.png",
     weth: "/logos/ethereum_logo.png",
     matic: "/logos/polygon_logo.png",

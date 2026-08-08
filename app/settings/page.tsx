@@ -112,7 +112,7 @@ const Settings = () => {
 
             <TabPanels>
               <TabPanel px={0} py={6}>
-                <MainSettings userData={userData} />
+                <MainSettings userData={userData} btcAddress={profileData.btc_address} />
               </TabPanel>
               <TabPanel px={0} py={6}>
                 <UserbaseAccountSettings />

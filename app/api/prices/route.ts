@@ -13,14 +13,14 @@ export async function GET() {
 
   try {
     const response = await fetch(
-      "https://api.coingecko.com/api/v3/simple/price?ids=hive,hive_dollar,ethereum&vs_currencies=usd",
+      "https://api.coingecko.com/api/v3/simple/price?ids=hive,hive_dollar,ethereum,bitcoin&vs_currencies=usd",
       { next: { revalidate: CACHE_DURATION } }
     );
 
     if (!response.ok) {
       // Return fallback prices on CoinGecko failure
       return NextResponse.json(
-        { hive: { usd: 0.21 }, hive_dollar: { usd: 1.0 }, ethereum: { usd: 2500 } },
+        { hive: { usd: 0.21 }, hive_dollar: { usd: 1.0 }, ethereum: { usd: 2500 }, bitcoin: { usd: 60000 } },
         { status: 200, headers: { "Cache-Control": "public, s-maxage=30" } }
       );
     }
@@ -33,7 +33,7 @@ export async function GET() {
     });
   } catch {
     return NextResponse.json(
-      { hive: { usd: 0.21 }, hive_dollar: { usd: 1.0 }, ethereum: { usd: 2500 } },
+      { hive: { usd: 0.21 }, hive_dollar: { usd: 1.0 }, ethereum: { usd: 2500 }, bitcoin: { usd: 60000 } },
       { status: 200, headers: { "Cache-Control": "public, s-maxage=30" } }
     );
   }

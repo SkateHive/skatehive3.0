@@ -8,6 +8,7 @@ type ChainFilter = "all" | "hive" | "evm" | "farcaster";
 interface TotalPortfolioValueProps {
   totalHiveAssetsValue: number;
   chainFilter: ChainFilter;
+  btcValue?: number;
   isLoading?: boolean;
 }
 
@@ -21,6 +22,7 @@ const LABELS: Record<ChainFilter, string> = {
 export default function TotalPortfolioValue({
   totalHiveAssetsValue,
   chainFilter,
+  btcValue = 0,
   isLoading,
 }: TotalPortfolioValueProps) {
   const { locale } = useLocale();
@@ -43,8 +45,8 @@ export default function TotalPortfolioValue({
       return evmBase + evmVerified;
     }
     if (chainFilter === "farcaster") return farcasterPortfolio?.totalNetWorth || 0;
-    // "all"
-    return totalHiveAssetsValue + (aggregatedPortfolio?.totalNetWorth || 0);
+    // "all" — Hive + EVM aggregate + self-claimed BTC
+    return totalHiveAssetsValue + (aggregatedPortfolio?.totalNetWorth || 0) + btcValue;
   }, [
     chainFilter,
     totalHiveAssetsValue,
@@ -52,6 +54,7 @@ export default function TotalPortfolioValue({
     farcasterPortfolio?.totalNetWorth,
     farcasterVerifiedPortfolios,
     aggregatedPortfolio?.totalNetWorth,
+    btcValue,
   ]);
 
   if (displayValue === 0 && chainFilter === "all" && !loading) return null;
