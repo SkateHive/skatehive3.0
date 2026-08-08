@@ -8,6 +8,10 @@ import { LIFI_API_URL } from "@/lib/evm/lifi";
 const LIFI_API_KEY = process.env.LIFI_API_KEY || "";
 const LIFI_INTEGRATOR = process.env.LIFI_INTEGRATOR || "";
 const LIFI_FEE_SHARE = (Number(process.env.LIFI_FEE_BPS || "50") / 10000).toString();
+// Fee collection must be onboarded with LI.FI first (a fee wallet configured for
+// the integrator). Passing a fee before that makes LI.FI reject the quote, so the
+// fee is gated behind this flag — flip it to "true" only once onboarding is done.
+const LIFI_FEES_ENABLED = process.env.LIFI_FEES_ENABLED === "true";
 
 /** GET /api/lifi/quote?fromChain=&toChain=&fromToken=&toToken=&fromAmount=&fromAddress=&slippage=&order=&fee=1 */
 export async function GET(request: NextRequest) {
@@ -18,8 +22,10 @@ export async function GET(request: NextRequest) {
   params.delete("fee");
 
   if (LIFI_INTEGRATOR) {
+    // Always attach the integrator string for attribution/tracking.
     params.set("integrator", LIFI_INTEGRATOR);
-    if (wantsFee) params.set("fee", LIFI_FEE_SHARE);
+    // Only take the fee once fee collection is enabled for this integrator.
+    if (wantsFee && LIFI_FEES_ENABLED) params.set("fee", LIFI_FEE_SHARE);
   }
 
   const headers: Record<string, string> = { accept: "application/json" };

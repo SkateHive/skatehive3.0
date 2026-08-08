@@ -13,7 +13,7 @@ import {
   IconButton,
   useToast,
 } from "@chakra-ui/react";
-import { FaExchangeAlt, FaHive, FaInfoCircle, FaCog, FaBitcoin, FaLink } from "react-icons/fa";
+import { FaExchangeAlt, FaHive, FaInfoCircle, FaCog, FaBitcoin } from "react-icons/fa";
 import CrossChainSwapPanel from "./CrossChainSwapPanel";
 import { useAioha } from "@aioha/react-ui";
 import { shimmerStyles } from "@/lib/utils/animations";
@@ -333,8 +333,49 @@ function HiveSwapPanel({
   );
 }
 
+// ─── EVM Swap + Bridge (one tab, sub-toggle) ──────────────────────────────────
+function EvmSwapBridge({ showFeeOption }: { showFeeOption?: boolean }) {
+  const t = useTranslations();
+  const [sub, setSub] = useState<"swap" | "bridge">("swap");
+  return (
+    <VStack spacing={3} align="stretch">
+      <HStack spacing={0} border="1px solid" borderColor="border" alignSelf="center">
+        {(["swap", "bridge"] as const).map((k) => {
+          const active = sub === k;
+          return (
+            <Button
+              key={k}
+              size="xs"
+              h="26px"
+              px={5}
+              borderRadius="none"
+              fontFamily="mono"
+              fontWeight="bold"
+              fontSize="10px"
+              textTransform="uppercase"
+              letterSpacing="wider"
+              bg={active ? "primary" : "transparent"}
+              color={active ? "background" : "dim"}
+              onClick={() => setSub(k)}
+              _hover={{ color: active ? "background" : "primary" }}
+              _active={{}}
+            >
+              {k === "swap" ? t("common.swap") : t("bridge.tab")}
+            </Button>
+          );
+        })}
+      </HStack>
+      {sub === "swap" ? (
+        <ERC20SwapSection compact showFeeOption={showFeeOption} />
+      ) : (
+        <BridgeSection />
+      )}
+    </VStack>
+  );
+}
+
 // ─── Unified wrapper ──────────────────────────────────────────────────────────
-type SwapMode = "hive" | "crosschain" | "erc20" | "bridge" | "admin";
+type SwapMode = "hive" | "crosschain" | "erc20" | "admin";
 
 export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
   const t = useTranslations();
@@ -369,9 +410,6 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
         : ["erc20"];
     // Hive-Engine (L2) + Magi cross-chain (→ BTC) — available to any Hive user.
     if (hasHive) core.splice(1, 0, "crosschain");
-    // EVM bridge (LI.FI) sits next to the ERC-20 swap.
-    const erc20Idx = core.indexOf("erc20");
-    if (erc20Idx >= 0) core.splice(erc20Idx + 1, 0, "bridge");
     if (isSplitAdmin) core.push("admin");
     return core;
   }, [showBothCore, hasHive, isSplitAdmin]);
@@ -391,7 +429,6 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
     hive: { label: t("swapAdmin.hiveTab"), icon: <FaHive /> },
     crosschain: { label: "BTC / L2", icon: <FaBitcoin /> },
     erc20: { label: t("swapAdmin.erc20Tab"), icon: <FaExchangeAlt /> },
-    bridge: { label: t("bridge.tab"), icon: <FaLink /> },
     admin: { label: t("swapAdmin.tab"), icon: <FaCog /> },
   };
 
@@ -462,12 +499,10 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
           />
         ) : mode === "crosschain" ? (
           <CrossChainSwapPanel />
-        ) : mode === "bridge" ? (
-          <BridgeSection />
         ) : mode === "admin" ? (
           <SwapFeeAdminPanel />
         ) : (
-          <ERC20SwapSection compact showFeeOption={props.showFeeOption} />
+          <EvmSwapBridge showFeeOption={props.showFeeOption} />
         )}
       </Box>
     </Box>
