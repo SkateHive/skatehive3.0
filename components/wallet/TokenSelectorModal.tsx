@@ -35,6 +35,7 @@ import { isAddress, getAddress, type Address } from "viem";
 import { usePublicClient } from "wagmi";
 import { PortfolioContext } from "@/contexts/PortfolioContext";
 import { useTranslations } from "@/contexts/LocaleContext";
+import TokenChainLogo from "./TokenChainLogo";
 import {
   NATIVE_TOKEN,
   SWAP_CHAINS,
@@ -110,46 +111,9 @@ function saveRecent(token: SwapToken) {
 
 // ─── Logo ────────────────────────────────────────────────────────────────────
 
+/** Token logo + chain badge (shared with the swap/bridge panels). */
 function TokenAvatar({ token, size = "32px" }: { token: SwapToken; size?: string }) {
-  const chain = SWAP_CHAINS.find((c) => c.id === token.chainId);
-  return (
-    <Box position="relative" flexShrink={0}>
-      {token.logo ? (
-        <Image
-          src={token.logo}
-          w={size}
-          h={size}
-          objectFit="contain"
-          borderRadius="full"
-          alt=""
-          fallback={
-            <Box w={size} h={size} borderRadius="full" bg="border" display="flex" alignItems="center" justifyContent="center">
-              <Text fontSize="xs" fontWeight="bold" color="text">{token.symbol[0]}</Text>
-            </Box>
-          }
-        />
-      ) : (
-        <Box w={size} h={size} borderRadius="full" bg="border" display="flex" alignItems="center" justifyContent="center">
-          <Text fontSize="xs" fontWeight="bold" color="text">{token.symbol[0]}</Text>
-        </Box>
-      )}
-      {chain && (
-        <Image
-          src={chain.logo}
-          alt=""
-          position="absolute"
-          bottom="-2px"
-          right="-2px"
-          w="14px"
-          h="14px"
-          borderRadius="full"
-          border="2px solid"
-          borderColor="background"
-          fallback={<span />}
-        />
-      )}
-    </Box>
-  );
+  return <TokenChainLogo token={token} size={size} />;
 }
 
 // ─── Row ─────────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
-  Box, Text, Button, Input, HStack, VStack, Image,
+  Box, Text, Button, Input, HStack, VStack,
   Spinner, Tooltip, useToast, Checkbox,
   InputGroup, InputRightElement, useDisclosure,
 } from "@chakra-ui/react";
@@ -11,6 +11,7 @@ import { useAccount, useBalance, useChainId, useSendTransaction, useWaitForTrans
 import { parseUnits, formatUnits, formatEther, maxUint256, UserRejectedRequestError } from "viem";
 import { PortfolioContext } from "@/contexts/PortfolioContext";
 import TokenSelectorModal from "./TokenSelectorModal";
+import TokenChainLogo from "./TokenChainLogo";
 import {
   defaultPair, getSwapChain, isNativeToken, networkToChainId, type SwapToken,
 } from "@/lib/evm/swapTokens";
@@ -79,17 +80,7 @@ function SelectorTrigger({
         flexShrink={0}
         onClick={onOpen}
         aria-label={label}
-        leftIcon={
-          <Image
-            src={token.logo}
-            w="18px"
-            h="18px"
-            objectFit="contain"
-            borderRadius="full"
-            alt=""
-            fallback={<Box w="18px" h="18px" borderRadius="full" bg="border" />}
-          />
-        }
+        leftIcon={<TokenChainLogo token={token} size="18px" />}
         rightIcon={<FaChevronDown size={10} />}
         _hover={{ borderColor: "primary", color: "primary" }}
       >
@@ -505,10 +496,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </HStack>
             <HStack>
               <HStack spacing={2} flex={1} minW={0}>
-                {sellToken.logo && (
-                  <Image src={sellToken.logo} w="22px" h="22px" objectFit="contain" borderRadius="full" alt=""
-                    fallback={<Box w="22px" h="22px" borderRadius="full" bg="border" />} />
-                )}
+                <TokenChainLogo token={sellToken} size="22px" />
                 <Input
                   type="number"
                   placeholder="0"
@@ -549,10 +537,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </Text>
             <HStack>
               <HStack spacing={2} flex={1} minW={0}>
-                {buyToken.logo && (
-                  <Image src={buyToken.logo} w="22px" h="22px" objectFit="contain" borderRadius="full" alt=""
-                    fallback={<Box w="22px" h="22px" borderRadius="full" bg="border" />} />
-                )}
+                <TokenChainLogo token={buyToken} size="22px" />
                 <Text fontSize="2xl" fontFamily="mono" fontWeight="black" color="primary">
                   {isFetching ? <Spinner size="sm" /> : estimatedOut}
                 </Text>

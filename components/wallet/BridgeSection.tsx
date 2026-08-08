@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Box, Button, HStack, Image, Input, Spinner, Text, Tooltip, VStack, useDisclosure, useToast,
+  Box, Button, HStack, Input, Spinner, Text, Tooltip, VStack, useDisclosure, useToast,
 } from "@chakra-ui/react";
 import { FaArrowDown, FaInfoCircle } from "react-icons/fa";
 import {
@@ -22,6 +22,7 @@ import {
 } from "wagmi";
 import { useTranslations } from "@/contexts/LocaleContext";
 import TokenSelectorModal from "./TokenSelectorModal";
+import TokenChainLogo from "./TokenChainLogo";
 import {
   getSwapChain, isNativeToken, tokensForChain, type SwapToken,
 } from "@/lib/evm/swapTokens";
@@ -88,10 +89,7 @@ function SideSelector({
         px={2}
         flexShrink={0}
         onClick={onOpen}
-        leftIcon={
-          <Image src={token.logo} w="18px" h="18px" objectFit="contain" borderRadius="full" alt=""
-            fallback={<Box w="18px" h="18px" borderRadius="full" bg="border" />} />
-        }
+        leftIcon={<TokenChainLogo token={token} size="18px" />}
         _hover={{ borderColor: "primary", color: "primary" }}
       >
         {token.symbol}
