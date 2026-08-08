@@ -68,7 +68,6 @@ export default function MainWallet({ username }: MainWalletProps) {
   const [hivePower, setHivePower] = useState<string | undefined>(undefined);
 
   const { hivePrice, hbdPrice, btcPrice, isPriceLoading } = useMarketPrices();
-  const toast = useToast();
 
   // Self-claimed BTC address from Hive metadata → aggregated wallet row.
   const btcAddress = useMemo(() => {
@@ -83,6 +82,7 @@ export default function MainWallet({ username }: MainWalletProps) {
   }, [hiveAccount?.json_metadata]);
 
   const { balanceBtc } = useBtcBalance(btcAddress);
+  const toast = useToast();
   const t = useTranslations();
 
   const {
@@ -219,19 +219,11 @@ export default function MainWallet({ username }: MainWalletProps) {
     return (hive + hp) * hivePrice + (hbd + hbdSav) * hbdPrice;
   }, [user, hivePrice, hbdPrice, hiveBalances, hivePower]);
 
-<<<<<<< HEAD
-=======
-  const zoraTotalValue = useMemo(
-    () => zoraHeld.reduce((sum, c) => sum + parseFloat(c.valueUsd ?? "0"), 0),
-    [zoraHeld],
-  );
-
   const btcValue = useMemo(() => {
     if (!balanceBtc || !btcPrice) return 0;
     return balanceBtc * btcPrice;
   }, [balanceBtc, btcPrice]);
 
->>>>>>> dd8a875c (feat(wallet+profile): store user BTC address (Hive + DB) and show BTC balance in aggregated wallet)
   const hasLinkedFarcaster = linkedIdentities.some((i) => i.type === "farcaster");
   const hasEVM = isMounted && (isConnected || isFarcasterConnected || hasLinkedFarcaster);
   const hasFarcaster = isMounted && (isFarcasterConnected || hasLinkedFarcaster);
@@ -423,7 +415,6 @@ export default function MainWallet({ username }: MainWalletProps) {
                         ))}
                     </HStack>
 
-<<<<<<< HEAD
                     {/* Unified token table */}
                     <UnifiedWalletTable
                       chainFilter={chainFilter}
@@ -434,32 +425,10 @@ export default function MainWallet({ username }: MainWalletProps) {
                       hivePrice={hivePrice}
                       hbdPrice={hbdPrice}
                       hiveUser={user}
+                      btcAddress={btcAddress}
+                      btcBalance={balanceBtc}
+                      btcPrice={btcPrice}
                     />
-=======
-                    {/* Zora section (when zora filter active) */}
-                    {chainFilter === "zora" ? (
-                      <ZoraCoinsSection
-                        heldCoins={zoraHeld}
-                        createdCoins={zoraCreated}
-                        isLoading={isZoraLoading}
-                      />
-                    ) : (
-                      <>
-                        {/* Unified token table */}
-                        <UnifiedWalletTable
-                          chainFilter={chainFilter}
-                          hiveBalance={hiveBalances.balance}
-                          hbdBalance={hiveBalances.hbdBalance}
-                          hivePower={hivePower || "0"}
-                          hbdSavingsBalance={hiveBalances.hbdSavingsBalance}
-                          hivePrice={hivePrice}
-                          hbdPrice={hbdPrice}
-                          hiveUser={user}
-                          btcAddress={btcAddress}
-                          btcBalance={balanceBtc}
-                          btcPrice={btcPrice}
-                        />
->>>>>>> dd8a875c (feat(wallet+profile): store user BTC address (Hive + DB) and show BTC balance in aggregated wallet)
 
                     {/* Hive activity history */}
                     {showHiveExtras && (
