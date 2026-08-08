@@ -8,7 +8,7 @@
  * The integrator fee is applied server-side (see app/api/lifi/quote) and only
  * when LIFI_INTEGRATOR is configured, so this works with or without fee onboarding.
  */
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box, Button, HStack, Image, Input, Spinner, Text, Tooltip, VStack, useDisclosure, useToast,
 } from "@chakra-ui/react";
@@ -17,20 +17,20 @@ import {
   formatUnits, parseUnits, maxUint256, UserRejectedRequestError, type Address,
 } from "viem";
 import {
-  useAccount, useBalance, useChainId, usePublicClient, useSendTransaction,
+  useAccount, useBalance, useChainId, usePublicClient, useReadContract, useSendTransaction,
   useSwitchChain, useWaitForTransactionReceipt, useWriteContract,
 } from "wagmi";
-import { PortfolioContext } from "@/contexts/PortfolioContext";
 import { useTranslations } from "@/contexts/LocaleContext";
 import TokenSelectorModal from "./TokenSelectorModal";
 import {
-  getSwapChain, isNativeToken, networkToChainId, tokensForChain, type SwapToken,
+  getSwapChain, isNativeToken, tokensForChain, type SwapToken,
 } from "@/lib/evm/swapTokens";
 import { toLifiToken, type LifiQuote, type LifiStatus, type LifiStatusState } from "@/lib/evm/lifi";
 
 const ERC20_ABI = [
   { name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ type: "uint256" }] },
   { name: "approve", type: "function", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] },
+  { name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
 ] as const;
 
 function isUserRejection(e: unknown): boolean {
@@ -115,10 +115,6 @@ export default function BridgeSection() {
   const { address, isConnected } = useAccount();
   const walletChainId = useChainId();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
-  const { data: nativeBal } = useBalance({ address });
-
-  const portfolioCtx = useContext(PortfolioContext);
-  const portfolioTokens = portfolioCtx?.aggregatedPortfolio?.tokens;
 
   const [fromToken, setFromToken] = useState<SwapToken>(() => nativeOn(1)); // ETH mainnet
   const [toToken, setToToken] = useState<SwapToken>(() => nativeOn(8453)); // ETH Base
@@ -137,24 +133,33 @@ export default function BridgeSection() {
 
   const fromClient = usePublicClient({ chainId: fromToken.chainId });
   const onFromChain = walletChainId === fromToken.chainId;
+  const fromIsNative = isNativeToken(fromToken.address);
 
-  // ── Balance of the from token ────────────────────────────────────────────
+  // ── Balance of the from token — read on the FROM chain, not the wallet's
+  //    current chain (bridging FROM Ethereum while connected to Base, etc.) ──
+  const { data: fromNativeBal } = useBalance({
+    address,
+    chainId: fromToken.chainId,
+    query: { enabled: !!address && fromIsNative },
+  });
+  const { data: fromErc20Bal } = useReadContract({
+    address: fromToken.address as Address,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: fromToken.chainId,
+    query: { enabled: !!address && !fromIsNative },
+  });
+
   const fromBalance = useMemo(() => {
-    if (isNativeToken(fromToken.address) && onFromChain && nativeBal) {
-      return parseFloat(formatUnits(nativeBal.value, nativeBal.decimals));
+    if (fromIsNative) {
+      return fromNativeBal ? parseFloat(formatUnits(fromNativeBal.value, fromNativeBal.decimals)) : 0;
     }
-    if (portfolioTokens) {
-      for (const pt of portfolioTokens) {
-        if (networkToChainId(pt.network ?? "") !== fromToken.chainId) continue;
-        const addr = (pt.token?.address ?? pt.address ?? "").toLowerCase();
-        const isNat = addr === "0x0000000000000000000000000000000000000000";
-        if ((isNativeToken(fromToken.address) && isNat) || addr === fromToken.address.toLowerCase()) {
-          return pt.token?.balance ?? 0;
-        }
-      }
+    if (fromErc20Bal != null) {
+      return parseFloat(formatUnits(fromErc20Bal as bigint, fromToken.decimals));
     }
     return 0;
-  }, [fromToken, onFromChain, nativeBal, portfolioTokens]);
+  }, [fromIsNative, fromNativeBal, fromErc20Bal, fromToken.decimals]);
 
   const insufficient = !!amount && parseFloat(amount) > 0 && parseFloat(amount) > fromBalance;
 
