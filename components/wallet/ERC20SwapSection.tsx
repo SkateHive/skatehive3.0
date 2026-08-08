@@ -69,20 +69,25 @@ function SelectorTrigger({
   return (
     <>
       <Button
-        size="sm"
+        h="44px"
         variant="outline"
         borderColor="border"
         borderRadius="none"
+        bg="background"
         fontFamily="mono"
         fontWeight="black"
+        fontSize="md"
         color="text"
-        px={2}
+        pl={2}
+        pr={3}
         flexShrink={0}
         onClick={onOpen}
         aria-label={label}
-        leftIcon={<TokenChainLogo token={token} size="18px" />}
-        rightIcon={<FaChevronDown size={10} />}
-        _hover={{ borderColor: "primary", color: "primary" }}
+        leftIcon={<TokenChainLogo token={token} size="28px" />}
+        rightIcon={<FaChevronDown size={11} />}
+        _hover={{ borderColor: "primary", color: "primary", bg: "muted" }}
+        _active={{ bg: "muted" }}
+        transition="all 0.12s"
       >
         {token.symbol}
       </Button>
@@ -466,90 +471,113 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </Box>
           )}
 
-          {/* Sell */}
-          <Box border="1px solid" borderColor={insufficientBalance ? "red.400" : "border"} p={3} mb={1}>
-            <HStack justify="space-between" mb={1} align="center">
-              <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
-                You Pay
-              </Text>
-              {isConnected && (
-                <HStack spacing={2}>
-                  <Text fontSize="10px" color={insufficientBalance ? "red.400" : "dim"} fontFamily="mono">
-                    Bal: {sellBalance < 0.0001 ? sellBalance.toExponential(2) : sellBalance < 1 ? sellBalance.toFixed(4) : sellBalance < 1000 ? sellBalance.toFixed(2) : Math.floor(sellBalance).toLocaleString()}
-                  </Text>
-                  <Button
-                    size="xs" h="16px" px={1} variant="ghost" color="primary" fontFamily="mono" fontSize="9px"
-                    onClick={() => setAmountFromBalance(0.5)} isDisabled={sellBalance <= 0}
-                    _hover={{ bg: "muted" }}
-                  >
-                    HALF
-                  </Button>
-                  <Button
-                    size="xs" h="16px" px={1} variant="ghost" color="primary" fontFamily="mono" fontSize="9px"
-                    onClick={() => setAmountFromBalance(1)} isDisabled={sellBalance <= 0}
-                    _hover={{ bg: "muted" }}
-                  >
-                    MAX
-                  </Button>
+          {/* Sell + Flip + Buy (flip button overlaps the seam) */}
+          <Box mb={3}>
+            {/* Sell */}
+            <Box
+              border="1px solid"
+              borderColor={insufficientBalance ? "red.400" : "border"}
+              bg="muted"
+              p={4}
+            >
+              <HStack justify="space-between" mb={2} align="center">
+                <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
+                  You Pay
+                </Text>
+                {isConnected && (
+                  <HStack spacing={2}>
+                    <Text fontSize="11px" color={insufficientBalance ? "red.400" : "dim"} fontFamily="mono">
+                      Bal: {sellBalance < 0.0001 ? sellBalance.toExponential(2) : sellBalance < 1 ? sellBalance.toFixed(4) : sellBalance < 1000 ? sellBalance.toFixed(2) : Math.floor(sellBalance).toLocaleString()}
+                    </Text>
+                    <Button
+                      size="xs" h="20px" px={1.5} variant="outline" borderColor="border" borderRadius="none"
+                      color="primary" fontFamily="mono" fontSize="9px" fontWeight="black"
+                      onClick={() => setAmountFromBalance(0.5)} isDisabled={sellBalance <= 0}
+                      _hover={{ bg: "background", borderColor: "primary" }}
+                    >
+                      HALF
+                    </Button>
+                    <Button
+                      size="xs" h="20px" px={1.5} variant="outline" borderColor="border" borderRadius="none"
+                      color="primary" fontFamily="mono" fontSize="9px" fontWeight="black"
+                      onClick={() => setAmountFromBalance(1)} isDisabled={sellBalance <= 0}
+                      _hover={{ bg: "background", borderColor: "primary" }}
+                    >
+                      MAX
+                    </Button>
+                  </HStack>
+                )}
+              </HStack>
+              <HStack spacing={3}>
+                <HStack spacing={2.5} flex={1} minW={0}>
+                  <TokenChainLogo token={sellToken} size="34px" />
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={sellAmount}
+                    onChange={(e) => setSellAmount(e.target.value)}
+                    fontSize="3xl"
+                    fontFamily="mono"
+                    fontWeight="black"
+                    color="primary"
+                    variant="unstyled"
+                    flex={1}
+                    minW={0}
+                    h="44px"
+                    _placeholder={{ color: "dim" }}
+                  />
                 </HStack>
-              )}
-            </HStack>
-            <HStack>
-              <HStack spacing={2} flex={1} minW={0}>
-                <TokenChainLogo token={sellToken} size="22px" />
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={sellAmount}
-                  onChange={(e) => setSellAmount(e.target.value)}
-                  fontSize="2xl"
-                  fontFamily="mono"
-                  fontWeight="black"
-                  color="primary"
-                  variant="unstyled"
-                  flex={1}
-                  minW={0}
-                  _placeholder={{ color: "dim" }}
+                <SelectorTrigger
+                  token={sellToken}
+                  onSelect={(t) => selectToken("sell", t)}
+                  excludeAddress={buyToken.address}
+                  activeChainId={chainId}
+                  label="Sell token"
                 />
               </HStack>
-              <SelectorTrigger
-                token={sellToken}
-                onSelect={(t) => selectToken("sell", t)}
-                excludeAddress={buyToken.address}
-                activeChainId={chainId}
-                label="Sell token"
-              />
-            </HStack>
-          </Box>
+            </Box>
 
-          {/* Flip */}
-          <Box textAlign="center" py={1}>
-            <Button size="xs" variant="ghost" color="primary" onClick={handleFlip}
-              _hover={{ bg: "primary", color: "background" }} transition="all 0.2s">
-              <FaExchangeAlt style={{ transform: "rotate(90deg)" }} />
-            </Button>
-          </Box>
+            {/* Flip — square button punched into the seam between the two boxes */}
+            <Box h="0" position="relative" zIndex={2} textAlign="center">
+              <Button
+                position="absolute" top="0" left="50%" transform="translate(-50%, -50%)"
+                w="40px" h="40px" minW="40px" p={0}
+                borderRadius="none"
+                border="2px solid"
+                borderColor="primary"
+                bg="background"
+                color="primary"
+                onClick={handleFlip}
+                aria-label="Flip tokens"
+                _hover={{ bg: "primary", color: "background" }}
+                _active={{ transform: "translate(-50%, -50%) scale(0.94)" }}
+                transition="all 0.15s"
+              >
+                <FaExchangeAlt style={{ transform: "rotate(90deg)" }} />
+              </Button>
+            </Box>
 
-          {/* Buy */}
-          <Box border="1px solid" borderColor="border" p={3} mb={3}>
-            <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={1}>
-              You Receive
-            </Text>
-            <HStack>
-              <HStack spacing={2} flex={1} minW={0}>
-                <TokenChainLogo token={buyToken} size="22px" />
-                <Text fontSize="2xl" fontFamily="mono" fontWeight="black" color="primary">
-                  {isFetching ? <Spinner size="sm" /> : estimatedOut}
-                </Text>
+            {/* Buy */}
+            <Box border="1px solid" borderColor="border" bg="muted" p={4}>
+              <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={2}>
+                You Receive
+              </Text>
+              <HStack spacing={3}>
+                <HStack spacing={2.5} flex={1} minW={0}>
+                  <TokenChainLogo token={buyToken} size="34px" />
+                  <Text fontSize="3xl" fontFamily="mono" fontWeight="black" color={estimatedOut === "—" ? "dim" : "primary"} isTruncated>
+                    {isFetching ? <Spinner size="md" color="primary" /> : estimatedOut}
+                  </Text>
+                </HStack>
+                <SelectorTrigger
+                  token={buyToken}
+                  onSelect={(t) => selectToken("buy", t)}
+                  excludeAddress={sellToken.address}
+                  activeChainId={chainId}
+                  label="Buy token"
+                />
               </HStack>
-              <SelectorTrigger
-                token={buyToken}
-                onSelect={(t) => selectToken("buy", t)}
-                excludeAddress={sellToken.address}
-                activeChainId={chainId}
-                label="Buy token"
-              />
-            </HStack>
+            </Box>
           </Box>
 
           {/* Swap details (rate, min received, fees) */}
@@ -594,13 +622,13 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
 
           {/* CTA */}
           {!isConnected ? (
-            <Box border="1px solid" borderColor="border" p={3} textAlign="center">
+            <Box border="1px solid" borderColor="border" bg="muted" p={4} textAlign="center">
               <Text fontSize="xs" color="dim" fontFamily="mono">Connect EVM wallet to swap</Text>
             </Box>
           ) : needsApproval ? (
             <Button
-              w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest"
-              fontFamily="mono" colorScheme="orange" size="md"
+              w="100%" h="54px" borderRadius="none" fontWeight="black" letterSpacing="widest"
+              fontFamily="mono" fontSize="md" colorScheme="orange"
               sx={{ textTransform: "uppercase" }}
               isLoading={isApproving} loadingText="APPROVING..."
               onClick={handleApprove}
@@ -609,8 +637,8 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </Button>
           ) : (
             <Button
-              w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest"
-              fontFamily="mono" colorScheme="green" size="md"
+              w="100%" h="54px" borderRadius="none" fontWeight="black" letterSpacing="widest"
+              fontFamily="mono" fontSize="md" colorScheme="green"
               sx={{ textTransform: "uppercase" }}
               isDisabled={!canSwap}
               isLoading={isSending || isConfirming}

@@ -79,18 +79,23 @@ function SideSelector({
   return (
     <>
       <Button
-        size="sm"
+        h="44px"
         variant="outline"
         borderColor="border"
         borderRadius="none"
+        bg="background"
         fontFamily="mono"
         fontWeight="black"
+        fontSize="md"
         color="text"
-        px={2}
+        pl={2}
+        pr={3}
         flexShrink={0}
         onClick={onOpen}
-        leftIcon={<TokenChainLogo token={token} size="18px" />}
-        _hover={{ borderColor: "primary", color: "primary" }}
+        leftIcon={<TokenChainLogo token={token} size="28px" />}
+        _hover={{ borderColor: "primary", color: "primary", bg: "muted" }}
+        _active={{ bg: "muted" }}
+        transition="all 0.12s"
       >
         {token.symbol}
       </Button>
@@ -350,53 +355,64 @@ export default function BridgeSection() {
 
   return (
     <VStack spacing={0} align="stretch">
-      {/* From */}
-      <Box border="1px solid" borderColor={insufficient ? "red.400" : "border"} p={3} mb={1}>
-        <HStack justify="space-between" mb={1}>
-          <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
-            {t("bridge.from")} · {fromChainName}
-          </Text>
-          {isConnected && (
-            <HStack spacing={2}>
-              <Text fontSize="10px" color={insufficient ? "red.400" : "dim"} fontFamily="mono">
-                {t("bridge.balance")}: {fromBalance < 0.0001 ? fromBalance.toExponential(2) : fromBalance < 1 ? fromBalance.toFixed(4) : fromBalance.toFixed(2)}
-              </Text>
-              <Button size="xs" h="16px" px={1} variant="ghost" color="primary" fontFamily="mono" fontSize="9px"
-                onClick={setMax} isDisabled={fromBalance <= 0} _hover={{ bg: "muted" }}>
-                {t("bridge.max")}
-              </Button>
-            </HStack>
-          )}
-        </HStack>
-        <HStack>
-          <Input
-            type="number" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)}
-            fontSize="2xl" fontFamily="mono" fontWeight="black" color="primary" variant="unstyled"
-            flex={1} minW={0} _placeholder={{ color: "dim" }}
-          />
-          <SideSelector token={fromToken} onSelect={setFromToken} />
-        </HStack>
-      </Box>
+      {/* From + Flip + To (flip button overlaps the seam) */}
+      <Box mb={3}>
+        {/* From */}
+        <Box border="1px solid" borderColor={insufficient ? "red.400" : "border"} bg="muted" p={4}>
+          <HStack justify="space-between" mb={2}>
+            <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
+              {t("bridge.from")} · {fromChainName}
+            </Text>
+            {isConnected && (
+              <HStack spacing={2}>
+                <Text fontSize="11px" color={insufficient ? "red.400" : "dim"} fontFamily="mono">
+                  {t("bridge.balance")}: {fromBalance < 0.0001 ? fromBalance.toExponential(2) : fromBalance < 1 ? fromBalance.toFixed(4) : fromBalance.toFixed(2)}
+                </Text>
+                <Button size="xs" h="20px" px={1.5} variant="outline" borderColor="border" borderRadius="none"
+                  color="primary" fontFamily="mono" fontSize="9px" fontWeight="black"
+                  onClick={setMax} isDisabled={fromBalance <= 0} _hover={{ bg: "background", borderColor: "primary" }}>
+                  {t("bridge.max")}
+                </Button>
+              </HStack>
+            )}
+          </HStack>
+          <HStack spacing={3}>
+            <Input
+              type="number" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)}
+              fontSize="3xl" fontFamily="mono" fontWeight="black" color="primary" variant="unstyled"
+              flex={1} minW={0} h="44px" _placeholder={{ color: "dim" }}
+            />
+            <SideSelector token={fromToken} onSelect={setFromToken} />
+          </HStack>
+        </Box>
 
-      {/* Flip */}
-      <Box textAlign="center" py={1}>
-        <Button size="xs" variant="ghost" color="primary" onClick={handleFlip}
-          _hover={{ bg: "primary", color: "background" }} transition="all 0.2s">
-          <FaArrowDown />
-        </Button>
-      </Box>
+        {/* Flip — square button punched into the seam between the two boxes */}
+        <Box h="0" position="relative" zIndex={2} textAlign="center">
+          <Button
+            position="absolute" top="0" left="50%" transform="translate(-50%, -50%)"
+            w="40px" h="40px" minW="40px" p={0}
+            borderRadius="none" border="2px solid" borderColor="primary"
+            bg="background" color="primary" onClick={handleFlip} aria-label="Flip chains"
+            _hover={{ bg: "primary", color: "background" }}
+            _active={{ transform: "translate(-50%, -50%) scale(0.94)" }}
+            transition="all 0.15s"
+          >
+            <FaArrowDown />
+          </Button>
+        </Box>
 
-      {/* To */}
-      <Box border="1px solid" borderColor="border" p={3} mb={3}>
-        <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={1}>
-          {t("bridge.to")} · {toChainName}
-        </Text>
-        <HStack>
-          <Text fontSize="2xl" fontFamily="mono" fontWeight="black" color="primary" flex={1} minW={0} isTruncated>
-            {isFetching ? <Spinner size="sm" /> : estOut}
+        {/* To */}
+        <Box border="1px solid" borderColor="border" bg="muted" p={4}>
+          <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={2}>
+            {t("bridge.to")} · {toChainName}
           </Text>
-          <SideSelector token={toToken} onSelect={setToToken} />
-        </HStack>
+          <HStack spacing={3}>
+            <Text fontSize="3xl" fontFamily="mono" fontWeight="black" color={estOut === "—" ? "dim" : "primary"} flex={1} minW={0} isTruncated>
+              {isFetching ? <Spinner size="md" color="primary" /> : estOut}
+            </Text>
+            <SideSelector token={toToken} onSelect={setToToken} />
+          </HStack>
+        </Box>
       </Box>
 
       {/* Details */}
@@ -445,24 +461,24 @@ export default function BridgeSection() {
 
       {/* CTA */}
       {!isConnected ? (
-        <Box border="1px solid" borderColor="border" p={3} textAlign="center">
+        <Box border="1px solid" borderColor="border" bg="muted" p={4} textAlign="center">
           <Text fontSize="xs" color="dim" fontFamily="mono">{t("bridge.connectWallet")}</Text>
         </Box>
       ) : !onFromChain ? (
         <Button w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest" fontFamily="mono"
-          colorScheme="orange" size="md" sx={{ textTransform: "uppercase" }} isLoading={isSwitching}
+          colorScheme="orange" h="54px" fontSize="md" sx={{ textTransform: "uppercase" }} isLoading={isSwitching}
           onClick={() => switchChain({ chainId: fromToken.chainId })}>
           {t("bridge.switchTo").replace("{chain}", fromChainName)}
         </Button>
       ) : needsApproval ? (
         <Button w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest" fontFamily="mono"
-          colorScheme="orange" size="md" sx={{ textTransform: "uppercase" }} isLoading={isApproving}
+          colorScheme="orange" h="54px" fontSize="md" sx={{ textTransform: "uppercase" }} isLoading={isApproving}
           loadingText={t("bridge.approving")} onClick={handleApprove}>
           {t("bridge.approve").replace("{symbol}", fromToken.symbol)}
         </Button>
       ) : (
         <Button w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest" fontFamily="mono"
-          colorScheme="green" size="md" sx={{ textTransform: "uppercase" }} isDisabled={!canBridge}
+          colorScheme="green" h="54px" fontSize="md" sx={{ textTransform: "uppercase" }} isDisabled={!canBridge}
           isLoading={isSending || isConfirming} loadingText={t("bridge.bridging")}
           leftIcon={<FaArrowDown />} onClick={handleBridge}>
           {!amount ? t("bridge.enterAmount") : insufficient ? t("bridge.insufficient").replace("{symbol}", fromToken.symbol) : isFetching ? "..." : t("bridge.bridge")}
