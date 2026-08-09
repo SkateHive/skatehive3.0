@@ -28,6 +28,7 @@ import MergeAccountModal, { MergeType } from "../profile/MergeAccountModal";
 import { mergeAccounts, generateMergePreview } from "@/lib/services/mergeAccounts";
 import { ProfileDiff } from "@/lib/utils/profileDiff";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
+import { bootstrapHiveSession } from "@/lib/userbase/bootstrapHiveSession";
 
 interface ConnectionStatus {
   name: string;
@@ -39,7 +40,7 @@ interface ConnectionStatus {
 
 export default function AuthButton() {
   const { user } = useAioha();
-  const { user: userbaseUser } = useUserbaseAuth();
+  const { user: userbaseUser, refresh } = useUserbaseAuth();
   const { colorMode } = useColorMode();
   const [modalDisplayed, setModalDisplayed] = useState(false);
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
@@ -293,6 +294,27 @@ export default function AuthButton() {
     setModalDisplayed(true);
   }, []);
 
+  // Explicitly bridge the connected Hive identity into an app-account session
+  // instead of relying on the passive (silent-on-failure, throttled) bootstrapper.
+  const handleHiveLoginSuccess = useCallback(
+    async (username: string) => {
+      setIsConnectionModalOpen(false);
+      setModalDisplayed(false);
+      try {
+        await bootstrapHiveSession(username);
+        await refresh();
+      } catch (e: any) {
+        toast({
+          status: "error",
+          title: "Sign-in failed",
+          description: e?.message || "Please try again.",
+          duration: 6000,
+        });
+      }
+    },
+    [refresh, toast]
+  );
+
   const handleFarcasterConnect = useCallback(() => {
     if (isFarcasterAuthInProgress || isFarcasterConnected) return;
 
@@ -428,7 +450,7 @@ export default function AuthButton() {
       <HiveLoginModal
         isOpen={modalDisplayed}
         onClose={() => setModalDisplayed(false)}
-        onSuccess={() => setIsConnectionModalOpen(false)}
+        onSuccess={handleHiveLoginSuccess}
       />
 
       {/* Farcaster Auth Island (hidden) */}

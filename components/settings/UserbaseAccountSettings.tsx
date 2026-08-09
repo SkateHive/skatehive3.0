@@ -21,6 +21,7 @@ import HiveLoginModal from "@/components/layout/HiveLoginModal";
 import ConnectionModal from "@/components/layout/ConnectionModal";
 import { FarcasterAuthIsland, useFarcasterAuthMethods } from "@/components/farcaster/FarcasterAuthIsland";
 import { useAioha } from "@aioha/react-ui";
+import { bootstrapHiveSession } from "@/lib/userbase/bootstrapHiveSession";
 
 export default function UserbaseAccountSettings() {
   const t = useTranslations();
@@ -48,21 +49,7 @@ export default function UserbaseAccountSettings() {
       setModalDisplayed(false);
       setIsConnectionModalOpen(false);
       try {
-        const res = await fetch("/api/userbase/auth/bootstrap", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "hive",
-            identifier: username,
-            handle: username,
-            display_name: username,
-            avatar_url: `https://images.hive.blog/u/${username}/avatar`,
-          }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => null);
-          throw new Error(data?.error || "Failed to create your app account session.");
-        }
+        await bootstrapHiveSession(username);
         await refresh();
         toast({ status: "success", title: t("auth.connectedSuccess"), duration: 3000 });
       } catch (e: any) {
