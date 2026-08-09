@@ -31,7 +31,9 @@ const blink = keyframes`
 interface HiveLoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  /** Called on a successful Hive-layer login. Receives the Hive username so
+   *  callers can bootstrap an app-account (userbase) session from it. */
+  onSuccess?: (username: string) => void;
 }
 
 // Provider option component
@@ -176,7 +178,7 @@ export default function HiveLoginModal({
       // Reuse the existing session instead of hard-failing.
       if (aioha.getCurrentUser() === uname) {
         toast({ status: "success", title: `connected: ${uname}`, duration: 3000 });
-        onSuccess?.();
+        onSuccess?.(uname);
         handleClose();
         return;
       }
@@ -186,7 +188,7 @@ export default function HiveLoginModal({
         // stale entry so the fresh login below isn't blocked by the 4901 guard.
         if (aioha.switchUser(uname)) {
           toast({ status: "success", title: `connected: ${uname}`, duration: 3000 });
-          onSuccess?.();
+          onSuccess?.(uname);
           handleClose();
           return;
         }
@@ -204,7 +206,7 @@ export default function HiveLoginModal({
           title: `connected: ${result.username}`,
           duration: 3000,
         });
-        onSuccess?.();
+        onSuccess?.(uname);
         handleClose();
       } else {
         toast({

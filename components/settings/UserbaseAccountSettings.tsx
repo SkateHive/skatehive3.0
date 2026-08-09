@@ -24,7 +24,7 @@ import { useAioha } from "@aioha/react-ui";
 
 export default function UserbaseAccountSettings() {
   const t = useTranslations();
-  const { user } = useUserbaseAuth();
+  const { user, refresh } = useUserbaseAuth();
   const { aioha } = useAioha();
   const toast = useToast();
   const [modalDisplayed, setModalDisplayed] = useState(false);
@@ -37,6 +37,45 @@ export default function UserbaseAccountSettings() {
     await aioha.logout();
     setModalDisplayed(true);
   }, [aioha]);
+
+  // Explicitly turn the just-connected Hive identity into an app-account
+  // (userbase) session. Previously we only logged into aioha and hoped the
+  // passive UserbaseWalletBootstrapper effect would bridge it — but that effect
+  // is silent-on-failure, throttled, and skipped whenever any session already
+  // exists, so users got stranded "signed into Hive but App Account says Sign in".
+  const handleHiveLoginSuccess = useCallback(
+    async (username: string) => {
+      setModalDisplayed(false);
+      setIsConnectionModalOpen(false);
+      try {
+        const res = await fetch("/api/userbase/auth/bootstrap", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "hive",
+            identifier: username,
+            handle: username,
+            display_name: username,
+            avatar_url: `https://images.hive.blog/u/${username}/avatar`,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || "Failed to create your app account session.");
+        }
+        await refresh();
+        toast({ status: "success", title: t("auth.connectedSuccess"), duration: 3000 });
+      } catch (e: any) {
+        toast({
+          status: "error",
+          title: t("auth.authenticationFailed"),
+          description: e?.message || "Please try again.",
+          duration: 6000,
+        });
+      }
+    },
+    [refresh, toast, t]
+  );
 
   const handleFarcasterConnect = useCallback(() => {
     if (isFarcasterAuthInProgress) return;
@@ -69,7 +108,7 @@ export default function UserbaseAccountSettings() {
         <HiveLoginModal
           isOpen={modalDisplayed}
           onClose={() => setModalDisplayed(false)}
-          onSuccess={() => setIsConnectionModalOpen(false)}
+          onSuccess={handleHiveLoginSuccess}
         />
         <FarcasterAuthIsland
           onSuccess={({ fid, username }: any) => {
