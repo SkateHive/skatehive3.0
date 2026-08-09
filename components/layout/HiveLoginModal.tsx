@@ -167,12 +167,37 @@ export default function HiveLoginModal({
     
     setIsLoading(true);
     
+    const uname = username.trim().toLowerCase();
     try {
-      const result = await aioha.login(selectedProvider, username.trim().toLowerCase(), {
+      // aioha rejects login() with 4901 "Already logged in" when this account
+      // is already in its session store. That happens after connecting an EVM
+      // wallet that has a linked Hive account: the Hive session is carried over,
+      // but the user still sees "sign in" and clicking it tries to re-login.
+      // Reuse the existing session instead of hard-failing.
+      if (aioha.getCurrentUser() === uname) {
+        toast({ status: "success", title: `connected: ${uname}`, duration: 3000 });
+        onSuccess?.();
+        handleClose();
+        return;
+      }
+      if ((aioha.getOtherLogins() || {})[uname]) {
+        // Stored as a secondary account — activate it. If the switch can't be
+        // performed (its provider isn't registered this session), drop the
+        // stale entry so the fresh login below isn't blocked by the 4901 guard.
+        if (aioha.switchUser(uname)) {
+          toast({ status: "success", title: `connected: ${uname}`, duration: 3000 });
+          onSuccess?.();
+          handleClose();
+          return;
+        }
+        aioha.removeOtherLogin(uname);
+      }
+
+      const result = await aioha.login(selectedProvider, uname, {
         msg: "Login to Skatehive",
         keyType: KeyTypes.Posting,
       });
-      
+
       if (result.success) {
         toast({
           status: "success",
