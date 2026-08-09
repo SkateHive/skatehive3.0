@@ -147,7 +147,7 @@ export default function CrossChainSwapPanel() {
     if (!mAddrOk) return notify("Enter a valid Bitcoin address");
     setMBusy(true);
     try {
-      const txId = await executeMagiSwap(magiClient, { username: user, assetIn: mIn, assetOut: "BTC", amountIn: mAmount, recipient: mAddr, slippagePct: 0.5 });
+      const txId = await executeMagiSwap(magiClient, aioha, { username: user, assetIn: mIn, assetOut: "BTC", amountIn: mAmount, recipient: mAddr, slippagePct: 0.5 });
       notify(`Magi swap submitted (tx ${txId.slice(0, 8)}…) — BTC settles shortly`, "success");
       setMAmount("");
       setMPreview(null);
