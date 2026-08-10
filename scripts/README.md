@@ -117,16 +117,47 @@ NODE_ENV=development
 
 2. **Testing:**
 
-   ```bash
-   # Run userbase smoke test
-   pnpm db:smoke-userbase
+```bash
+# Run userbase smoke test
+pnpm db:smoke-userbase
 
-   # Snapshot userbase tables
-   pnpm db:snapshot-userbase
+# Snapshot userbase tables
+pnpm db:snapshot-userbase
 
-   # Show all available scripts
-   node scripts/index.js help
-   ```
+# Reward claim pipeline
+pnpm rewards:claim discover
+pnpm rewards:claim dry-run --credential-source db --inactive-days 30
+pnpm rewards:claim execute --credential-source db --inactive-days 30 --limit 50 --yes
+
+# Show all available scripts
+node scripts/index.js help
+```
+
+## Reward Claim Pipeline
+
+**File:** `userbase/claim-rewards.ts`
+
+**Purpose:** Discover inactive Hive-linked users who opted into the SkateHive curation trail, validate posting authority, and optionally execute `claim_reward_balance` with stored posting keys.
+
+**Inactivity filter:**
+
+- Defaults to 30 days and can be changed with `--inactive-days`
+- Excludes recent userbase logins, sessions, profile changes, soft posts, and soft votes
+- Rechecks recent on-chain posts/comments before both dry-run readiness and broadcast
+- Requires a stored posting key and `trail_opt_out = false`
+
+**Backup formats supported:**
+
+- JSON attachments with `keys.active.private`
+- TXT backups containing `Username:`, `Master Password:`, and/or `Active:`
+
+**Safety defaults:**
+
+- `discover` only queries DB
+- `dry-run` never broadcasts
+- `execute` requires `--yes`
+- Active keys are not loaded when `--credential-source db` is used
+- Reports never store private keys, only status, values, and txids
 
 ## Security Notes
 

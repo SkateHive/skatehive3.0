@@ -24,6 +24,7 @@
     "db:backfill-farcaster": "node scripts/database/backfill-farcaster-profiles.js",
     "db:diagnose-evm": "node scripts/database/diagnose-evm-priorities.js",
     "db:test-linking": "node scripts/database/test-linking-flow.js",
+    "rewards:claim": "tsx scripts/userbase/claim-rewards.ts",
     "scripts": "node scripts/index.js",
     "scripts:help": "echo 'Available scripts: db:inspect, db:smoke-userbase, db:snapshot-userbase, db:snapshot-username, db:backfill-farcaster, scripts'"
   },

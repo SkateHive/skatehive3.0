@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import { PrivateKey } from "@hiveio/dhive";
 import fetchAccount from "@/lib/hive/fetchAccount";
-import { encryptSecret } from "@/lib/userbase/encryption";
+import { encryptHivePostingKey } from "@/lib/userbase/encryption";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -216,11 +216,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let encrypted: string;
-  let encryptedData: { v: number; iv: string; tag: string; data: string };
+  let encryptedData: { encryptedKey: string; iv: string; authTag: string };
   try {
-    encrypted = encryptSecret(postingKey);
-    encryptedData = JSON.parse(encrypted);
+    encryptedData = encryptHivePostingKey(postingKey, session.userId);
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || "Encryption failed" },
@@ -242,9 +240,9 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase!
       .from("userbase_hive_keys")
       .update({
-        encrypted_posting_key: encryptedData.data,
+        encrypted_posting_key: encryptedData.encryptedKey,
         encryption_iv: encryptedData.iv,
-        encryption_auth_tag: encryptedData.tag,
+        encryption_auth_tag: encryptedData.authTag,
         key_type: "user_provided",
         updated_at: now,
       })
@@ -270,9 +268,9 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: session.userId,
         hive_username: hiveIdentity.handle,
-        encrypted_posting_key: encryptedData.data,
+        encrypted_posting_key: encryptedData.encryptedKey,
         encryption_iv: encryptedData.iv,
-        encryption_auth_tag: encryptedData.tag,
+        encryption_auth_tag: encryptedData.authTag,
         key_type: "user_provided",
         created_at: now,
         updated_at: now,

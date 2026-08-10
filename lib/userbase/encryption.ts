@@ -42,6 +42,36 @@ export function encryptSecret(plaintext: string) {
   });
 }
 
+export function decryptSecret(payload: string): string {
+  const parsed: unknown = JSON.parse(payload);
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("Invalid encrypted secret");
+  }
+
+  const record = parsed as Record<string, unknown>;
+  if (
+    record.v !== 1 ||
+    typeof record.iv !== "string" ||
+    typeof record.tag !== "string" ||
+    typeof record.data !== "string"
+  ) {
+    throw new Error("Unsupported encrypted secret format");
+  }
+
+  const decipher = crypto.createDecipheriv(
+    "aes-256-gcm",
+    getKey(),
+    Buffer.from(record.iv, "base64")
+  );
+  decipher.setAuthTag(Buffer.from(record.tag, "base64"));
+
+  const decrypted = Buffer.concat([
+    decipher.update(Buffer.from(record.data, "base64")),
+    decipher.final(),
+  ]);
+  return decrypted.toString("utf8");
+}
+
 /**
  * Encrypts a Hive posting key for a specific user using AES-256-GCM
  * Returns encrypted key, IV, and auth tag separately for database storage
