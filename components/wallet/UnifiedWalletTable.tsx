@@ -39,6 +39,7 @@ import {
 } from "@/lib/utils/portfolioUtils";
 import { FaPaperPlane, FaQrcode, FaCopy } from "react-icons/fa";
 import SendTokenModal from "./SendTokenModal";
+import ClaimToBtcModal from "./components/ClaimToBtcModal";
 import TokenControlsBar from "./components/TokenControlsBar";
 import MobileTokenTable from "./components/MobileTokenTable";
 import DesktopTokenTable from "./components/DesktopTokenTable";
@@ -473,6 +474,7 @@ export default function UnifiedWalletTable({
   // Send picker + receive modals
   const { isOpen: isSendPickerOpen, onOpen: onSendPickerOpen, onClose: onSendPickerClose } = useDisclosure();
   const { isOpen: isReceiveOpen, onOpen: onReceiveOpen, onClose: onReceiveClose } = useDisclosure();
+  const { isOpen: isBtcSetupOpen, onOpen: onBtcSetupOpen, onClose: onBtcSetupClose } = useDisclosure();
   const [sendTarget, setSendTarget] = useState<ConsolidatedToken | null>(null);
 
   const isMobile = useBreakpointValue({ base: true, md: false });
@@ -580,11 +582,14 @@ export default function UnifiedWalletTable({
     return tokens;
   }, [hiveUser, hiveBalance, hivePower, hbdBalance, hbdSavingsBalance, hivePrice, hbdPrice]);
 
-  // Synthetic BTC token (only when the user has a self-claimed address with a balance)
-  const btcTokens = useMemo<TokenDetail[]>(() => {
-    if (!btcAddress || btcBalance == null || btcBalance <= 0) return [];
-    return [makeBtcToken(btcBalance, btcPrice ?? null)];
-  }, [btcAddress, btcBalance, btcPrice]);
+  // Synthetic BTC token — ALWAYS shown (discovery). When the user hasn't set up
+  // a BTC payout yet, it's a 0-balance placeholder rendered greyed + clickable
+  // (see btcNotSetUp / the setup CTA below).
+  const btcNotSetUp = !btcAddress;
+  const btcTokens = useMemo<TokenDetail[]>(
+    () => [makeBtcToken(btcAddress ? btcBalance ?? 0 : 0, btcPrice ?? null)],
+    [btcAddress, btcBalance, btcPrice]
+  );
 
   // Filter EVM tokens by source
   const filteredEVMTokens = useMemo<TokenDetail[]>(() => {
@@ -615,7 +620,16 @@ export default function UnifiedWalletTable({
       return token.totalBalanceUSD >= minBalanceThreshold || token.symbol.toLowerCase() === "higher";
     });
 
-    return sortConsolidatedTokensByBalance(filtered);
+    const sorted = sortConsolidatedTokensByBalance(filtered);
+    // Discovery placement: BTC sits directly above the HIGHER token.
+    const btcPos = sorted.findIndex((tk) => tk.symbol.toUpperCase() === "BTC");
+    const higherPos = sorted.findIndex((tk) => tk.symbol.toLowerCase() === "higher");
+    if (btcPos >= 0 && higherPos >= 0 && btcPos !== higherPos - 1) {
+      const [btc] = sorted.splice(btcPos, 1);
+      const h = sorted.findIndex((tk) => tk.symbol.toLowerCase() === "higher");
+      sorted.splice(h, 0, btc);
+    }
+    return sorted;
   // logoUpdateTrigger forces re-evaluation so fresh logo cache entries are picked up
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hiveTokens, btcTokens, filteredEVMTokens, hideSmallBalances, chainFilter, logoUpdateTrigger]);
@@ -668,6 +682,8 @@ export default function UnifiedWalletTable({
             expandedTokens={expandedTokens}
             onToggleExpansion={toggleTokenExpansion}
             onTokenSelect={handleTokenSelect}
+            dimSymbol={btcNotSetUp ? "BTC" : undefined}
+            onDimClick={onBtcSetupOpen}
           />
           {showEVMSkeleton && <TokenRowSkeletons count={4} />}
         </VStack>
@@ -706,6 +722,8 @@ export default function UnifiedWalletTable({
             consolidatedTokens={consolidatedTokens}
             expandedTokens={expandedTokens}
             onToggleExpansion={toggleTokenExpansion}
+            dimSymbol={btcNotSetUp ? "BTC" : undefined}
+            onDimClick={onBtcSetupOpen}
           />
           {showEVMSkeleton && <TokenRowSkeletons count={5} />}
         </Box>
@@ -747,6 +765,19 @@ export default function UnifiedWalletTable({
         evmAddress={address}
         btcAddress={btcAddress}
       />
+
+      {/* "How to enable BTC rewards" — opened from the greyed BTC row. */}
+      {hiveUser && (
+        <ClaimToBtcModal
+          isOpen={isBtcSetupOpen}
+          onClose={onBtcSetupClose}
+          username={hiveUser}
+          rewardHbd={0}
+          btcAddress={btcAddress}
+          hivePower={Number(hivePower) || 0}
+          hiveBalance={hiveBalance && hiveBalance !== "N/A" ? `${hiveBalance} HIVE` : "0.000 HIVE"}
+        />
+      )}
     </Box>
   );
 }

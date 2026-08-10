@@ -300,27 +300,29 @@ export default function ClaimToBtcModal({
 
             {step === "checks" && (
               <>
+                {/* HP first — it's the gateway (drives RC + the curation gate). */}
                 <VStack align="stretch" spacing={2}>
-                  <CheckRow ok={addrOk} label="Bitcoin address saved" hint="Add your BTC address in profile settings." />
                   <CheckRow
                     ok={hpOk}
-                    label={`≥ ${MIN_HP_FOR_BTC} HP`}
-                    hint={`You have ${Math.floor(hivePower)} HP — power up HIVE to qualify.`}
+                    label={`1. Power up to ≥ ${MIN_HP_FOR_BTC} HP`}
+                    hint={`You have ${Math.floor(hivePower)} HP — power up HIVE to qualify (this is step one).`}
                   />
                   <CheckRow
                     ok={rcOk}
-                    label="Enough Resource Credits"
+                    label="2. Enough Resource Credits"
                     hint={
                       rcAvailable === null
                         ? "Checking…"
-                        : `Need ~${Number(MAGI_MIN_RC) / 1000}k RC, you have ${(Number(rcAvailable) / 1000).toFixed(1)}k — wait to recharge or power up.`
+                        : `Need ~${Number(MAGI_MIN_RC) / 1000}k RC, you have ${(Number(rcAvailable) / 1000).toFixed(1)}k — comes with HP; wait to recharge or power up more.`
                     }
                   />
-                  <CheckRow ok={amountOk} label={`≥ ${MIN_HBD_TO_CONVERT} HBD reward`} hint="Reward too small to convert right now." />
+                  <CheckRow ok={addrOk} label="3. Bitcoin address saved" hint="Add your BTC address in profile settings." />
+                  <CheckRow ok={amountOk} label={`4. ≥ ${MIN_HBD_TO_CONVERT} HBD reward`} hint="Claim rewards with liquid HBD to convert." />
                 </VStack>
 
-                {/* Tool: power up right here when HP/RC is the blocker. */}
-                {addrOk && (!hpOk || !rcOk) && (
+                {/* Tool: power up right here — HP is step one, so offer it even
+                    before a BTC address is added (RC only once we can check it). */}
+                {(!hpOk || (addrOk && !rcOk)) && (
                   <Button
                     leftIcon={<FaBolt />}
                     variant="outline"

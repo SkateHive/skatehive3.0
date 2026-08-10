@@ -28,12 +28,17 @@ interface DesktopTokenTableProps {
   consolidatedTokens: ConsolidatedToken[];
   expandedTokens: Set<string>;
   onToggleExpansion: (symbol: string) => void;
+  /** Symbol to render greyed + clickable (e.g. a not-set-up BTC row). */
+  dimSymbol?: string;
+  onDimClick?: () => void;
 }
 
 export default function DesktopTokenTable({
   consolidatedTokens,
   expandedTokens,
   onToggleExpansion,
+  dimSymbol,
+  onDimClick,
 }: DesktopTokenTableProps) {
   if (consolidatedTokens.length === 0) {
     return (
@@ -62,6 +67,9 @@ export default function DesktopTokenTable({
             const primaryToken = consolidatedToken.primaryChain;
             const { priceChange } = getEnhancedTokenData(primaryToken);
             const isExpanded = expandedTokens.has(consolidatedToken.symbol);
+            const isDim =
+              !!dimSymbol &&
+              consolidatedToken.symbol.toUpperCase() === dimSymbol.toUpperCase();
 
             return (
               <Fragment key={`${consolidatedToken.symbol}-${consolidatedToken.primaryChain.network}`}>
@@ -69,6 +77,9 @@ export default function DesktopTokenTable({
                   _hover={{ bg: "subtle" }}
                   borderBottom="1px solid"
                   borderColor="border"
+                  opacity={isDim ? 0.5 : 1}
+                  cursor={isDim ? "pointer" : undefined}
+                  onClick={isDim ? onDimClick : undefined}
                 >
                   {/* Asset Column */}
                   <Td py={3}>
@@ -85,6 +96,11 @@ export default function DesktopTokenTable({
                           <Text fontWeight="medium" color="text" fontSize="sm">
                             {consolidatedToken.symbol}
                           </Text>
+                          {isDim && (
+                            <Badge colorScheme="orange" fontSize="2xs" variant="outline">
+                              SET UP
+                            </Badge>
+                          )}
                           {consolidatedToken.chains.length > 1 && (
                             <Badge
                               colorScheme="blue"
