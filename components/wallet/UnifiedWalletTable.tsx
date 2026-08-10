@@ -23,6 +23,7 @@ import {
   Image,
 } from "@chakra-ui/react";
 import { useState, useEffect, useMemo, useCallback } from "react";
+import * as QRCode from "qrcode";
 import { useAccount } from "wagmi";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { usePortfolioContext } from "@/contexts/PortfolioContext";
@@ -308,8 +309,48 @@ function ReceiveModal({ isOpen, onClose, hiveUser, evmAddress, btcAddress }: {
     navigator.clipboard.writeText(val);
     toast({ title: "Copied!", status: "success", duration: 1500, isClosable: true });
   };
+
+  // Wallets to show, in order. `value` is displayed + copied; `qr` is encoded.
+  const wallets = useMemo(
+    () =>
+      [
+        hiveUser ? { key: "hive", label: "Hive", value: `@${hiveUser}`, qr: hiveUser } : null,
+        evmAddress ? { key: "evm", label: "EVM", value: evmAddress, qr: evmAddress } : null,
+        btcAddress ? { key: "btc", label: "Bitcoin", value: btcAddress, qr: btcAddress } : null,
+      ].filter(Boolean) as { key: string; label: string; value: string; qr: string }[],
+    [hiveUser, evmAddress, btcAddress]
+  );
+
+  const [selected, setSelected] = useState<string>("");
+  const [qrMap, setQrMap] = useState<Record<string, string>>({});
+
+  // Default selection to the first wallet whenever the set changes / opens.
+  useEffect(() => {
+    if (isOpen && wallets.length && !wallets.some((w) => w.key === selected)) {
+      setSelected(wallets[0].key);
+    }
+  }, [isOpen, wallets, selected]);
+
+  // Pre-generate a QR per wallet (black-on-white for scannability) on open.
+  useEffect(() => {
+    if (!isOpen) { setQrMap({}); return; }
+    let cancelled = false;
+    (async () => {
+      const out: Record<string, string> = {};
+      for (const w of wallets) {
+        try {
+          out[w.key] = await QRCode.toDataURL(w.qr, { width: 240, margin: 2, color: { dark: "#000000", light: "#ffffff" } });
+        } catch { /* skip a failed QR */ }
+      }
+      if (!cancelled) setQrMap(out);
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, wallets]);
+
+  const active = wallets.find((w) => w.key === selected) || wallets[0];
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} size="sm" isCentered>
       <ModalOverlay />
       <ModalContent bg="background" borderRadius="none" border="2px solid" borderColor="primary">
         <ModalHeader
@@ -320,41 +361,79 @@ function ReceiveModal({ isOpen, onClose, hiveUser, evmAddress, btcAddress }: {
           Receive
         </ModalHeader>
         <ModalCloseButton />
-        <ModalBody py={4}>
-          <VStack spacing={4} align="stretch">
-            {hiveUser && (
-              <Box>
-                <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" mb={1}>Hive Account</Text>
-                <HStack border="1px solid" borderColor="border" p={3}>
-                  <Text fontFamily="mono" fontSize="sm" color="primary" flex={1}>@{hiveUser}</Text>
-                  <IconButton aria-label="Copy" icon={<FaCopy />} size="xs" variant="ghost" color="dim" onClick={() => copy(hiveUser)} />
+        <ModalBody py={5}>
+          {!wallets.length ? (
+            <Text fontFamily="mono" fontSize="sm" color="dim" textAlign="center" py={6}>
+              No linked addresses found.
+            </Text>
+          ) : (
+            <VStack spacing={4} align="stretch">
+              {/* wallet picker (only when there's more than one) */}
+              {wallets.length > 1 && (
+                <HStack spacing={0} border="1px solid" borderColor="primary">
+                  {wallets.map((w) => {
+                    const on = active?.key === w.key;
+                    return (
+                      <Button
+                        key={w.key}
+                        flex={1}
+                        size="sm"
+                        borderRadius="none"
+                        fontFamily="mono"
+                        fontSize="xs"
+                        textTransform="uppercase"
+                        bg={on ? "primary" : "transparent"}
+                        color={on ? "background" : "primary"}
+                        opacity={on ? 1 : 0.6}
+                        _hover={{ opacity: 1 }}
+                        onClick={() => setSelected(w.key)}
+                      >
+                        {w.label}
+                      </Button>
+                    );
+                  })}
                 </HStack>
-              </Box>
-            )}
-            {evmAddress && (
-              <Box>
-                <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" mb={1}>EVM Address</Text>
-                <HStack border="1px solid" borderColor="border" p={3}>
-                  <Text fontFamily="mono" fontSize="xs" color="primary" flex={1} wordBreak="break-all">{evmAddress}</Text>
-                  <IconButton aria-label="Copy" icon={<FaCopy />} size="xs" variant="ghost" color="dim" onClick={() => copy(evmAddress)} />
-                </HStack>
-              </Box>
-            )}
-            {btcAddress && (
-              <Box>
-                <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" mb={1}>Bitcoin Address</Text>
-                <HStack border="1px solid" borderColor="border" p={3}>
-                  <Text fontFamily="mono" fontSize="xs" color="primary" flex={1} wordBreak="break-all">{btcAddress}</Text>
-                  <IconButton aria-label="Copy" icon={<FaCopy />} size="xs" variant="ghost" color="dim" onClick={() => copy(btcAddress)} />
-                </HStack>
-              </Box>
-            )}
-            {!hiveUser && !evmAddress && !btcAddress && (
-              <Text fontFamily="mono" fontSize="sm" color="dim" textAlign="center">
-                No linked addresses found.
-              </Text>
-            )}
-          </VStack>
+              )}
+
+              {active && (
+                <>
+                  {/* QR (white quiet-zone box for scannability) */}
+                  <Box alignSelf="center" bg="white" p={3} border="1px solid" borderColor="border">
+                    {qrMap[active.key] ? (
+                      <Image src={qrMap[active.key]} alt={`${active.label} address QR`} boxSize="200px" />
+                    ) : (
+                      <Box boxSize="200px" display="flex" alignItems="center" justifyContent="center">
+                        <Text fontFamily="mono" fontSize="xs" color="black" opacity={0.5}>generating…</Text>
+                      </Box>
+                    )}
+                  </Box>
+
+                  {/* address + inline copy */}
+                  <Box>
+                    <Text fontSize="2xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={1}>
+                      {active.label} address
+                    </Text>
+                    <HStack border="1px solid" borderColor="border" p={3} spacing={2}>
+                      <Text fontFamily="mono" fontSize="xs" color="primary" flex={1} wordBreak="break-all">
+                        {active.value}
+                      </Text>
+                      <IconButton aria-label="Copy" icon={<FaCopy />} size="xs" variant="ghost" color="dim" onClick={() => copy(active.value)} />
+                    </HStack>
+                  </Box>
+
+                  <Button
+                    leftIcon={<FaCopy />}
+                    bg="primary" color="background" fontFamily="mono" fontSize="xs"
+                    textTransform="uppercase" borderRadius="none" size="sm"
+                    _hover={{ opacity: 0.85 }}
+                    onClick={() => copy(active.value)}
+                  >
+                    Copy {active.label} address
+                  </Button>
+                </>
+              )}
+            </VStack>
+          )}
         </ModalBody>
       </ModalContent>
     </Modal>
