@@ -106,29 +106,26 @@ export default function ClaimToBtcModal({
       return;
     }
     if (!client || !username) return;
-    // Need a valid address + non-dust amount to build a preview (which yields
-    // both the BTC estimate and the real Hive RC). Without an address the CTA
-    // is "add address" anyway, so RC stays unknown until then.
-    if (!addrOk || !amountOk) {
-      setRcAvailable(null);
-      setEstBtc(null);
-      return;
-    }
     let cancelled = false;
     (async () => {
+      // Always probe RC (so the check never hangs on "Checking…"), even in the
+      // setup case with no address / no reward yet — use a nominal amount and a
+      // format-valid throwaway address just to build the sim. Never broadcast.
+      const probeAddr = addrOk ? (btcAddress as string) : "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
+      const probeAmt = rewardHbd >= MIN_HBD_TO_CONVERT ? String(rewardHbd) : "1";
       try {
         const p = await getMagiPreview(client, {
           username,
           assetIn: "HBD",
           assetOut: "BTC",
-          amountIn: String(rewardHbd),
-          recipient: btcAddress as string,
+          amountIn: probeAmt,
+          recipient: probeAddr,
           slippagePct: 0.5,
         });
-        if (!cancelled) {
-          setEstBtc(p.expectedOut);
-          setRcAvailable(p.rcAvailable);
-        }
+        if (cancelled) return;
+        setRcAvailable(p.rcAvailable);
+        // Only show the BTC estimate when the real address + reward are usable.
+        setEstBtc(addrOk && amountOk ? p.expectedOut : null);
       } catch {
         if (!cancelled) setRcAvailable(0n);
       }

@@ -185,7 +185,7 @@ export default function CrossChainSwapPanel() {
         </Text>
       )}
       <Text fontSize="10px" fontFamily="mono" color="primary" opacity={0.6}>
-        Mainnet · signs two Hive ops. Magi settles BTC to your address after its confirmations. (SDK v0.0.3 — start small.)
+        One signature, two steps: ① bridges your HBD into VSC, ② swaps it to real BTC — Magi settles it to your address. Needs liquid HBD + RC. Mainnet — start small.
       </Text>
       <Button
         bg="primary"
