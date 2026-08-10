@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Button, HStack, Input, Spinner, Text, VStack, useToast } from "@chakra-ui/react";
 import { FaBitcoin, FaLayerGroup } from "react-icons/fa";
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import { extractNumber } from "@/lib/utils/extractNumber";
+import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
 import {
   buildHeSwapOp,
   getHeBalances,
@@ -120,6 +121,26 @@ export default function CrossChainSwapPanel() {
   const [mErr, setMErr] = useState<string | null>(null);
 
   const mAddrOk = isValidBtcAddress(mAddr);
+
+  // The user's saved Bitcoin address (Hive extensions.wallets.btc_address).
+  // Pre-fill the recipient with it once, while the field is still empty — they
+  // can still overwrite it. Saves re-typing a BTC address on every swap.
+  const registeredBtc = useMemo(() => {
+    const raw = hiveAccount?.json_metadata;
+    if (!raw) return "";
+    try {
+      return migrateLegacyMetadata(JSON.parse(raw))?.extensions?.wallets?.btc_address || "";
+    } catch {
+      return "";
+    }
+  }, [hiveAccount?.json_metadata]);
+  const prefilledAddrRef = useRef(false);
+  useEffect(() => {
+    if (!prefilledAddrRef.current && registeredBtc && !mAddr) {
+      setMAddr(registeredBtc);
+      prefilledAddrRef.current = true;
+    }
+  }, [registeredBtc, mAddr]);
 
   const quoteMagi = useCallback(async () => {
     setMPreview(null);
@@ -254,6 +275,9 @@ export default function CrossChainSwapPanel() {
           <Text {...eyebrow}>Your Bitcoin address</Text>
           <Input placeholder="bc1… / 1… / 3…" value={mAddr} onChange={(e) => setMAddr(e.target.value)} sx={{ ...fieldSx, borderColor: mAddr && !mAddrOk ? "red.400" : "primary" }} />
           {mAddr && !mAddrOk && <Text fontSize="10px" color="red.400" fontFamily="mono">Not a valid Bitcoin address (not an xpub/zpub).</Text>}
+          {registeredBtc && mAddr === registeredBtc && mAddrOk && (
+            <Text fontSize="10px" fontFamily="mono" color="primary" opacity={0.6}>Using your saved Bitcoin address — edit above to send elsewhere.</Text>
+          )}
           <HStack justify="space-between" minH="18px">
             <Text fontSize="xs" fontFamily="mono" color="primary" opacity={0.7}>
               {mQuoting ? "quoting…" : mPreview ? `≈ ${mPreview.expectedOut} BTC` : mErr || ""}
