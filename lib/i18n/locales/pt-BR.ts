@@ -709,6 +709,9 @@ export const ptBR = {
     instagramTitle: 'Siga a SkateHive no Instagram',
     instagramDesc: 'Clipes, contests e destaques da comunidade — siga @skatehive no Instagram.',
     instagramBtn: 'Seguir @skatehive',
+    btcTitle: 'Receba em Bitcoin',
+    btcDesc: 'A SkateHive paga seus melhores skatistas em BTC de verdade. Configure seu saque em Bitcoin na carteira.',
+    btcBtn: 'Configurar saque em BTC',
   },
   postingKeyDialog: {
     title: 'Adicione sua chave POST do Hive',

@@ -29,12 +29,14 @@ import {
   ModalOverlay,
   Text,
   VStack,
+  useDisclosure,
   useToast,
 } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
-import { FaBitcoin, FaCheck, FaTimes } from "react-icons/fa";
+import { FaBitcoin, FaBolt, FaCheck, FaTimes } from "react-icons/fa";
+import { PowerUpModal } from "@/components/wallet/modals";
 import {
   getMagiClient,
   getMagiPreview,
@@ -58,6 +60,8 @@ interface ClaimToBtcModalProps {
   rewardHbd: number;
   btcAddress?: string;
   hivePower: number;
+  /** Liquid HIVE balance ("X.XXX HIVE") — for the inline power-up tool. */
+  hiveBalance?: string;
   /** Called after a successful claim so the parent can refresh balances. */
   onClaimed?: () => void;
 }
@@ -69,11 +73,13 @@ export default function ClaimToBtcModal({
   rewardHbd,
   btcAddress,
   hivePower,
+  hiveBalance,
   onClaimed,
 }: ClaimToBtcModalProps) {
   const toast = useToast();
   const router = useRouter();
   const { aioha } = useAioha();
+  const { isOpen: puOpen, onOpen: puOnOpen, onClose: puOnClose } = useDisclosure();
   const client = useMemo(() => (aioha ? getMagiClient(aioha) : null), [aioha]);
 
   const [step, setStep] = useState<Step>("checks");
@@ -247,6 +253,7 @@ export default function ClaimToBtcModal({
   const busy = step === "claiming" || step === "converting";
 
   return (
+    <>
     <Modal isOpen={isOpen} onClose={busy ? () => {} : onClose} size="sm" isCentered>
       <ModalOverlay />
       <ModalContent bg="background" borderRadius="none" border="2px solid" borderColor="primary">
@@ -284,6 +291,11 @@ export default function ClaimToBtcModal({
               <Text fontFamily="mono" fontSize="2xs" color="dim" mt={1}>
                 Only your liquid HBD converts — your HP stays as stake (your power on the network).
               </Text>
+              {rewardHbd <= 0 && (
+                <Text fontFamily="mono" fontSize="2xs" color="dim" mt={1}>
+                  No HBD to convert yet — get set up now and convert on your next claim.
+                </Text>
+              )}
             </Box>
 
             {step === "checks" && (
@@ -307,6 +319,24 @@ export default function ClaimToBtcModal({
                   <CheckRow ok={amountOk} label={`≥ ${MIN_HBD_TO_CONVERT} HBD reward`} hint="Reward too small to convert right now." />
                 </VStack>
 
+                {/* Tool: power up right here when HP/RC is the blocker. */}
+                {addrOk && (!hpOk || !rcOk) && (
+                  <Button
+                    leftIcon={<FaBolt />}
+                    variant="outline"
+                    borderColor="primary"
+                    color="primary"
+                    borderRadius="none"
+                    fontFamily="mono"
+                    size="sm"
+                    textTransform="uppercase"
+                    _hover={{ bg: "primary", color: "background" }}
+                    onClick={puOnOpen}
+                  >
+                    Power up HIVE to qualify
+                  </Button>
+                )}
+
                 {!addrOk ? (
                   <Button
                     bg="primary"
@@ -329,7 +359,11 @@ export default function ClaimToBtcModal({
                     isDisabled={!allOk}
                     onClick={run}
                   >
-                    {allOk ? "Claim & convert to BTC" : "Not eligible yet"}
+                    {allOk
+                      ? "Claim & convert to BTC"
+                      : addrOk && hpOk && rcOk && !amountOk
+                      ? "All set — convert on your next claim"
+                      : "Not eligible yet"}
                   </Button>
                 )}
                 <Text fontFamily="mono" fontSize="2xs" color="dim" textAlign="center">
@@ -382,5 +416,7 @@ export default function ClaimToBtcModal({
         </ModalBody>
       </ModalContent>
     </Modal>
+    <PowerUpModal isOpen={puOpen} onClose={puOnClose} balance={hiveBalance || "0.000 HIVE"} />
+    </>
   );
 }

@@ -18,6 +18,8 @@ interface ClaimRewardsProps {
   /** For the "Claim to BTC" pipeline (Phase 1). */
   hivePower?: number | string;
   btcAddress?: string;
+  /** Liquid HIVE balance ("X.XXX HIVE") — for the inline power-up tool. */
+  hiveBalance?: string;
 }
 
 interface SkatehivePost {
@@ -32,6 +34,7 @@ export default function ClaimRewards({
   reward_vesting_hive,
   hivePower,
   btcAddress,
+  hiveBalance,
 }: ClaimRewardsProps) {
   const t = useTranslations();
   const { aioha, user } = useAioha();
@@ -100,32 +103,57 @@ export default function ClaimRewards({
   }, [aioha, user]);
 
   if (!hasRewards || hasClaimed) {
-    // Compact "potential rewards" state shown when nothing to claim
+    // Compact state: snaps-potential (when any) + an always-visible "Earn in
+    // BTC" entry so users discover + set up their BTC payout before they even
+    // have rewards to claim.
     const hasPotential = parseFloat(potentialRewards) > 0;
-    if (!hasPotential && !isLoadingRewards) return null;
+    if (!user) return null;
     return (
-      <Box
-        border="1px solid"
-        borderColor="border"
-        p={3}
-        fontSize="sm"
-        color="dim"
-        fontFamily="mono"
-      >
-        {isLoadingRewards ? (
-          <Text animation={`${pulseKeyframe} 1.5s ease-in-out infinite`}>
-            Calculating snaps rewards...
-          </Text>
-        ) : (
-          <Text>
-            Snaps potential:{" "}
-            <Text as="span" color="primary" fontWeight="bold">
-              {potentialRewards} HBD
-            </Text>{" "}
-            in next 7 days
-          </Text>
-        )}
-      </Box>
+      <>
+        <VStack align="stretch" spacing={2}>
+          {(hasPotential || isLoadingRewards) && (
+            <Box border="1px solid" borderColor="border" p={3} fontSize="sm" color="dim" fontFamily="mono">
+              {isLoadingRewards ? (
+                <Text animation={`${pulseKeyframe} 1.5s ease-in-out infinite`}>
+                  Calculating snaps rewards...
+                </Text>
+              ) : (
+                <Text>
+                  Snaps potential:{" "}
+                  <Text as="span" color="primary" fontWeight="bold">
+                    {potentialRewards} HBD
+                  </Text>{" "}
+                  in next 7 days
+                </Text>
+              )}
+            </Box>
+          )}
+          <Button
+            variant="outline"
+            borderColor="primary"
+            color="primary"
+            borderRadius="none"
+            fontFamily="mono"
+            fontSize="xs"
+            size="sm"
+            leftIcon={<FaBitcoin />}
+            textTransform="uppercase"
+            _hover={{ bg: "primary", color: "background" }}
+            onClick={() => setBtcModalOpen(true)}
+          >
+            Earn in BTC
+          </Button>
+        </VStack>
+        <ClaimToBtcModal
+          isOpen={btcModalOpen}
+          onClose={() => setBtcModalOpen(false)}
+          username={user}
+          rewardHbd={parseFloat(String(pendingRewards.hbd)) || 0}
+          btcAddress={btcAddress}
+          hivePower={Number(hivePower) || 0}
+          hiveBalance={hiveBalance}
+        />
+      </>
     );
   }
 
@@ -260,6 +288,7 @@ export default function ClaimRewards({
           rewardHbd={parseFloat(String(pendingRewards.hbd)) || 0}
           btcAddress={btcAddress}
           hivePower={Number(hivePower) || 0}
+          hiveBalance={hiveBalance}
         />
       )}
     </Box>

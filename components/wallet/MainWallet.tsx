@@ -515,6 +515,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                   reward_vesting_hive={hiveAccount?.reward_vesting_hive}
                   hivePower={hivePower}
                   btcAddress={btcAddress}
+                  hiveBalance={String(hiveAccount?.balance || "0.000 HIVE")}
                 />
               )}
             </VStack>

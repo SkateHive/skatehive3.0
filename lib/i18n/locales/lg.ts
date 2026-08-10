@@ -708,6 +708,9 @@ export const lg = {
     instagramTitle: 'Goberera SkateHive ku Instagram',
     instagramDesc: 'Vidiyo, empaka n\'ebirungi by\'ekibiina — goberera @skatehive ku Instagram.',
     instagramBtn: 'Goberera @skatehive',
+    btcTitle: 'Get paid in Bitcoin',
+    btcDesc: 'SkateHive pays its top skaters in real BTC. Set up your Bitcoin payout in the wallet.',
+    btcBtn: 'Set up BTC rewards',
   },
   postingKeyDialog: {
     title: 'Yongerako posting key yo eya Hive',
