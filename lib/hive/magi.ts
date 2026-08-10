@@ -16,16 +16,29 @@
 import {
   createMagi,
   createDefaultPoolProvider,
+  createPoolPriceProvider,
   CoinAmount,
   MAINNET_CONFIG,
   simCallFromSwapOp,
   type MagiClient,
+  type ReferralConfig,
 } from "@vsc.eco/crosschain-sdk";
 import { withSwapOpRcLimit } from "@vsc.eco/crosschain-core";
 
 export type MagiAssetIn = "HIVE" | "HBD";
 export type MagiAssetOut = "BTC";
 const DECIMALS: Record<string, number> = { HIVE: 3, HBD: 3, BTC: 8 };
+
+/** Small referral fee on every Magi (→BTC) conversion, paid to @skatehive.
+ *  The SDK adds a beneficiary transfer to the built ops. Tune bps here. */
+export const MAGI_FEE: ReferralConfig = { beneficiary: "skatehive", bps: 100 }; // 1%
+
+/** Hive RC an account must hold for the atomic [deposit, swap] (matches the swap
+ *  op's declared rc_limit; the real cost is ~8.2k). Gate on this so a swap can't
+ *  run out of RC mid-flight and strand deposited HBD. Compare against
+ *  MagiPreview.rcAvailable (from checkSwapRc — NOT the SDK's getAccountRc, which
+ *  returns VSC-layer RC, ~0 for most accounts). */
+export const MAGI_MIN_RC = 10000n;
 
 /** On-chain decimal precision for a Magi sell asset (HIVE/HBD are 3-dp). */
 export const magiInputDecimals = (asset: MagiAssetIn): number => DECIMALS[asset] ?? 3;
@@ -65,12 +78,18 @@ export function truncateToDecimals(value: number, maxDecimals: number): string {
  * (we broadcast the built ops ourselves rather than via `quickSwap`).
  */
 export function getMagiClient(aioha: unknown): MagiClient {
+  // One pool provider feeds both routing (`pools`) and the referral-fee
+  // price quoting (`prices`) — createMagi requires `prices` when a referral
+  // is configured.
+  const pools = createDefaultPoolProvider(undefined, MAINNET_CONFIG.indexerUrl);
   return createMagi({
-    config: MAINNET_CONFIG,
-    pools: createDefaultPoolProvider(undefined, MAINNET_CONFIG.indexerUrl),
+    config: { ...MAINNET_CONFIG, referral: MAGI_FEE },
+    pools,
+    prices: createPoolPriceProvider(pools),
     aioha: aioha as never,
   });
 }
+
 
 /** VSC resource-credit amount → compact "k" string for messages. */
 function fmtRc(rc: bigint): string {
@@ -106,6 +125,9 @@ export interface MagiPreview {
    *  RC / unsafe sim). When set, the UI shows the output but disables the CTA. */
   blockReason?: string;
   blockDetail?: string;
+  /** The account's available Hive RC (from checkSwapRc) — the value the swap
+   *  broadcast actually consumes. Use for the claim→BTC RC pre-check. */
+  rcAvailable: bigint;
   /** The ops to sign+broadcast via `aioha.signAndBroadcastTx(ops, KeyTypes.Active)`. */
   ops: MagiOps;
 }
@@ -195,6 +217,7 @@ export async function getMagiPreview(client: MagiClient, p: MagiSwapInput): Prom
     hops: build.preview.hops,
     blockReason,
     blockDetail,
+    rcAvailable: rc.rcAvailable,
     ops,
   };
 }
