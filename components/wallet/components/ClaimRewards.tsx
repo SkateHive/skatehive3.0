@@ -6,14 +6,18 @@ import { useAioha } from "@aioha/react-ui";
 import { Asset } from "@hiveio/dhive";
 import { extractNumber } from "@/lib/utils/extractNumber";
 import { useTranslations } from "@/contexts/LocaleContext";
-import { FaGift } from "react-icons/fa";
+import { FaGift, FaBitcoin } from "react-icons/fa";
 import { shimmerStyles, pulseKeyframe } from "@/lib/utils/animations";
+import ClaimToBtcModal from "./ClaimToBtcModal";
 
 interface ClaimRewardsProps {
   reward_hive_balance?: string | Asset;
   reward_hbd_balance?: string | Asset;
   reward_vesting_balance?: string | Asset;
   reward_vesting_hive?: string | Asset;
+  /** For the "Claim to BTC" pipeline (Phase 1). */
+  hivePower?: number | string;
+  btcAddress?: string;
 }
 
 interface SkatehivePost {
@@ -26,11 +30,14 @@ export default function ClaimRewards({
   reward_hbd_balance,
   reward_vesting_balance,
   reward_vesting_hive,
+  hivePower,
+  btcAddress,
 }: ClaimRewardsProps) {
   const t = useTranslations();
   const { aioha, user } = useAioha();
   const [isClaiming, setIsClaiming] = useState(false);
   const [hasClaimed, setHasClaimed] = useState(false);
+  const [btcModalOpen, setBtcModalOpen] = useState(false);
   const [potentialRewards, setPotentialRewards] = useState("0.000");
   const [isLoadingRewards, setIsLoadingRewards] = useState(false);
 
@@ -206,25 +213,55 @@ export default function ClaimRewards({
           ))}
         </VStack>
 
-        <Button
-          w="100%"
-          colorScheme="green"
-          borderRadius="none"
-          fontWeight="black"
-          letterSpacing="widest"
-          fontFamily="mono"
-          leftIcon={<FaGift />}
-          isLoading={isClaiming}
-          loadingText="CLAIMING..."
-          onClick={handleClaimRewards}
-          size="md"
-          sx={{
-            textTransform: "uppercase",
-          }}
-        >
-          Claim Now
-        </Button>
+        <VStack spacing={2} align="stretch">
+          <Button
+            w="100%"
+            colorScheme="green"
+            borderRadius="none"
+            fontWeight="black"
+            letterSpacing="widest"
+            fontFamily="mono"
+            leftIcon={<FaGift />}
+            isLoading={isClaiming}
+            loadingText="CLAIMING..."
+            onClick={handleClaimRewards}
+            size="md"
+            sx={{ textTransform: "uppercase" }}
+          >
+            Claim Now
+          </Button>
+          {parseFloat(String(pendingRewards.hbd)) > 0 && (
+            <Button
+              w="100%"
+              variant="outline"
+              borderColor="primary"
+              color="primary"
+              borderRadius="none"
+              fontWeight="black"
+              letterSpacing="widest"
+              fontFamily="mono"
+              leftIcon={<FaBitcoin />}
+              onClick={() => setBtcModalOpen(true)}
+              size="md"
+              sx={{ textTransform: "uppercase" }}
+              _hover={{ bg: "primary", color: "background" }}
+            >
+              Claim to BTC
+            </Button>
+          )}
+        </VStack>
       </Box>
+
+      {user && (
+        <ClaimToBtcModal
+          isOpen={btcModalOpen}
+          onClose={() => setBtcModalOpen(false)}
+          username={user}
+          rewardHbd={parseFloat(String(pendingRewards.hbd)) || 0}
+          btcAddress={btcAddress}
+          hivePower={Number(hivePower) || 0}
+        />
+      )}
     </Box>
   );
 }
