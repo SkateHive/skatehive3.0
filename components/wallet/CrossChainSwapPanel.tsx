@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Button, HStack, Input, Spinner, Text, VStack, useToast } from "@chakra-ui/react";
 import { FaBitcoin, FaLayerGroup } from "react-icons/fa";
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import { extractNumber } from "@/lib/utils/extractNumber";
+import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
 import {
   buildHeSwapOp,
   getHeBalances,
@@ -15,16 +16,20 @@ import {
   type HeQuote,
 } from "@/lib/hive/hiveEngine";
 import {
-  executeMagiSwap,
   getMagiClient,
   getMagiPreview,
   isValidBtcAddress,
+  clampDecimalString,
+  magiInputDecimals,
   type MagiAssetIn,
   type MagiPreview,
 } from "@/lib/hive/magi";
 
 type SubMode = "l2" | "btc";
-const L2_SYMBOLS = HE_ASSETS.map((a) => a.symbol); // SWAP.HIVE / SWAP.HBD / SWAP.BTC
+// SWAP.BTC dropped from the L2 tab: its diesel pool is thin (~0.5 wrapped BTC)
+// and only yields SWAP.BTC (a Hive-Engine token, not real BTC — needs a gateway
+// withdrawal). The "→ Bitcoin (Magi)" tab routes to real BTC instead.
+const L2_SYMBOLS = HE_ASSETS.map((a) => a.symbol).filter((s) => s !== "SWAP.BTC");
 
 /**
  * Hive-Engine (L2 diesel-pool) swaps + Magi cross-chain HIVE/HBD → BTC, signed
@@ -65,7 +70,7 @@ export default function CrossChainSwapPanel() {
 
   // ---- Hive-Engine (L2) ----------------------------------------------------
   const [l2Sell, setL2Sell] = useState("SWAP.HBD");
-  const [l2Buy, setL2Buy] = useState("SWAP.BTC");
+  const [l2Buy, setL2Buy] = useState("SWAP.HIVE");
   const [l2Amount, setL2Amount] = useState("");
   const [l2Quote, setL2Quote] = useState<HeQuote | null>(null);
   const [l2Quoting, setL2Quoting] = useState(false);
@@ -120,6 +125,26 @@ export default function CrossChainSwapPanel() {
 
   const mAddrOk = isValidBtcAddress(mAddr);
 
+  // The user's saved Bitcoin address (Hive extensions.wallets.btc_address).
+  // Pre-fill the recipient with it once, while the field is still empty — they
+  // can still overwrite it. Saves re-typing a BTC address on every swap.
+  const registeredBtc = useMemo(() => {
+    const raw = hiveAccount?.json_metadata;
+    if (!raw) return "";
+    try {
+      return migrateLegacyMetadata(JSON.parse(raw))?.extensions?.wallets?.btc_address || "";
+    } catch {
+      return "";
+    }
+  }, [hiveAccount?.json_metadata]);
+  const prefilledAddrRef = useRef(false);
+  useEffect(() => {
+    if (!prefilledAddrRef.current && registeredBtc && !mAddr) {
+      setMAddr(registeredBtc);
+      prefilledAddrRef.current = true;
+    }
+  }, [registeredBtc, mAddr]);
+
   const quoteMagi = useCallback(async () => {
     setMPreview(null);
     setMErr(null);
@@ -141,14 +166,26 @@ export default function CrossChainSwapPanel() {
   }, [quoteMagi]);
 
   const doMagiSwap = async () => {
-    if (!magiClient || !user || !mPreview) return;
-    const bal = mIn === "HIVE" ? hiveBalance : hbdBalance;
-    if (Number(mAmount) > bal) return notify(`Insufficient ${mIn}`);
+    // A blocked quote (insufficient balance / RC / unsafe sim) still shows the
+    // BTC output but must never broadcast — the deposit would strand.
+    if (!user || !aioha || !mPreview || mPreview.blockReason) return;
     if (!mAddrOk) return notify("Enter a valid Bitcoin address");
     setMBusy(true);
     try {
-      const txId = await executeMagiSwap(magiClient, { username: user, assetIn: mIn, assetOut: "BTC", amountIn: mAmount, recipient: mAddr, slippagePct: 0.5 });
-      notify(`Magi swap submitted (tx ${txId.slice(0, 8)}…) — BTC settles shortly`, "success");
+      // Broadcast the pre-built [deposit, swap] ops ourselves (NOT client.quickSwap,
+      // whose internal pre-deposit sim always false-negatives). Same Aioha path as L2.
+      const res = await aioha.signAndBroadcastTx(
+        mPreview.ops as Parameters<typeof aioha.signAndBroadcastTx>[0],
+        KeyTypes.Active
+      );
+      if ((res as { success?: boolean })?.success === false) {
+        throw new Error((res as { error?: string })?.error || "Rejected");
+      }
+      const txId = String((res as { result?: unknown })?.result ?? "");
+      notify(
+        `Magi swap submitted${txId ? ` (tx ${txId.slice(0, 8)}…)` : ""} — BTC settles shortly`,
+        "success"
+      );
       setMAmount("");
       setMPreview(null);
     } catch (e) {
@@ -219,9 +256,6 @@ export default function CrossChainSwapPanel() {
             </Text>
             {l2Quote && <Text fontSize="xs" fontFamily="mono" color="primary" opacity={0.6}>min {l2Quote.minOut.toFixed(8)}</Text>}
           </HStack>
-          {l2Buy === "SWAP.BTC" && (
-            <Text fontSize="10px" fontFamily="mono" color="primary" opacity={0.6}>SWAP.BTC pools are thin — rate can be poor. To reach real BTC, withdraw SWAP.BTC via the Hive-Engine gateway.</Text>
-          )}
           <Button bg="primary" color="background" fontFamily="mono" borderRadius="none" isDisabled={!l2Quote || l2Busy} isLoading={l2Busy} onClick={doL2Swap}>
             Swap
           </Button>
@@ -237,19 +271,27 @@ export default function CrossChainSwapPanel() {
             ))}
           </HStack>
           <Text {...eyebrow}>Amount · bal {(mIn === "HIVE" ? hiveBalance : hbdBalance).toFixed(3)}</Text>
-          <Input placeholder="0.0" value={mAmount} onChange={(e) => setMAmount(e.target.value)} type="number" sx={fieldSx} />
+          <Input placeholder="0.0" value={mAmount} onChange={(e) => setMAmount(clampDecimalString(e.target.value, magiInputDecimals(mIn)))} type="number" sx={fieldSx} />
           <Text {...eyebrow}>Your Bitcoin address</Text>
           <Input placeholder="bc1… / 1… / 3…" value={mAddr} onChange={(e) => setMAddr(e.target.value)} sx={{ ...fieldSx, borderColor: mAddr && !mAddrOk ? "red.400" : "primary" }} />
           {mAddr && !mAddrOk && <Text fontSize="10px" color="red.400" fontFamily="mono">Not a valid Bitcoin address (not an xpub/zpub).</Text>}
+          {registeredBtc && mAddr === registeredBtc && mAddrOk && (
+            <Text fontSize="10px" fontFamily="mono" color="primary" opacity={0.6}>Using your saved Bitcoin address — edit above to send elsewhere.</Text>
+          )}
           <HStack justify="space-between" minH="18px">
             <Text fontSize="xs" fontFamily="mono" color="primary" opacity={0.7}>
               {mQuoting ? "quoting…" : mPreview ? `≈ ${mPreview.expectedOut} BTC` : mErr || ""}
             </Text>
             {mPreview && <Text fontSize="xs" fontFamily="mono" color="primary" opacity={0.6}>min {mPreview.minOut}</Text>}
           </HStack>
+          {mPreview?.blockReason && (
+            <Text fontSize="10px" fontFamily="mono" color="red.400">
+              {mPreview.blockDetail || mPreview.blockReason}
+            </Text>
+          )}
           <Text fontSize="10px" fontFamily="mono" color="primary" opacity={0.6}>Mainnet · signs two Hive ops. Magi settles BTC to your address after its confirmations. (SDK v0.0.3 — start small.)</Text>
-          <Button bg="primary" color="background" fontFamily="mono" borderRadius="none" isDisabled={!mPreview || mBusy || !mAddrOk} isLoading={mBusy} onClick={doMagiSwap}>
-            {mBusy ? <Spinner size="sm" /> : "Swap to BTC"}
+          <Button bg="primary" color="background" fontFamily="mono" borderRadius="none" isDisabled={!mPreview || mBusy || !mAddrOk || !!mPreview?.blockReason} isLoading={mBusy} onClick={doMagiSwap}>
+            {mBusy ? <Spinner size="sm" /> : mPreview?.blockReason ? mPreview.blockReason : "Swap to BTC"}
           </Button>
         </VStack>
       )}
