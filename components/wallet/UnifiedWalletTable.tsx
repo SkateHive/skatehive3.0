@@ -296,11 +296,12 @@ function SendPickerModal({ isOpen, onClose, consolidatedTokens, onSelect, requir
 }
 
 // ─── Receive Modal ────────────────────────────────────────────────────────────
-function ReceiveModal({ isOpen, onClose, hiveUser, evmAddress }: {
+function ReceiveModal({ isOpen, onClose, hiveUser, evmAddress, btcAddress }: {
   isOpen: boolean;
   onClose: () => void;
   hiveUser?: string;
   evmAddress?: string;
+  btcAddress?: string;
 }) {
   const toast = useToast();
   const copy = (val: string) => {
@@ -339,7 +340,16 @@ function ReceiveModal({ isOpen, onClose, hiveUser, evmAddress }: {
                 </HStack>
               </Box>
             )}
-            {!hiveUser && !evmAddress && (
+            {btcAddress && (
+              <Box>
+                <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" mb={1}>Bitcoin Address</Text>
+                <HStack border="1px solid" borderColor="border" p={3}>
+                  <Text fontFamily="mono" fontSize="xs" color="primary" flex={1} wordBreak="break-all">{btcAddress}</Text>
+                  <IconButton aria-label="Copy" icon={<FaCopy />} size="xs" variant="ghost" color="dim" onClick={() => copy(btcAddress)} />
+                </HStack>
+              </Box>
+            )}
+            {!hiveUser && !evmAddress && !btcAddress && (
               <Text fontFamily="mono" fontSize="sm" color="dim" textAlign="center">
                 No linked addresses found.
               </Text>
@@ -656,6 +666,7 @@ export default function UnifiedWalletTable({
         onClose={onReceiveClose}
         hiveUser={hiveUser}
         evmAddress={address}
+        btcAddress={btcAddress}
       />
     </Box>
   );

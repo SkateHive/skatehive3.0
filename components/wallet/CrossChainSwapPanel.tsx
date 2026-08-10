@@ -26,7 +26,10 @@ import {
 } from "@/lib/hive/magi";
 
 type SubMode = "l2" | "btc";
-const L2_SYMBOLS = HE_ASSETS.map((a) => a.symbol); // SWAP.HIVE / SWAP.HBD / SWAP.BTC
+// SWAP.BTC dropped from the L2 tab: its diesel pool is thin (~0.5 wrapped BTC)
+// and only yields SWAP.BTC (a Hive-Engine token, not real BTC — needs a gateway
+// withdrawal). The "→ Bitcoin (Magi)" tab routes to real BTC instead.
+const L2_SYMBOLS = HE_ASSETS.map((a) => a.symbol).filter((s) => s !== "SWAP.BTC");
 
 /**
  * Hive-Engine (L2 diesel-pool) swaps + Magi cross-chain HIVE/HBD → BTC, signed
@@ -67,7 +70,7 @@ export default function CrossChainSwapPanel() {
 
   // ---- Hive-Engine (L2) ----------------------------------------------------
   const [l2Sell, setL2Sell] = useState("SWAP.HBD");
-  const [l2Buy, setL2Buy] = useState("SWAP.BTC");
+  const [l2Buy, setL2Buy] = useState("SWAP.HIVE");
   const [l2Amount, setL2Amount] = useState("");
   const [l2Quote, setL2Quote] = useState<HeQuote | null>(null);
   const [l2Quoting, setL2Quoting] = useState(false);
@@ -253,9 +256,6 @@ export default function CrossChainSwapPanel() {
             </Text>
             {l2Quote && <Text fontSize="xs" fontFamily="mono" color="primary" opacity={0.6}>min {l2Quote.minOut.toFixed(8)}</Text>}
           </HStack>
-          {l2Buy === "SWAP.BTC" && (
-            <Text fontSize="10px" fontFamily="mono" color="primary" opacity={0.6}>SWAP.BTC pools are thin — rate can be poor. To reach real BTC, withdraw SWAP.BTC via the Hive-Engine gateway.</Text>
-          )}
           <Button bg="primary" color="background" fontFamily="mono" borderRadius="none" isDisabled={!l2Quote || l2Busy} isLoading={l2Busy} onClick={doL2Swap}>
             Swap
           </Button>
