@@ -30,8 +30,10 @@ export type MagiAssetOut = "BTC";
 const DECIMALS: Record<string, number> = { HIVE: 3, HBD: 3, BTC: 8 };
 
 /** Small referral fee on every Magi (→BTC) conversion, paid to @skatehive.
- *  The SDK adds a beneficiary transfer to the built ops. Tune bps here. */
-export const MAGI_FEE: ReferralConfig = { beneficiary: "skatehive", bps: 100 }; // 1%
+ *  The SDK sends `beneficiary` as-is (no normalization), so it must be a full
+ *  VSC address — `hive:<account>`, NOT the bare handle (a bare handle fails
+ *  with "beneficiary address [skatehive] invalid"). Tune bps here. */
+export const MAGI_FEE: ReferralConfig = { beneficiary: "hive:skatehive", bps: 100 }; // 1%
 
 /** Hive RC an account must hold for the atomic [deposit, swap] (matches the swap
  *  op's declared rc_limit; the real cost is ~8.2k). Gate on this so a swap can't
