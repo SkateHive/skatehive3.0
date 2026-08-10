@@ -15,10 +15,11 @@ import {
   type HeQuote,
 } from "@/lib/hive/hiveEngine";
 import {
-  executeMagiSwap,
   getMagiClient,
   getMagiPreview,
   isValidBtcAddress,
+  clampDecimalString,
+  magiInputDecimals,
   type MagiAssetIn,
   type MagiPreview,
 } from "@/lib/hive/magi";
@@ -141,14 +142,26 @@ export default function CrossChainSwapPanel() {
   }, [quoteMagi]);
 
   const doMagiSwap = async () => {
-    if (!magiClient || !user || !mPreview) return;
-    const bal = mIn === "HIVE" ? hiveBalance : hbdBalance;
-    if (Number(mAmount) > bal) return notify(`Insufficient ${mIn}`);
+    // A blocked quote (insufficient balance / RC / unsafe sim) still shows the
+    // BTC output but must never broadcast — the deposit would strand.
+    if (!user || !aioha || !mPreview || mPreview.blockReason) return;
     if (!mAddrOk) return notify("Enter a valid Bitcoin address");
     setMBusy(true);
     try {
-      const txId = await executeMagiSwap(magiClient, { username: user, assetIn: mIn, assetOut: "BTC", amountIn: mAmount, recipient: mAddr, slippagePct: 0.5 });
-      notify(`Magi swap submitted (tx ${txId.slice(0, 8)}…) — BTC settles shortly`, "success");
+      // Broadcast the pre-built [deposit, swap] ops ourselves (NOT client.quickSwap,
+      // whose internal pre-deposit sim always false-negatives). Same Aioha path as L2.
+      const res = await aioha.signAndBroadcastTx(
+        mPreview.ops as Parameters<typeof aioha.signAndBroadcastTx>[0],
+        KeyTypes.Active
+      );
+      if ((res as { success?: boolean })?.success === false) {
+        throw new Error((res as { error?: string })?.error || "Rejected");
+      }
+      const txId = String((res as { result?: unknown })?.result ?? "");
+      notify(
+        `Magi swap submitted${txId ? ` (tx ${txId.slice(0, 8)}…)` : ""} — BTC settles shortly`,
+        "success"
+      );
       setMAmount("");
       setMPreview(null);
     } catch (e) {
@@ -237,7 +250,7 @@ export default function CrossChainSwapPanel() {
             ))}
           </HStack>
           <Text {...eyebrow}>Amount · bal {(mIn === "HIVE" ? hiveBalance : hbdBalance).toFixed(3)}</Text>
-          <Input placeholder="0.0" value={mAmount} onChange={(e) => setMAmount(e.target.value)} type="number" sx={fieldSx} />
+          <Input placeholder="0.0" value={mAmount} onChange={(e) => setMAmount(clampDecimalString(e.target.value, magiInputDecimals(mIn)))} type="number" sx={fieldSx} />
           <Text {...eyebrow}>Your Bitcoin address</Text>
           <Input placeholder="bc1… / 1… / 3…" value={mAddr} onChange={(e) => setMAddr(e.target.value)} sx={{ ...fieldSx, borderColor: mAddr && !mAddrOk ? "red.400" : "primary" }} />
           {mAddr && !mAddrOk && <Text fontSize="10px" color="red.400" fontFamily="mono">Not a valid Bitcoin address (not an xpub/zpub).</Text>}
@@ -247,9 +260,14 @@ export default function CrossChainSwapPanel() {
             </Text>
             {mPreview && <Text fontSize="xs" fontFamily="mono" color="primary" opacity={0.6}>min {mPreview.minOut}</Text>}
           </HStack>
+          {mPreview?.blockReason && (
+            <Text fontSize="10px" fontFamily="mono" color="red.400">
+              {mPreview.blockDetail || mPreview.blockReason}
+            </Text>
+          )}
           <Text fontSize="10px" fontFamily="mono" color="primary" opacity={0.6}>Mainnet · signs two Hive ops. Magi settles BTC to your address after its confirmations. (SDK v0.0.3 — start small.)</Text>
-          <Button bg="primary" color="background" fontFamily="mono" borderRadius="none" isDisabled={!mPreview || mBusy || !mAddrOk} isLoading={mBusy} onClick={doMagiSwap}>
-            {mBusy ? <Spinner size="sm" /> : "Swap to BTC"}
+          <Button bg="primary" color="background" fontFamily="mono" borderRadius="none" isDisabled={!mPreview || mBusy || !mAddrOk || !!mPreview?.blockReason} isLoading={mBusy} onClick={doMagiSwap}>
+            {mBusy ? <Spinner size="sm" /> : mPreview?.blockReason ? mPreview.blockReason : "Swap to BTC"}
           </Button>
         </VStack>
       )}
