@@ -268,7 +268,7 @@ export default function ClaimToBtcModal({
           borderColor="border"
         >
           <HStack spacing={2}>
-            <FaBitcoin />
+            <FaBitcoin color="#F7931A" />
             <Text>Claim to Bitcoin</Text>
           </HStack>
         </ModalHeader>
@@ -352,7 +352,7 @@ export default function ClaimToBtcModal({
                   </Button>
                 ) : (
                   <Button
-                    leftIcon={<FaBitcoin />}
+                    leftIcon={<FaBitcoin color="#F7931A" />}
                     bg="primary"
                     color="background"
                     fontFamily="mono"
