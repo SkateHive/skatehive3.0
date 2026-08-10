@@ -408,7 +408,7 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
       : hasHive
         ? ["hive"]
         : ["erc20"];
-    // Hive-Engine (L2) + Magi cross-chain (→ BTC) — available to any Hive user.
+    // Magi cross-chain (→ real BTC) — available to any Hive user.
     if (hasHive) core.splice(1, 0, "crosschain");
     if (isSplitAdmin) core.push("admin");
     return core;
@@ -427,7 +427,7 @@ export default function UnifiedSwapSection(props: UnifiedSwapSectionProps) {
 
   const tabMeta: Record<SwapMode, { label: string; icon: React.ReactElement }> = {
     hive: { label: t("swapAdmin.hiveTab"), icon: <FaHive /> },
-    crosschain: { label: "BTC / L2", icon: <FaBitcoin /> },
+    crosschain: { label: "Bitcoin", icon: <FaBitcoin /> },
     erc20: { label: t("swapAdmin.erc20Tab"), icon: <FaExchangeAlt /> },
     admin: { label: t("swapAdmin.tab"), icon: <FaCog /> },
   };
