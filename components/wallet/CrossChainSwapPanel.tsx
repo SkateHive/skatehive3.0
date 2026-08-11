@@ -7,6 +7,7 @@ import { KeyTypes } from "@aioha/aioha";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import { extractNumber } from "@/lib/utils/extractNumber";
 import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
+import { useRegisteredBtcAddress } from "@/hooks/useRegisteredBtcAddress";
 import EnableMagiRcButton from "@/components/wallet/components/EnableMagiRcButton";
 import BtcToHiveDeposit from "@/components/wallet/BtcToHiveDeposit";
 import {
@@ -49,7 +50,8 @@ export default function CrossChainSwapPanel() {
   const mAddrOk = isValidBtcAddress(mAddr);
 
   // Pre-fill the recipient with the user's saved BTC address once (while empty).
-  const registeredBtc = useMemo(() => {
+  // Prefer Hive metadata, fall back to the userbase DB so any save path works.
+  const metaBtc = useMemo(() => {
     const raw = hiveAccount?.json_metadata;
     if (!raw) return "";
     try {
@@ -58,6 +60,7 @@ export default function CrossChainSwapPanel() {
       return "";
     }
   }, [hiveAccount?.json_metadata]);
+  const registeredBtc = useRegisteredBtcAddress(user, metaBtc);
   const prefilledAddrRef = useRef(false);
   useEffect(() => {
     if (!prefilledAddrRef.current && registeredBtc && !mAddr) {

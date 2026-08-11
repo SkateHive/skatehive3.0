@@ -4,6 +4,7 @@ import { useFarcasterSession } from "../../hooks/useFarcasterSession";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import useMarketPrices from "@/hooks/useMarketPrices";
 import { useBtcBalance } from "@/hooks/useBtcBalance";
+import { useRegisteredBtcAddress } from "@/hooks/useRegisteredBtcAddress";
 import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
 import { useBankActions } from "@/hooks/wallet";
 import { useAccount } from "wagmi";
@@ -69,8 +70,9 @@ export default function MainWallet({ username }: MainWalletProps) {
 
   const { hivePrice, hbdPrice, btcPrice, isPriceLoading } = useMarketPrices();
 
-  // Self-claimed BTC address from Hive metadata → aggregated wallet row.
-  const btcAddress = useMemo(() => {
+  // Self-claimed BTC address — prefer on-chain Hive metadata, fall back to the
+  // userbase DB so any save path is honored by the swap / Claim-to-BTC flows.
+  const metaBtc = useMemo(() => {
     const raw = hiveAccount?.json_metadata;
     if (!raw) return "";
     try {
@@ -80,6 +82,7 @@ export default function MainWallet({ username }: MainWalletProps) {
       return "";
     }
   }, [hiveAccount?.json_metadata]);
+  const btcAddress = useRegisteredBtcAddress(user, metaBtc);
 
   const { balanceBtc } = useBtcBalance(btcAddress);
   const toast = useToast();
