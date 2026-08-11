@@ -93,6 +93,37 @@ export function getMagiClient(aioha: unknown): MagiClient {
 }
 
 
+/** Reject a promise if it doesn't settle in `ms` — so a stuck VSC node call
+ *  can't leave the UI hanging on "Checking…" forever. */
+function withTimeout<T>(p: Promise<T>, ms: number, msg: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(msg)), ms)),
+  ]);
+}
+
+/**
+ * Fast, single-call VSC resource-credit status. Returns `{ amount, max }` where
+ * `amount` is the current (regenerating) RC the swap consumes and `max` is the
+ * ceiling, set by the balance the account keeps standing IN the VSC network
+ * (NOT Hive Power). Use this to gate/inform the UI instead of the heavy
+ * pre-swap simulation (buildQuickSwap + checkSwapRc), which makes 3 network
+ * calls and — if the VSC simulate endpoint stalls — never resolves, leaving the
+ * RC check stuck on "Checking…". This is one `getAccountRC` GraphQL call.
+ */
+export async function getMagiRcStatus(
+  client: MagiClient,
+  username: string,
+  timeoutMs = 8000
+): Promise<{ amount: bigint; max: bigint }> {
+  const rc = await withTimeout(
+    client.getAccountRc(`hive:${username}`),
+    timeoutMs,
+    "RC status timed out"
+  );
+  return { amount: rc.amount, max: rc.maxRcs };
+}
+
 /** VSC resource-credit amount → compact "k" string for messages. */
 function fmtRc(rc: bigint): string {
   return `${(Number(rc) / 1000).toFixed(1)}k`;

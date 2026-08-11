@@ -40,6 +40,7 @@ import { PowerUpModal } from "@/components/wallet/modals";
 import {
   getMagiClient,
   getMagiPreview,
+  getMagiRcStatus,
   isValidBtcAddress,
   MAGI_MIN_RC,
   type MagiPreview,
@@ -107,29 +108,40 @@ export default function ClaimToBtcModal({
     }
     if (!client || !username) return;
     let cancelled = false;
+
+    // RC check — ONE fast getAccountRC call (timeout-guarded), independent of
+    // the heavy swap simulation. This is what fixes "Checking…" hanging forever:
+    // the old path ran buildQuickSwap + checkSwapRc (3 network calls) and, if the
+    // VSC simulate stalled, never resolved so rcAvailable stayed null.
     (async () => {
-      // Always probe RC (so the check never hangs on "Checking…"), even in the
-      // setup case with no address / no reward yet — use a nominal amount and a
-      // format-valid throwaway address just to build the sim. Never broadcast.
-      const probeAddr = addrOk ? (btcAddress as string) : "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
-      const probeAmt = rewardHbd >= MIN_HBD_TO_CONVERT ? String(rewardHbd) : "1";
       try {
-        const p = await getMagiPreview(client, {
-          username,
-          assetIn: "HBD",
-          assetOut: "BTC",
-          amountIn: probeAmt,
-          recipient: probeAddr,
-          slippagePct: 0.5,
-        });
-        if (cancelled) return;
-        setRcAvailable(p.rcAvailable);
-        // Only show the BTC estimate when the real address + reward are usable.
-        setEstBtc(addrOk && amountOk ? p.expectedOut : null);
+        const rc = await getMagiRcStatus(client, username);
+        if (!cancelled) setRcAvailable(rc.amount);
       } catch {
         if (!cancelled) setRcAvailable(0n);
       }
     })();
+
+    // BTC estimate — best-effort, only when the address + reward are usable.
+    // Kept separate so a slow/failing quote never blocks the RC row.
+    if (addrOk && amountOk) {
+      (async () => {
+        try {
+          const p = await getMagiPreview(client, {
+            username,
+            assetIn: "HBD",
+            assetOut: "BTC",
+            amountIn: String(rewardHbd),
+            recipient: btcAddress as string,
+            slippagePct: 0.5,
+          });
+          if (!cancelled) setEstBtc(p.expectedOut);
+        } catch {
+          if (!cancelled) setEstBtc(null);
+        }
+      })();
+    }
+
     return () => {
       cancelled = true;
     };
