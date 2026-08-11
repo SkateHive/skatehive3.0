@@ -8,6 +8,7 @@ import useHiveAccount from "@/hooks/useHiveAccount";
 import { extractNumber } from "@/lib/utils/extractNumber";
 import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
 import EnableMagiRcButton from "@/components/wallet/components/EnableMagiRcButton";
+import BtcToHiveDeposit from "@/components/wallet/BtcToHiveDeposit";
 import {
   getMagiClient,
   getMagiPreview,
@@ -36,6 +37,7 @@ export default function CrossChainSwapPanel() {
   const notify = (title: string, status: "error" | "success" | "info" = "error") =>
     toast({ title, status, duration: 4000, isClosable: true });
 
+  const [mDir, setMDir] = useState<"sell" | "buy">("sell");
   const [mIn, setMIn] = useState<MagiAssetIn>("HBD");
   const [mAmount, setMAmount] = useState("");
   const [mAddr, setMAddr] = useState("");
@@ -132,6 +134,38 @@ export default function CrossChainSwapPanel() {
 
   return (
     <VStack align="stretch" spacing={2}>
+      {/* Direction: sell (HIVE/HBD → BTC) or buy (BTC → HIVE/HBD). */}
+      <HStack>
+        {(
+          [
+            ["sell", "→ BTC"],
+            ["buy", "BTC →"],
+          ] as const
+        ).map(([d, label]) => (
+          <Button
+            key={d}
+            flex={1}
+            size="sm"
+            borderRadius="none"
+            fontFamily="mono"
+            fontWeight="bold"
+            bg={mDir === d ? "primary" : "transparent"}
+            color={mDir === d ? "background" : "primary"}
+            borderWidth="1px"
+            borderColor="primary"
+            onClick={() => setMDir(d)}
+          >
+            {label}
+          </Button>
+        ))}
+      </HStack>
+
+      {mDir === "buy" ? (
+        magiClient ? (
+          <BtcToHiveDeposit username={user} client={magiClient} />
+        ) : null
+      ) : (
+        <>
       <Text {...eyebrow}>Bridge to real BTC via Magi (routes through HBD)</Text>
       <HStack>
         {(["HBD", "HIVE"] as const).map((a) => (
@@ -207,6 +241,8 @@ export default function CrossChainSwapPanel() {
       >
         {mBusy ? <Spinner size="sm" /> : mPreview?.blockReason ? mPreview.blockReason : "Swap to BTC"}
       </Button>
+        </>
+      )}
     </VStack>
   );
 }

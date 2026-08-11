@@ -122,6 +122,33 @@ function withTimeout<T>(p: Promise<T>, ms: number, msg: string): Promise<T> {
  * calls and — if the VSC simulate endpoint stalls — never resolves, leaving the
  * RC check stuck on "Checking…". This is one `getAccountRC` GraphQL call.
  */
+export type MagiBuyAsset = "HBD" | "HIVE";
+
+/**
+ * Reverse direction: get a one-per-(user,asset) BTC deposit address. Send real
+ * BTC to it and Magi converts it to `assetOut` and settles it to `hive:<user>`.
+ * No Hive signing and no VSC RC are needed on the user side — the user just
+ * sends BTC. The address is amount-agnostic (any amount converts at market
+ * rate on arrival). Backed by MAINNET_CONFIG.mappingBotUrl.
+ */
+export async function getBtcDepositAddress(
+  client: MagiClient,
+  username: string,
+  assetOut: MagiBuyAsset,
+  timeoutMs = 15000
+): Promise<string> {
+  const res = await withTimeout(
+    client.getBtcDepositAddress({
+      recipient: `hive:${username}`,
+      assetOut,
+      destinationChain: "HIVE",
+    }),
+    timeoutMs,
+    "Deposit-address request timed out"
+  );
+  return res.address;
+}
+
 export async function getMagiRcStatus(
   client: MagiClient,
   username: string,
