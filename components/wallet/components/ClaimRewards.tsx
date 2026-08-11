@@ -134,9 +134,12 @@ export default function ClaimRewards({
             color="primary"
             borderRadius="none"
             fontFamily="mono"
-            fontSize="xs"
-            size="sm"
-            leftIcon={<FaBitcoin color="#F7931A" />}
+            fontSize="md"
+            fontWeight="black"
+            letterSpacing="widest"
+            size="lg"
+            h="56px"
+            leftIcon={<FaBitcoin color="#F7931A" size={20} />}
             textTransform="uppercase"
             _hover={{ bg: "primary", color: "background" }}
             onClick={() => setBtcModalOpen(true)}

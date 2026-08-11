@@ -353,6 +353,11 @@ export default function ClaimToBtcModal({
                     fontFamily="mono"
                     borderRadius="none"
                     textTransform="uppercase"
+                    whiteSpace="normal"
+                    height="auto"
+                    minH="44px"
+                    py={2}
+                    lineHeight="short"
                     onClick={() => router.push(`/user/${username}?edit=1`)}
                   >
                     Add Bitcoin address
@@ -365,13 +370,18 @@ export default function ClaimToBtcModal({
                     fontFamily="mono"
                     borderRadius="none"
                     textTransform="uppercase"
+                    whiteSpace="normal"
+                    height="auto"
+                    minH="44px"
+                    py={2}
+                    lineHeight="short"
                     isDisabled={!allOk}
                     onClick={run}
                   >
                     {allOk
                       ? "Claim & convert to BTC"
                       : addrOk && rcOk && !amountOk
-                      ? "All set — convert on your next claim"
+                      ? "All set — convert next claim"
                       : "Not eligible yet"}
                   </Button>
                 )}
