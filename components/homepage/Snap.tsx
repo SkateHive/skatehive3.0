@@ -251,6 +251,9 @@ const Snap = React.memo(function Snap({
   // #00FF00 on the hacker themes, which made the connector read as a bright
   // green rule instead of a quiet hairline between avatars.
   const threadLineColor = useColorModeValue("blackAlpha.400", "whiteAlpha.400");
+  // Media, body and actions share this offset — they have to, or the column
+  // stops lining up with the author name.
+  const contentPl = isCommentRow ? `${THREAD_CONTENT_OFFSET_PX}px` : 0;
 
   const { text, media } = useMemo(
     () => separateContent(discussion.body),
@@ -301,6 +304,18 @@ const Snap = React.memo(function Snap({
   );
   const [votedOverride, setVotedOverride] = useState(false);
   const voted = votedOverride || derivedVoted;
+
+  // Accessible names for the two icon-only controls. Without them a screen
+  // reader announces the bare count, or nothing at all when it is zero. The
+  // count belongs in the label because aria-label replaces the element's own
+  // content. "Upvoted" rather than "Remove upvote": clicking an already-voted
+  // control is a no-op here, so offering to undo would be a lie.
+  const voteLabel = `${voted ? "Upvoted" : "Upvote"}${
+    activeVotes.length > 0 ? `, ${activeVotes.length} votes` : ""
+  }`;
+  const replyLabel = `Reply${
+    commentCount > 0 ? `, ${commentCount} replies` : ""
+  }`;
 
   // Direct vote handler for when slider is disabled
   async function handleDirectVote() {
@@ -459,7 +474,16 @@ const Snap = React.memo(function Snap({
         )}
 
         <Flex align="flex-start" gap={`${THREAD_GUTTER_GAP_PX}px`}>
-          <Box flexShrink={0} width={`${THREAD_AVATAR_PX}px`}>
+          {/* Positioned so the avatar paints above the connector. A positioned
+              element beats non-positioned content in the painting order, so
+              without this the previous row's bleed would land on top of this
+              avatar rather than tucking behind it. */}
+          <Box
+            position="relative"
+            zIndex={1}
+            flexShrink={0}
+            width={`${THREAD_AVATAR_PX}px`}
+          >
             <Link href={profileLink} display="block" _hover={{ textDecoration: "none" }}>
               <Avatar size="sm" name={displayAuthor} src={displayAvatar} />
             </Link>
@@ -554,7 +578,7 @@ const Snap = React.memo(function Snap({
             media there is opaque and hundreds of pixels tall, so it would hide
             the line for that whole stretch and the chain would read as two
             disconnected stubs on any comment carrying a video. */}
-        <Box pl={isCommentRow ? `${THREAD_CONTENT_OFFSET_PX}px` : 0}>
+        <Box pl={contentPl}>
           <MediaRenderer mediaContent={media} fullContent={discussion.body} />
         </Box>
 
@@ -562,7 +586,7 @@ const Snap = React.memo(function Snap({
             what makes a threaded row read as one column. A feed post keeps the
             full width it has on main: nothing threads there, so the avatar
             column would just be an empty strip down the left of every post. */}
-        <Box pl={isCommentRow ? `${THREAD_CONTENT_OFFSET_PX}px` : 0}>
+        <Box pl={contentPl}>
           <Box sx={{ p: { marginBottom: "1rem", lineHeight: "1.6" } }}>
             <EnhancedMarkdownRenderer content={text} />
           </Box>
@@ -586,6 +610,8 @@ const Snap = React.memo(function Snap({
                   cursor="pointer"
                   role="button"
                   tabIndex={0}
+                  aria-label={voteLabel}
+                  aria-disabled={voted || isVoting || undefined}
                   onClick={() => {
                     if (!voted && !isVoting) {
                       if (disableSlider) {
@@ -644,6 +670,8 @@ const Snap = React.memo(function Snap({
                   cursor="pointer"
                   role="button"
                   tabIndex={0}
+                  aria-label={replyLabel}
+                  aria-expanded={isThreadOpen}
                   onClick={() => {
                     // Always open inline composer for replies
                     handleReplyButtonClick(discussion.permlink);
