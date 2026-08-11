@@ -7,6 +7,7 @@ import { KeyTypes } from "@aioha/aioha";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import { extractNumber } from "@/lib/utils/extractNumber";
 import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
+import EnableMagiRcButton from "@/components/wallet/components/EnableMagiRcButton";
 import {
   getMagiClient,
   getMagiPreview,
@@ -183,6 +184,14 @@ export default function CrossChainSwapPanel() {
         <Text fontSize="10px" fontFamily="mono" color="red.400">
           {mPreview.blockDetail || mPreview.blockReason}
         </Text>
+      )}
+      {mPreview?.blockReason === "Not enough Resource Credits" && magiClient && user && (
+        <EnableMagiRcButton
+          username={user}
+          client={magiClient}
+          swapHbd={mIn === "HBD" ? Number(mAmount) || 2 : 2}
+          onEnabled={quoteMagi}
+        />
       )}
       <Text fontSize="10px" fontFamily="mono" color="primary" opacity={0.6}>
         One signature, two steps: ① bridges your HBD into VSC, ② swaps it to real BTC — Magi settles it to your address. Needs liquid HBD + RC. Mainnet — start small.

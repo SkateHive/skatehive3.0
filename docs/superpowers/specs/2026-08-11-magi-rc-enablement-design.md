@@ -135,16 +135,38 @@ User opens Claim to BTC
 - `amount < gate` while `max ≥ gate` → guide to wait for recharge; keep swap
   disabled.
 
-## Calibration (pending — does not block build)
+## Calibration (SOLVED — derived from public VSC data)
 
-The exact HBD→RC ceiling ratio is empirical. Measure via a real deposit:
-1. Record `getAccountRC` `max_rcs` before.
-2. Deposit a known HBD amount to `vsc.gateway` (memo `to=<user>`).
-3. Record `max_rcs` after → Δ per HBD.
+Triangulated from 6 accounts' `getAccountBalance` + `getAccountRC`:
 
-Set `suggestRcTopUpHbd`'s ratio + headroom from this. Until measured, default to
-a conservative amount that comfortably clears a 10k gate (e.g. target ~14k
-ceiling). @xvlad's point (8 HBD + 69 HIVE → 18k) is a rough anchor.
+| account | HBD in VSC | HIVE in VSC | max_rcs |
+|---|---|---|---|
+| skatehive | 0 | 0 | 10000 |
+| mengao | 1 | 0 | 11000 |
+| xvlad | 8 | 69 | 18000 |
+| vaultec | 286.8 | 119.8 | 296806 |
+
+**Formula: `max_rcs = 10_000 + round(HBD_in_VSC × 1000)`. HIVE does NOT count —
+only HBD generates RC.** So:
+
+- Every VSC account has a **10_000 base RC**, which equals the gate
+  (`MAGI_MIN_RC`). An account at full RC needs **no deposit** to swap; the
+  deposit is only needed when the *current* `amount` is depleted (recharging) or
+  to get headroom for **larger** swaps.
+- Swapping `Y` HBD reserves `Y × 1000` RC → to comfortably swap `Y` HBD, keep
+  roughly `Y` HBD parked in VSC (the base 10k covers the ~8.2k fixed cost).
+
+Constants: `RC_BASE = 10_000`, `RC_PER_HBD = 1_000`.
+
+`suggestRcTopUpHbd(currentMax, swapHbd, marginHbd = 2)`:
+`ceil(max(0, (RC_BASE + (swapHbd + marginHbd) * RC_PER_HBD) - currentMax) / RC_PER_HBD)`
+— i.e. deposit enough so `max_rcs ≥ 10k + (swap + margin) × 1k`.
+
+**Still worth one live check:** whether a deposit also bumps the *current*
+`amount` immediately or only raises `max` (amount then regenerates). If only
+`max` rises, a depleted account may still wait for recharge after depositing —
+already handled by the "recharging" UX branch. @xvlad's pending 2-HBD deposit
+confirms this.
 
 ## Testing
 

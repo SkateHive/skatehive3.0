@@ -29,14 +29,13 @@ import {
   ModalOverlay,
   Text,
   VStack,
-  useDisclosure,
   useToast,
 } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
-import { FaBitcoin, FaBolt, FaCheck, FaTimes } from "react-icons/fa";
-import { PowerUpModal } from "@/components/wallet/modals";
+import { FaBitcoin, FaCheck, FaTimes } from "react-icons/fa";
+import EnableMagiRcButton from "./EnableMagiRcButton";
 import {
   getMagiClient,
   getMagiPreview,
@@ -46,8 +45,6 @@ import {
   type MagiPreview,
 } from "@/lib/hive/magi";
 
-/** HP curation threshold — only high-stake "best users" can route to BTC. */
-export const MIN_HP_FOR_BTC = 500;
 /** Don't offer a conversion for dust (fixed ~8.2k RC cost isn't worth it). */
 const MIN_HBD_TO_CONVERT = 0.5;
 
@@ -60,8 +57,9 @@ interface ClaimToBtcModalProps {
   /** Claimable reward HBD (the liquid portion we convert). */
   rewardHbd: number;
   btcAddress?: string;
-  hivePower: number;
-  /** Liquid HIVE balance ("X.XXX HIVE") — for the inline power-up tool. */
+  /** Deprecated — the HP curation gate was removed (RC is not from HP). Kept
+   *  optional so existing callers don't break. */
+  hivePower?: number;
   hiveBalance?: string;
   /** Called after a successful claim so the parent can refresh balances. */
   onClaimed?: () => void;
@@ -73,27 +71,36 @@ export default function ClaimToBtcModal({
   username,
   rewardHbd,
   btcAddress,
-  hivePower,
-  hiveBalance,
   onClaimed,
 }: ClaimToBtcModalProps) {
   const toast = useToast();
   const router = useRouter();
   const { aioha } = useAioha();
-  const { isOpen: puOpen, onOpen: puOnOpen, onClose: puOnClose } = useDisclosure();
   const client = useMemo(() => (aioha ? getMagiClient(aioha) : null), [aioha]);
 
   const [step, setStep] = useState<Step>("checks");
   const [rcAvailable, setRcAvailable] = useState<bigint | null>(null);
+  const [rcMax, setRcMax] = useState<bigint | null>(null);
   const [estBtc, setEstBtc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [claimedButNotConverted, setClaimedButNotConverted] = useState(false);
 
   const addrOk = isValidBtcAddress(btcAddress || "");
-  const hpOk = hivePower >= MIN_HP_FOR_BTC;
   const amountOk = rewardHbd >= MIN_HBD_TO_CONVERT;
   const rcOk = rcAvailable !== null && rcAvailable >= MAGI_MIN_RC;
-  const allOk = addrOk && hpOk && amountOk && rcOk;
+  const allOk = addrOk && amountOk && rcOk;
+
+  // Re-probe RC after an in-modal deposit so the checklist flips without reopen.
+  const refreshRc = useCallback(async () => {
+    if (!client || !username) return;
+    try {
+      const rc = await getMagiRcStatus(client, username);
+      setRcAvailable(rc.amount);
+      setRcMax(rc.max);
+    } catch {
+      /* keep prior value */
+    }
+  }, [client, username]);
 
   // On open: fetch RC + a BTC estimate (read-only). The estimate ignores the
   // pre-claim balance block — we're about to claim that HBD.
@@ -103,6 +110,7 @@ export default function ClaimToBtcModal({
       setError(null);
       setEstBtc(null);
       setRcAvailable(null);
+      setRcMax(null);
       setClaimedButNotConverted(false);
       return;
     }
@@ -116,7 +124,10 @@ export default function ClaimToBtcModal({
     (async () => {
       try {
         const rc = await getMagiRcStatus(client, username);
-        if (!cancelled) setRcAvailable(rc.amount);
+        if (!cancelled) {
+          setRcAvailable(rc.amount);
+          setRcMax(rc.max);
+        }
       } catch {
         if (!cancelled) setRcAvailable(0n);
       }
@@ -309,43 +320,30 @@ export default function ClaimToBtcModal({
 
             {step === "checks" && (
               <>
-                {/* HP first — it's the gateway (drives RC + the curation gate). */}
                 <VStack align="stretch" spacing={2}>
-                  <CheckRow
-                    ok={hpOk}
-                    label={`1. Power up to ≥ ${MIN_HP_FOR_BTC} HP`}
-                    hint={`You have ${Math.floor(hivePower)} HP — power up HIVE to qualify (this is step one).`}
-                  />
+                  <CheckRow ok={addrOk} label="1. Bitcoin address saved" hint="Add your BTC address in profile settings." />
                   <CheckRow
                     ok={rcOk}
-                    label="2. Enough Resource Credits"
+                    label="2. Magi Resource Credits"
                     hint={
                       rcAvailable === null
                         ? "Checking…"
-                        : `Need ~${Number(MAGI_MIN_RC) / 1000}k RC, you have ${(Number(rcAvailable) / 1000).toFixed(1)}k — comes with HP; wait to recharge or power up more.`
+                        : `Need ~${Number(MAGI_MIN_RC) / 1000}k, you have ${(Number(rcAvailable) / 1000).toFixed(1)}k — RC comes from HBD you keep in Magi, and recharges over time.`
                     }
                   />
-                  <CheckRow ok={addrOk} label="3. Bitcoin address saved" hint="Add your BTC address in profile settings." />
-                  <CheckRow ok={amountOk} label={`4. ≥ ${MIN_HBD_TO_CONVERT} HBD reward`} hint="Claim rewards with liquid HBD to convert." />
+                  <CheckRow ok={amountOk} label={`3. ≥ ${MIN_HBD_TO_CONVERT} HBD reward`} hint="Claim rewards with liquid HBD to convert." />
                 </VStack>
 
-                {/* Tool: power up right here — HP is step one, so offer it even
-                    before a BTC address is added (RC only once we can check it). */}
-                {(!hpOk || (addrOk && !rcOk)) && (
-                  <Button
-                    leftIcon={<FaBolt />}
-                    variant="outline"
-                    borderColor="primary"
-                    color="primary"
-                    borderRadius="none"
-                    fontFamily="mono"
-                    size="sm"
-                    textTransform="uppercase"
-                    _hover={{ bg: "primary", color: "background" }}
-                    onClick={puOnOpen}
-                  >
-                    Power up HIVE to qualify
-                  </Button>
+                {/* RC remedy — deposit HBD into Magi/VSC to raise the RC ceiling.
+                    Only surfaced once RC is the blocker (address present). */}
+                {addrOk && !rcOk && client && (
+                  <EnableMagiRcButton
+                    username={username}
+                    client={client}
+                    swapHbd={amountOk ? rewardHbd : 2}
+                    rcStatus={rcAvailable !== null ? { amount: rcAvailable, max: rcMax ?? rcAvailable } : null}
+                    onEnabled={refreshRc}
+                  />
                 )}
 
                 {!addrOk ? (
@@ -372,7 +370,7 @@ export default function ClaimToBtcModal({
                   >
                     {allOk
                       ? "Claim & convert to BTC"
-                      : addrOk && hpOk && rcOk && !amountOk
+                      : addrOk && rcOk && !amountOk
                       ? "All set — convert on your next claim"
                       : "Not eligible yet"}
                   </Button>
@@ -427,7 +425,6 @@ export default function ClaimToBtcModal({
         </ModalBody>
       </ModalContent>
     </Modal>
-    <PowerUpModal isOpen={puOpen} onClose={puOnClose} balance={hiveBalance || "0.000 HIVE"} />
     </>
   );
 }

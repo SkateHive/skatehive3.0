@@ -23,7 +23,9 @@ import {
   type MagiClient,
   type ReferralConfig,
 } from "@vsc.eco/crosschain-sdk";
-import { withSwapOpRcLimit } from "@vsc.eco/crosschain-core";
+import { withSwapOpRcLimit, getHiveDepositOp } from "@vsc.eco/crosschain-core";
+
+export type { MagiClient };
 
 export type MagiAssetIn = "HIVE" | "HBD";
 export type MagiAssetOut = "BTC";
@@ -41,6 +43,15 @@ export const MAGI_FEE: ReferralConfig = { beneficiary: "hive:skatehive", bps: 10
  *  MagiPreview.rcAvailable (from checkSwapRc — NOT the SDK's getAccountRc, which
  *  returns VSC-layer RC, ~0 for most accounts). */
 export const MAGI_MIN_RC = 10000n;
+
+/** VSC RC ceiling model, derived from live account data:
+ *    max_rcs = RC_BASE + round(HBD_held_in_VSC × RC_PER_HBD)   (HIVE does NOT count)
+ *  Every VSC account starts with RC_BASE (== MAGI_MIN_RC), so a full-RC account
+ *  needs no deposit to swap; parking HBD in VSC raises the ceiling, which is what
+ *  a depleted account (or a larger swap) needs. Refundable — it stays the user's
+ *  own VSC balance. */
+export const RC_BASE = 10_000;
+export const RC_PER_HBD = 1_000;
 
 /** On-chain decimal precision for a Magi sell asset (HIVE/HBD are 3-dp). */
 export const magiInputDecimals = (asset: MagiAssetIn): number => DECIMALS[asset] ?? 3;
@@ -122,6 +133,45 @@ export async function getMagiRcStatus(
     "RC status timed out"
   );
   return { amount: rc.amount, max: rc.maxRcs };
+}
+
+/**
+ * Build the single Hive `transfer` that parks HBD into VSC to raise the account's
+ * RC ceiling (transfer → `vsc.gateway`, memo `to=<user>`). This is the in-app
+ * "Enable Magi RC" deposit. It is REFUNDABLE — the HBD becomes the user's own VSC
+ * balance, not a fee. Sign with the ACTIVE key:
+ *   aioha.signAndBroadcastTx([buildVscTopUpOp(user, amount)], KeyTypes.Active)
+ */
+export function buildVscTopUpOp(
+  username: string,
+  amountHbd: string
+): ReturnType<typeof getHiveDepositOp> {
+  return getHiveDepositOp({
+    from: username,
+    toDid: `hive:${username}`,
+    amount: CoinAmount.fromDecimal(
+      truncateToDecimals(Number(amountHbd), DECIMALS.HBD),
+      "HBD"
+    ),
+    config: MAINNET_CONFIG,
+  });
+}
+
+/**
+ * HBD to deposit so the RC ceiling comfortably covers a `swapHbd`-sized swap:
+ * target `max_rcs = RC_BASE + (swapHbd + marginHbd) × RC_PER_HBD`. Returns 0 when
+ * the current ceiling already suffices (no deposit needed). `currentMax` is the
+ * `max` from getMagiRcStatus.
+ */
+export function suggestRcTopUpHbd(
+  currentMax: bigint,
+  swapHbd: number,
+  marginHbd = 2
+): number {
+  const target = RC_BASE + (Math.max(0, swapHbd) + marginHbd) * RC_PER_HBD;
+  const deficitRc = target - Number(currentMax);
+  if (deficitRc <= 0) return 0;
+  return Math.ceil(deficitRc / RC_PER_HBD);
 }
 
 /** VSC resource-credit amount → compact "k" string for messages. */
