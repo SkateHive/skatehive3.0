@@ -37,6 +37,13 @@ interface SnapListProps {
   post?: boolean;
   data: InfiniteScrollData;
   hideComposer?: boolean;
+  /**
+   * Render the list as one conversation: rows are chained by the thread
+   * connector and the separators between them are dropped. Off by default —
+   * `post` alone is not enough, since bounty submissions are also comments on
+   * a post yet are independent entries rather than a discussion.
+   */
+  threadComments?: boolean;
 }
 
 interface InfiniteScrollData {
@@ -57,6 +64,7 @@ export default function SnapList({
   post = false,
   data,
   hideComposer = false,
+  threadComments = false,
 }: SnapListProps) {
   const { comments, loadNextPage, isLoading, hasMore } = data;
   const [displayedComments, setDisplayedComments] = useState<Discussion[]>([]);
@@ -390,18 +398,32 @@ export default function SnapList({
                 <VStack
                   spacing={1}
                   align="stretch"
-                  divider={<Box borderBottom="1px solid" borderColor="muted" />}
+                  // A threaded list is one conversation, so the connector is
+                  // what relates the rows; keeping the rules as well would say
+                  // "separate" and "chained" at the same time.
+                  divider={
+                    threadComments ? undefined : (
+                      <Box borderBottom="1px solid" borderColor="muted" />
+                    )
+                  }
                 >
-                  {filteredAndSortedComments.map((discussion: Discussion) => (
-                    <Snap
-                      key={discussion.permlink}
-                      discussion={discussion}
-                      onOpen={onOpenConversation}
-                      setReply={setReply}
-                      {...(!post ? { setConversation } : {})}
-                      onDelete={handleDeleteComment}
-                    />
-                  ))}
+                  {filteredAndSortedComments.map(
+                    (discussion: Discussion, index: number) => (
+                      <Snap
+                        key={discussion.permlink}
+                        discussion={discussion}
+                        onOpen={onOpenConversation}
+                        setReply={setReply}
+                        {...(!post ? { setConversation } : {})}
+                        onDelete={handleDeleteComment}
+                        isCommentRow={threadComments}
+                        hasFollowingThreadRow={
+                          threadComments &&
+                          index < filteredAndSortedComments.length - 1
+                        }
+                      />
+                    )
+                  )}
                 </VStack>
               </SoftVoteProvider>
             </SoftPostProvider>
