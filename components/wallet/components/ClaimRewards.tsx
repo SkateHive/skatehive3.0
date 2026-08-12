@@ -261,25 +261,25 @@ export default function ClaimRewards({
           >
             Claim Now
           </Button>
-          {parseFloat(String(pendingRewards.hbd)) > 0 && (
-            <Button
-              w="100%"
-              variant="outline"
-              borderColor="primary"
-              color="primary"
-              borderRadius="none"
-              fontWeight="black"
-              letterSpacing="widest"
-              fontFamily="mono"
-              leftIcon={<FaBitcoin color="#F7931A" />}
-              onClick={() => setBtcModalOpen(true)}
-              size="md"
-              sx={{ textTransform: "uppercase" }}
-              _hover={{ bg: "primary", color: "background" }}
-            >
-              Claim to BTC
-            </Button>
-          )}
+          {/* Always present — even with no HBD portion yet, so the user can set
+              up their BTC address + Magi RC now and convert on a future claim. */}
+          <Button
+            w="100%"
+            variant="outline"
+            borderColor="primary"
+            color="primary"
+            borderRadius="none"
+            fontWeight="black"
+            letterSpacing="widest"
+            fontFamily="mono"
+            leftIcon={<FaBitcoin color="#F7931A" />}
+            onClick={() => setBtcModalOpen(true)}
+            size="md"
+            sx={{ textTransform: "uppercase" }}
+            _hover={{ bg: "primary", color: "background" }}
+          >
+            {parseFloat(String(pendingRewards.hbd)) > 0 ? "Claim to BTC" : "Earn in BTC"}
+          </Button>
         </VStack>
       </Box>
 
