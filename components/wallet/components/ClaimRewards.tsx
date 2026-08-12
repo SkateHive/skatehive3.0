@@ -252,7 +252,7 @@ export default function ClaimRewards({
             fontWeight="black"
             letterSpacing="widest"
             fontFamily="mono"
-            leftIcon={<FaGift />}
+            leftIcon={<Image src="/logos/hiveLogo.png" boxSize="18px" objectFit="contain" alt="Hive" />}
             isLoading={isClaiming}
             loadingText="CLAIMING..."
             onClick={handleClaimRewards}
