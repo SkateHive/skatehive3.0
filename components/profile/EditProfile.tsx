@@ -448,67 +448,101 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
         }
         // zineCover is already uploaded to IPFS in handleCropComplete
 
-        // Use Keychain SDK for the update
-        const keychain = new KeychainSDK(window);
-
-        const { jsonMetadata: currentMetadata, postingMetadata } =
-          await fetchAccount(username);
-
-        const { postingMetadata: mergedPosting, jsonMetadata: mergedJson } =
-          mergeHiveProfileMetadata({
-            currentPosting: postingMetadata,
-            currentJson: currentMetadata,
-            profilePatch: {
-              name: formData.name || username,
-              about: formData.about || "",
-              location: formData.location || "",
-              cover_image: finalCoverImage || "",
-              profile_image: finalProfileImage || "",
-              website: formData.website || "",
-              // Plain username (no @), sanitized. Other Hive frontends can
-              // surface this however they like; SkateHive reads it back.
-              instagram: sanitizeIgHandle(formData.instagram) || "",
-              version: 2,
-            },
-            extensionsPatch: {
-              wallets: {
-                primary_wallet: profileData.ethereum_address || "",
-                btc_address: btcNormalized,
-              },
-              video_parts: profileData.video_parts || [],
-              settings: {
-                appSettings: {
-                  zineCover: finalZineCover || "",
-                  svs_profile: formData.svs_profile || "",
-                },
-              },
-            },
-          });
-
-        const formParamsAsObject = {
-          data: {
-            username: username,
-            operations: [
-              [
-                "account_update2",
-                {
-                  account: username,
-                  json_metadata: JSON.stringify(mergedJson),
-                  posting_json_metadata: JSON.stringify(mergedPosting),
-                  extensions: [],
-                },
-              ],
-            ],
-            method: KeychainKeyTypes.active,
-          },
+        // The profile lives in `posting_json_metadata`, which the POSTING
+        // authority can sign. Prefer the user's stored posting key (sponsored /
+        // email users) so NO Hive Keychain is required — Keychain is only a
+        // fallback for users who sign with their own active key.
+        const profilePatch = {
+          name: formData.name || username,
+          about: formData.about || "",
+          location: formData.location || "",
+          cover_image: finalCoverImage || "",
+          profile_image: finalProfileImage || "",
+          website: formData.website || "",
+          // Plain username (no @), sanitized. Other Hive frontends can
+          // surface this however they like; SkateHive reads it back.
+          instagram: sanitizeIgHandle(formData.instagram) || "",
+          version: 2,
         };
 
-        const result = await keychain.broadcast(
-          formParamsAsObject.data as unknown as Broadcast
-        );
+        let broadcasted = false;
+        try {
+          const res = await fetch("/api/userbase/hive/account-update", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ profile: profilePatch }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data?.success) {
+            broadcasted = true;
+          } else if (res.status === 403) {
+            // Soft-post account (no own Hive account yet) — nothing to sign.
+            setError(
+              data?.error ||
+                "You need your own Hive account to edit this profile — get sponsored first."
+            );
+            return;
+          }
+          // 401 (no userbase session) / 500 (no stored key) → fall back to Keychain.
+        } catch {
+          // Network hiccup — fall back to Keychain below.
+        }
 
-        if (!result) {
-          throw new Error("Profile update failed");
+        // Fallback: sign with the user's own active key via Keychain. This path
+        // also writes json_metadata (extensions/wallets), which needs the active
+        // authority the stored posting key doesn't have.
+        if (!broadcasted) {
+          const keychain = new KeychainSDK(window);
+
+          const { jsonMetadata: currentMetadata, postingMetadata } =
+            await fetchAccount(username);
+
+          const { postingMetadata: mergedPosting, jsonMetadata: mergedJson } =
+            mergeHiveProfileMetadata({
+              currentPosting: postingMetadata,
+              currentJson: currentMetadata,
+              profilePatch,
+              extensionsPatch: {
+                wallets: {
+                  primary_wallet: profileData.ethereum_address || "",
+                  btc_address: btcNormalized,
+                },
+                video_parts: profileData.video_parts || [],
+                settings: {
+                  appSettings: {
+                    zineCover: finalZineCover || "",
+                    svs_profile: formData.svs_profile || "",
+                  },
+                },
+              },
+            });
+
+          const formParamsAsObject = {
+            data: {
+              username: username,
+              operations: [
+                [
+                  "account_update2",
+                  {
+                    account: username,
+                    json_metadata: JSON.stringify(mergedJson),
+                    posting_json_metadata: JSON.stringify(mergedPosting),
+                    extensions: [],
+                  },
+                ],
+              ],
+              method: KeychainKeyTypes.active,
+            },
+          };
+
+          const result = await keychain.broadcast(
+            formParamsAsObject.data as unknown as Broadcast
+          );
+
+          if (!result) {
+            throw new Error("Profile update failed");
+          }
         }
 
         // Mirror the Instagram handle into userbase_identities so the IG
