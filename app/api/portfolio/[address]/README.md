@@ -4,7 +4,10 @@
 
 ## Overview
 
-Fetches cryptocurrency portfolio data for a blockchain address from the KeepKey Zapper API. Returns token balances and total net worth across multiple networks. Includes data transformation to normalize the external API response format.
+Fetches cryptocurrency portfolio data for a blockchain address from the KeepKey
+Zapper API. Native ETH balances on Ethereum, Base, and Arbitrum are read directly
+from each chain RPC and merged into the response because portfolio indexers can
+lag or omit small native balances.
 
 **Status**: ✅ Active (Production)  
 **Method**: `GET`  
@@ -95,6 +98,10 @@ https://api.keepkey.info/api/v1/zapper/portfolio/{address}
 
 The external API returns nested data structures that are flattened and normalized by this endpoint.
 
+Native ETH uses `eth_getBalance` through Viem. The server uses the configured
+Alchemy key when available and falls back to each chain public RPC. ETH/USD is
+read from CoinGecko when KeepKey does not provide a price.
+
 ## Address Handling
 
 The endpoint normalizes addresses for lookups:
@@ -177,9 +184,9 @@ Each token includes `network` and `networkId` fields.
 ## Error Handling
 
 The endpoint implements graceful fallback:
-1. **API Failure**: Returns mock data with zeros
+1. **KeepKey failure**: Still returns direct native ETH balances
 2. **Invalid Address**: Returns 400 error
-3. **Network Error**: Returns empty portfolio
+3. **RPC failure**: Omits only the affected chain
 4. **Parse Error**: Logs error, returns mock data
 
 Mock data structure (for development):
