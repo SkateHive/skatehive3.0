@@ -24,6 +24,7 @@ import type { ProfileData } from "./ProfilePage";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAioha } from "@aioha/react-ui";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { KeychainSDK, KeychainKeyTypes, Broadcast } from "keychain-sdk";
 import { Operation } from "@hiveio/dhive";
@@ -87,7 +88,12 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
     const address = account?.address;
     const isConnected = account?.isConnected || false;
 
-    const { user } = useAioha();
+    const { user: aiohaUser } = useAioha();
+    const { hiveIdentity } = useLinkedIdentities();
+    // Effective Hive user: Keychain/Aioha session, else the Hive identity linked
+    // to the userbase (email / sponsored) account. Lets sponsored users edit
+    // their profile via the stored posting key without Hive Keychain.
+    const user = aiohaUser || hiveIdentity?.handle || null;
     const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } =
       useFarcasterSession();
     const toast = useToast();

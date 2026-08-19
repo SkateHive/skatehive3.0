@@ -55,14 +55,20 @@ interface MainWalletProps {
 }
 
 export default function MainWallet({ username }: MainWalletProps) {
-  const { user } = useAioha();
+  const { user: aiohaUser } = useAioha();
+  const { identities: linkedIdentities, hiveIdentity } = useLinkedIdentities();
+  // Effective Hive user: prefer the Keychain/Aioha session, else the Hive
+  // identity linked to the userbase (email / sponsored) account. This makes the
+  // Hive wallet VISIBLE without Hive Keychain. Money-moving actions (send,
+  // power up, savings, swaps) still sign through the child modals' own Aioha, so
+  // they prompt to connect Keychain when there's no active key — Keychain stays
+  // an extra tool, only needed to move funds.
+  const user = aiohaUser || hiveIdentity?.handle || null;
   const { hiveAccount, isLoading } = useHiveAccount(user || "");
   const { claimInterest } = useBankActions();
   const { isConnected, address } = useAccount();
   const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } =
     useFarcasterSession();
-
-  const { identities: linkedIdentities } = useLinkedIdentities();
 
   const [isMounted, setIsMounted] = useState(false);
   const [chainFilter, setChainFilter] = useState<ChainFilter>("all");
