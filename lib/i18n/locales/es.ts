@@ -11,7 +11,6 @@ export const es = {
     sending: 'Enviando',
     toHiveAccount: 'Enviando a',
     connectWallet: 'Conecta una cartera para dar propina en Base.',
-    resolving: 'Buscando donde pagar a este skater...',
     noRailsTitle: 'Todavia no se puede pagar a este skater',
     noRailsBody: 'Este autor no publico cartera, y una propina en Hive necesita Keychain.',
     successTitle: 'Propina enviada',

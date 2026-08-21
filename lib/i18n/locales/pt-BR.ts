@@ -11,7 +11,6 @@ export const ptBR = {
     sending: 'Enviando',
     toHiveAccount: 'Enviando para',
     connectWallet: 'Conecte uma carteira para dar tip na Base.',
-    resolving: 'Procurando onde pagar esse skatista...',
     noRailsTitle: 'Ainda nao da para pagar esse skatista',
     noRailsBody: 'Este autor nao publicou carteira, e tip em Hive precisa do Keychain.',
     successTitle: 'Tip enviado',

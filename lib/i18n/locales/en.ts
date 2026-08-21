@@ -11,7 +11,6 @@ export const en = {
     sending: 'Sending',
     toHiveAccount: 'Sending to',
     connectWallet: 'Connect a wallet to tip on Base.',
-    resolving: 'Looking up where this skater can be paid...',
     noRailsTitle: 'No way to pay this skater yet',
     noRailsBody: 'This author has not published a wallet, and a Hive tip needs Keychain.',
     successTitle: 'Tip sent',

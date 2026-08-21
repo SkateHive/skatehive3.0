@@ -66,29 +66,35 @@ export default function useTipRecipient(
     enabled: enabled && (!!hiveAccount || !!userbaseHandle),
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      // A Hive author may have published their wallet directly on-chain,
-      // in either metadata slot depending on when it was set — check both
-      // before falling back to a userbase-linked identity.
-      if (hiveAccount) {
-        try {
-          const { jsonMetadata, postingMetadata } = await fetchAccount(hiveAccount);
-          const onChainWallet =
-            evmFromHiveMetadata(postingMetadata) || evmFromHiveMetadata(jsonMetadata);
-          if (onChainWallet) return onChainWallet;
-        } catch {
-          // Hive API hiccup — fall through to the userbase lookup below.
-        }
-      }
+      // A Hive author may have published their wallet directly on-chain, in
+      // either metadata slot depending on when it was set, or only linked it
+      // through the app (userbase_identities). Neither source is authoritative
+      // over the other, so both run concurrently rather than one gating the
+      // other — an author with no wallet anywhere would otherwise pay for two
+      // round-trips in sequence instead of the slower of the two in parallel.
+      const onChainLookup = hiveAccount
+        ? fetchAccount(hiveAccount)
+            .then(
+              ({ jsonMetadata, postingMetadata }) =>
+                evmFromHiveMetadata(postingMetadata) || evmFromHiveMetadata(jsonMetadata)
+            )
+            .catch(() => null)
+        : Promise.resolve(null);
 
-      if (!lookupKey) return null;
-      const params = new URLSearchParams(lookupKey);
-      const response = await fetch(`/api/userbase/profile?${params}`);
-      if (!response.ok) return null;
-      const data = await response.json();
-      const evm = (data?.identities || []).find(
-        (identity: any) => identity.type === "evm" && identity.address
-      );
-      return (evm?.address as string) || null;
+      const userbaseLookup = lookupKey
+        ? fetch(`/api/userbase/profile?${new URLSearchParams(lookupKey)}`)
+            .then((response) => (response.ok ? response.json() : null))
+            .then((data) => {
+              const evm = (data?.identities || []).find(
+                (identity: any) => identity.type === "evm" && identity.address
+              );
+              return (evm?.address as string) || null;
+            })
+            .catch(() => null)
+        : Promise.resolve(null);
+
+      const [onChainWallet, userbaseWallet] = await Promise.all([onChainLookup, userbaseLookup]);
+      return onChainWallet || userbaseWallet;
     },
   });
 
