@@ -7,7 +7,6 @@ export const es = {
     amount: 'Cantidad',
     memo: 'Memo',
     memoPlaceholder: 'Nota opcional',
-    memoOptional: 'opcional',
     send: 'Enviar propina',
     sending: 'Enviando',
     toHiveAccount: 'Enviando a',

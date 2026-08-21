@@ -8,7 +8,6 @@ import {
   FormControl,
   FormLabel,
   Input,
-  Text,
   VStack,
 } from "@chakra-ui/react";
 import { useTranslations } from "@/contexts/LocaleContext";
@@ -105,10 +104,7 @@ export default function HiveTipTab({ recipient, onSettled }: HiveTipTabProps) {
 
         <FormControl mt={3.5}>
           <FormLabel fontSize="10px" letterSpacing="2px" color="dim" textTransform="uppercase">
-            {t("memo")}{" "}
-            <Text as="span" textTransform="none" letterSpacing="0">
-              ({t("memoOptional")})
-            </Text>
+            {t("memo")}
           </FormLabel>
           <Input
             value={memo}

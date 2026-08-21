@@ -7,7 +7,6 @@ export const ptBR = {
     amount: 'Valor',
     memo: 'Memo',
     memoPlaceholder: 'Recado opcional',
-    memoOptional: 'opcional',
     send: 'Enviar tip',
     sending: 'Enviando',
     toHiveAccount: 'Enviando para',
