@@ -24,7 +24,6 @@ export default function TokenSelect({
   suffix,
 }: TokenSelectProps) {
   const current = options.find((option) => option.value === value) ?? options[0];
-  const needsScroll = options.length > 6;
 
   return (
     <Menu placement="bottom-end" isLazy>
@@ -64,8 +63,6 @@ export default function TokenSelect({
           borderColor="inputBorder"
           borderRadius={0}
           minW="140px"
-          maxH={needsScroll ? "240px" : "auto"}
-          overflowY={needsScroll ? "auto" : "visible"}
           p={0}
           zIndex="popover"
         >
