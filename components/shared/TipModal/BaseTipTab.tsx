@@ -7,9 +7,7 @@ import {
   Flex,
   FormControl,
   FormLabel,
-  Image,
   Input,
-  Select,
   Text,
   VStack,
 } from "@chakra-ui/react";
@@ -25,6 +23,7 @@ import { useTranslations } from "@/contexts/LocaleContext";
 import { isNativeToken, tokensForChain } from "@/lib/evm/swapTokens";
 import RecipientStrip from "./RecipientStrip";
 import TipErrorBar from "./TipErrorBar";
+import TokenSelect from "./TokenSelect";
 
 const ERC20_ABI = [
   {
@@ -128,9 +127,7 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
             {t("token")}
           </FormLabel>
           <Flex
-            position="relative"
             align="center"
-            gap={2.5}
             bg="inputBg"
             border="1px solid"
             borderColor="inputBorder"
@@ -138,31 +135,13 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
             py={2.5}
             opacity={isBusy ? 0.45 : 1}
           >
-            {token?.logo && <Image src={token.logo} alt={token.symbol} boxSize="20px" borderRadius="full" />}
-            <Text fontSize="sm" color="inputText">
-              {token?.symbol}
-            </Text>
-            <Text fontSize="xs" color="dim">
-              on Base
-            </Text>
-            <Text ml="auto" fontSize="10px" color="dim">
-              ▼
-            </Text>
-            <Select
-              position="absolute"
-              inset={0}
-              opacity={0}
-              cursor="pointer"
+            <TokenSelect
               value={symbol}
-              onChange={(event) => setSymbol(event.target.value)}
+              options={tokens.map((item) => ({ value: item.symbol, label: item.symbol, logo: item.logo }))}
+              onChange={setSymbol}
               isDisabled={isBusy}
-            >
-              {tokens.map((item) => (
-                <option key={item.symbol} value={item.symbol}>
-                  {item.symbol}
-                </option>
-              ))}
-            </Select>
+              suffix="on Base"
+            />
           </Flex>
         </FormControl>
 

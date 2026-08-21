@@ -8,7 +8,6 @@ import {
   FormControl,
   FormLabel,
   Input,
-  Select,
   Text,
   VStack,
 } from "@chakra-ui/react";
@@ -16,6 +15,12 @@ import { useTranslations } from "@/contexts/LocaleContext";
 import { useHiveActions, useHBDActions } from "@/hooks/wallet";
 import RecipientStrip from "./RecipientStrip";
 import TipErrorBar from "./TipErrorBar";
+import TokenSelect from "./TokenSelect";
+
+const ASSET_OPTIONS = [
+  { value: "HIVE", label: "HIVE" },
+  { value: "HBD", label: "HBD" },
+];
 
 type HiveAsset = "HIVE" | "HBD";
 
@@ -88,18 +93,12 @@ export default function HiveTipTab({ recipient, onSettled }: HiveTipTabProps) {
               isDisabled={isSending}
             />
             <Flex align="center" borderLeft="1px solid" borderColor="inputBorder" px={3}>
-              <Select
-                variant="unstyled"
+              <TokenSelect
                 value={asset}
-                onChange={(event) => setAsset(event.target.value as HiveAsset)}
-                color="inputText"
-                fontSize="sm"
-                w="auto"
+                options={ASSET_OPTIONS}
+                onChange={(next) => setAsset(next as HiveAsset)}
                 isDisabled={isSending}
-              >
-                <option value="HIVE">HIVE</option>
-                <option value="HBD">HBD</option>
-              </Select>
+              />
             </Flex>
           </Flex>
         </FormControl>
