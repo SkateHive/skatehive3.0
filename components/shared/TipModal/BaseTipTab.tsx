@@ -101,7 +101,7 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
 
     let value: bigint;
     try {
-      value = parseUnits(amount, token.decimals);
+      value = parseUnits(amount.trim(), token.decimals);
     } catch {
       setLocalError(t("errorTitle"));
       return;
