@@ -24,28 +24,36 @@ export default function TokenSelect({
   suffix,
 }: TokenSelectProps) {
   const current = options.find((option) => option.value === value) ?? options[0];
+  const needsScroll = options.length > 6;
 
   return (
     <Menu placement="bottom-end" isLazy>
       <MenuButton
         type="button"
         disabled={isDisabled}
+        bg="transparent"
+        border="none"
+        outline="none"
+        p={0}
+        minW={0}
+        w="fit-content"
         _hover={{ opacity: 0.8 }}
+        _focus={{ boxShadow: "none" }}
         _disabled={{ opacity: 0.5, cursor: "not-allowed" }}
       >
-        <Flex align="center" gap={2}>
+        <Flex align="center" gap={2} lineHeight="1">
           {current?.logo && (
-            <Image src={current.logo} alt={current.label} boxSize="18px" borderRadius="full" />
+            <Image src={current.logo} alt={current.label} boxSize="18px" borderRadius="full" flexShrink={0} />
           )}
-          <Text fontSize="sm" color="inputText" fontFamily="mono">
+          <Text fontSize="sm" color="inputText" fontFamily="mono" whiteSpace="nowrap">
             {current?.label}
           </Text>
           {suffix && (
-            <Text fontSize="xs" color="dim">
+            <Text fontSize="xs" color="dim" whiteSpace="nowrap">
               {suffix}
             </Text>
           )}
-          <Text fontSize="10px" color="dim">
+          <Text fontSize="10px" color="dim" flexShrink={0}>
             ▼
           </Text>
         </Flex>
@@ -56,8 +64,8 @@ export default function TokenSelect({
           borderColor="inputBorder"
           borderRadius={0}
           minW="140px"
-          maxH="240px"
-          overflowY="auto"
+          maxH={needsScroll ? "240px" : "auto"}
+          overflowY={needsScroll ? "auto" : "visible"}
           p={0}
           zIndex="popover"
         >
