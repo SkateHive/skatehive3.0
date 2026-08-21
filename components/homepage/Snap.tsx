@@ -20,7 +20,11 @@ import dynamic from "next/dynamic";
 import { DeleteIcon } from "@chakra-ui/icons";
 import { Discussion } from "@hiveio/dhive";
 import { FaRegComment } from "react-icons/fa";
-import { LuArrowUp, LuCheck } from "react-icons/lu";
+import VoteStateIcon from "@/components/shared/VoteStateIcon";
+import useVoteIconState from "@/hooks/useVoteIconState";
+const TipModal = dynamic(() => import("@/components/shared/TipModal"), {
+  ssr: false,
+});
 import { useAioha } from "@aioha/react-ui";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { getPayoutValue } from "@/lib/hive/client-functions";
@@ -304,15 +308,37 @@ const Snap = React.memo(function Snap({
   );
   const [votedOverride, setVotedOverride] = useState(false);
   const voted = votedOverride || derivedVoted;
+  const { iconState, markJustVoted } = useVoteIconState({
+    voted,
+    enableTipping: true,
+  });
+  const [isTipOpen, setIsTipOpen] = useState(false);
+
+  // Once the control shows the gift it is no longer a vote button: the vote
+  // already happened and this becomes the way into the tip flow.
+  const handleVoteControlActivate = () => {
+    if (iconState === "tip") {
+      setIsTipOpen(true);
+      return;
+    }
+    if (voted || isVoting) return;
+    if (disableSlider) {
+      handleDirectVote();
+    } else {
+      setShowSlider(true);
+    }
+  };
 
   // Accessible names for the two icon-only controls. Without them a screen
   // reader announces the bare count, or nothing at all when it is zero. The
   // count belongs in the label because aria-label replaces the element's own
   // content. "Upvoted" rather than "Remove upvote": clicking an already-voted
   // control is a no-op here, so offering to undo would be a lie.
-  const voteLabel = `${voted ? "Upvoted" : "Upvote"}${
-    activeVotes.length > 0 ? `, ${activeVotes.length} votes` : ""
-  }`;
+  // In the gift state the control is no longer a no-op, so it must not
+  // announce itself as a spent upvote — it opens the tip dialog.
+  const voteLabel = `${
+    iconState === "tip" ? "Send a tip" : voted ? "Upvoted" : "Upvote"
+  }${activeVotes.length > 0 ? `, ${activeVotes.length} votes` : ""}`;
   const replyLabel = `Reply${
     commentCount > 0 ? `, ${commentCount} replies` : ""
   }`;
@@ -331,6 +357,7 @@ const Snap = React.memo(function Snap({
       
       if (voteResult.success) {
         setVotedOverride(true);
+        markJustVoted();
         if (effectiveUser) {
           setActiveVotes([
             ...activeVotes,
@@ -612,29 +639,11 @@ const Snap = React.memo(function Snap({
                   tabIndex={0}
                   aria-label={voteLabel}
                   aria-disabled={voted || isVoting || undefined}
-                  onClick={() => {
-                    if (!voted && !isVoting) {
-                      if (disableSlider) {
-                        // Slider disabled - vote directly with default weight
-                        handleDirectVote();
-                      } else {
-                        // Show slider for vote weight selection
-                        setShowSlider(true);
-                      }
-                    }
-                  }}
+                  onClick={handleVoteControlActivate}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       if (e.key === " ") e.preventDefault();
-                      if (!voted && !isVoting) {
-                        if (disableSlider) {
-                          // Slider disabled - vote directly with default weight
-                          handleDirectVote();
-                        } else {
-                          // Show slider for vote weight selection
-                          setShowSlider(true);
-                        }
-                      }
+                      handleVoteControlActivate();
                     }
                   }}
                   opacity={isVoting ? 0.5 : 0.9}
@@ -642,15 +651,7 @@ const Snap = React.memo(function Snap({
                   transition="opacity 0.2s"
                 >
                   <HStack spacing={1}>
-                    {voted ? (
-                      <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                        <LuCheck size={18} color="var(--chakra-colors-primary)" />
-                      </Box>
-                    ) : (
-                      <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                        <LuArrowUp size={18} color="var(--chakra-colors-text)" />
-                      </Box>
-                    )}
+                    <VoteStateIcon state={iconState} size={18} />
                     {activeVotes.length > 0 && (
                       <Text
                         fontSize="sm"
@@ -826,6 +827,14 @@ const Snap = React.memo(function Snap({
           )}
         </Box>
       </Box>
+
+      {isTipOpen && (
+        <TipModal
+          isOpen={isTipOpen}
+          onClose={() => setIsTipOpen(false)}
+          discussion={discussion}
+        />
+      )}
 
       {/* Reply group, flush with this row: a reply sits directly under the
           comment it answers, in the same avatar column, so the connector
