@@ -87,7 +87,10 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
   const amountNumber = parseFloat(amount);
   const isValid = !!token && Number.isFinite(amountNumber) && amountNumber > 0;
   const isBusy = isContractPending || isEthPending || isConfirming;
-  const sendError = contractError?.message || ethError?.message || null;
+  const rawError = contractError || ethError;
+  const sendError = rawError
+    ? (rawError as { shortMessage?: string }).shortMessage || rawError.message
+    : null;
 
   const handleSend = useCallback(() => {
     if (!isValid || !token) return;
@@ -192,11 +195,20 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
           borderColor="primary"
           _hover={{ opacity: 0.85 }}
         >
-          {isBusy ? t("sending") : `▶ ${t("send")}`}
+          {isBusy ? t("sending") : t("send")}
         </Button>
       </VStack>
 
-      {sendError && <TipErrorBar message={sendError} onRetry={handleSend} />}
+      {sendError && (
+        <TipErrorBar
+          message={sendError}
+          onRetry={handleSend}
+          onDismiss={() => {
+            resetContract();
+            resetEth();
+          }}
+        />
+      )}
     </Box>
   );
 }

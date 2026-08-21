@@ -17,8 +17,8 @@ import TipErrorBar from "./TipErrorBar";
 import TokenSelect from "./TokenSelect";
 
 const ASSET_OPTIONS = [
-  { value: "HIVE", label: "HIVE" },
-  { value: "HBD", label: "HBD" },
+  { value: "HIVE", label: "HIVE", logo: "/logos/hiveLogo.png" },
+  { value: "HBD", label: "HBD", logo: "/logos/hbd_logo.png" },
 ];
 
 type HiveAsset = "HIVE" | "HBD";
@@ -137,11 +137,13 @@ export default function HiveTipTab({ recipient, onSettled }: HiveTipTabProps) {
           borderColor="primary"
           _hover={{ opacity: 0.85 }}
         >
-          {isSending ? t("sending") : `▶ ${t("send")}`}
+          {isSending ? t("sending") : t("send")}
         </Button>
       </VStack>
 
-      {sendError && <TipErrorBar message={sendError} onRetry={handleSend} />}
+      {sendError && (
+        <TipErrorBar message={sendError} onRetry={handleSend} onDismiss={() => setSendError(null)} />
+      )}
     </Box>
   );
 }
