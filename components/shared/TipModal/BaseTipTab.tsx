@@ -24,6 +24,7 @@ import { isNativeToken, tokensForChain } from "@/lib/evm/swapTokens";
 import RecipientStrip from "./RecipientStrip";
 import TipErrorBar from "./TipErrorBar";
 import TokenSelect from "./TokenSelect";
+import { isValidAmount } from "./validateAmount";
 
 const ERC20_ABI = [
   {
@@ -84,19 +85,27 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
     }
   }, [isSuccess, hash, onSettled, amount, symbol]);
 
-  const amountNumber = parseFloat(amount);
-  const isValid = !!token && Number.isFinite(amountNumber) && amountNumber > 0;
+  const [localError, setLocalError] = useState<string | null>(null);
+  const isValid = !!token && isValidAmount(amount);
   const isBusy = isContractPending || isEthPending || isConfirming;
   const rawError = contractError || ethError;
-  const sendError = rawError
-    ? (rawError as { shortMessage?: string }).shortMessage || rawError.message
-    : null;
+  const sendError =
+    localError ||
+    (rawError ? (rawError as { shortMessage?: string }).shortMessage || rawError.message : null);
 
   const handleSend = useCallback(() => {
     if (!isValid || !token) return;
     resetContract();
     resetEth();
-    const value = parseUnits(amount, token.decimals);
+    setLocalError(null);
+
+    let value: bigint;
+    try {
+      value = parseUnits(amount, token.decimals);
+    } catch {
+      setLocalError(t("errorTitle"));
+      return;
+    }
 
     if (isNativeToken(token.address)) {
       sendTransaction({ to: recipient, value });
@@ -110,7 +119,7 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
       args: [recipient, value],
       chainId: base.id,
     });
-  }, [isValid, token, amount, recipient, sendTransaction, writeContract, resetContract, resetEth]);
+  }, [isValid, token, amount, recipient, sendTransaction, writeContract, resetContract, resetEth, t]);
 
   if (!isConnected) {
     return (
@@ -143,7 +152,7 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
               options={tokens.map((item) => ({ value: item.symbol, label: item.symbol, logo: item.logo }))}
               onChange={setSymbol}
               isDisabled={isBusy}
-              suffix="on Base"
+              suffix={t("onBase")}
             />
           </Flex>
         </FormControl>
@@ -206,6 +215,7 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
           onDismiss={() => {
             resetContract();
             resetEth();
+            setLocalError(null);
           }}
         />
       )}

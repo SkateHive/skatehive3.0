@@ -1,6 +1,7 @@
 "use client";
 
 import { Flex, Image, Menu, MenuButton, MenuItem, MenuList, Portal, Text } from "@chakra-ui/react";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 export interface TokenSelectOption {
   value: string;
@@ -23,12 +24,14 @@ export default function TokenSelect({
   isDisabled,
   suffix,
 }: TokenSelectProps) {
+  const t = useTranslations("tip");
   const current = options.find((option) => option.value === value) ?? options[0];
 
   return (
     <Menu placement="bottom-end" isLazy>
       <MenuButton
         type="button"
+        aria-label={`${t("token")}: ${current?.label ?? ""}`}
         disabled={isDisabled}
         bg="transparent"
         border="none"

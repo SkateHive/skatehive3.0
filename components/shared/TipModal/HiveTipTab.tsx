@@ -15,6 +15,7 @@ import { useHiveActions, useHBDActions } from "@/hooks/wallet";
 import RecipientStrip from "./RecipientStrip";
 import TipErrorBar from "./TipErrorBar";
 import TokenSelect from "./TokenSelect";
+import { isValidAmount } from "./validateAmount";
 
 const ASSET_OPTIONS = [
   { value: "HIVE", label: "HIVE", logo: "/logos/hiveLogo.png" },
@@ -40,7 +41,7 @@ export default function HiveTipTab({ recipient, onSettled }: HiveTipTabProps) {
   const [sendError, setSendError] = useState<string | null>(null);
 
   const amountNumber = parseFloat(amount);
-  const isValid = Number.isFinite(amountNumber) && amountNumber > 0;
+  const isValid = isValidAmount(amount);
 
   const handleSend = useCallback(async () => {
     if (!isValid || isSending) return;

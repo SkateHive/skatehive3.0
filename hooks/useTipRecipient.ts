@@ -31,6 +31,19 @@ function evmFromHiveMetadata(raw: Record<string, any>): string | null {
 }
 
 /**
+ * First candidate that is actually a valid address.
+ *
+ * A truthy-but-malformed value (a typo'd wallet saved on-chain, say) must not
+ * win over `||` and hide a perfectly good address sitting in the next
+ * candidate — every source here is user-editable, so none of them can be
+ * trusted without checking.
+ */
+function firstValidAddress(...candidates: (string | null)[]): `0x${string}` | null {
+  const match = candidates.find((candidate) => !!candidate && isAddress(candidate));
+  return (match as `0x${string}`) || null;
+}
+
+/**
  * Works out who actually gets the money for a given post.
  *
  * The author on the post is not always the author of the post: lite accounts
@@ -74,9 +87,11 @@ export default function useTipRecipient(
       // round-trips in sequence instead of the slower of the two in parallel.
       const onChainLookup = hiveAccount
         ? fetchAccount(hiveAccount)
-            .then(
-              ({ jsonMetadata, postingMetadata }) =>
-                evmFromHiveMetadata(postingMetadata) || evmFromHiveMetadata(jsonMetadata)
+            .then(({ jsonMetadata, postingMetadata }) =>
+              firstValidAddress(
+                evmFromHiveMetadata(postingMetadata),
+                evmFromHiveMetadata(jsonMetadata)
+              )
             )
             .catch(() => null)
         : Promise.resolve(null);
@@ -94,12 +109,11 @@ export default function useTipRecipient(
         : Promise.resolve(null);
 
       const [onChainWallet, userbaseWallet] = await Promise.all([onChainLookup, userbaseLookup]);
-      return onChainWallet || userbaseWallet;
+      return firstValidAddress(onChainWallet, userbaseWallet);
     },
   });
 
-  const evmAddress =
-    evmAddressData && isAddress(evmAddressData) ? (evmAddressData as `0x${string}`) : null;
+  const evmAddress = firstValidAddress(evmAddressData ?? null);
 
   const displayName =
     overlay?.user.display_name ||
