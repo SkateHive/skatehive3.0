@@ -2,28 +2,30 @@
 
 import { useCallback, useState } from "react";
 import {
+  Box,
   Button,
+  Flex,
   FormControl,
   FormLabel,
   Input,
   Select,
   Text,
   VStack,
-  useToast,
 } from "@chakra-ui/react";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useHiveActions, useHBDActions } from "@/hooks/wallet";
+import RecipientStrip from "./RecipientStrip";
+import TipErrorBar from "./TipErrorBar";
 
 type HiveAsset = "HIVE" | "HBD";
 
 interface HiveTipTabProps {
   recipient: string;
-  onSettled: (amount: string, symbol: string) => void;
+  onSettled: (amount: string, symbol: string, txUrl: string | null) => void;
 }
 
 export default function HiveTipTab({ recipient, onSettled }: HiveTipTabProps) {
   const t = useTranslations("tip");
-  const toast = useToast();
   const { sendHive } = useHiveActions();
   const { sendHBD } = useHBDActions();
 
@@ -31,6 +33,7 @@ export default function HiveTipTab({ recipient, onSettled }: HiveTipTabProps) {
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const amountNumber = parseFloat(amount);
   const isValid = Number.isFinite(amountNumber) && amountNumber > 0;
@@ -38,102 +41,112 @@ export default function HiveTipTab({ recipient, onSettled }: HiveTipTabProps) {
   const handleSend = useCallback(async () => {
     if (!isValid || isSending) return;
     setIsSending(true);
+    setSendError(null);
     try {
       const send = asset === "HIVE" ? sendHive : sendHBD;
       const result = await send(recipient, amountNumber, memo || undefined);
 
       if (!result.success) {
-        toast({
-          title: t("errorTitle"),
-          description: result.error,
-          status: "error",
-          duration: 6000,
-          isClosable: true,
-        });
+        setSendError(result.error || t("errorTitle"));
         return;
       }
 
-      onSettled(amount, asset);
+      onSettled(amount, asset, null);
     } finally {
       setIsSending(false);
     }
-  }, [
-    isValid,
-    isSending,
-    asset,
-    sendHive,
-    sendHBD,
-    recipient,
-    amountNumber,
-    memo,
-    amount,
-    onSettled,
-    toast,
-    t,
-  ]);
+  }, [isValid, isSending, asset, sendHive, sendHBD, recipient, amountNumber, memo, amount, onSettled, t]);
 
   return (
-    <VStack spacing={3} align="stretch" pt={2}>
-      <Text fontSize="sm" color="dim">
-        {t("toHiveAccount")} @{recipient}
-      </Text>
+    <Box position="relative">
+      <VStack spacing={0} align="stretch" pb={sendError ? "70px" : 0}>
+        <RecipientStrip label={`@${recipient}`} note={t("noteHive")} />
 
-      <FormControl>
-        <FormLabel fontSize="sm" color="dim">
-          {t("token")}
-        </FormLabel>
-        <Select
-          value={asset}
-          onChange={(event) => setAsset(event.target.value as HiveAsset)}
-          bg="inputBg"
-          borderColor="inputBorder"
-          color="inputText"
+        <FormControl mt={4}>
+          <FormLabel fontSize="10px" letterSpacing="2px" color="dim" textTransform="uppercase">
+            {t("amount")}
+          </FormLabel>
+          <Flex
+            align="stretch"
+            bg="inputBg"
+            border="1px solid"
+            borderColor="inputBorder"
+            opacity={isSending ? 0.45 : 1}
+            _focusWithin={{ borderColor: "primary" }}
+          >
+            <Input
+              variant="unstyled"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              placeholder="0.000"
+              inputMode="decimal"
+              fontSize="26px"
+              color="inputText"
+              _placeholder={{ color: "inputPlaceholder" }}
+              px={4}
+              py={3}
+              isDisabled={isSending}
+            />
+            <Flex align="center" borderLeft="1px solid" borderColor="inputBorder" px={3}>
+              <Select
+                variant="unstyled"
+                value={asset}
+                onChange={(event) => setAsset(event.target.value as HiveAsset)}
+                color="inputText"
+                fontSize="sm"
+                w="auto"
+                isDisabled={isSending}
+              >
+                <option value="HIVE">HIVE</option>
+                <option value="HBD">HBD</option>
+              </Select>
+            </Flex>
+          </Flex>
+        </FormControl>
+
+        <FormControl mt={3.5}>
+          <FormLabel fontSize="10px" letterSpacing="2px" color="dim" textTransform="uppercase">
+            {t("memo")}{" "}
+            <Text as="span" textTransform="none" letterSpacing="0">
+              ({t("memoOptional")})
+            </Text>
+          </FormLabel>
+          <Input
+            value={memo}
+            onChange={(event) => setMemo(event.target.value)}
+            placeholder={t("memoPlaceholder")}
+            bg="inputBg"
+            borderColor="inputBorder"
+            color="inputText"
+            borderRadius={0}
+            _placeholder={{ color: "inputPlaceholder" }}
+            _focus={{ borderColor: "primary", boxShadow: "none" }}
+            opacity={isSending ? 0.45 : 1}
+            isDisabled={isSending}
+          />
+        </FormControl>
+
+        <Button
+          onClick={handleSend}
+          isDisabled={!isValid || isSending}
+          mt={5}
+          h="44px"
+          borderRadius={0}
+          fontFamily="mono"
+          fontWeight="bold"
+          letterSpacing="3px"
+          textTransform="uppercase"
+          bg={isSending ? "background" : "primary"}
+          color={isSending ? "primary" : "background"}
+          border="1px solid"
+          borderColor="primary"
+          _hover={{ opacity: 0.85 }}
         >
-          <option value="HIVE">HIVE</option>
-          <option value="HBD">HBD</option>
-        </Select>
-      </FormControl>
+          {isSending ? t("sending") : `▶ ${t("send")}`}
+        </Button>
+      </VStack>
 
-      <FormControl>
-        <FormLabel fontSize="sm" color="dim">
-          {t("amount")}
-        </FormLabel>
-        <Input
-          value={amount}
-          onChange={(event) => setAmount(event.target.value)}
-          placeholder="0.000"
-          inputMode="decimal"
-          bg="inputBg"
-          borderColor="inputBorder"
-          color="inputText"
-          _placeholder={{ color: "inputPlaceholder" }}
-        />
-      </FormControl>
-
-      <FormControl>
-        <FormLabel fontSize="sm" color="dim">
-          {t("memo")}
-        </FormLabel>
-        <Input
-          value={memo}
-          onChange={(event) => setMemo(event.target.value)}
-          placeholder={t("memoPlaceholder")}
-          bg="inputBg"
-          borderColor="inputBorder"
-          color="inputText"
-          _placeholder={{ color: "inputPlaceholder" }}
-        />
-      </FormControl>
-
-      <Button
-        onClick={handleSend}
-        isDisabled={!isValid || isSending}
-        isLoading={isSending}
-        loadingText={t("sending")}
-        variant="solid"
-      >
-        {t("send")}
-      </Button>
-    </VStack>
+      {sendError && <TipErrorBar message={sendError} onRetry={handleSend} />}
+    </Box>
   );
 }
