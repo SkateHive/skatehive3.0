@@ -50,7 +50,15 @@ export default function TokenSelect({
           </Text>
         </Flex>
       </MenuButton>
-      <MenuList bg="inputBg" borderColor="inputBorder" borderRadius={0} minW="140px" p={0}>
+      <MenuList
+        bg="inputBg"
+        borderColor="inputBorder"
+        borderRadius={0}
+        minW="140px"
+        maxH="240px"
+        overflowY="auto"
+        p={0}
+      >
         {options.map((option) => (
           <MenuItem
             key={option.value}
