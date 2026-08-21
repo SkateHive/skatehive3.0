@@ -1,6 +1,6 @@
 "use client";
 
-import { Flex, Image, Menu, MenuButton, MenuItem, MenuList, Text } from "@chakra-ui/react";
+import { Flex, Image, Menu, MenuButton, MenuItem, MenuList, Portal, Text } from "@chakra-ui/react";
 
 export interface TokenSelectOption {
   value: string;
@@ -50,36 +50,39 @@ export default function TokenSelect({
           </Text>
         </Flex>
       </MenuButton>
-      <MenuList
-        bg="inputBg"
-        borderColor="inputBorder"
-        borderRadius={0}
-        minW="140px"
-        maxH="240px"
-        overflowY="auto"
-        p={0}
-      >
-        {options.map((option) => (
-          <MenuItem
-            key={option.value}
-            onClick={() => onChange(option.value)}
-            bg={option.value === value ? "panel" : "inputBg"}
-            color="inputText"
-            fontFamily="mono"
-            fontSize="sm"
-            borderRadius={0}
-            _hover={{ bg: "primary", color: "background" }}
-            _focus={{ bg: "primary", color: "background" }}
-          >
-            <Flex align="center" gap={2}>
-              {option.logo && (
-                <Image src={option.logo} alt={option.label} boxSize="16px" borderRadius="full" />
-              )}
-              {option.label}
-            </Flex>
-          </MenuItem>
-        ))}
-      </MenuList>
+      <Portal>
+        <MenuList
+          bg="inputBg"
+          borderColor="inputBorder"
+          borderRadius={0}
+          minW="140px"
+          maxH="240px"
+          overflowY="auto"
+          p={0}
+          zIndex="popover"
+        >
+          {options.map((option) => (
+            <MenuItem
+              key={option.value}
+              onClick={() => onChange(option.value)}
+              bg={option.value === value ? "panel" : "inputBg"}
+              color="inputText"
+              fontFamily="mono"
+              fontSize="sm"
+              borderRadius={0}
+              _hover={{ bg: "primary", color: "background" }}
+              _focus={{ bg: "primary", color: "background" }}
+            >
+              <Flex align="center" gap={2}>
+                {option.logo && (
+                  <Image src={option.logo} alt={option.label} boxSize="16px" borderRadius="full" />
+                )}
+                {option.label}
+              </Flex>
+            </MenuItem>
+          ))}
+        </MenuList>
+      </Portal>
     </Menu>
   );
 }
