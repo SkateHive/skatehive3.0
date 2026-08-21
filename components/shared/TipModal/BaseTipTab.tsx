@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Box,
   Button,
+  Flex,
   FormControl,
   FormLabel,
-  HStack,
-  Image,
   Input,
-  Select,
   Text,
   VStack,
 } from "@chakra-ui/react";
@@ -22,6 +21,10 @@ import { base } from "wagmi/chains";
 import { parseUnits } from "viem";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { isNativeToken, tokensForChain } from "@/lib/evm/swapTokens";
+import RecipientStrip from "./RecipientStrip";
+import TipErrorBar from "./TipErrorBar";
+import TokenSelect from "./TokenSelect";
+import { isValidAmount } from "./validateAmount";
 
 const ERC20_ABI = [
   {
@@ -38,7 +41,11 @@ const ERC20_ABI = [
 
 interface BaseTipTabProps {
   recipient: `0x${string}`;
-  onSettled: (amount: string, symbol: string) => void;
+  onSettled: (amount: string, symbol: string, txUrl: string | null) => void;
+}
+
+function shortAddress(address: string) {
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
 export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
@@ -50,10 +57,20 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
 
   const token = tokens.find((item) => item.symbol === symbol) ?? tokens[0];
 
-  const { writeContract, data: contractHash, isPending: isContractPending } =
-    useWriteContract();
-  const { sendTransaction, data: ethHash, isPending: isEthPending } =
-    useSendTransaction();
+  const {
+    writeContract,
+    data: contractHash,
+    isPending: isContractPending,
+    error: contractError,
+    reset: resetContract,
+  } = useWriteContract();
+  const {
+    sendTransaction,
+    data: ethHash,
+    isPending: isEthPending,
+    error: ethError,
+    reset: resetEth,
+  } = useSendTransaction();
 
   const hash = contractHash || ethHash;
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -63,16 +80,32 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
   // Only announce once the receipt confirms — an optimistic success here would
   // publish a comment for money that never moved.
   useEffect(() => {
-    if (isSuccess && hash) onSettled(amount, symbol);
+    if (isSuccess && hash) {
+      onSettled(amount, symbol, `https://basescan.org/tx/${hash}`);
+    }
   }, [isSuccess, hash, onSettled, amount, symbol]);
 
-  const amountNumber = parseFloat(amount);
-  const isValid = !!token && Number.isFinite(amountNumber) && amountNumber > 0;
+  const [localError, setLocalError] = useState<string | null>(null);
+  const isValid = !!token && isValidAmount(amount);
   const isBusy = isContractPending || isEthPending || isConfirming;
+  const rawError = contractError || ethError;
+  const sendError =
+    localError ||
+    (rawError ? (rawError as { shortMessage?: string }).shortMessage || rawError.message : null);
 
   const handleSend = useCallback(() => {
     if (!isValid || !token) return;
-    const value = parseUnits(amount, token.decimals);
+    resetContract();
+    resetEth();
+    setLocalError(null);
+
+    let value: bigint;
+    try {
+      value = parseUnits(amount.trim(), token.decimals);
+    } catch {
+      setLocalError(t("errorTitle"));
+      return;
+    }
 
     if (isNativeToken(token.address)) {
       sendTransaction({ to: recipient, value });
@@ -86,7 +119,7 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
       args: [recipient, value],
       chainId: base.id,
     });
-  }, [isValid, token, amount, recipient, sendTransaction, writeContract]);
+  }, [isValid, token, amount, recipient, sendTransaction, writeContract, resetContract, resetEth, t]);
 
   if (!isConnected) {
     return (
@@ -97,56 +130,95 @@ export default function BaseTipTab({ recipient, onSettled }: BaseTipTabProps) {
   }
 
   return (
-    <VStack spacing={3} align="stretch" pt={2}>
-      <FormControl>
-        <FormLabel fontSize="sm" color="dim">
-          {t("token")}
-        </FormLabel>
-        <HStack>
-          {token?.logo && (
-            <Image src={token.logo} alt={token.symbol} boxSize="20px" />
-          )}
-          <Select
-            value={symbol}
-            onChange={(event) => setSymbol(event.target.value)}
+    <Box position="relative">
+      <VStack spacing={0} align="stretch" pb={sendError ? "70px" : 0}>
+        <RecipientStrip label={shortAddress(recipient)} note={t("noteBase")} />
+
+        <FormControl mt={4}>
+          <FormLabel fontSize="10px" letterSpacing="2px" color="dim" textTransform="uppercase">
+            {t("token")}
+          </FormLabel>
+          <Flex
+            align="center"
             bg="inputBg"
+            border="1px solid"
             borderColor="inputBorder"
-            color="inputText"
+            px={3.5}
+            py={2.5}
+            opacity={isBusy ? 0.45 : 1}
           >
-            {tokens.map((item) => (
-              <option key={item.symbol} value={item.symbol}>
-                {item.symbol}
-              </option>
-            ))}
-          </Select>
-        </HStack>
-      </FormControl>
+            <TokenSelect
+              value={symbol}
+              options={tokens.map((item) => ({ value: item.symbol, label: item.symbol, logo: item.logo }))}
+              onChange={setSymbol}
+              isDisabled={isBusy}
+              suffix={t("onBase")}
+            />
+          </Flex>
+        </FormControl>
 
-      <FormControl>
-        <FormLabel fontSize="sm" color="dim">
-          {t("amount")}
-        </FormLabel>
-        <Input
-          value={amount}
-          onChange={(event) => setAmount(event.target.value)}
-          placeholder="0.00"
-          inputMode="decimal"
-          bg="inputBg"
-          borderColor="inputBorder"
-          color="inputText"
-          _placeholder={{ color: "inputPlaceholder" }}
+        <FormControl mt={3.5}>
+          <FormLabel fontSize="10px" letterSpacing="2px" color="dim" textTransform="uppercase">
+            {t("amount")}
+          </FormLabel>
+          <Flex
+            align="stretch"
+            bg="inputBg"
+            border="1px solid"
+            borderColor="inputBorder"
+            opacity={isBusy ? 0.45 : 1}
+            _focusWithin={{ borderColor: "primary" }}
+          >
+            <Input
+              variant="unstyled"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              placeholder="0.00"
+              inputMode="decimal"
+              fontSize="26px"
+              color="inputText"
+              _placeholder={{ color: "inputPlaceholder" }}
+              px={4}
+              py={3}
+              isDisabled={isBusy}
+            />
+            <Flex align="center" borderLeft="1px solid" borderColor="inputBorder" px={4} fontSize="sm" color="dim">
+              {token?.symbol}
+            </Flex>
+          </Flex>
+        </FormControl>
+
+        <Button
+          onClick={handleSend}
+          isDisabled={!isValid || isBusy}
+          mt={5}
+          h="44px"
+          borderRadius={0}
+          fontFamily="mono"
+          fontWeight="bold"
+          letterSpacing="3px"
+          textTransform="uppercase"
+          bg={isBusy ? "background" : "primary"}
+          color={isBusy ? "primary" : "background"}
+          border="1px solid"
+          borderColor="primary"
+          _hover={{ opacity: 0.85 }}
+        >
+          {isBusy ? t("sending") : t("send")}
+        </Button>
+      </VStack>
+
+      {sendError && (
+        <TipErrorBar
+          message={sendError}
+          onRetry={handleSend}
+          onDismiss={() => {
+            resetContract();
+            resetEth();
+            setLocalError(null);
+          }}
         />
-      </FormControl>
-
-      <Button
-        onClick={handleSend}
-        isDisabled={!isValid || isBusy}
-        isLoading={isBusy}
-        loadingText={t("sending")}
-        variant="solid"
-      >
-        {t("send")}
-      </Button>
-    </VStack>
+      )}
+    </Box>
   );
 }

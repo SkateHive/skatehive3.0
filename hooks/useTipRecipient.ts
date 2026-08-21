@@ -6,6 +6,7 @@ import { isAddress } from "viem";
 import useSoftPostOverlay from "@/hooks/useSoftPostOverlay";
 import { extractSafeUser } from "@/lib/userbase/safeUserMetadata";
 import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
+import { fetchAccount } from "@/lib/hive/fetchAccount";
 import { HIVE_CONFIG } from "@/config/app.config";
 
 export interface TipRecipient {
@@ -25,14 +26,21 @@ const SHARED_POSTING_ACCOUNTS = new Set([
 ]);
 
 /** Reads the EVM address a Hive user published in their profile metadata. */
-function evmFromHiveMetadata(raw?: string): string | null {
-  if (!raw) return null;
-  try {
-    const parsed = migrateLegacyMetadata(JSON.parse(raw));
-    return parsed.extensions?.wallets?.primary_wallet || null;
-  } catch {
-    return null;
-  }
+function evmFromHiveMetadata(raw: Record<string, any>): string | null {
+  return migrateLegacyMetadata(raw).extensions?.wallets?.primary_wallet || null;
+}
+
+/**
+ * First candidate that is actually a valid address.
+ *
+ * A truthy-but-malformed value (a typo'd wallet saved on-chain, say) must not
+ * win over `||` and hide a perfectly good address sitting in the next
+ * candidate — every source here is user-editable, so none of them can be
+ * trusted without checking.
+ */
+function firstValidAddress(...candidates: (string | null)[]): `0x${string}` | null {
+  const match = candidates.find((candidate) => !!candidate && isAddress(candidate));
+  return (match as `0x${string}`) || null;
 }
 
 /**
@@ -60,37 +68,52 @@ export default function useTipRecipient(
   const userbaseHandle = isSoftPost ? overlay?.user.handle ?? null : null;
   const hiveAccount = isSoftPost ? null : author ?? null;
 
-  // The metadata already on the discussion is the cheap path.
-  const inlineEvm = evmFromHiveMetadata(
-    (discussion as any)?.posting_json_metadata
-  );
-
-  // Otherwise ask userbase, which is the only source for a lite author.
   const lookupKey: Record<string, string> | null = userbaseHandle
     ? { handle: userbaseHandle }
     : hiveAccount
       ? { hive_handle: hiveAccount }
       : null;
 
-  const { data: lookedUpEvm, isLoading } = useQuery({
-    queryKey: ["tip-recipient-evm", lookupKey],
-    enabled: enabled && !!lookupKey && !inlineEvm,
+  const { data: evmAddressData, isLoading } = useQuery({
+    queryKey: ["tip-recipient-evm", hiveAccount, userbaseHandle],
+    enabled: enabled && (!!hiveAccount || !!userbaseHandle),
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const params = new URLSearchParams(lookupKey!);
-      const response = await fetch(`/api/userbase/profile?${params}`);
-      if (!response.ok) return null;
-      const data = await response.json();
-      const evm = (data?.identities || []).find(
-        (identity: any) => identity.type === "evm" && identity.address
-      );
-      return (evm?.address as string) || null;
+      // A Hive author may have published their wallet directly on-chain, in
+      // either metadata slot depending on when it was set, or only linked it
+      // through the app (userbase_identities). Neither source is authoritative
+      // over the other, so both run concurrently rather than one gating the
+      // other — an author with no wallet anywhere would otherwise pay for two
+      // round-trips in sequence instead of the slower of the two in parallel.
+      const onChainLookup = hiveAccount
+        ? fetchAccount(hiveAccount)
+            .then(({ jsonMetadata, postingMetadata }) =>
+              firstValidAddress(
+                evmFromHiveMetadata(postingMetadata),
+                evmFromHiveMetadata(jsonMetadata)
+              )
+            )
+            .catch(() => null)
+        : Promise.resolve(null);
+
+      const userbaseLookup = lookupKey
+        ? fetch(`/api/userbase/profile?${new URLSearchParams(lookupKey)}`)
+            .then((response) => (response.ok ? response.json() : null))
+            .then((data) => {
+              const evm = (data?.identities || []).find(
+                (identity: any) => identity.type === "evm" && identity.address
+              );
+              return (evm?.address as string) || null;
+            })
+            .catch(() => null)
+        : Promise.resolve(null);
+
+      const [onChainWallet, userbaseWallet] = await Promise.all([onChainLookup, userbaseLookup]);
+      return firstValidAddress(onChainWallet, userbaseWallet);
     },
   });
 
-  const candidate = inlineEvm || lookedUpEvm || null;
-  const evmAddress =
-    candidate && isAddress(candidate) ? (candidate as `0x${string}`) : null;
+  const evmAddress = firstValidAddress(evmAddressData ?? null);
 
   const displayName =
     overlay?.user.display_name ||
@@ -102,6 +125,6 @@ export default function useTipRecipient(
     displayName,
     hiveAccount,
     evmAddress,
-    isLoading: !inlineEvm && isLoading,
+    isLoading,
   };
 }
