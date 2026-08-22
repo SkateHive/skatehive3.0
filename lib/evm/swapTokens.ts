@@ -73,6 +73,8 @@ export const SWAP_TOKENS: SwapToken[] = [
   { chainId: mainnet.id, symbol: "USDT", name: "Tether USD", address: "0xdac17f958d2ee523a2206206994597c13d831ec7", decimals: 6, logo: tw("ethereum", "0xdAC17F958D2ee523a2206206994597C13D831ec7"), popular: true },
   { chainId: mainnet.id, symbol: "WBTC", name: "Wrapped BTC", address: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599", decimals: 8, logo: tw("ethereum", "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"), popular: true },
   { chainId: mainnet.id, symbol: "WETH", name: "Wrapped Ether", address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", decimals: 18, logo: ETH_LOGO },
+  // ETH→stETH is handled as a direct Lido stake (1:1), see lib/evm/lido.ts
+  { chainId: mainnet.id, symbol: "stETH", name: "Lido Staked Ether", address: "0xae7ab96520de3a18e5e111b5eaab095312d7fe84", decimals: 18, logo: tw("ethereum", "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"), popular: true },
   { chainId: mainnet.id, symbol: "DAI", name: "Dai Stablecoin", address: "0x6b175474e89094c44da98b954eedeac495271d0f", decimals: 18, logo: tw("ethereum", "0x6B175474E89094C44Da98b954EedeAC495271d0F") },
   { chainId: mainnet.id, symbol: "LINK", name: "Chainlink", address: "0x514910771af9ca656af840dff83e8264ecf986ca", decimals: 18, logo: tw("ethereum", "0x514910771AF9Ca656af840dff83E8264EcF986CA") },
   { chainId: mainnet.id, symbol: "UNI", name: "Uniswap", address: "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984", decimals: 18, logo: tw("ethereum", "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984") },

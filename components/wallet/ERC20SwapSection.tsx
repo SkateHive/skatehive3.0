@@ -7,7 +7,8 @@ import {
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { FaExchangeAlt, FaInfoCircle, FaChevronDown, FaCog } from "react-icons/fa";
-import { useAccount, useBalance, useChainId, useSendTransaction, useWaitForTransactionReceipt, useWriteContract, useSwitchChain } from "wagmi";
+import { useAccount, useBalance, useChainId, usePublicClient, useSendTransaction, useWaitForTransactionReceipt, useWriteContract, useSwitchChain } from "wagmi";
+import { LIDO_ABI, LIDO_REFERRAL, LIDO_STETH, isLidoStake } from "@/lib/evm/lido";
 import { parseUnits, formatUnits, formatEther, maxUint256, UserRejectedRequestError } from "viem";
 import { PortfolioContext } from "@/contexts/PortfolioContext";
 import TokenSelectorModal from "./TokenSelectorModal";
@@ -139,6 +140,10 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const [approvalTarget, setApprovalTarget] = useState<`0x${string}` | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
 
+  // ── Lido direct stake (ETH → stETH on mainnet) ─────────────────────────
+  const lidoStake = isLidoStake(sellToken, buyToken);
+  const mainnetClient = usePublicClient({ chainId: 1 });
+
   // ── Shared state ────────────────────────────────────────────────────────
   const [isFetching, setIsFetching] = useState(false);
 
@@ -233,6 +238,37 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
       setIsFetching(true);
       try {
         const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
+
+        if (lidoStake) {
+          // Direct Lido stake: 1 ETH → 1 stETH, no quote needed. We still
+          // simulate submit() from the user's address so a paused/limited
+          // staking queue shows up here instead of at signing time. The
+          // simulation returns SHARES — ignore that number for display.
+          let reason: string | null = null;
+          try {
+            await mainnetClient?.simulateContract({
+              address: LIDO_STETH, abi: LIDO_ABI, functionName: "submit",
+              args: [LIDO_REFERRAL], value: BigInt(rawAmount), account: address,
+            });
+          } catch (e) {
+            // Only a contract revert means staking is unavailable. A transport
+            // failure (public RPC down / rate-limited) must not block the stake.
+            const names: string[] = [];
+            for (let c: unknown = e; c && names.length < 6; c = (c as { cause?: unknown }).cause) names.push((c as { name?: string }).name ?? "");
+            const transport = names.some((n) => /HttpRequestError|TimeoutError|RpcRequestError|TransportError/.test(n));
+            if (transport) {
+              console.warn("[swap] Lido pre-simulation skipped (RPC transport error):", friendlyError(e));
+            } else {
+              reason = friendlyError(e);
+              console.error("[swap] Lido submit() simulation reverted:", e);
+            }
+          }
+          setPrice({ lido: true, buyAmount: rawAmount, minBuyAmount: rawAmount, liquidityAvailable: !reason, lidoError: reason });
+          setNeedsApproval(false);
+          setApprovalTarget(null);
+          return;
+        }
+
         const params = new URLSearchParams({
           chainId: String(chainId),
           sellToken: sellToken.address,
@@ -261,7 +297,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
     }, 600);
 
     return () => clearTimeout(timeout);
-  }, [sellAmount, sellToken, buyToken, address, chainId, supportFee, slippageBps]);
+  }, [sellAmount, sellToken, buyToken, address, chainId, supportFee, slippageBps, lidoStake, mainnetClient]);
 
   // ── Approval (0x only) ────────────────────────────────────────────────
   const { writeContractAsync, isPending: isApproving } = useWriteContract();
@@ -293,6 +329,20 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
     if (!price?.liquidityAvailable) return;
     try {
       const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
+
+      if (lidoStake) {
+        console.info(`[swap] Lido direct stake: submit(${LIDO_REFERRAL}) value=${rawAmount} from ${address}`);
+        const hash = await writeContractAsync({
+          address: LIDO_STETH, abi: LIDO_ABI, functionName: "submit",
+          args: [LIDO_REFERRAL], value: BigInt(rawAmount), chainId: 1,
+        });
+        setTxHash(hash);
+        toast({ title: "Stake submitted!", description: hash, status: "success", duration: 6000, isClosable: true });
+        setSellAmount("");
+        setPrice(null);
+        return;
+      }
+
       const params = new URLSearchParams({
         chainId: String(chainId),
         sellToken: sellToken.address,
@@ -329,7 +379,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
       else
         toast({ title: "Swap failed", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
     }
-  }, [address, price, sellAmount, sellToken, buyToken, chainId, supportFee, slippageBps, sendTransactionAsync, toast]);
+  }, [address, price, sellAmount, sellToken, buyToken, chainId, supportFee, slippageBps, sendTransactionAsync, writeContractAsync, lidoStake, toast]);
 
   // ── Derived display values ────────────────────────────────────────────
   const estimatedOut = useMemo(() => {
@@ -583,11 +633,17 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
           {/* Swap details (rate, min received, fees) */}
           {!isFetching && exchangeRate && (
             <VStack spacing={1} align="stretch" border="1px solid" borderColor="border" p={2} mb={3} fontSize="xs" fontFamily="mono">
+              {price?.lido && (
+                <HStack justify="space-between" color="dim">
+                  <Text>Route</Text>
+                  <Text color="text">Lido direct stake — no slippage, no fee</Text>
+                </HStack>
+              )}
               <HStack justify="space-between" color="dim">
                 <Text>Rate</Text>
                 <Text color="text">1 {sellToken.symbol} = {exchangeRate} {buyToken.symbol}</Text>
               </HStack>
-              {minReceived && (
+              {minReceived && !price?.lido && (
                 <HStack justify="space-between" color="dim">
                   <HStack spacing={1}>
                     <Text>Min received</Text>
@@ -598,10 +654,15 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
                   <Text color="text">{minReceived} {buyToken.symbol}</Text>
                 </HStack>
               )}
-              <HStack justify="space-between" color="dim">
-                <Text>Max slippage</Text>
-                <Text color="text">{slippagePct}%</Text>
-              </HStack>
+              {!price?.lido && (
+                <HStack justify="space-between" color="dim">
+                  <Text>Max slippage</Text>
+                  <Text color="text">{slippagePct}%</Text>
+                </HStack>
+              )}
+              {price?.lidoError && (
+                <Text color="red.400">Lido staking unavailable: {price.lidoError}</Text>
+              )}
               {networkFeeEth && (
                 <HStack justify="space-between" color="dim">
                   <Text>Network fee</Text>
@@ -611,7 +672,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
               {price?.issues?.balance && (
                 <Text color="red.400">Insufficient {sellToken.symbol} balance</Text>
               )}
-              {price && !price.liquidityAvailable && (
+              {price && !price.liquidityAvailable && !price.lido && (
                 <Text color="red.400">No liquidity available for this pair</Text>
               )}
               {isSuccess && (
@@ -642,16 +703,16 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
               sx={{ textTransform: "uppercase" }}
               isDisabled={!canSwap}
               isLoading={isSending || isConfirming}
-              loadingText={isConfirming ? "CONFIRMING..." : "SWAPPING..."}
+              loadingText={isConfirming ? "CONFIRMING..." : lidoStake ? "STAKING..." : "SWAPPING..."}
               leftIcon={<FaExchangeAlt />}
               onClick={handleSwap}
             >
-              {!sellAmount ? "Enter Amount" : insufficientBalance ? `Insufficient ${sellToken.symbol}` : isFetching ? "..." : "Swap"}
+              {!sellAmount ? "Enter Amount" : insufficientBalance ? `Insufficient ${sellToken.symbol}` : isFetching ? "..." : lidoStake ? "Stake with Lido" : "Swap"}
             </Button>
           )}
 
           {/* Optional platform fee */}
-          {showFeeOption && (
+          {showFeeOption && !lidoStake && (
             <HStack mt={2} spacing={2} justify="center">
               <Checkbox
                 size="sm"
@@ -669,12 +730,18 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </HStack>
           )}
 
+          {lidoStake ? (
+            <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" mt={2}>
+              Staked directly with Lido (stETH.submit) — 1 ETH mints 1 stETH
+            </Text>
+          ) : (
           <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" mt={2}>
             Best price from 150+ sources
             <Tooltip label="Powered by 0x Protocol — aggregates Uniswap, Curve, and 148+ other DEXes for best execution">
               <Box as="span" ml={1} cursor="help"><FaInfoCircle style={{ display: "inline" }} /></Box>
             </Tooltip>
           </Text>
+          )}
     </VStack>
   );
 
