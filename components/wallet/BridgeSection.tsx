@@ -6,7 +6,9 @@
  * bridge transaction, and polls LI.FI for cross-chain completion.
  *
  * The integrator fee is applied server-side (see app/api/lifi/quote) and only
- * when LIFI_INTEGRATOR is configured, so this works with or without fee onboarding.
+ * when LIFI_INTEGRATOR is configured. When a quote comes back WITHOUT the fee
+ * we warn loudly in the console — a bridge that works but doesn't charge is
+ * indistinguishable from one that does, and that hid a missing env var for months.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -26,7 +28,7 @@ import TokenChainLogo from "./TokenChainLogo";
 import {
   getSwapChain, isNativeToken, tokensForChain, type SwapToken,
 } from "@/lib/evm/swapTokens";
-import { toLifiToken, type LifiQuote, type LifiStatus, type LifiStatusState } from "@/lib/evm/lifi";
+import { toLifiToken, LIFI_FEE_STATUS_HEADER, type LifiQuote, type LifiStatus, type LifiStatusState } from "@/lib/evm/lifi";
 
 const ERC20_ABI = [
   { name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ type: "uint256" }] },
@@ -179,6 +181,17 @@ export default function BridgeSection() {
     fromToken.address.toLowerCase() === toToken.address.toLowerCase();
 
   // ── Quote fetching ────────────────────────────────────────────────────────
+  /** Surface server-side fee status; never let "no fee" be silent. */
+  const warnIfNoFee = (res: Response) => {
+    const status = res.headers.get(LIFI_FEE_STATUS_HEADER);
+    if (status !== "applied") {
+      console.warn(
+        `[bridge] LI.FI quote returned WITHOUT SkateHive integrator fee (${LIFI_FEE_STATUS_HEADER}=${status ?? "missing"}). ` +
+          `Bridge will work but SkateHive collects nothing. Check LIFI_INTEGRATOR on the server.`
+      );
+    }
+  };
+
   const buildParams = useCallback(() => {
     const p = new URLSearchParams({
       fromChain: String(fromToken.chainId),
@@ -205,6 +218,7 @@ export default function BridgeSection() {
       setQuoteError(null);
       try {
         const res = await fetch(`/api/lifi/quote?${buildParams()}`);
+        warnIfNoFee(res);
         const data: LifiQuote = await res.json();
         if (!res.ok || !data?.estimate) {
           setQuote(null);
@@ -271,6 +285,7 @@ export default function BridgeSection() {
     try {
       // Fetch a fresh quote at execution time so the tx isn't stale.
       const res = await fetch(`/api/lifi/quote?${buildParams()}`);
+      warnIfNoFee(res);
       const q: LifiQuote = await res.json();
       const tx = q?.transactionRequest;
       if (!res.ok || !tx) {

@@ -8,6 +8,13 @@
 
 export const LIFI_API_URL = "https://li.quest/v1";
 
+/** Diagnostic response header set by /api/lifi/quote so the client (and anyone
+ *  in devtools) can see whether the quote actually carried the integrator fee.
+ *  A bridge that works but doesn't charge is indistinguishable from one that
+ *  does — make it visible. */
+export const LIFI_FEE_STATUS_HEADER = "x-skatehive-lifi-fee";
+export type LifiFeeStatus = "applied" | "not-configured" | "fallback-no-fee" | "not-requested";
+
 /** LI.FI represents a native coin (ETH, etc.) with the zero address. */
 export const LIFI_NATIVE_TOKEN = "0x0000000000000000000000000000000000000000";
 
