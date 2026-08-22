@@ -352,7 +352,11 @@ export default function BridgeSection() {
   const minOut = quote ? fmtAmount(quote.estimate.toAmountMin, toToken.decimals) : null;
   const totalCostUsd = useMemo(() => {
     if (!quote) return null;
-    const fees = (quote.estimate.feeCosts ?? []).reduce((s, f) => s + (f.included ? 0 : Number(f.amountUSD ?? 0)), 0);
+    // Sum EVERY fee cost, including ones LI.FI marks `included` (they are
+    // deducted from toAmount — the 0.5% SkateHive integrator fee is one of
+    // them). Summing only the non-included ones showed "$0.10" while the user
+    // actually paid ~0.5% more; the fee must be visible where it is charged.
+    const fees = (quote.estimate.feeCosts ?? []).reduce((s, f) => s + Number(f.amountUSD ?? 0), 0);
     const gas = (quote.estimate.gasCosts ?? []).reduce((s, g) => s + Number(g.amountUSD ?? 0), 0);
     const total = fees + gas;
     return total > 0 ? `$${total.toFixed(2)}` : null;
