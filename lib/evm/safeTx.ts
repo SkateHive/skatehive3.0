@@ -63,3 +63,27 @@ export type BridgePhase =
 
 /** Give up (honestly) after this long without a terminal status. */
 export const BRIDGE_TRACK_TIMEOUT_MS = 20 * 60 * 1000;
+
+/** LI.FI quotes carry a signed 10-minute validity (Layerswap: SignatureExpired(),
+ *  Intents: fill deadline). A Safe must collect signatures AND execute inside it. */
+export const LIFI_QUOTE_VALIDITY_MS = 10 * 60 * 1000;
+
+/** Known revert selectors seen from the LiFiDiamond, for honest error messages. */
+export const KNOWN_REVERTS: Record<string, string> = {
+  "0x5ded5997": "NativeAssetNotSupported() — this LI.FI route cannot take native ETH",
+  "0x0819bdcd": "SignatureExpired() — the quote's 10-minute validity has passed, re-quote",
+  "0x08c379a0": "Error(string)",
+};
+
+/** Decode a revert payload into something a human can act on. */
+export function describeRevert(data?: string | null): string {
+  if (!data || data === "0x") return "reverted without reason";
+  const sel = data.slice(0, 10).toLowerCase();
+  if (sel === "0x08c379a0") {
+    try {
+      const hex = data.slice(10 + 128, 10 + 128 + 2 * parseInt(data.slice(10 + 64, 10 + 128), 16));
+      return `Error: ${Buffer.from(hex, "hex").toString("utf8")}`;
+    } catch { /* fall through */ }
+  }
+  return KNOWN_REVERTS[sel] ?? `reverted with ${sel}`;
+}

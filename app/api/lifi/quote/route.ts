@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { LIFI_API_URL, LIFI_FEE_STATUS_HEADER, type LifiFeeStatus } from "@/lib/evm/lifi";
+import { LIFI_API_URL, LIFI_NATIVE_TOKEN, LIFI_FEE_STATUS_HEADER, type LifiFeeStatus } from "@/lib/evm/lifi";
 
 // `integrator` must match the integration-string registered at portal.li.fi.
 // Our portal integration is *named* "skatehive" but its integration-string is
@@ -54,6 +54,17 @@ export async function GET(request: NextRequest) {
       `[lifi] quote requested WITH fee but LIFI_INTEGRATOR is empty — sending without fee ` +
         `(${params.get("fromChain")}→${params.get("toChain")} amount=${params.get("fromAmount")})`
     );
+  }
+
+  // LI.FI routes native ETH from a contract sender (Safe) through
+  // `lifiIntents`, whose escrow facet reverts NativeAssetNotSupported() for
+  // every amount (measured 2026-08-22: 0.01–0.76 ETH, Base→mainnet, Safe
+  // 0xC1af…). Exclude it for native sends until LI.FI fixes the router; the
+  // client may add further denies (e.g. after a failed pre-simulation).
+  if (params.get("fromToken")?.toLowerCase() === LIFI_NATIVE_TOKEN) {
+    const deny = new Set((params.get("denyBridges") ?? "").split(",").filter(Boolean));
+    deny.add("lifiIntents");
+    params.set("denyBridges", Array.from(deny).join(","));
   }
 
   const headers: Record<string, string> = { accept: "application/json" };

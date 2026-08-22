@@ -38,7 +38,8 @@ import {
 } from "@/lib/evm/swapTokens";
 import { toLifiToken, LIFI_FEE_STATUS_HEADER, type LifiQuote, type LifiStatus, type LifiStatusState } from "@/lib/evm/lifi";
 import {
-  BRIDGE_TRACK_TIMEOUT_MS, explorerTxUrl, safeQueueUrl, type BridgePhase, type SafeTxLookup,
+  BRIDGE_TRACK_TIMEOUT_MS, LIFI_QUOTE_VALIDITY_MS, describeRevert, explorerTxUrl, safeQueueUrl,
+  type BridgePhase, type SafeTxLookup,
 } from "@/lib/evm/safeTx";
 
 const ERC20_ABI = [
@@ -155,6 +156,10 @@ export default function BridgeSection() {
   const [receivingTx, setReceivingTx] = useState<{ hash: string; chainId: number } | null>(null);
   const [doneVia, setDoneVia] = useState<"lifi" | "balance" | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  /** When the quote we sent to the wallet was fetched — LI.FI quotes are valid ~10 min. */
+  const [quoteAt, setQuoteAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [isSimulating, setIsSimulating] = useState(false);
   const destBalanceAtStartRef = useRef<bigint | null>(null);
   const trackingActive = phase === "safe-pending" || phase === "submitted";
 
@@ -219,10 +224,16 @@ export default function BridgeSection() {
   const setMax = useCallback(() => {
     if (fromBalance <= 0) return;
     let amt = fromBalance;
-    if (isNativeToken(fromToken.address)) amt = Math.max(0, amt - 0.0003); // gas headroom
+    if (isNativeToken(fromToken.address)) {
+      // Gas headroom. LI.FI fees are deducted from the amount itself, so this
+      // only needs to cover gas — but a flat 0.0003 was wrong on mainnet, and a
+      // Safe should keep something to operate with afterwards.
+      const headroom = isContractWallet ? 0.005 : fromToken.chainId === 1 ? 0.002 : 0.0003;
+      amt = Math.max(0, amt - headroom);
+    }
     if (amt <= 0) return;
     setAmount(String(Number(amt.toFixed(fromToken.decimals > 8 ? 8 : fromToken.decimals))));
-  }, [fromBalance, fromToken]);
+  }, [fromBalance, fromToken, isContractWallet]);
 
   const sameToken =
     fromToken.chainId === toToken.chainId &&
@@ -240,7 +251,12 @@ export default function BridgeSection() {
     }
   };
 
-  const buildParams = useCallback(() => {
+  const buildParams = useCallback((denyBridges: string[] = []) => {
+    // lifiIntents reverts NativeAssetNotSupported() for native ETH from a
+    // contract sender (the server enforces this too); callers add more after a
+    // failed pre-simulation.
+    const deny = new Set(denyBridges);
+    if (isNativeToken(fromToken.address)) deny.add("lifiIntents");
     const p = new URLSearchParams({
       fromChain: String(fromToken.chainId),
       toChain: String(toToken.chainId),
@@ -252,6 +268,7 @@ export default function BridgeSection() {
       order: "CHEAPEST",
       fee: "1", // opt into the integrator fee (applied server-side only if configured)
     });
+    if (deny.size) p.set("denyBridges", Array.from(deny).join(","));
     return p;
   }, [fromToken, toToken, amount, address]);
 
@@ -319,6 +336,7 @@ export default function BridgeSection() {
       toast({ title: t("bridge.approvalSubmitted"), description: hash, status: "info", duration: 5000, isClosable: true });
       setNeedsApproval(false);
     } catch (e) {
+      setIsSimulating(false);
       if (isUserRejection(e)) toast({ title: t("bridge.cancelled"), status: "info", duration: 2000, isClosable: true });
       else toast({ title: t("bridge.approvalFailed"), description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
     }
@@ -333,21 +351,65 @@ export default function BridgeSection() {
   const resetTracking = useCallback(() => {
     setWalletHash(undefined); setTxHash(undefined); setBridgeTool(null); setBridgeStatus(null);
     setPhase(null); setSafeSigs(null); setStatusError(null); setReceivingTx(null); setDoneVia(null);
-    setStartedAt(null); destBalanceAtStartRef.current = null; notifiedRef.current = false;
+    setStartedAt(null); setQuoteAt(null); destBalanceAtStartRef.current = null; notifiedRef.current = false;
   }, []);
 
   const handleBridge = useCallback(async () => {
     if (!address) return;
     try {
-      // Fetch a fresh quote at execution time so the tx isn't stale.
-      const res = await fetch(`/api/lifi/quote?${buildParams()}`);
-      warnIfNoFee(res);
-      const q: LifiQuote = await res.json();
-      const tx = q?.transactionRequest;
-      if (!res.ok || !tx) {
-        toast({ title: t("bridge.noRoute"), description: q?.message, status: "error", duration: 4000, isClosable: true });
+      // Fetch a fresh quote at execution time, then SIMULATE it from our own
+      // address before asking for a signature. A route that reverts in eth_call
+      // will revert on-chain too — surfacing it here is what saves a Safe from
+      // collecting signatures on a transaction that can never succeed.
+      setIsSimulating(true);
+      const deny: string[] = [];
+      let q: LifiQuote | null = null;
+      let quoteFetchedAt = 0;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const res = await fetch(`/api/lifi/quote?${buildParams(deny)}`);
+        warnIfNoFee(res);
+        const cand: LifiQuote = await res.json();
+        const tx = cand?.transactionRequest;
+        if (!res.ok || !tx) {
+          console.error(`[bridge] no route (deny=${deny.join(",") || "-"}): ${cand?.message ?? res.status}`);
+          toast({
+            title: t("bridge.noRoute"),
+            description: deny.length ? t("bridge.triedRoutes").replace("{tools}", deny.join(", ")) : cand?.message,
+            status: "error", duration: 6000, isClosable: true,
+          });
+          setIsSimulating(false);
+          return;
+        }
+        quoteFetchedAt = Date.now();
+        try {
+          await fromClient!.call({
+            account: address,
+            to: tx.to as Address,
+            data: tx.data as `0x${string}`,
+            value: BigInt(tx.value ?? 0),
+          });
+          console.info(`[bridge] pre-simulation OK for route ${cand.tool} (${fromToken.chainId}→${toToken.chainId})`);
+          q = cand;
+          break;
+        } catch (e) {
+          const raw = (e as { data?: string; cause?: { data?: string } })?.cause?.data
+            ?? (e as { data?: string })?.data
+            ?? ((e as Error)?.message?.match(/0x[0-9a-f]{8}/i)?.[0] ?? null);
+          const reason = describeRevert(raw);
+          console.error(`[bridge] pre-simulation of route ${cand.tool} REVERTED (${raw ?? "no data"}): ${reason}`, e);
+          toast({
+            title: t("bridge.simulationFailed").replace("{tool}", cand.toolDetails?.name ?? cand.tool).replace("{reason}", reason),
+            status: "warning", duration: 8000, isClosable: true,
+          });
+          deny.push(cand.tool);
+        }
+      }
+      setIsSimulating(false);
+      if (!q) {
+        toast({ title: t("bridge.noRoute"), description: t("bridge.triedRoutes").replace("{tools}", deny.join(", ")), status: "error", duration: 8000, isClosable: true });
         return;
       }
+      const tx = q.transactionRequest!;
       const hash = await sendTransactionAsync({
         to: tx.to as Address,
         data: tx.data as `0x${string}`,
@@ -366,6 +428,7 @@ export default function BridgeSection() {
       setBridgeTool(q.tool);
       setBridgeStatus("PENDING");
       setStartedAt(Date.now());
+      setQuoteAt(quoteFetchedAt);
       destBalanceAtStartRef.current = destBalance;
       setPhase(isSafeWallet ? "safe-pending" : "submitted");
       if (!isSafeWallet) setTxHash(hash);
@@ -376,7 +439,7 @@ export default function BridgeSection() {
       if (isUserRejection(e)) toast({ title: t("bridge.cancelled"), status: "info", duration: 2000, isClosable: true });
       else toast({ title: t("bridge.failed"), description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
     }
-  }, [address, buildParams, sendTransactionAsync, fromToken.chainId, toToken.chainId, toast, t, connector?.name, isContractWallet, isSafeWallet, resetTracking, destBalance]);
+  }, [address, buildParams, sendTransactionAsync, fromClient, fromToken.chainId, toToken.chainId, toast, t, connector?.name, isContractWallet, isSafeWallet, resetTracking, destBalance]);
 
   const finish = useCallback((ok: boolean, via: "lifi" | "balance") => {
     setPhase(ok ? "done" : "failed");
@@ -489,6 +552,13 @@ export default function BridgeSection() {
     }
   }, [destBalance, trackingActive, toToken.chainId, finish]);
 
+  // ── 1s clock for the quote-validity countdown ─────────────────────────────
+  useEffect(() => {
+    if (phase !== "safe-pending") return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [phase]);
+
   // ── Honest timeout ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!trackingActive || !startedAt) return;
@@ -525,7 +595,7 @@ export default function BridgeSection() {
     setQuote(null);
   };
 
-  const isBusy = isFetching || isSending || isApproving || trackingActive || isSwitching;
+  const isBusy = isFetching || isSending || isSimulating || isApproving || trackingActive || isSwitching;
   const canBridge = isConnected && onFromChain && !!quote && !needsApproval && !insufficient && !isBusy && !!amount;
 
   return (
@@ -649,12 +719,21 @@ export default function BridgeSection() {
               {spinning && <Spinner size="xs" color={color} />}
               <Text color={color}>{label}</Text>
             </HStack>
+            {phase === "safe-pending" && quoteAt && (() => {
+              const left = quoteAt + LIFI_QUOTE_VALIDITY_MS - now;
+              if (left <= 0) return <Text color="red.400">{t("bridge.quoteExpired")}</Text>;
+              const mm = String(Math.floor(left / 60000)).padStart(2, "0");
+              const ss = String(Math.floor((left % 60000) / 1000)).padStart(2, "0");
+              return <Text color={left < 120_000 ? "orange.300" : "dim"}>{t("bridge.quoteExpiresIn").replace("{mmss}", `${mm}:${ss}`)}</Text>;
+            })()}
             {statusError && <Text color="orange.300">{t("bridge.statusError").replace("{msg}", statusError)}</Text>}
             <HStack spacing={3} color="dim" flexWrap="wrap">
               {phase === "safe-pending" && safeUrl && link(safeUrl, t("bridge.openSafe"))}
               {fromTx && link(fromTx, t("bridge.viewTx"))}
               {recvTx && link(recvTx, t("bridge.viewReceiving").replace("{chain}", toChainName))}
-              {!spinning && <Text as="button" onClick={resetTracking} textDecoration="underline">{t("bridge.dismiss")}</Text>}
+              {(!spinning || (phase === "safe-pending" && quoteAt && now > quoteAt + LIFI_QUOTE_VALIDITY_MS)) && (
+                <Text as="button" onClick={resetTracking} textDecoration="underline">{t("bridge.dismiss")}</Text>
+              )}
             </HStack>
           </VStack>
         );
@@ -680,7 +759,7 @@ export default function BridgeSection() {
       ) : (
         <Button w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest" fontFamily="mono"
           colorScheme="green" h="54px" fontSize="md" sx={{ textTransform: "uppercase" }} isDisabled={!canBridge || trackingActive}
-          isLoading={isSending} loadingText={t("bridge.bridging")}
+          isLoading={isSending || isSimulating} loadingText={isSimulating ? t("bridge.simulating") : t("bridge.bridging")}
           leftIcon={<FaArrowDown />} onClick={handleBridge}>
           {!amount ? t("bridge.enterAmount") : insufficient ? t("bridge.insufficient").replace("{symbol}", fromToken.symbol) : isFetching ? "..." : t("bridge.bridge")}
         </Button>
