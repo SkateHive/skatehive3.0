@@ -9,6 +9,14 @@
  * when LIFI_INTEGRATOR is configured. When a quote comes back WITHOUT the fee
  * we warn loudly in the console — a bridge that works but doesn't charge is
  * indistinguishable from one that does, and that hid a missing env var for months.
+ *
+ * Tracking after send (see lib/evm/safeTx.ts): a Safe over WalletConnect
+ * returns the safeTxHash, not an on-chain hash. We resolve it through the Safe
+ * Transaction Service, show "waiting for signatures (x/y)" until executed, and
+ * only then wait for a receipt / poll LI.FI. Phases are distinct on screen,
+ * tracker errors are shown instead of swallowed, there is a 20-minute honest
+ * timeout, and a destination-balance fallback marks the bridge done even if
+ * LI.FI never indexes it.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -19,7 +27,7 @@ import {
   formatUnits, parseUnits, maxUint256, UserRejectedRequestError, type Address,
 } from "viem";
 import {
-  useAccount, useBalance, useChainId, usePublicClient, useReadContract, useSendTransaction,
+  useAccount, useBalance, useBytecode, useChainId, usePublicClient, useReadContract, useSendTransaction,
   useSwitchChain, useWaitForTransactionReceipt, useWriteContract,
 } from "wagmi";
 import { useTranslations } from "@/contexts/LocaleContext";
@@ -29,6 +37,9 @@ import {
   getSwapChain, isNativeToken, tokensForChain, type SwapToken,
 } from "@/lib/evm/swapTokens";
 import { toLifiToken, LIFI_FEE_STATUS_HEADER, type LifiQuote, type LifiStatus, type LifiStatusState } from "@/lib/evm/lifi";
+import {
+  BRIDGE_TRACK_TIMEOUT_MS, explorerTxUrl, safeQueueUrl, type BridgePhase, type SafeTxLookup,
+} from "@/lib/evm/safeTx";
 
 const ERC20_ABI = [
   { name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ type: "uint256" }] },
@@ -117,7 +128,7 @@ function SideSelector({
 export default function BridgeSection() {
   const t = useTranslations();
   const toast = useToast();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, connector } = useAccount();
   const walletChainId = useChainId();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
 
@@ -132,9 +143,27 @@ export default function BridgeSection() {
   const [needsApproval, setNeedsApproval] = useState(false);
   const [approvalSpender, setApprovalSpender] = useState<Address | null>(null);
 
+  /** Whatever the wallet handed back from eth_sendTransaction (may be a safeTxHash). */
+  const [walletHash, setWalletHash] = useState<`0x${string}` | undefined>();
+  /** The real on-chain hash — only set once we are sure it exists on the from chain. */
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const [bridgeTool, setBridgeTool] = useState<string | null>(null);
   const [bridgeStatus, setBridgeStatus] = useState<LifiStatusState | null>(null);
+  const [phase, setPhase] = useState<BridgePhase | null>(null);
+  const [safeSigs, setSafeSigs] = useState<{ have: number; need: number } | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [receivingTx, setReceivingTx] = useState<{ hash: string; chainId: number } | null>(null);
+  const [doneVia, setDoneVia] = useState<"lifi" | "balance" | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const destBalanceAtStartRef = useRef<bigint | null>(null);
+  const trackingActive = phase === "safe-pending" || phase === "submitted";
+
+  // Contract wallet (Safe etc.) detection: bytecode at the connected address on
+  // the from chain, or a connector that calls itself Safe. Only affects the
+  // initial label — the resolver below copes either way.
+  const { data: fromBytecode } = useBytecode({ address, chainId: fromToken.chainId, query: { enabled: !!address } });
+  const isContractWallet = !!fromBytecode && fromBytecode !== "0x";
+  const isSafeWallet = isContractWallet || /safe/i.test(connector?.name ?? "");
 
   const fromClient = usePublicClient({ chainId: fromToken.chainId });
   const onFromChain = walletChainId === fromToken.chainId;
@@ -165,6 +194,25 @@ export default function BridgeSection() {
     }
     return 0;
   }, [fromIsNative, fromNativeBal, fromErc20Bal, fromToken.decimals]);
+
+  // ── Destination balance (fallback completion signal while tracking) ──────
+  const toIsNative = isNativeToken(toToken.address);
+  const { data: toNativeBal } = useBalance({
+    address,
+    chainId: toToken.chainId,
+    query: { enabled: !!address && toIsNative, refetchInterval: trackingActive ? 10_000 : false },
+  });
+  const { data: toErc20Bal } = useReadContract({
+    address: toToken.address as Address,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: toToken.chainId,
+    query: { enabled: !!address && !toIsNative, refetchInterval: trackingActive ? 10_000 : false },
+  });
+  const destBalance: bigint | null = toIsNative
+    ? (toNativeBal ? toNativeBal.value : null)
+    : (toErc20Bal != null ? (toErc20Bal as bigint) : null);
 
   const insufficient = !!amount && parseFloat(amount) > 0 && parseFloat(amount) > fromBalance;
 
@@ -278,7 +326,15 @@ export default function BridgeSection() {
 
   // ── Execute bridge ────────────────────────────────────────────────────────
   const { sendTransactionAsync, isPending: isSending } = useSendTransaction();
-  const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash, chainId: fromToken.chainId });
+  // Only ever fed the REAL hash (never a safeTxHash), so it can actually resolve.
+  const { isSuccess: isMined } = useWaitForTransactionReceipt({ hash: txHash, chainId: fromToken.chainId });
+
+  const notifiedRef = useRef(false);
+  const resetTracking = useCallback(() => {
+    setWalletHash(undefined); setTxHash(undefined); setBridgeTool(null); setBridgeStatus(null);
+    setPhase(null); setSafeSigs(null); setStatusError(null); setReceivingTx(null); setDoneVia(null);
+    setStartedAt(null); destBalanceAtStartRef.current = null; notifiedRef.current = false;
+  }, []);
 
   const handleBridge = useCallback(async () => {
     if (!address) return;
@@ -299,9 +355,20 @@ export default function BridgeSection() {
         gas: tx.gasLimit ? BigInt(tx.gasLimit) : undefined,
         chainId: fromToken.chainId,
       });
-      setTxHash(hash);
+      // Log the hash the wallet returned. For a Safe over WalletConnect this is
+      // the safeTxHash, NOT an on-chain hash — the resolver effect below sorts
+      // that out and logs what it resolved to, so the next incident explains itself.
+      console.info(
+        `[bridge] wallet returned ${hash} (connector=${connector?.name ?? "?"}, contractWallet=${isContractWallet}, treatAsSafe=${isSafeWallet}, ${fromToken.chainId}→${toToken.chainId})`
+      );
+      resetTracking();
+      setWalletHash(hash);
       setBridgeTool(q.tool);
       setBridgeStatus("PENDING");
+      setStartedAt(Date.now());
+      destBalanceAtStartRef.current = destBalance;
+      setPhase(isSafeWallet ? "safe-pending" : "submitted");
+      if (!isSafeWallet) setTxHash(hash);
       toast({ title: t("bridge.submitted"), description: hash, status: "success", duration: 6000, isClosable: true });
       setAmount("");
       setQuote(null);
@@ -309,14 +376,70 @@ export default function BridgeSection() {
       if (isUserRejection(e)) toast({ title: t("bridge.cancelled"), status: "info", duration: 2000, isClosable: true });
       else toast({ title: t("bridge.failed"), description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
     }
-  }, [address, buildParams, sendTransactionAsync, fromToken.chainId, toast, t]);
+  }, [address, buildParams, sendTransactionAsync, fromToken.chainId, toToken.chainId, toast, t, connector?.name, isContractWallet, isSafeWallet, resetTracking, destBalance]);
 
-  // ── Cross-chain status polling ────────────────────────────────────────────
-  const notifiedRef = useRef(false);
+  const finish = useCallback((ok: boolean, via: "lifi" | "balance") => {
+    setPhase(ok ? "done" : "failed");
+    setBridgeStatus(ok ? "DONE" : "FAILED");
+    setDoneVia(via);
+    if (!notifiedRef.current) {
+      notifiedRef.current = true;
+      toast({ title: t(ok ? "bridge.done" : "bridge.failed"), status: ok ? "success" : "error", duration: 8000, isClosable: true });
+    }
+  }, [toast, t]);
+
+  // ── Resolve the wallet hash into a real on-chain hash ─────────────────────
+  // Runs until txHash is known. Each tick: (a) does the from chain know this
+  // hash? then it IS the tx hash. (b) otherwise ask the Safe Transaction
+  // Service — a Safe proposal (safeTxHash) gains a transactionHash when executed.
   useEffect(() => {
-    if (!txHash || !bridgeTool) return;
-    if (bridgeStatus === "DONE" || bridgeStatus === "FAILED") return;
+    if (!walletHash || txHash || !trackingActive) return;
     let cancelled = false;
+    const tick = async () => {
+      try {
+        const onChain = await fromClient?.getTransaction({ hash: walletHash }).catch(() => null);
+        if (cancelled) return;
+        if (onChain) {
+          console.info(`[bridge] ${walletHash} exists on chain ${fromToken.chainId} — using it as the tx hash`);
+          setTxHash(walletHash);
+          setPhase("submitted");
+          return;
+        }
+        const res = await fetch(`/api/safe/tx?chainId=${fromToken.chainId}&safeTxHash=${walletHash}`);
+        const data: SafeTxLookup = await res.json();
+        if (cancelled) return;
+        if (!res.ok || !data?.found) {
+          console.warn(`[bridge] ${walletHash} is not on chain ${fromToken.chainId} and not (yet) in the Safe service: ${data?.message ?? `HTTP ${res.status}`}`);
+          if (!isSafeWallet) setStatusError(data?.message ?? `HTTP ${res.status}`);
+          return;
+        }
+        setStatusError(null);
+        setPhase("safe-pending");
+        setSafeSigs({ have: data.confirmations, need: data.confirmationsRequired });
+        if (data.isExecuted && data.isSuccessful === false) {
+          console.error(`[bridge] Safe tx ${walletHash} executed but REVERTED`);
+          finish(false, "lifi");
+          return;
+        }
+        if (data.transactionHash) {
+          console.info(`[bridge] safeTxHash ${walletHash} executed as on-chain tx ${data.transactionHash}`);
+          setTxHash(data.transactionHash);
+          setPhase("submitted");
+        }
+      } catch (e) {
+        console.error(`[bridge] resolving ${walletHash} failed:`, e);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 6000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [walletHash, txHash, trackingActive, fromClient, fromToken.chainId, isSafeWallet, finish]);
+
+  // ── LI.FI cross-chain status polling (real hash only) ─────────────────────
+  useEffect(() => {
+    if (!txHash || !bridgeTool || phase !== "submitted") return;
+    let cancelled = false;
+    let consecutiveErrors = 0;
     const poll = async () => {
       try {
         const p = new URLSearchParams({
@@ -326,24 +449,57 @@ export default function BridgeSection() {
           bridge: bridgeTool,
         });
         const res = await fetch(`/api/lifi/status?${p}`);
-        const data: LifiStatus = await res.json();
-        if (cancelled || !data?.status) return;
-        setBridgeStatus(data.status);
-        if (data.status === "DONE" && !notifiedRef.current) {
-          notifiedRef.current = true;
-          toast({ title: t("bridge.done"), status: "success", duration: 6000, isClosable: true });
-        } else if (data.status === "FAILED" && !notifiedRef.current) {
-          notifiedRef.current = true;
-          toast({ title: t("bridge.failed"), status: "error", duration: 6000, isClosable: true });
+        const data: LifiStatus & { message?: string; code?: number } = await res.json();
+        if (cancelled) return;
+        if (!res.ok || !data?.status) {
+          // Never swallow this: the old code discarded ~1,200 "1003 not found"
+          // answers in silence while the UI spun forever.
+          consecutiveErrors += 1;
+          const msg = data?.message ?? `HTTP ${res.status}`;
+          console.error(`[bridge] LI.FI status error #${consecutiveErrors} for ${txHash}: ${data?.code ?? ""} ${msg}`);
+          if (consecutiveErrors >= 3) setStatusError(msg);
+          return;
         }
-      } catch {
-        /* keep polling */
+        consecutiveErrors = 0;
+        setStatusError(null);
+        setBridgeStatus(data.status);
+        if (data.status === "DONE") {
+          console.info(`[bridge] LI.FI reports DONE for ${txHash} (receiving ${data.receiving?.txHash ?? "?"})`);
+          if (data.receiving?.txHash) setReceivingTx({ hash: data.receiving.txHash, chainId: data.receiving.chainId ?? toToken.chainId });
+          finish(true, "lifi");
+        } else if (data.status === "FAILED") {
+          console.error(`[bridge] LI.FI reports FAILED for ${txHash}: ${data.substatus ?? ""} ${data.substatusMessage ?? ""}`);
+          finish(false, "lifi");
+        }
+      } catch (e) {
+        console.error(`[bridge] LI.FI status fetch failed for ${txHash}:`, e);
       }
     };
     poll();
     const id = setInterval(poll, 6000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [txHash, bridgeTool, bridgeStatus, fromToken.chainId, toToken.chainId, toast, t]);
+  }, [txHash, bridgeTool, phase, fromToken.chainId, toToken.chainId, finish]);
+
+  // ── Fallback: destination balance went up while we were waiting ───────────
+  useEffect(() => {
+    if (!trackingActive || destBalance == null || destBalanceAtStartRef.current == null) return;
+    if (destBalance > destBalanceAtStartRef.current) {
+      console.info(`[bridge] destination balance rose ${destBalanceAtStartRef.current} → ${destBalance} on chain ${toToken.chainId}; marking done by balance`);
+      finish(true, "balance");
+    }
+  }, [destBalance, trackingActive, toToken.chainId, finish]);
+
+  // ── Honest timeout ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!trackingActive || !startedAt) return;
+    const id = setInterval(() => {
+      if (Date.now() - startedAt > BRIDGE_TRACK_TIMEOUT_MS) {
+        console.error(`[bridge] no terminal status after ${BRIDGE_TRACK_TIMEOUT_MS / 60000} min (walletHash=${walletHash}, txHash=${txHash ?? "-"}, phase=${phase})`);
+        setPhase("timeout");
+      }
+    }, 15_000);
+    return () => clearInterval(id);
+  }, [trackingActive, startedAt, walletHash, txHash, phase]);
 
   // ── Derived display ──────────────────────────────────────────────────────
   const fromChainName = getSwapChain(fromToken.chainId)?.name ?? "?";
@@ -369,7 +525,7 @@ export default function BridgeSection() {
     setQuote(null);
   };
 
-  const isBusy = isFetching || isSending || isApproving || isConfirming || isSwitching;
+  const isBusy = isFetching || isSending || isApproving || trackingActive || isSwitching;
   const canBridge = isConnected && onFromChain && !!quote && !needsApproval && !insufficient && !isBusy && !!amount;
 
   return (
@@ -466,17 +622,43 @@ export default function BridgeSection() {
         </Box>
       )}
 
-      {bridgeStatus && bridgeStatus !== "DONE" && bridgeStatus !== "FAILED" && (
-        <HStack spacing={2} border="1px solid" borderColor="primary" p={2} mb={3}>
-          <Spinner size="xs" color="primary" />
-          <Text fontSize="xs" color="primary" fontFamily="mono">{t("bridge.pending")}</Text>
-        </HStack>
-      )}
-      {bridgeStatus === "DONE" && (
-        <Box border="1px solid" borderColor="border" p={2} mb={3}>
-          <Text fontSize="xs" color="green.400" fontFamily="mono">{t("bridge.done")}</Text>
-        </Box>
-      )}
+      {phase && (() => {
+        const fromTx = txHash ? explorerTxUrl(fromToken.chainId, txHash) : null;
+        const recvTx = receivingTx ? explorerTxUrl(receivingTx.chainId, receivingTx.hash) : null;
+        const safeUrl = address ? safeQueueUrl(fromToken.chainId, address) : null;
+        const spinning = phase === "safe-pending" || phase === "submitted";
+        const color = phase === "done" ? "green.400" : phase === "failed" ? "red.400" : phase === "timeout" ? "orange.300" : "primary";
+        let label: string;
+        if (phase === "safe-pending") {
+          label = t("bridge.safePending").replace("{have}", String(safeSigs?.have ?? 0)).replace("{need}", String(safeSigs?.need ?? "?"));
+        } else if (phase === "submitted") {
+          label = isMined ? t("bridge.safeExecuted") : t("bridge.txSent");
+        } else if (phase === "done") {
+          label = doneVia === "balance" ? t("bridge.doneByBalance").replace("{chain}", toChainName) : t("bridge.done");
+        } else if (phase === "failed") {
+          label = t("bridge.failed");
+        } else {
+          label = t("bridge.timeout");
+        }
+        const link = (href: string, text: string) => (
+          <Text as="a" href={href} target="_blank" rel="noopener noreferrer" textDecoration="underline" color="text" key={href}>{text}</Text>
+        );
+        return (
+          <VStack align="stretch" spacing={1} border="1px solid" borderColor={color} p={2} mb={3} fontSize="xs" fontFamily="mono" data-bridge-phase={phase}>
+            <HStack spacing={2}>
+              {spinning && <Spinner size="xs" color={color} />}
+              <Text color={color}>{label}</Text>
+            </HStack>
+            {statusError && <Text color="orange.300">{t("bridge.statusError").replace("{msg}", statusError)}</Text>}
+            <HStack spacing={3} color="dim" flexWrap="wrap">
+              {phase === "safe-pending" && safeUrl && link(safeUrl, t("bridge.openSafe"))}
+              {fromTx && link(fromTx, t("bridge.viewTx"))}
+              {recvTx && link(recvTx, t("bridge.viewReceiving").replace("{chain}", toChainName))}
+              {!spinning && <Text as="button" onClick={resetTracking} textDecoration="underline">{t("bridge.dismiss")}</Text>}
+            </HStack>
+          </VStack>
+        );
+      })()}
 
       {/* CTA */}
       {!isConnected ? (
@@ -497,8 +679,8 @@ export default function BridgeSection() {
         </Button>
       ) : (
         <Button w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest" fontFamily="mono"
-          colorScheme="green" h="54px" fontSize="md" sx={{ textTransform: "uppercase" }} isDisabled={!canBridge}
-          isLoading={isSending || isConfirming} loadingText={t("bridge.bridging")}
+          colorScheme="green" h="54px" fontSize="md" sx={{ textTransform: "uppercase" }} isDisabled={!canBridge || trackingActive}
+          isLoading={isSending} loadingText={t("bridge.bridging")}
           leftIcon={<FaArrowDown />} onClick={handleBridge}>
           {!amount ? t("bridge.enterAmount") : insufficient ? t("bridge.insufficient").replace("{symbol}", fromToken.symbol) : isFetching ? "..." : t("bridge.bridge")}
         </Button>
