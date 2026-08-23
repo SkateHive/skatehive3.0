@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Box, Text, Skeleton } from "@chakra-ui/react";
 import { usePortfolioContext } from "@/contexts/PortfolioContext";
-import { useLocale } from "@/contexts/LocaleContext";
+import { useLocale, useTranslations } from "@/contexts/LocaleContext";
 
 type ChainFilter = "all" | "hive" | "evm" | "farcaster";
 
@@ -26,6 +26,7 @@ export default function TotalPortfolioValue({
   isLoading,
 }: TotalPortfolioValueProps) {
   const { locale } = useLocale();
+  const t = useTranslations();
   const {
     aggregatedPortfolio,
     portfolio,
@@ -56,6 +57,15 @@ export default function TotalPortfolioValue({
     aggregatedPortfolio?.totalNetWorth,
     btcValue,
   ]);
+
+  // "In wallet / In DeFi / Total" breakdown (shared vocabulary with the Gnars
+  // and SOPA surfaces). totalNetWorth from the API already includes DeFi.
+  const showBreakdown = chainFilter === "all" || chainFilter === "evm";
+  const defi = aggregatedPortfolio?.defi;
+  const defiUsd = aggregatedPortfolio?.defiUsd ?? 0;
+  const walletUsd = Math.max(0, displayValue - (showBreakdown ? defiUsd : 0));
+  const fmt = (v: number) =>
+    new Intl.NumberFormat(locale, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 
   if (displayValue === 0 && chainFilter === "all" && !loading) return null;
 
@@ -104,6 +114,16 @@ export default function TotalPortfolioValue({
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           }).format(displayValue)}
+        </Text>
+      )}
+      {showBreakdown && !loading && (defiUsd > 0 || (defi?.errors.length ?? 0) > 0) && (
+        <Text fontSize="sm" color="dim" fontFamily="mono" mt={2} data-testid="total-breakdown">
+          {t("wallet.inWallet")} {fmt(walletUsd)} · {t("wallet.inDefi")} {fmt(defiUsd)} · {t("wallet.total")} {fmt(displayValue)}
+        </Text>
+      )}
+      {showBreakdown && (defi?.errors.length ?? 0) > 0 && (
+        <Text fontSize="xs" color="red.400" fontFamily="mono" mt={1}>
+          {defi!.errors.map((e) => t("wallet.defiReadFailed").replace("{label}", e.label).replace("{message}", e.message)).join(" ")}
         </Text>
       )}
     </Box>
