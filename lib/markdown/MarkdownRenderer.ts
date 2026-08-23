@@ -24,7 +24,7 @@ const YOUTUBE_URL_PATTERN = new RegExp(
     "i"
 );
 
-function getYouTubePlaceholder(rawUrl: string): string | null {
+export function getYouTubePlaceholder(rawUrl: string): string | null {
     const normalizedUrl = rawUrl.trim().replace(/^<|>$/g, "");
     try {
         const url = new URL(normalizedUrl);
@@ -350,10 +350,9 @@ async function processMentionsWithValidation(content: string): Promise<string> {
             const beforeMatch = content.substring(Math.max(0, offset - 50), offset);
             const afterMatch = content.substring(offset, Math.min(content.length, offset + match.length + 50));
             
-            // Skip mentions that are part of URLs (worldmappin, zora, skatehive, etc.)
-            if (beforeMatch.match(/https?:\/\/[^\s]*$/) || 
+            // Skip mentions that are part of URLs (worldmappin, skatehive, etc.)
+            if (beforeMatch.match(/https?:\/\/[^\s]*$/) ||
                 beforeMatch.includes('worldmappin.com') ||
-                beforeMatch.includes('zora.co') ||
                 beforeMatch.includes(APP_CONFIG.DOMAIN) ||
                 afterMatch.match(/^[^\s]*\.(com|org|co|app|io)/)) {
                 return match; // Return original mention without processing

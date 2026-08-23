@@ -23,6 +23,7 @@ import {
   Image,
 } from "@chakra-ui/react";
 import { useState, useEffect, useMemo, useCallback } from "react";
+import * as QRCode from "qrcode";
 import { useAccount } from "wagmi";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { usePortfolioContext } from "@/contexts/PortfolioContext";
@@ -38,14 +39,15 @@ import {
 } from "@/lib/utils/portfolioUtils";
 import { FaPaperPlane, FaQrcode, FaCopy } from "react-icons/fa";
 import SendTokenModal from "./SendTokenModal";
+import ClaimToBtcModal from "./components/ClaimToBtcModal";
 import TokenControlsBar from "./components/TokenControlsBar";
 import MobileTokenTable from "./components/MobileTokenTable";
 import DesktopTokenTable from "./components/DesktopTokenTable";
 import TokenLogo from "./components/TokenLogo";
 import { SendHiveModal, SendHBDModal } from "./modals";
 
-// Tokens that cannot be sent directly (locked / staked)
-const NON_SENDABLE = new Set(["HP", "HBDS"]);
+// Tokens that cannot be sent directly (locked / staked / no send flow)
+const NON_SENDABLE = new Set(["HP", "HBDS", "BTC"]);
 
 type ChainFilter = "all" | "hive" | "evm" | "farcaster";
 
@@ -58,6 +60,11 @@ interface UnifiedWalletTableProps {
   hivePrice: number | null;
   hbdPrice: number | null;
   hiveUser?: string;
+  /** Self-claimed BTC address (from Hive metadata); enables the aggregated BTC row. */
+  btcAddress?: string;
+  /** Confirmed on-chain BTC balance, or null while loading / unavailable. */
+  btcBalance?: number | null;
+  btcPrice?: number | null;
 }
 
 function makeSyntheticToken(
@@ -101,6 +108,44 @@ function makeSyntheticToken(
     },
     updatedAt: "",
     source: "hive" as any,
+  };
+}
+
+// Synthetic BTC token — non-EVM, injected client-side like the Hive tokens.
+function makeBtcToken(balance: number, price: number | null): TokenDetail {
+  const usd = balance * (price || 0);
+  const id = "bitcoin-native";
+  return {
+    address: id,
+    assetCaip: `bitcoin:native/${id}`,
+    key: id,
+    network: "bitcoin",
+    token: {
+      address: id,
+      balance,
+      balanceRaw: String(balance),
+      balanceUSD: usd,
+      canExchange: true,
+      coingeckoId: "bitcoin",
+      createdAt: "",
+      decimals: 8,
+      externallyVerified: false,
+      hide: false,
+      holdersEnabled: false,
+      id,
+      label: null,
+      name: "Bitcoin",
+      networkId: 0,
+      price: price || 0,
+      priceUpdatedAt: "",
+      status: "active",
+      symbol: "BTC",
+      totalSupply: "",
+      updatedAt: "",
+      verified: true,
+    },
+    updatedAt: "",
+    source: "bitcoin" as any,
   };
 }
 
@@ -253,19 +298,60 @@ function SendPickerModal({ isOpen, onClose, consolidatedTokens, onSelect, requir
 }
 
 // ─── Receive Modal ────────────────────────────────────────────────────────────
-function ReceiveModal({ isOpen, onClose, hiveUser, evmAddress }: {
+function ReceiveModal({ isOpen, onClose, hiveUser, evmAddress, btcAddress }: {
   isOpen: boolean;
   onClose: () => void;
   hiveUser?: string;
   evmAddress?: string;
+  btcAddress?: string;
 }) {
   const toast = useToast();
   const copy = (val: string) => {
     navigator.clipboard.writeText(val);
     toast({ title: "Copied!", status: "success", duration: 1500, isClosable: true });
   };
+
+  // Wallets to show, in order. `value` is displayed + copied; `qr` is encoded.
+  const wallets = useMemo(
+    () =>
+      [
+        hiveUser ? { key: "hive", label: "Hive", value: `@${hiveUser}`, qr: hiveUser } : null,
+        evmAddress ? { key: "evm", label: "EVM", value: evmAddress, qr: evmAddress } : null,
+        btcAddress ? { key: "btc", label: "Bitcoin", value: btcAddress, qr: btcAddress } : null,
+      ].filter(Boolean) as { key: string; label: string; value: string; qr: string }[],
+    [hiveUser, evmAddress, btcAddress]
+  );
+
+  const [selected, setSelected] = useState<string>("");
+  const [qrMap, setQrMap] = useState<Record<string, string>>({});
+
+  // Default selection to the first wallet whenever the set changes / opens.
+  useEffect(() => {
+    if (isOpen && wallets.length && !wallets.some((w) => w.key === selected)) {
+      setSelected(wallets[0].key);
+    }
+  }, [isOpen, wallets, selected]);
+
+  // Pre-generate a QR per wallet (black-on-white for scannability) on open.
+  useEffect(() => {
+    if (!isOpen) { setQrMap({}); return; }
+    let cancelled = false;
+    (async () => {
+      const out: Record<string, string> = {};
+      for (const w of wallets) {
+        try {
+          out[w.key] = await QRCode.toDataURL(w.qr, { width: 240, margin: 2, color: { dark: "#000000", light: "#ffffff" } });
+        } catch { /* skip a failed QR */ }
+      }
+      if (!cancelled) setQrMap(out);
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, wallets]);
+
+  const active = wallets.find((w) => w.key === selected) || wallets[0];
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} size="sm" isCentered>
       <ModalOverlay />
       <ModalContent bg="background" borderRadius="none" border="2px solid" borderColor="primary">
         <ModalHeader
@@ -276,32 +362,79 @@ function ReceiveModal({ isOpen, onClose, hiveUser, evmAddress }: {
           Receive
         </ModalHeader>
         <ModalCloseButton />
-        <ModalBody py={4}>
-          <VStack spacing={4} align="stretch">
-            {hiveUser && (
-              <Box>
-                <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" mb={1}>Hive Account</Text>
-                <HStack border="1px solid" borderColor="border" p={3}>
-                  <Text fontFamily="mono" fontSize="sm" color="primary" flex={1}>@{hiveUser}</Text>
-                  <IconButton aria-label="Copy" icon={<FaCopy />} size="xs" variant="ghost" color="dim" onClick={() => copy(hiveUser)} />
+        <ModalBody py={5}>
+          {!wallets.length ? (
+            <Text fontFamily="mono" fontSize="sm" color="dim" textAlign="center" py={6}>
+              No linked addresses found.
+            </Text>
+          ) : (
+            <VStack spacing={4} align="stretch">
+              {/* wallet picker (only when there's more than one) */}
+              {wallets.length > 1 && (
+                <HStack spacing={0} border="1px solid" borderColor="primary">
+                  {wallets.map((w) => {
+                    const on = active?.key === w.key;
+                    return (
+                      <Button
+                        key={w.key}
+                        flex={1}
+                        size="sm"
+                        borderRadius="none"
+                        fontFamily="mono"
+                        fontSize="xs"
+                        textTransform="uppercase"
+                        bg={on ? "primary" : "transparent"}
+                        color={on ? "background" : "primary"}
+                        opacity={on ? 1 : 0.6}
+                        _hover={{ opacity: 1 }}
+                        onClick={() => setSelected(w.key)}
+                      >
+                        {w.label}
+                      </Button>
+                    );
+                  })}
                 </HStack>
-              </Box>
-            )}
-            {evmAddress && (
-              <Box>
-                <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" mb={1}>EVM Address</Text>
-                <HStack border="1px solid" borderColor="border" p={3}>
-                  <Text fontFamily="mono" fontSize="xs" color="primary" flex={1} wordBreak="break-all">{evmAddress}</Text>
-                  <IconButton aria-label="Copy" icon={<FaCopy />} size="xs" variant="ghost" color="dim" onClick={() => copy(evmAddress)} />
-                </HStack>
-              </Box>
-            )}
-            {!hiveUser && !evmAddress && (
-              <Text fontFamily="mono" fontSize="sm" color="dim" textAlign="center">
-                No linked addresses found.
-              </Text>
-            )}
-          </VStack>
+              )}
+
+              {active && (
+                <>
+                  {/* QR (white quiet-zone box for scannability) */}
+                  <Box alignSelf="center" bg="white" p={3} border="1px solid" borderColor="border">
+                    {qrMap[active.key] ? (
+                      <Image src={qrMap[active.key]} alt={`${active.label} address QR`} boxSize="200px" />
+                    ) : (
+                      <Box boxSize="200px" display="flex" alignItems="center" justifyContent="center">
+                        <Text fontFamily="mono" fontSize="xs" color="black" opacity={0.5}>generating…</Text>
+                      </Box>
+                    )}
+                  </Box>
+
+                  {/* address + inline copy */}
+                  <Box>
+                    <Text fontSize="2xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={1}>
+                      {active.label} address
+                    </Text>
+                    <HStack border="1px solid" borderColor="border" p={3} spacing={2}>
+                      <Text fontFamily="mono" fontSize="xs" color="primary" flex={1} wordBreak="break-all">
+                        {active.value}
+                      </Text>
+                      <IconButton aria-label="Copy" icon={<FaCopy />} size="xs" variant="ghost" color="dim" onClick={() => copy(active.value)} />
+                    </HStack>
+                  </Box>
+
+                  <Button
+                    leftIcon={<FaCopy />}
+                    bg="primary" color="background" fontFamily="mono" fontSize="xs"
+                    textTransform="uppercase" borderRadius="none" size="sm"
+                    _hover={{ opacity: 0.85 }}
+                    onClick={() => copy(active.value)}
+                  >
+                    Copy {active.label} address
+                  </Button>
+                </>
+              )}
+            </VStack>
+          )}
         </ModalBody>
       </ModalContent>
     </Modal>
@@ -318,6 +451,9 @@ export default function UnifiedWalletTable({
   hivePrice,
   hbdPrice,
   hiveUser,
+  btcAddress,
+  btcBalance,
+  btcPrice,
 }: UnifiedWalletTableProps) {
   const { isConnected, address } = useAccount();
   const { isAuthenticated: isFarcasterConnected } = useFarcasterSession();
@@ -338,11 +474,12 @@ export default function UnifiedWalletTable({
   // Send picker + receive modals
   const { isOpen: isSendPickerOpen, onOpen: onSendPickerOpen, onClose: onSendPickerClose } = useDisclosure();
   const { isOpen: isReceiveOpen, onOpen: onReceiveOpen, onClose: onReceiveClose } = useDisclosure();
+  const { isOpen: isBtcSetupOpen, onOpen: onBtcSetupOpen, onClose: onBtcSetupClose } = useDisclosure();
   const [sendTarget, setSendTarget] = useState<ConsolidatedToken | null>(null);
 
   const isMobile = useBreakpointValue({ base: true, md: false });
 
-  // Always-active subscription — Zora enrichment can fire before portfolio tokens load
+  // Always-active subscription — logo fetches can resolve before portfolio tokens load
   useEffect(() => {
     const unsub = subscribeToLogoUpdates(() => {
       setLogoUpdateTrigger((prev) => prev + 1);
@@ -389,6 +526,8 @@ export default function UnifiedWalletTable({
 
   const handleSendToken = useCallback(
     (tokenDetail: TokenDetail, logoUrl?: string) => {
+      // BTC has no send flow — clicking the row is a no-op.
+      if (tokenDetail.network === "bitcoin") return;
       if (tokenDetail.network === "hive") {
         if (tokenDetail.token.symbol === "HIVE") {
           onSendHiveOpen();
@@ -443,6 +582,15 @@ export default function UnifiedWalletTable({
     return tokens;
   }, [hiveUser, hiveBalance, hivePower, hbdBalance, hbdSavingsBalance, hivePrice, hbdPrice]);
 
+  // Synthetic BTC token — ALWAYS shown (discovery). When the user hasn't set up
+  // a BTC payout yet, it's a 0-balance placeholder rendered greyed + clickable
+  // (see btcNotSetUp / the setup CTA below).
+  const btcNotSetUp = !btcAddress;
+  const btcTokens = useMemo<TokenDetail[]>(
+    () => [makeBtcToken(btcAddress ? btcBalance ?? 0 : 0, btcPrice ?? null)],
+    [btcAddress, btcBalance, btcPrice]
+  );
+
   // Filter EVM tokens by source
   const filteredEVMTokens = useMemo<TokenDetail[]>(() => {
     const all = aggregatedPortfolio?.tokens || [];
@@ -456,20 +604,35 @@ export default function UnifiedWalletTable({
   // Merge, consolidate, filter (Hive tokens always bypass dust filter)
   const consolidatedTokens = useMemo(() => {
     const showHive = chainFilter === "all" || chainFilter === "hive";
-    const combined = [...(showHive ? hiveTokens : []), ...filteredEVMTokens];
+    // BTC is non-EVM/non-Hive — only surface it in the aggregated "all" view.
+    const showBtc = chainFilter === "all";
+    const combined = [
+      ...(showHive ? hiveTokens : []),
+      ...(showBtc ? btcTokens : []),
+      ...filteredEVMTokens,
+    ];
     const consolidated = consolidateTokensBySymbol(combined);
 
     const filtered = consolidated.filter((token) => {
-      // Hive tokens always show regardless of dust filter
-      if (token.chains.some((c) => c.network === "hive")) return true;
+      // Hive + BTC tokens always show regardless of dust filter
+      if (token.chains.some((c) => c.network === "hive" || c.network === "bitcoin")) return true;
       if (!hideSmallBalances) return true;
       return token.totalBalanceUSD >= minBalanceThreshold || token.symbol.toLowerCase() === "higher";
     });
 
-    return sortConsolidatedTokensByBalance(filtered);
-  // logoUpdateTrigger forces re-evaluation so fresh Zora logo cache is picked up
+    const sorted = sortConsolidatedTokensByBalance(filtered);
+    // Discovery placement: BTC sits directly above the HIGHER token.
+    const btcPos = sorted.findIndex((tk) => tk.symbol.toUpperCase() === "BTC");
+    const higherPos = sorted.findIndex((tk) => tk.symbol.toLowerCase() === "higher");
+    if (btcPos >= 0 && higherPos >= 0 && btcPos !== higherPos - 1) {
+      const [btc] = sorted.splice(btcPos, 1);
+      const h = sorted.findIndex((tk) => tk.symbol.toLowerCase() === "higher");
+      sorted.splice(h, 0, btc);
+    }
+    return sorted;
+  // logoUpdateTrigger forces re-evaluation so fresh logo cache entries are picked up
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hiveTokens, filteredEVMTokens, hideSmallBalances, chainFilter, logoUpdateTrigger]);
+  }, [hiveTokens, btcTokens, filteredEVMTokens, hideSmallBalances, chainFilter, logoUpdateTrigger]);
 
   // EVM is still loading but we already have Hive tokens to show
   const showEVMSkeleton = isLoading && (chainFilter === "all" || chainFilter === "evm" || chainFilter === "farcaster");
@@ -519,6 +682,8 @@ export default function UnifiedWalletTable({
             expandedTokens={expandedTokens}
             onToggleExpansion={toggleTokenExpansion}
             onTokenSelect={handleTokenSelect}
+            dimSymbol={btcNotSetUp ? "BTC" : undefined}
+            onDimClick={onBtcSetupOpen}
           />
           {showEVMSkeleton && <TokenRowSkeletons count={4} />}
         </VStack>
@@ -557,6 +722,8 @@ export default function UnifiedWalletTable({
             consolidatedTokens={consolidatedTokens}
             expandedTokens={expandedTokens}
             onToggleExpansion={toggleTokenExpansion}
+            dimSymbol={btcNotSetUp ? "BTC" : undefined}
+            onDimClick={onBtcSetupOpen}
           />
           {showEVMSkeleton && <TokenRowSkeletons count={5} />}
         </Box>
@@ -596,7 +763,21 @@ export default function UnifiedWalletTable({
         onClose={onReceiveClose}
         hiveUser={hiveUser}
         evmAddress={address}
+        btcAddress={btcAddress}
       />
+
+      {/* "How to enable BTC rewards" — opened from the greyed BTC row. */}
+      {hiveUser && (
+        <ClaimToBtcModal
+          isOpen={isBtcSetupOpen}
+          onClose={onBtcSetupClose}
+          username={hiveUser}
+          rewardHbd={0}
+          btcAddress={btcAddress}
+          hivePower={Number(hivePower) || 0}
+          hiveBalance={hiveBalance && hiveBalance !== "N/A" ? `${hiveBalance} HIVE` : "0.000 HIVE"}
+        />
+      )}
     </Box>
   );
 }

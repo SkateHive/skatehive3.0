@@ -24,11 +24,13 @@ import type { ProfileData } from "./ProfilePage";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAioha } from "@aioha/react-ui";
+import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { KeychainSDK, KeychainKeyTypes, Broadcast } from "keychain-sdk";
 import { Operation } from "@hiveio/dhive";
 import { mergeHiveProfileMetadata } from "@/lib/hive/profile-metadata";
 import { sanitize as sanitizeIgHandle } from "@/lib/instagram/resolveIgHandle";
+import { validateBtcAddress, normalizeBtcAddress } from "@/lib/utils/validateBtcAddress";
 import MergeAccountModal from "./MergeAccountModal";
 import fetchAccount from "@/lib/hive/fetchAccount";
 import {
@@ -61,6 +63,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
       zineCover: "",
       svs_profile: "",
       instagram: "",
+      btc_address: "",
     });
     const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
@@ -85,7 +88,12 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
     const address = account?.address;
     const isConnected = account?.isConnected || false;
 
-    const { user } = useAioha();
+    const { user: aiohaUser } = useAioha();
+    const { hiveIdentity } = useLinkedIdentities();
+    // Effective Hive user: Keychain/Aioha session, else the Hive identity linked
+    // to the userbase (email / sponsored) account. Lets sponsored users edit
+    // their profile via the stored posting key without Hive Keychain.
+    const user = aiohaUser || hiveIdentity?.handle || null;
     const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } =
       useFarcasterSession();
     const toast = useToast();
@@ -105,6 +113,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
           zineCover: profileData.zineCover || "",
           svs_profile: profileData.svs_profile || "",
           instagram: profileData.instagram || "",
+          btc_address: profileData.btc_address || "",
         });
         setProfileImageFile(null);
         setCoverImageFile(null);
@@ -423,6 +432,14 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
           return;
         }
 
+        // Validate the (optional) Bitcoin address before broadcasting.
+        const btcRaw = (formData.btc_address || "").trim();
+        if (btcRaw && !validateBtcAddress(btcRaw)) {
+          setError("Invalid Bitcoin address");
+          return;
+        }
+        const btcNormalized = btcRaw ? normalizeBtcAddress(btcRaw) : "";
+
         // Upload images if files are selected
         if (profileImageFile) {
           const url = await uploadToIpfs(
@@ -437,66 +454,101 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
         }
         // zineCover is already uploaded to IPFS in handleCropComplete
 
-        // Use Keychain SDK for the update
-        const keychain = new KeychainSDK(window);
-
-        const { jsonMetadata: currentMetadata, postingMetadata } =
-          await fetchAccount(username);
-
-        const { postingMetadata: mergedPosting, jsonMetadata: mergedJson } =
-          mergeHiveProfileMetadata({
-            currentPosting: postingMetadata,
-            currentJson: currentMetadata,
-            profilePatch: {
-              name: formData.name || username,
-              about: formData.about || "",
-              location: formData.location || "",
-              cover_image: finalCoverImage || "",
-              profile_image: finalProfileImage || "",
-              website: formData.website || "",
-              // Plain username (no @), sanitized. Other Hive frontends can
-              // surface this however they like; SkateHive reads it back.
-              instagram: sanitizeIgHandle(formData.instagram) || "",
-              version: 2,
-            },
-            extensionsPatch: {
-              wallets: {
-                primary_wallet: profileData.ethereum_address || "",
-              },
-              video_parts: profileData.video_parts || [],
-              settings: {
-                appSettings: {
-                  zineCover: finalZineCover || "",
-                  svs_profile: formData.svs_profile || "",
-                },
-              },
-            },
-          });
-
-        const formParamsAsObject = {
-          data: {
-            username: username,
-            operations: [
-              [
-                "account_update2",
-                {
-                  account: username,
-                  json_metadata: JSON.stringify(mergedJson),
-                  posting_json_metadata: JSON.stringify(mergedPosting),
-                  extensions: [],
-                },
-              ],
-            ],
-            method: KeychainKeyTypes.active,
-          },
+        // The profile lives in `posting_json_metadata`, which the POSTING
+        // authority can sign. Prefer the user's stored posting key (sponsored /
+        // email users) so NO Hive Keychain is required — Keychain is only a
+        // fallback for users who sign with their own active key.
+        const profilePatch = {
+          name: formData.name || username,
+          about: formData.about || "",
+          location: formData.location || "",
+          cover_image: finalCoverImage || "",
+          profile_image: finalProfileImage || "",
+          website: formData.website || "",
+          // Plain username (no @), sanitized. Other Hive frontends can
+          // surface this however they like; SkateHive reads it back.
+          instagram: sanitizeIgHandle(formData.instagram) || "",
+          version: 2,
         };
 
-        const result = await keychain.broadcast(
-          formParamsAsObject.data as unknown as Broadcast
-        );
+        let broadcasted = false;
+        try {
+          const res = await fetch("/api/userbase/hive/account-update", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ profile: profilePatch }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data?.success) {
+            broadcasted = true;
+          } else if (res.status === 403) {
+            // Soft-post account (no own Hive account yet) — nothing to sign.
+            setError(
+              data?.error ||
+                "You need your own Hive account to edit this profile — get sponsored first."
+            );
+            return;
+          }
+          // 401 (no userbase session) / 500 (no stored key) → fall back to Keychain.
+        } catch {
+          // Network hiccup — fall back to Keychain below.
+        }
 
-        if (!result) {
-          throw new Error("Profile update failed");
+        // Fallback: sign with the user's own active key via Keychain. This path
+        // also writes json_metadata (extensions/wallets), which needs the active
+        // authority the stored posting key doesn't have.
+        if (!broadcasted) {
+          const keychain = new KeychainSDK(window);
+
+          const { jsonMetadata: currentMetadata, postingMetadata } =
+            await fetchAccount(username);
+
+          const { postingMetadata: mergedPosting, jsonMetadata: mergedJson } =
+            mergeHiveProfileMetadata({
+              currentPosting: postingMetadata,
+              currentJson: currentMetadata,
+              profilePatch,
+              extensionsPatch: {
+                wallets: {
+                  primary_wallet: profileData.ethereum_address || "",
+                  btc_address: btcNormalized,
+                },
+                video_parts: profileData.video_parts || [],
+                settings: {
+                  appSettings: {
+                    zineCover: finalZineCover || "",
+                    svs_profile: formData.svs_profile || "",
+                  },
+                },
+              },
+            });
+
+          const formParamsAsObject = {
+            data: {
+              username: username,
+              operations: [
+                [
+                  "account_update2",
+                  {
+                    account: username,
+                    json_metadata: JSON.stringify(mergedJson),
+                    posting_json_metadata: JSON.stringify(mergedPosting),
+                    extensions: [],
+                  },
+                ],
+              ],
+              method: KeychainKeyTypes.active,
+            },
+          };
+
+          const result = await keychain.broadcast(
+            formParamsAsObject.data as unknown as Broadcast
+          );
+
+          if (!result) {
+            throw new Error("Profile update failed");
+          }
         }
 
         // Mirror the Instagram handle into userbase_identities so the IG
@@ -522,10 +574,31 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
           // ignore — Hive write is the source of truth
         }
 
+        // Mirror the BTC address into userbase_identities (type='btc') so the
+        // DB stays in sync with Hive metadata. Non-fatal like the IG mirror.
+        try {
+          if (btcNormalized) {
+            await fetch("/api/userbase/profile/btc", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ address: btcNormalized, source: "edit_profile" }),
+            });
+          } else {
+            await fetch("/api/userbase/profile/btc", {
+              method: "DELETE",
+              credentials: "include",
+            });
+          }
+        } catch {
+          // ignore — Hive write is the source of truth
+        }
+
         // Update parent component with new data
         const updatedData = {
           ...formData,
           instagram: sanitizedIg || "",
+          btc_address: btcNormalized,
           profileImage: finalProfileImage,
           coverImage: finalCoverImage,
           zineCover: finalZineCover,
@@ -818,6 +891,28 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
 
                 {EthereumWalletSection}
 
+                <FormControl
+                  isInvalid={
+                    !!formData.btc_address.trim() &&
+                    !validateBtcAddress(formData.btc_address)
+                  }
+                >
+                  <FormLabel>Bitcoin Address</FormLabel>
+                  <Input
+                    value={formData.btc_address}
+                    onChange={handleFormChange("btc_address")}
+                    placeholder="bc1... / 1... / 3..."
+                    fontFamily="mono"
+                    size="sm"
+                  />
+                  {!!formData.btc_address.trim() &&
+                    !validateBtcAddress(formData.btc_address) && (
+                      <Text fontSize="xs" color="red.400" mt={1}>
+                        That doesn&apos;t look like a valid Bitcoin address.
+                      </Text>
+                    )}
+                </FormControl>
+
                 <FormControl>
                   <Flex gap={2} align="center">
                     <FormLabel mb={0} minWidth="80px">
@@ -937,6 +1032,8 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
           imageSrc={tempImageForCrop || ""}
           onCropComplete={handleCropComplete}
           aspectRatio={1000 / 1300}
+          outputMaxDimension={1300}
+          outputFileName="magazine-cover.jpg"
           title="Crop Magazine Cover"
         />
       </>

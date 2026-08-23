@@ -7,6 +7,7 @@ import { useFarcasterSession } from "@/hooks/useFarcasterSession";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import AccountLinkingModal from "./AccountLinkingModal";
 import { useAccountLinkingOpportunities } from "@/hooks/useAccountLinkingOpportunities";
+import { isMultiAccountTransition } from "@/lib/userbase/accountLinking";
 
 /**
  * Component that automatically detects when a new wallet is connected
@@ -14,7 +15,7 @@ import { useAccountLinkingOpportunities } from "@/hooks/useAccountLinkingOpportu
  */
 export default function AccountLinkingDetector() {
   const { user: userbaseUser } = useUserbaseAuth();
-  const { user: hiveUser } = useAioha();
+  const { user: hiveUser, otherUsers } = useAioha();
   const { address: evmAddress, isConnected: isEvmConnected } = useAccount();
   const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } = useFarcasterSession();
   const { hasUnlinkedOpportunities, opportunities, refresh, isLoading } = useAccountLinkingOpportunities();
@@ -59,7 +60,16 @@ export default function AccountLinkingDetector() {
 
     // Detect new Hive connection
     if (hiveUser && prevHiveRef.current !== hiveUser) {
-      const isNewConnection = prevHiveRef.current !== null;
+      const previousHiveUser = prevHiveRef.current;
+      const isNewConnection = previousHiveUser !== null;
+      // Multi-account login also changes `hiveUser` — both switching between
+      // accounts and adding one keep the previous account as an aioha "other
+      // login". That's deliberate account management, not a wallet we just
+      // discovered, so it must not trigger the linking prompt.
+      const isMultiAccountActivity = isMultiAccountTransition(
+        previousHiveUser,
+        otherUsers
+      );
       prevHiveRef.current = hiveUser;
 
       // Only prompt if this Hive account is genuinely not linked
@@ -67,7 +77,7 @@ export default function AccountLinkingDetector() {
         (o) => o.type === "hive" && o.handle?.toLowerCase() === hiveUser.toLowerCase() && !o.alreadyLinked
       );
 
-      if (hiveNotLinked && isNewConnection && !hasShownForSession) {
+      if (hiveNotLinked && isNewConnection && !isMultiAccountActivity && !hasShownForSession) {
         const timeoutId = setTimeout(() => {
           setIsModalOpen(true);
           setHasShownForSession(true);
@@ -138,6 +148,7 @@ export default function AccountLinkingDetector() {
   }, [
     userbaseUser,
     hiveUser,
+    otherUsers,
     evmAddress,
     isEvmConnected,
     isFarcasterConnected,

@@ -26,6 +26,79 @@ function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+const PROFILE_FIELDS =
+  "id, handle, display_name, avatar_url, cover_url, bio, location, status, onboarding_step";
+
+// Bounded retries for the onboarding_step compare-and-swap below. Contention is
+// between a handful of the same user's own PATCHes, so it settles immediately.
+const ONBOARDING_CAS_ATTEMPTS = 5;
+
+/**
+ * ORs `flag` into userbase_users.onboarding_step without ever dropping bits set
+ * concurrently.
+ *
+ * A plain read → OR → write loses updates: the onboarding modal can fire two
+ * PATCHes at nearly the same time (saving a photo while the silent flag sync
+ * runs), both read the same value, and the second write clobbers the first —
+ * leaving the user stuck on a step they already finished.
+ *
+ * The Supabase JS client can't express `onboarding_step = onboarding_step | $1`,
+ * so this does a compare-and-swap instead: the UPDATE only matches while the row
+ * still holds the value we read. A racing PATCH invalidates the match, and we
+ * re-read and retry against the new value rather than overwriting it.
+ *
+ * Returns the resulting onboarding_step, or null if the write failed.
+ */
+async function orOnboardingStep(
+  userId: string,
+  flag: number
+): Promise<number | null> {
+  for (let attempt = 0; attempt < ONBOARDING_CAS_ATTEMPTS; attempt++) {
+    const { data: current, error: readError } = await supabase!
+      .from("userbase_users")
+      .select("onboarding_step")
+      .eq("id", userId)
+      .single();
+
+    if (readError || !current) {
+      console.error("Failed to read onboarding_step:", readError);
+      return null;
+    }
+
+    const currentStep: number | null = current.onboarding_step ?? null;
+    const nextStep: number = (currentStep ?? 0) | flag;
+    // Already set — nothing to write, and no CAS needed.
+    if (nextStep === currentStep) return nextStep;
+
+    const update = supabase!
+      .from("userbase_users")
+      .update({ onboarding_step: nextStep })
+      .eq("id", userId);
+
+    // The guard has to match on IS NULL rather than = NULL for rows that have
+    // never been through onboarding.
+    const { data: written, error: writeError } = await (
+      currentStep === null
+        ? update.is("onboarding_step", null)
+        : update.eq("onboarding_step", currentStep)
+    )
+      .select("onboarding_step")
+      .maybeSingle();
+
+    if (writeError) {
+      console.error("Failed to update onboarding_step:", writeError);
+      return null;
+    }
+    if (written) return written.onboarding_step;
+    // No row matched → another PATCH landed first. Re-read and retry.
+  }
+
+  console.error(
+    `onboarding_step CAS gave up after ${ONBOARDING_CAS_ATTEMPTS} attempts for user ${userId}`
+  );
+  return null;
+}
+
 async function getUserByHandle(handle: string) {
   const { data, error } = await supabase!
     .from("userbase_users")
@@ -246,10 +319,10 @@ export async function PATCH(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { display_name, avatar_url, cover_url, bio, location, handle } = body;
+    const { display_name, avatar_url, cover_url, bio, location, handle, onboarding_step_flag } = body;
 
     // Build update object with only provided fields
-    const updateData: Record<string, string | null> = {};
+    const updateData: Record<string, string | number | null> = {};
     if (display_name !== undefined) updateData.display_name = display_name;
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
     if (cover_url !== undefined) updateData.cover_url = cover_url;
@@ -261,24 +334,48 @@ export async function PATCH(request: NextRequest) {
       // Normalize handle
       const normalizedHandle = handle ? handle.trim().toLowerCase() : null;
       if (normalizedHandle) {
-        const validation = validateHiveUsernameFormat(normalizedHandle);
-        if (!validation.isValid) {
+        const { data: currentUser, error: currentUserError } = await supabase
+          .from("userbase_users")
+          .select("handle")
+          .eq("id", userId)
+          .single();
+
+        if (currentUserError) {
+          console.error("Failed to load current handle:", currentUserError);
           return NextResponse.json(
-            { error: validation.error || "Invalid Hive username format" },
-            { status: 400 }
+            { error: "Failed to update profile" },
+            { status: 500 }
           );
         }
-        if (await checkHiveAccountExists(normalizedHandle)) {
-          return NextResponse.json(
-            { error: "Handle already in use on Hive" },
-            { status: 409 }
-          );
+
+        // Skip validation/uniqueness checks when the handle is unchanged (no-op update)
+        if (normalizedHandle !== currentUser?.handle) {
+          const validation = validateHiveUsernameFormat(normalizedHandle);
+          if (!validation.isValid) {
+            return NextResponse.json(
+              { error: validation.error || "Invalid Hive username format" },
+              { status: 400 }
+            );
+          }
+          if (await checkHiveAccountExists(normalizedHandle)) {
+            return NextResponse.json(
+              { error: "Handle already in use on Hive" },
+              { status: 409 }
+            );
+          }
         }
       }
       updateData.handle = normalizedHandle;
     }
 
-    if (Object.keys(updateData).length === 0) {
+    // onboarding_step_flag: bitmask OR — only adds bits, never removes them
+    // bit 0 (1) = photo, bit 1 (2) = bio, bit 2 (4) = intro post
+    // Applied in its own compare-and-swap write so concurrent PATCHes can't
+    // drop each other's bits — see orOnboardingStep.
+    const wantsOnboardingFlag =
+      typeof onboarding_step_flag === "number" && onboarding_step_flag > 0;
+
+    if (Object.keys(updateData).length === 0 && !wantsOnboardingFlag) {
       return NextResponse.json(
         { error: "No fields to update" },
         { status: 400 }
@@ -286,28 +383,70 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Update user profile
-    const { data: updatedUser, error: updateError } = await supabase
-      .from("userbase_users")
-      .update(updateData)
-      .eq("id", userId)
-      .select(
-        "id, handle, display_name, avatar_url, cover_url, bio, location, status, onboarding_step"
-      )
-      .single();
+    let updatedUser = null;
+    if (Object.keys(updateData).length > 0) {
+      const { data, error: updateError } = await supabase
+        .from("userbase_users")
+        .update(updateData)
+        .eq("id", userId)
+        .select(PROFILE_FIELDS)
+        .single();
 
-    if (updateError) {
-      // Check for unique constraint violation on handle
-      if (updateError.code === "23505") {
+      if (updateError) {
+        // Check for unique constraint violation on handle
+        if (updateError.code === "23505") {
+          return NextResponse.json(
+            { error: "Handle is already taken" },
+            { status: 409 }
+          );
+        }
+        console.error("Failed to update user profile:", updateError);
         return NextResponse.json(
-          { error: "Handle is already taken" },
-          { status: 409 }
+          { error: "Failed to update profile" },
+          { status: 500 }
         );
       }
-      console.error("Failed to update user profile:", updateError);
-      return NextResponse.json(
-        { error: "Failed to update profile" },
-        { status: 500 }
-      );
+      updatedUser = data;
+    }
+
+    // Deliberately after the field update: the flag says "this step is done",
+    // so setting it before the data lands would let a failed save skip the user
+    // past a step whose photo/bio never persisted. Failing in this order is the
+    // harmless direction — the data is saved and the client's silent flag sync
+    // catches the bitmask up on a later render.
+    let onboardingStep: number | null = null;
+    if (wantsOnboardingFlag) {
+      onboardingStep = await orOnboardingStep(userId, onboarding_step_flag);
+      if (onboardingStep === null) {
+        return NextResponse.json(
+          { error: "Failed to update onboarding progress" },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (!updatedUser) {
+      // Flag-only PATCH — read the row back so the response shape is unchanged.
+      const { data, error: readError } = await supabase
+        .from("userbase_users")
+        .select(PROFILE_FIELDS)
+        .eq("id", userId)
+        .single();
+
+      if (readError) {
+        console.error("Failed to read user profile:", readError);
+        return NextResponse.json(
+          { error: "Failed to update profile" },
+          { status: 500 }
+        );
+      }
+      updatedUser = data;
+    }
+
+    // The field update and the CAS are separate writes, so prefer the value the
+    // CAS actually committed over the one the field update read back.
+    if (onboardingStep !== null && updatedUser) {
+      updatedUser = { ...updatedUser, onboarding_step: onboardingStep };
     }
 
     return NextResponse.json({ user: updatedUser });

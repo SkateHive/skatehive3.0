@@ -56,7 +56,14 @@ const nextConfig = {
     compress: true,
     poweredByHeader: false,
     reactStrictMode: true,
-    
+
+    // Type-checking and linting run in CI (GitHub Actions), NOT during the
+    // Vercel build. That build-time `tsc` + ESLint pass was the dominant deploy
+    // cost (~10 min of a ~12 min deploy); moving it to CI cuts deploys to ~2 min
+    // without losing the safety net — see .github/workflows/ci.yml.
+    typescript: { ignoreBuildErrors: true },
+    eslint: { ignoreDuringBuilds: true },
+
     // Performance optimizations
     compiler: {
         removeConsole: process.env.NODE_ENV === 'production' ? {
@@ -96,7 +103,6 @@ const nextConfig = {
         // into direct subpath imports. These libs all have large index.ts
         // re-exports that defeat tree-shaking otherwise.
         optimizePackageImports: [
-            '@chakra-ui/react',
             '@chakra-ui/icons',
             'react-icons',
             'wagmi',
@@ -111,7 +117,7 @@ const nextConfig = {
     // out of the bundler entirely so they're required at runtime from
     // node_modules. Also silences the libheif-js "Critical dependency"
     // warning that adds compile time on every build.
-    serverExternalPackages: ['libheif-js', 'heic-convert', 'heic-decode', 'sharp'],
+    serverExternalPackages: ['libheif-js', 'heic-convert', 'heic-decode', 'sharp', 'jsdom', 'isomorphic-dompurify'],
 
     // ESM-only packages that webpack chokes on inside dynamically-imported chunks
     // (e.g. @aioha/providers exposes "./react" with only an "import" condition,

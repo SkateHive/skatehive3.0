@@ -2,8 +2,10 @@
  * Caption builder for Instagram cross-posts.
  *
  * IG caption limits: 2200 chars total, max 30 hashtags. URLs in captions are
- * NOT clickable, so we still include the SkateHive permalink as a text reference
- * (people can copy-paste; we also expect bio-link strategy long-term).
+ * NOT clickable on Instagram, so we deliberately omit the SkateHive permalink —
+ * a bare link just adds noise. Discovery is handled via the @-credit + hashtags
+ * (and a bio-link strategy long-term). `permalinkUrl` is still accepted on the
+ * input for callers/back-compat but is intentionally not rendered.
  */
 
 const IG_CAPTION_LIMIT = 2200;
@@ -121,11 +123,11 @@ export function buildInstagramCaption(input: BuildCaptionInput): string {
   const credit = input.igHandle
     ? `@${input.igHandle} on SkateHive`
     : `By ${input.hiveAuthor} on SkateHive`;
-  const link = input.permalinkUrl;
 
   // Headline = title for long-form, otherwise the credit line itself.
+  // NOTE: the SkateHive permalink is intentionally omitted — see file header.
   const headline = title || credit;
-  const fixed = [headline, title ? credit : "", link, "", hashtagLine]
+  const fixed = [headline, title ? credit : "", "", hashtagLine]
     .filter(Boolean)
     .join("\n");
   const remaining = IG_CAPTION_LIMIT - fixed.length - 2; // 2 for blank line around excerpt
@@ -137,7 +139,6 @@ export function buildInstagramCaption(input: BuildCaptionInput): string {
 
   const parts: string[] = [headline];
   if (title) parts.push(credit);
-  parts.push(link);
   if (safeExcerpt) parts.push("", safeExcerpt);
   parts.push("", hashtagLine);
 

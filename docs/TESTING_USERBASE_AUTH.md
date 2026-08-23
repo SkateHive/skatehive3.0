@@ -17,7 +17,7 @@ We've implemented a **Multi-Identity Authentication System** called **Userbase**
 - ✅ Farcaster integration (Neynar API)
 - ✅ One-click identity linking with automatic routing
 - ✅ Account merging for duplicate identities
-- ✅ Profile mode switching (Hive, Zora, Farcaster)
+- ✅ Profile mode switching (Hive, Farcaster)
 
 ---
 
@@ -130,8 +130,6 @@ Issues: [describe any issues]
 - [ ] Wallet popup appears
 - [ ] After approval, logged in
 - [ ] Profile shows wallet address or ENS name
-- [ ] Can view tokens tab on profile
-- [ ] Zora profile toggle available (if applicable)
 
 **Report:**
 ```
@@ -197,18 +195,16 @@ Issues: [describe any issues]
 - [ ] Wallet popup appears immediately
 - [ ] After signing, NO preview modal (invisible flow)
 - [ ] Success toast appears: "Wallet linked!"
-- [ ] Automatically routes to `/user/[your-handle]?mode=zora` (Zora profile mode)
-- [ ] Can view tokens/NFTs tab on profile
+- [ ] Automatically routes to `/user/[your-handle]`
 - [ ] ENS name (if available) is displayed
 - [ ] ENS avatar (if available) is used
 - [ ] Wallet address shown in connection modal and settings
-- [ ] Profile mode can be switched between App Account and Zora
 
 **Timing:**
 - [ ] Challenge generation: < 2 seconds
 - [ ] Wallet signature: < 1 minute (depends on user)
 - [ ] Verification: < 30 seconds
-- [ ] Total flow: < 2 minutes from click to Zora profile
+- [ ] Total flow: < 2 minutes from click to profile
 
 **Edge Cases:**
 - [ ] If wallet is already linked to another account → Shows merge confirmation
@@ -241,7 +237,7 @@ Issues: [describe any issues]
 - [ ] Automatically routes to `/user/[your-handle]?mode=farcaster` (Farcaster profile mode)
 - [ ] Farcaster profile data displayed (username, FID, PFP, bio)
 - [ ] All verified EVM addresses from Farcaster are automatically linked
-- [ ] Can switch between App Account, Hive, Zora, and Farcaster modes
+- [ ] Can switch between App Account, Hive, and Farcaster modes
 
 **Timing:**
 - [ ] Neynar API fetch: < 5 seconds (with timeout)
@@ -403,14 +399,13 @@ Issues: [describe any issues]
 2. Open Connection Modal (click user button in sidebar)
 3. Observe the identity logos (Hive, Ethereum, Farcaster)
 4. Click the Hive logo → Should route to `/user/[hive-username]`
-5. Open modal again, click Ethereum logo → Should route to `/user/[handle]?mode=zora`
+5. Open modal again, click Ethereum logo → Should route to `/user/[handle]`
 6. Open modal again, click Farcaster logo → Should route to `/user/[handle]?mode=farcaster`
 7. Open modal again, click App Account section → Should route to `/user/[handle]` (default mode)
 
 **Expected Results:**
 - [ ] Each logo click routes to the correct profile mode
 - [ ] Hive mode shows: Posts, followers, HP, Hive snaps
-- [ ] Zora mode shows: NFTs, tokens, collections
 - [ ] Farcaster mode shows: Casts, FID, social graph
 - [ ] App Account mode shows: Display name, bio, soft posts (email-only content)
 - [ ] Connection button in sidebar shows appropriate name for current mode:
@@ -514,7 +509,7 @@ Issues: [describe any issues]
 | 3 | Hive Keychain only | | |
 | 4 | Ethereum only | | |
 | 5 | Email + link Hive (one-click, auto-route) | | |
-| 6 | Email + link Ethereum (one-click, Zora mode) | | |
+| 6 | Email + link Ethereum (one-click, auto-route) | | |
 | 6b | Email + link Farcaster (one-click) | | |
 | 7 | Hive first + email | | |
 | 8 | Post snap (email user) | | |

@@ -1,0 +1,77 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Box, Button, Flex, Grid, Text, useBreakpointValue } from "@chakra-ui/react";
+import { useRouter } from "next/navigation";
+import { formatEther } from "viem";
+import type { BountyRef } from "@/types/homepage-config";
+import type { FeaturedSpot } from "@/lib/spotmap/featured";
+import SpotNearYou from "@/components/homepage/SpotNearYou";
+import { P, MONO } from "./palette";
+
+export function SpotAndRewards({ initialFeaturedSpot, bounties }: { initialFeaturedSpot: FeaturedSpot | null; bounties: BountyRef[] }) {
+  const router = useRouter();
+  // Equal-height only matters side-by-side (md+). On mobile the two cards stack,
+  // so stretching the spot to fill has nothing to match and just distorts it.
+  const fillSpot = useBreakpointValue({ base: false, md: true }, { fallback: "md" }) ?? false;
+
+  // ETH→USD for per-line poidh bounty values (amount is stored as ETH wei).
+  const [ethUsd, setEthUsd] = useState(0);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/prices")
+      .then((r) => r.json())
+      .then((d) => { if (live) setEthUsd(d?.ethereum?.usd ?? 0); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  const bountyUsd = (b: BountyRef): string | null => {
+    if (b.source !== "poidh" || !b.amount || !ethUsd) return null;
+    try {
+      const usd = parseFloat(formatEther(BigInt(b.amount))) * ethUsd;
+      return usd >= 1 ? `$${Math.round(usd).toLocaleString("en-US")}` : `$${usd.toFixed(2)}`;
+    } catch {
+      return null;
+    }
+  };
+
+  return (
+    <Grid id="spots" templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="24px" mt="48px" fontFamily={MONO} alignItems="stretch">
+      {/* Discover a Spot — the SAME location-based widget as the homepage.
+          Stretched to match the bounties card height only on md+ (side by side);
+          natural height when stacked on mobile. */}
+      <SpotNearYou initialSpot={initialFeaturedSpot} fill={fillSpot} />
+
+      {/* Open Bounties (the rewards total lives in the index rail now) */}
+      <Flex id="rewards" direction="column" justify="space-between" border={`2px solid ${P.card}`} p="24px">
+        <Box>
+          <Text fontWeight={800} fontSize="18px" color={P.accent} textTransform="uppercase" mb="10px" textAlign="center">Open Bounties &#127919;</Text>
+          <Box>
+            {bounties.length === 0 && <Text fontSize="13px" color={P.faint}>Sem bounties abertos.</Text>}
+            {bounties.map((b, i) => {
+              const title = b.source === "poidh" ? b.name || `Bounty ${b.id}` : b.title;
+              const value = bountyUsd(b);
+              return (
+                <Flex key={i} align="center" gap="10px" py="10px" borderTop={`1px solid ${P.card}`} fontSize="14px">
+                  <Box w="8px" h="8px" bg={P.accent} flexShrink={0} />
+                  <Box minW={0} flex="1">
+                    <Text fontWeight={700} color={P.body} isTruncated>{title}</Text>
+                    {value && (
+                      <Text fontSize="12px" color={P.accent} fontWeight={800} letterSpacing="0.5px">
+                        {value}
+                      </Text>
+                    )}
+                  </Box>
+                </Flex>
+              );
+            })}
+          </Box>
+        </Box>
+        <Button className="cursor-target" onClick={() => router.push("/bounties")} mt="18px" bg={P.accent} border="none" borderRadius={0} color={P.onAccent} fontFamily={MONO} fontWeight={800} letterSpacing="1px" py="14px" h="auto" _hover={{ bg: P.accentHover }}>
+          VIEW ALL BOUNTIES
+        </Button>
+      </Flex>
+    </Grid>
+  );
+}

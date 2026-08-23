@@ -15,8 +15,10 @@ export interface UserbaseUser {
   handle: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  bio: string | null;
   status: string;
   onboarding_step: number;
+  created_at: string;
 }
 
 interface UserbaseAuthContextValue {
@@ -63,8 +65,10 @@ export function UserbaseAuthProvider({ children }: { children: React.ReactNode }
       a.handle === b.handle &&
       a.display_name === b.display_name &&
       a.avatar_url === b.avatar_url &&
+      a.bio === b.bio &&
       a.status === b.status &&
-      a.onboarding_step === b.onboarding_step
+      a.onboarding_step === b.onboarding_step &&
+      a.created_at === b.created_at
     );
   }, []);
 

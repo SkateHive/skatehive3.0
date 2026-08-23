@@ -10,53 +10,12 @@ import { FaTwitter, FaLink, FaThumbsDown, FaCode, FaFacebook } from "react-icons
 import React, { useMemo, useCallback } from "react";
 import { useFarcasterContext } from "@/hooks/useFarcasterContext";
 import useHiveVote from "@/hooks/useHiveVote";
-import { APP_CONFIG } from "@/config/app.config";
 import { isSpotPost } from "@/lib/utils/parseSpotBody";
 
 // Lazy load heavy modals
-const CoinCreationModal = dynamic(() => import("@/components/shared/CoinCreationModal").then(mod => ({ default: mod.CoinCreationModal })), { ssr: false });
 const DevMetadataDialog = dynamic(() => import("./DevMetadataDialog"), { ssr: false });
 
-// Regex patterns - defined outside component to prevent recreation on every render
-const IMAGE_REGEX = /!\[.*?\]\((.*?)\)/g;
-const VIDEO_FILE_REGEX =
-  /\[.*?\]\((.*?\.(mp4|webm|mov|avi|mkv|flv|wmv|m4v|ogv)(\?[^\s]*)?)\)/gi;
-const VIDEO_TAG_REGEX = /<video[^>]*src=["']([^"']+)["'][^>]*>/gi;
-const DIRECT_VIDEO_REGEX =
-  /https?:\/\/[^\s]+\.(mp4|webm|mov|avi|mkv|flv|wmv|m4v|ogv)(\?[^\s]*)?/gi;
-const IPFS_REGEX =
-  /https?:\/\/(?:ipfs\.skatehive\.app|gateway\.ipfs\.io|ipfs\.io\/ipfs)\/[\s\)]+/gi;
-const MARKDOWN_MEDIA_REGEX = /!\[.*?\]\((https?:\/\/[^\)]+)\)/gi;
-
-const ipfsGatewayHost = APP_CONFIG.IPFS_GATEWAY;
-
-const POTENTIAL_VIDEO_REGEX =
-  /https?:\/\/(?:(?:www\.)?(?:youtube\.com\/watch|youtu\.be\/|vimeo\.com\/|dailymotion\.com\/video\/)|[^\s]+\/[^\s]*(?:video|stream|media)[^\s]*)/gi;
-
-// Media detection patterns
-const MARKDOWN_IMAGE_PATTERN = /!\[.*?\]\([^\)]+\)/gi;
-const VIDEO_EXTENSION_PATTERN =
-  /\.(mp4|webm|mov|avi|mkv|flv|wmv|m4v|ogv)(\?[^\s]*)?/gi;
-const IPFS_URL_PATTERN =
-  /https?:\/\/(?:ipfs\.skatehive\.app|gateway\.ipfs\.io|ipfs\.io\/ipfs)\/[^\s]+/gi;
-const VIDEO_TAG_PATTERN = /<video[^>]*>[\s\S]*?<\/video>/gi;
-
-// Utility function to check if a URL might be a video by making a HEAD request
-const checkIfUrlIsVideo = async (url: string): Promise<boolean> => {
-  try {
-    const response = await fetch(url, {
-      method: "HEAD",
-      mode: "cors",
-    });
-    const contentType = response.headers.get("content-type") || "";
-    return contentType.startsWith("video/");
-  } catch (error) {
-    // If we can't check, assume IPFS URLs might be videos if they're from skatehive
-    return url.includes(ipfsGatewayHost);
-  }
-};
-
-// Minimal interface for what we need for sharing and coin creation
+// Minimal interface for what we need for sharing
 interface ShareablePost {
   author: string;
   permlink: string;
@@ -107,12 +66,7 @@ const ShareMenuButtons = ({ comment }: ShareMenuButtonsProps) => {
   const { onCopy } = useClipboard(postLink);
   const toast = useToast();
   const { isInFrame, composeCast } = useFarcasterContext();
-  const { effectiveUser, vote, canVote } = useHiveVote();
-  const {
-    isOpen: isCoinModalOpen,
-    onOpen: onCoinModalOpen,
-    onClose: onCoinModalClose,
-  } = useDisclosure();
+  const { vote, canVote } = useHiveVote();
 
   // Dev metadata dialog - only used in development
   const {
@@ -120,145 +74,6 @@ const ShareMenuButtons = ({ comment }: ShareMenuButtonsProps) => {
     onOpen: onMetadataOpen,
     onClose: onMetadataClose,
   } = useDisclosure();
-
-  // Parse json_metadata if it's a string
-  const parsedMetadata = useMemo(() => {
-    if (typeof comment.json_metadata === "string") {
-      try {
-        return JSON.parse(comment.json_metadata);
-      } catch {
-        return {};
-      }
-    }
-    return comment.json_metadata || {};
-  }, [comment.json_metadata]);
-
-  // Check if the post has media (images or videos)
-  const hasMedia = useMemo(() => {
-    // Check metadata first
-    const hasMetadataImages = (parsedMetadata.image?.length ?? 0) > 0;
-    const hasVideoFlag = parsedMetadata.has_video === true;
-
-    if (!comment.body) {
-      return hasMetadataImages || hasVideoFlag;
-    }
-
-    // Check for markdown image syntax in post body
-    const hasMarkdownImages = MARKDOWN_IMAGE_PATTERN.test(comment.body);
-
-    // Reset regex lastIndex to prevent issues with global regex
-    MARKDOWN_IMAGE_PATTERN.lastIndex = 0;
-
-    // Check for video file extensions in post body
-    const hasMarkdownVideos = VIDEO_EXTENSION_PATTERN.test(comment.body);
-    VIDEO_EXTENSION_PATTERN.lastIndex = 0;
-
-    // Check for IPFS video URLs
-    const hasIPFSVideos = IPFS_URL_PATTERN.test(comment.body);
-    IPFS_URL_PATTERN.lastIndex = 0;
-
-    // Check for HTML5 video tags
-    const hasVideoTags = VIDEO_TAG_PATTERN.test(comment.body);
-    VIDEO_TAG_PATTERN.lastIndex = 0;
-
-    return (
-      hasMetadataImages ||
-      hasMarkdownImages ||
-      hasVideoFlag ||
-      hasMarkdownVideos ||
-      hasIPFSVideos ||
-      hasVideoTags
-    );
-  }, [parsedMetadata.image, parsedMetadata.has_video, comment.body]);
-
-  // Extract image URLs from markdown content
-  const extractImageUrls = useMemo(() => {
-    if (!comment.body) return [];
-
-    const urls: string[] = [];
-    const imageRegex = new RegExp(IMAGE_REGEX.source, "g"); // Create new instance to avoid lastIndex issues
-    let match;
-
-    while ((match = imageRegex.exec(comment.body)) !== null) {
-      const url = match[1]?.trim();
-      if (url && !url.includes("[object") && !url.includes("undefined")) {
-        urls.push(url);
-      }
-    }
-
-    return urls;
-  }, [comment.body]);
-
-  // Extract video URLs from markdown content and HTML video tags
-  // Note: IPFS videos from skatehive.app often don't have file extensions,
-  // so we use metadata flags and URL patterns to detect them
-  const extractVideoUrls = useMemo(() => {
-    if (!comment.body) return [];
-
-    const videoUrls: string[] = [];
-
-    // Helper function to safely extract URLs with a regex
-    const extractUrlsWithRegex = (regex: RegExp, groupIndex: number = 0) => {
-      const regexInstance = new RegExp(regex.source, regex.flags);
-      let match;
-      while ((match = regexInstance.exec(comment.body!)) !== null) {
-        const url = match[groupIndex]?.trim();
-        if (url && !url.includes("[object") && !url.includes("undefined")) {
-          videoUrls.push(url);
-        }
-      }
-    };
-
-    // Extract from markdown links that point to video files
-    extractUrlsWithRegex(VIDEO_FILE_REGEX, 1);
-
-    // Extract from HTML5 video tags
-    extractUrlsWithRegex(VIDEO_TAG_REGEX, 1);
-
-    // Extract from direct video URLs in text (with extensions)
-    extractUrlsWithRegex(DIRECT_VIDEO_REGEX, 0);
-
-    // Extract IPFS URLs and other potential video URLs
-    extractUrlsWithRegex(IPFS_REGEX, 0);
-
-    // Extract from markdown image syntax that might actually be videos (common with IPFS)
-    extractUrlsWithRegex(MARKDOWN_MEDIA_REGEX, 1);
-
-    // Filter IPFS URLs from markdown that could be videos
-    const markdownUrls = [...videoUrls];
-    markdownUrls.forEach((url) => {
-      if (
-        url.includes(ipfsGatewayHost) ||
-        url.includes("gateway.ipfs.io") ||
-        url.includes("ipfs.io/ipfs")
-      ) {
-        if (!videoUrls.includes(url)) {
-          videoUrls.push(url);
-        }
-      }
-    });
-
-    // Extract any URL that might be a video based on common video hosting patterns
-    extractUrlsWithRegex(POTENTIAL_VIDEO_REGEX, 0);
-
-    // Remove duplicates
-    return [...new Set(videoUrls)];
-  }, [comment.body]);
-
-  const handleCoinCreation = useCallback(() => {
-    if (!hasMedia) {
-      toast({
-        title: "Media required",
-        description:
-          "Only posts with images or videos can be used to create coins",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    onCoinModalOpen();
-  }, [hasMedia, toast, onCoinModalOpen]);
 
   const handleDownvote = useCallback(async () => {
     if (!canVote) {
@@ -365,38 +180,6 @@ const ShareMenuButtons = ({ comment }: ShareMenuButtonsProps) => {
     [postLink, isInFrame, composeCast, toast, comment.author, onCopy]
   );
 
-  // Prepare post data for coin creation modal - memoized to prevent unnecessary re-renders
-  const postData = useMemo(
-    () => ({
-      title: comment.title || "",
-      body: comment.body || "",
-      author: comment.author,
-      permlink: comment.permlink,
-      parent_author: comment.parent_author || "",
-      parent_permlink: comment.parent_permlink || "",
-      json_metadata:
-        typeof comment.json_metadata === "string"
-          ? comment.json_metadata
-          : JSON.stringify(comment.json_metadata || {}),
-      images: [...(parsedMetadata.image || []), ...extractImageUrls].filter(
-        Boolean
-      ),
-      videos: extractVideoUrls,
-    }),
-    [
-      comment.title,
-      comment.body,
-      comment.author,
-      comment.permlink,
-      comment.parent_author,
-      comment.parent_permlink,
-      comment.json_metadata,
-      parsedMetadata.image,
-      extractImageUrls,
-      extractVideoUrls,
-    ]
-  );
-
   // Validate permlink to prevent [object Object] URLs
   if (typeof comment.permlink !== "string") {
     console.error(
@@ -418,24 +201,6 @@ const ShareMenuButtons = ({ comment }: ShareMenuButtonsProps) => {
           {isInFrame ? "Cast" : "Share on Farcaster"}
         </span>
       </MenuItem>
-      {effectiveUser === comment.author && (
-        <MenuItem
-          onClick={handleCoinCreation}
-          bg={"background"}
-          color={hasMedia ? "primary" : "gray.400"}
-          cursor={hasMedia ? "pointer" : "not-allowed"}
-          opacity={hasMedia ? 1 : 0.6}
-        >
-          <Image
-            src="/logos/Zorb.png"
-            alt="Zora Logo"
-            boxSize="16px"
-            mr={2}
-            display="inline-block"
-          />
-          Create Coin {!hasMedia && "(Requires Media)"}
-        </MenuItem>
-      )}
       <MenuItem
         onClick={() => handleShare("x")}
         bg={"background"}
@@ -494,12 +259,6 @@ const ShareMenuButtons = ({ comment }: ShareMenuButtonsProps) => {
           [DEV] Metadata
         </MenuItem>
       )}
-      {/* Coin Creation Modal */}
-      <CoinCreationModal
-        isOpen={isCoinModalOpen}
-        onClose={onCoinModalClose}
-        postData={postData}
-      />
       {/* Dev Metadata Dialog - only renders in development */}
       <DevMetadataDialog
         isOpen={isMetadataOpen}

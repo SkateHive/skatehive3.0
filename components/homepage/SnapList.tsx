@@ -8,14 +8,7 @@ import {
   HStack,
   Text,
   SimpleGrid,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
   useDisclosure,
-  Image,
 } from "@chakra-ui/react";
 import { FaGift, FaHive } from "react-icons/fa";
 import { useRouter } from "next/navigation";
@@ -31,7 +24,6 @@ import { SoftPostProvider } from "@/contexts/SoftPostContext";
 
 // Deferred — only loaded when user interacts
 const SnapComposer = dynamic(() => import("./SnapComposer"), { ssr: false });
-const CoinCreatorComposer = dynamic(() => import("./CoinCreatorComposer"), { ssr: false });
 const AirdropModal = dynamic(() => import("../airdrop/AirdropModal").then(m => m.AirdropModal), { ssr: false });
 
 interface SnapListProps {
@@ -45,6 +37,13 @@ interface SnapListProps {
   post?: boolean;
   data: InfiniteScrollData;
   hideComposer?: boolean;
+  /**
+   * Render the list as one conversation: rows are chained by the thread
+   * connector and the separators between them are dropped. Off by default —
+   * `post` alone is not enough, since bounty submissions are also comments on
+   * a post yet are independent entries rather than a discussion.
+   */
+  threadComments?: boolean;
 }
 
 interface InfiniteScrollData {
@@ -65,6 +64,7 @@ export default function SnapList({
   post = false,
   data,
   hideComposer = false,
+  threadComments = false,
 }: SnapListProps) {
   const { comments, loadNextPage, isLoading, hasMore } = data;
   const [displayedComments, setDisplayedComments] = useState<Discussion[]>([]);
@@ -73,9 +73,6 @@ export default function SnapList({
   const { canUseAppFeatures } = useEffectiveHiveUser(); // Hive connection (wallet or userbase)
   const { isConnected } = useAccount(); // Ethereum connection
   const router = useRouter(); // Next.js navigation
-
-  // Modal state for coin creator
-  const { isOpen, onOpen, onClose } = useDisclosure();
 
   // Modal state for airdrop
   const {
@@ -215,57 +212,6 @@ export default function SnapList({
                   <VStack spacing={6}>
                     {/* Action Buttons Grid */}
                     <SimpleGrid columns={2} spacing={4} w="full">
-                      {/* Create a Coin Button */}
-                      <Box
-                        w="full"
-                        p={3}
-                        bg="primary.50"
-                        _dark={{
-                          bg: "primary.900",
-                          borderColor: "primary.700",
-                        }}
-                        borderRadius="none"
-                        border="1px solid"
-                        borderColor="primary.200"
-                        cursor="pointer"
-                        transition="all 0.2s"
-                        _hover={{
-                          transform: "translateY(-2px)",
-                          boxShadow: "lg",
-                          borderColor: "primary.300",
-                        }}
-                        onClick={onOpen}
-                      >
-                        <HStack spacing={3}>
-                          <Box
-                            w={10}
-                            h={10}
-                            bg="primary.100"
-                            _dark={{ bg: "primary.800" }}
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="center"
-                          >
-                            <Image
-                              src="/logos/Zorb.png"
-                              alt="Coin Icon"
-                              boxSize="20px"
-                              objectFit="contain"
-                            />
-                          </Box>
-                          <VStack align="start" spacing={0} flex={1}>
-                            <Text
-                              fontSize="md"
-                              fontWeight="semibold"
-                              color="primary.600"
-                              _dark={{ color: "primary.200" }}
-                            >
-                              Post with Zora
-                            </Text>
-                          </VStack>
-                        </HStack>
-                      </Box>
-
                       {/* Create Airdrop Button */}
                       <Box
                         w="full"
@@ -427,24 +373,6 @@ export default function SnapList({
             </>
           )}
 
-          {/* Coin Creator Modal */}
-          <Modal
-            isOpen={isOpen}
-            onClose={onClose}
-            size="2xl"
-            scrollBehavior="inside"
-            isCentered
-          >
-            <ModalOverlay bg="blackAlpha.600" />
-            <ModalContent mx={4} my={8} bg="background">
-              <ModalHeader pb={2}>Create a Coin</ModalHeader>
-              <ModalCloseButton />
-              <ModalBody pb={6}>
-                <CoinCreatorComposer onClose={onClose} />
-              </ModalBody>
-            </ModalContent>
-          </Modal>
-
           {/* Airdrop Modal */}
           <AirdropModal
             isOpen={isAirdropOpen}
@@ -467,17 +395,35 @@ export default function SnapList({
           >
             <SoftPostProvider posts={filteredAndSortedComments}>
               <SoftVoteProvider posts={filteredAndSortedComments}>
-                <VStack spacing={1} align="stretch">
-                  {filteredAndSortedComments.map((discussion: Discussion) => (
-                    <Snap
-                      key={discussion.permlink}
-                      discussion={discussion}
-                      onOpen={onOpenConversation}
-                      setReply={setReply}
-                      {...(!post ? { setConversation } : {})}
-                      onDelete={handleDeleteComment}
-                    />
-                  ))}
+                <VStack
+                  spacing={1}
+                  align="stretch"
+                  // A threaded list is one conversation, so the connector is
+                  // what relates the rows; keeping the rules as well would say
+                  // "separate" and "chained" at the same time.
+                  divider={
+                    threadComments ? undefined : (
+                      <Box borderBottom="1px solid" borderColor="muted" />
+                    )
+                  }
+                >
+                  {filteredAndSortedComments.map(
+                    (discussion: Discussion, index: number) => (
+                      <Snap
+                        key={discussion.permlink}
+                        discussion={discussion}
+                        onOpen={onOpenConversation}
+                        setReply={setReply}
+                        {...(!post ? { setConversation } : {})}
+                        onDelete={handleDeleteComment}
+                        isCommentRow={threadComments}
+                        hasFollowingThreadRow={
+                          threadComments &&
+                          index < filteredAndSortedComments.length - 1
+                        }
+                      />
+                    )
+                  )}
                 </VStack>
               </SoftVoteProvider>
             </SoftPostProvider>

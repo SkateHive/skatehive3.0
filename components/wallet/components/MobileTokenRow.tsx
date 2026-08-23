@@ -17,6 +17,8 @@ interface MobileTokenRowProps {
   isExpanded: boolean;
   onToggleExpansion: () => void;
   onClick: () => void;
+  /** Render greyed with a "SET UP" badge (e.g. a not-set-up BTC row). */
+  isDim?: boolean;
 }
 
 export default function MobileTokenRow({
@@ -24,6 +26,7 @@ export default function MobileTokenRow({
   isExpanded,
   onToggleExpansion,
   onClick,
+  isDim,
 }: MobileTokenRowProps) {
   const primaryToken = consolidatedToken.primaryChain;
   const networkInfo = blockchainDictionary[primaryToken.network];
@@ -40,6 +43,7 @@ export default function MobileTokenRow({
         borderColor="border"
         _hover={{ bg: "subtle" }}
         transition="all 0.2s ease"
+        opacity={isDim ? 0.5 : 1}
       >
         <HStack justify="space-between" align="center" spacing={3}>
           <HStack spacing={3} flex={1}>
@@ -60,6 +64,11 @@ export default function MobileTokenRow({
                 >
                   {consolidatedToken.symbol}
                 </Text>
+                {isDim && (
+                  <Badge colorScheme="orange" fontSize="2xs" variant="outline">
+                    SET UP
+                  </Badge>
+                )}
                 {consolidatedToken.chains.length > 1 && (
                   <Badge
                     colorScheme="blue"

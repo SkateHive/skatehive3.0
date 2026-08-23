@@ -68,6 +68,32 @@ function getRenderableImageUrl(value: unknown): string | null {
   return null;
 }
 
+/**
+ * Satori (next/og) cannot embed WebP — and SkateHive thumbnails are stored as
+ * WebP on the IPFS gateway, so the OG card's thumbnail panel rendered blank.
+ * For Pinata/IPFS gateway URLs, request a JPEG via the gateway's native image
+ * transform (sized for the ~420px panel) so Satori can render it. Other hosts
+ * are left untouched.
+ */
+function toSatoriRenderableUrl(value: string | null): string | null {
+  if (!value) return value;
+  try {
+    const url = new URL(value);
+    const isGatewayImage =
+      url.hostname.includes("ipfs.skatehive.app") ||
+      url.hostname.includes("pinata") ||
+      url.pathname.includes("/ipfs/");
+    if (isGatewayImage) {
+      url.searchParams.set("img-format", "jpeg");
+      url.searchParams.set("img-width", "480");
+      url.searchParams.set("img-fit", "cover");
+      url.searchParams.set("img-quality", "80");
+      return url.href;
+    }
+  } catch {}
+  return value;
+}
+
 async function getPostData(author: string, permlink: string): Promise<PostData> {
   try {
     const cleanAuthor = author.replace(/^@/, "");
@@ -129,7 +155,8 @@ async function getPostData(author: string, permlink: string): Promise<PostData> 
       author: cleanAuthor,
       body,
       created: post.created || "",
-      bannerImage,
+      // Convert WebP→JPEG at the gateway so Satori can embed it (see helper).
+      bannerImage: toSatoriRenderableUrl(bannerImage),
       found: true,
     };
   } catch {

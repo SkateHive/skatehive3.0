@@ -14,7 +14,8 @@ import {
   SliderFilledTrack,
   SliderThumb,
 } from "@chakra-ui/react";
-import { LuArrowUp, LuArrowDown } from "react-icons/lu";
+import VoteStateIcon from "@/components/shared/VoteStateIcon";
+import useVoteIconState from "@/hooks/useVoteIconState";
 import useHiveVote from "@/hooks/useHiveVote";
 import { Discussion } from "@hiveio/dhive";
 import VoteListPopover from "@/components/blog/VoteListModal";
@@ -35,6 +36,10 @@ interface UpvoteButtonProps {
   setShowSlider?: (show: boolean) => void;
   className?: string;
   onUpvoteStoke?: (estimatedValue: number) => void; // New prop for UpvoteStoke integration
+  /** Opt-in: after a vote the check turns into a gift that opens the tip modal. */
+  enableTipping?: boolean;
+  /** Called when the gift is clicked. Owner renders the tip modal. */
+  onTipClick?: () => void;
 }
 
 const UpvoteButton = ({
@@ -52,6 +57,8 @@ const UpvoteButton = ({
   setShowSlider,
   className,
   onUpvoteStoke,
+  enableTipping = false,
+  onTipClick,
 }: UpvoteButtonProps) => {
   const { vote, effectiveUser, canVote } = useHiveVote();
   const toast = useToast();
@@ -63,7 +70,6 @@ const UpvoteButton = ({
   const [sliderValue, setSliderValue] = useState(userVoteWeight);
   const [isVoting, setIsVoting] = useState(false);
   const [lastVoteTime, setLastVoteTime] = useState(0);
-  const [isHovered, setIsHovered] = useState(false);
 
   // Refs for immediate concurrency/debounce checks (non-atomic state guard)
   const isVotingRef = useRef(false);
@@ -82,6 +88,11 @@ const UpvoteButton = ({
     });
     return Array.from(uniqueVotesMap.values());
   }, [activeVotes]);
+
+  const { iconState, markJustVoted } = useVoteIconState({
+    voted,
+    enableTipping,
+  });
 
 const handleVote = useCallback(
     async (votePercentage: number = sliderValue) => {
@@ -134,6 +145,7 @@ const handleVote = useCallback(
         if (voteResult.success) {
           // On Hive, voting again overwrites the previous vote, so we always set voted to true
           setVoted(true);
+          markJustVoted();
           
           // Update active votes - prevent race conditions by using current activeVotes
           const currentVotes = [...activeVotes];
@@ -207,6 +219,7 @@ const handleVote = useCallback(
       discussion.author,
       discussion.permlink,
       sliderValue,
+      markJustVoted,
       activeVotes,
       estimateVoteValue,
       onVoteSuccess,
@@ -221,6 +234,12 @@ const handleVote = useCallback(
   );
 
   const handleHeartClick = useCallback(() => {
+    // In the tip state the button is no longer a vote control.
+    if (iconState === "tip") {
+      onTipClick?.();
+      return;
+    }
+
     // Don't allow voting if user info is still loading
     if (isLoading) {
       toast({
@@ -253,6 +272,8 @@ const handleVote = useCallback(
     isLoading,
     toast,
     handleVote,
+    iconState,
+    onTipClick,
   ]);
 
   
@@ -273,26 +294,12 @@ const handleVote = useCallback(
             justifyContent="center"
             cursor="pointer"
             onClick={handleHeartClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
             p={1}
             _hover={{ opacity: 0.7 }}
             transition="opacity 0.2s"
             className={`upvote-container ${className}`}
           >
-            {voted || isHovered ? (
-              <LuArrowUp
-                size={24}
-                color={voted ? "#22c55e" : "var(--chakra-colors-primary)"}
-                style={{ opacity: 1 }}
-              />
-            ) : (
-              <LuArrowDown
-                size={24}
-                color="var(--chakra-colors-primary)"
-                style={{ opacity: 1 }}
-              />
-            )}
+            <VoteStateIcon state={iconState} />
           </Box>
         </Tooltip>
       </HStack>
@@ -315,32 +322,19 @@ const handleVote = useCallback(
             justifyContent="center"
             cursor="pointer"
             onClick={handleHeartClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
             p={1}
             _hover={{ opacity: 0.7 }}
             transition="opacity 0.2s"
             className={`upvote-container ${className}`}
           >
-            {voted || isHovered ? (
-              <LuArrowUp
-                size={24}
-                color={voted ? "#22c55e" : "var(--chakra-colors-primary)"}
-                style={{ opacity: 1 }}
-              />
-            ) : (
-              <LuArrowDown
-                size={24}
-                color="var(--chakra-colors-primary)"
-                style={{ opacity: 1 }}
-              />
-            )}
+            <VoteStateIcon state={iconState} />
           </Box>
         </Tooltip>
         <VoteListPopover
           trigger={
             <Button
               variant="ghost"
+              color="primary"
               size={size}
               p={1}
               _hover={{ textDecoration: "underline" }}
@@ -374,32 +368,19 @@ const handleVote = useCallback(
               justifyContent="center"
               cursor="pointer"
               onClick={handleHeartClick}
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
               p={1}
               _hover={{ opacity: 0.7 }}
               transition="opacity 0.2s"
               className={`upvote-container ${className}`}
             >
-              {voted || isHovered ? (
-                <LuArrowUp
-                  size={24}
-                  color={voted ? "#22c55e" : "var(--chakra-colors-primary)"}
-                  style={{ opacity: 1 }}
-                />
-              ) : (
-                <LuArrowDown
-                  size={24}
-                  color="var(--chakra-colors-primary)"
-                  style={{ opacity: 1 }}
-                />
-              )}
+              <VoteStateIcon state={iconState} />
             </Box>
           </Tooltip>
           <VoteListPopover
             trigger={
               <Button
                 variant="ghost"
+                color="primary"
                 size={size}
                 p={1}
                 _hover={{ textDecoration: "underline" }}
@@ -494,32 +475,19 @@ const handleVote = useCallback(
             justifyContent="center"
             cursor="pointer"
             onClick={handleHeartClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
             p={1}
             _hover={{ opacity: 0.7 }}
             transition="opacity 0.2s"
             className={`upvote-container ${className}`}
           >
-            {voted || isHovered ? (
-              <LuArrowUp
-                size={24}
-                color={voted ? "#22c55e" : "var(--chakra-colors-primary)"}
-                style={{ opacity: 1 }}
-              />
-            ) : (
-              <LuArrowDown
-                size={24}
-                color="var(--chakra-colors-primary)"
-                style={{ opacity: 1 }}
-              />
-            )}
+            <VoteStateIcon state={iconState} />
           </Box>
         </Tooltip>
         <VoteListPopover
           trigger={
             <Button
               variant="ghost"
+              color="primary"
               size={size}
               p={1}
               _hover={{ textDecoration: "underline" }}

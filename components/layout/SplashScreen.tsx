@@ -54,7 +54,7 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
     >
       <Center flexDirection="column">
         <Image
-          src="https://www.skatehive.app/SKATE_HIVE_VECTOR_FIN.svg"
+          src="/SKATE_HIVE_VECTOR_FIN.svg"
           alt="Skatehive Logo"
           width="250px"
         />

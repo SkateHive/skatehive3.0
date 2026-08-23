@@ -260,21 +260,30 @@ export default function useSoftPostOverlay(
   const normalizedPermlink = permlink?.trim();
   const key = getKey(normalizedAuthor, normalizedPermlink);
 
-  // Memoize the posts array to prevent unnecessary re-renders and race conditions
-  const posts = useMemo(() => {
-    // Skip building posts array when context provides data
-    if (context) return [];
-    if (!normalizedAuthor || !normalizedPermlink) return [];
-    return [{ author: normalizedAuthor, permlink: normalizedPermlink, safe_user: safeUser }];
-  }, [context, normalizedAuthor, normalizedPermlink, safeUser]);
+  // What the batch provider (if any) already knows for this post.
+  const contextHit =
+    context && normalizedAuthor && normalizedPermlink
+      ? context.getPost(normalizedAuthor, normalizedPermlink)
+      : null;
 
-  // This triggers the fetch only when there's no context provider
+  // Memoize the posts array to prevent unnecessary re-renders and race conditions.
+  const posts = useMemo(() => {
+    if (!normalizedAuthor || !normalizedPermlink) return [];
+    // Already resolved by the batch provider — no individual fetch needed.
+    if (contextHit) return [];
+    // Context MISS: the SoftPostProvider only batches top-level feed items, so
+    // replies (and anything else not in the batch) fall through here. Only worth
+    // an individual fetch when this looks like a shared-account soft post — those
+    // carry skatehive_user in their json_metadata (-> safeUser) — so normal
+    // replies don't each trigger a request.
+    if (context && !safeUser) return [];
+    return [{ author: normalizedAuthor, permlink: normalizedPermlink, safe_user: safeUser }];
+  }, [context, contextHit, normalizedAuthor, normalizedPermlink, safeUser]);
+
+  // Triggers a fetch when there's no provider, or on a context miss for a
+  // soft-post candidate (replies).
   const overlays = useSoftPostOverlays(posts);
 
-  // Prefer batch context if available
-  if (context && normalizedAuthor && normalizedPermlink) {
-    return context.getPost(normalizedAuthor, normalizedPermlink);
-  }
-
+  if (contextHit) return contextHit;
   return key ? overlays[key] ?? null : null;
 }

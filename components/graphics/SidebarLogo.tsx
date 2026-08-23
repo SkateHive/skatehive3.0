@@ -33,7 +33,7 @@ const SidebarLogo = ({ prioritizeAuctionImage = false }: SidebarLogoProps) => {
     <Image
       src={
         activeAuction?.token?.image ||
-        "https://www.skatehive.app/SKATE_HIVE_VECTOR_FIN.svg"
+        "/SKATE_HIVE_VECTOR_FIN.svg"
       }
       alt="SkateHive Hover Logo"
       style={{ width: "100%", height: "100%", objectFit: "cover" }}

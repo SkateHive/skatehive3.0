@@ -54,6 +54,8 @@ export const metadata: Metadata = {
   alternates: { canonical: `${BASE_URL}/cinema` },
 };
 
+export const revalidate = 300; // ISR: render once, refresh every 5 min (static-safe page)
+
 export default function CinemaPage() {
   const jsonLd = {
     "@context": "https://schema.org",

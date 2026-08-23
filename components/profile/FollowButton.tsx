@@ -15,6 +15,8 @@ interface FollowButtonProps {
   isLiteUser?: boolean;
   /** If true, broadcast follow through the server with the DB-stored posting key */
   useStoredPostingKey?: boolean;
+  /** Called after a follow/unfollow is confirmed with the follower-count delta (+1 or -1) */
+  onFollowConfirmed?: (delta: number) => void;
 }
 
 export default function FollowButton({
@@ -26,6 +28,7 @@ export default function FollowButton({
   onLoadingChange,
   isLiteUser = false,
   useStoredPostingKey = false,
+  onFollowConfirmed,
 }: FollowButtonProps) {
   const toast = useToast();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -55,8 +58,14 @@ export default function FollowButton({
         if (!response.ok) {
           throw new Error(data?.error || "Failed to update follow status");
         }
-        onFollowingChange(Boolean(data?.isFollowing));
+        // Trust the server's explicit boolean when present; fall back to `next`
+        // (the action that was actually performed) when the upstream doesn't
+        // return isFollowing (e.g. a raw Hive broadcast result).
+        const confirmedFollowing =
+          typeof data?.isFollowing === "boolean" ? data.isFollowing : next;
+        onFollowingChange(confirmedFollowing);
         onLoadingChange(false);
+        onFollowConfirmed?.(confirmedFollowing ? +1 : -1);
         return;
       }
 
@@ -70,6 +79,7 @@ export default function FollowButton({
         if (backendState === next) {
           onFollowingChange(next);
           onLoadingChange(false);
+          onFollowConfirmed?.(next ? +1 : -1);
         } else if (tries < maxTries) {
           setTimeout(poll, 1000);
         } else {
@@ -109,6 +119,7 @@ export default function FollowButton({
     toast,
     isLiteUser,
     useStoredPostingKey,
+    onFollowConfirmed,
   ]);
 
   // Show button for lite users (to trigger upgrade modal) or for logged in users

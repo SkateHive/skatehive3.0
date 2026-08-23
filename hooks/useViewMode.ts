@@ -2,25 +2,28 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+const VIEW_MODES = ["grid", "list", "magazine", "videoparts", "snaps", "casts"] as const;
+type ViewMode = typeof VIEW_MODES[number];
+
 export default function useViewMode() {
     const router = useRouter();
     const isInitialMount = useRef(true);
 
     // Get the initial view mode from the URL
-    const getInitialViewMode = () => {
+    const getInitialViewMode = (): ViewMode => {
         if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
             const viewParam = params.get("view") ?? '';
-            if (["grid", "list", "magazine", "videoparts", "snaps", "tokens", "casts"].includes(viewParam)) {
-                return viewParam as "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts";
+            if ((VIEW_MODES as readonly string[]).includes(viewParam)) {
+                return viewParam as ViewMode;
             }
         }
         return "snaps";
     };
 
-    const [viewMode, setViewMode] = useState<"grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts">(getInitialViewMode);
+    const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode);
 
-    const handleViewModeChange = useCallback((mode: "grid" | "list" | "magazine" | "videoparts" | "snaps" | "tokens" | "casts") => {
+    const handleViewModeChange = useCallback((mode: ViewMode) => {
         setViewMode(mode);
         if (typeof window !== "undefined") {
             localStorage.setItem("profileViewMode", mode);

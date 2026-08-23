@@ -10,27 +10,59 @@ function getBaseUrl(request: NextRequest) {
   return `${url.protocol}//${url.host}`;
 }
 
+function tokensMatch(a: string, b: string): boolean {
+  // timingSafeEqual requires equal-length buffers. Comparing the sha256
+  // digests instead of the raw strings gives us both fixed length and
+  // constant-time equality.
+  const aHash = crypto.createHash("sha256").update(a).digest();
+  const bHash = crypto.createHash("sha256").update(b).digest();
+  return crypto.timingSafeEqual(aHash, bHash);
+}
+
+/**
+ * Accept either:
+ *   - x-userbase-token: <USERBASE_INTERNAL_TOKEN>       (manual / internal triggers)
+ *   - Authorization: Bearer <CRON_SECRET>               (Vercel Cron — this header
+ *                                                        is sent automatically when
+ *                                                        CRON_SECRET is set in the
+ *                                                        Vercel project env)
+ *
+ * Either match is enough. Before this dual-auth the Vercel nightly cron was
+ * bouncing on the internal-token check and syncHiveSpots() never ran, so the
+ * spotmap drifted between deploys. Keeping the internal-token path for the
+ * userbase soft-post/vote retries that are also fired by this endpoint.
+ */
 function requireInternalToken(request: NextRequest) {
-  const requiredToken = process.env.USERBASE_INTERNAL_TOKEN;
-  if (!requiredToken) {
+  const internalToken = process.env.USERBASE_INTERNAL_TOKEN;
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!internalToken && !cronSecret) {
     if (process.env.NODE_ENV === "production") {
       return NextResponse.json(
-        { error: "USERBASE_INTERNAL_TOKEN is required in production" },
+        {
+          error:
+            "Either USERBASE_INTERNAL_TOKEN or CRON_SECRET must be set in production",
+        },
         { status: 500 }
       );
     }
     return null;
   }
 
-  const providedToken = request.headers.get("x-userbase-token") || "";
-  const requiredHash = crypto.createHash("sha256").update(requiredToken).digest();
-  const providedHash = crypto.createHash("sha256").update(providedToken).digest();
-
-  if (!crypto.timingSafeEqual(requiredHash, providedHash)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (internalToken) {
+    const provided = request.headers.get("x-userbase-token") || "";
+    if (provided && tokensMatch(internalToken, provided)) return null;
   }
 
-  return null;
+  if (cronSecret) {
+    const authHeader = request.headers.get("authorization") || "";
+    const bearer = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : "";
+    if (bearer && tokensMatch(cronSecret, bearer)) return null;
+  }
+
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
 export async function GET(request: NextRequest) {

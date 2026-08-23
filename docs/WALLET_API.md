@@ -134,29 +134,6 @@ Proxies to: `https://api.geckoterminal.com/api/v2/networks/{network}/tokens/{add
 
 ---
 
-## Zora Coin
-
-### `GET /api/zora/coin`
-
-Fetches logo, name, market cap and 24h change for a **Zora network** ERC-20 token using the `@zoralabs/coins-sdk`.
-
-**Params:** `address` (token contract), `chainId` (default `7777777`)
-
-**Response:**
-```json
-{
-  "image": "https://...",
-  "name": "Zora Coin Name",
-  "symbol": "ZCN",
-  "marketCap": 50000,
-  "marketCapDelta24h": 2.5
-}
-```
-
-**Used by:** `components/wallet/components/TokenLogo.tsx` to load logos for Zora tokens (with in-memory cache to avoid repeated calls per render).
-
----
-
 ## PIX / SkateBank Proxy
 
 ### `GET /api/pix?path=skatebank`

@@ -21,6 +21,12 @@ import MapTabs, { MapTabKey } from "./MapTabs";
 import SpotSnapComposer from "./SpotSnapComposer";
 import SpotList from "./SpotList";
 import { useSkatespots } from "@/hooks/useSkatespots";
+import { useAioha } from "@aioha/react-ui";
+
+// Same allowlist enforced server-side in app/api/spotmap/kml-new/route.ts
+// — kept in sync so the button doesn't render for anyone the API would
+// then 403.
+const KML_DOWNLOAD_ALLOWLIST = new Set(["web-gnar", "xvlad"]);
 
 interface MapPageShellProps {
   activeTab: MapTabKey;
@@ -47,6 +53,9 @@ export default function MapPageShell({
     onClose: onComposerClose,
   } = useDisclosure();
   const { spots, isLoading, hasMore, loadNextPage, error, refresh } = useSkatespots();
+  const { user } = useAioha();
+  const canDownloadKml =
+    typeof user === "string" && KML_DOWNLOAD_ALLOWLIST.has(user.toLowerCase());
 
   const handleNewSpot = (newComment: Partial<Discussion>) => {
     setNewSpot(newComment as Discussion);
@@ -101,23 +110,41 @@ export default function MapPageShell({
                 for skaters
               </Text>
             </Box>
-            <Button
-              size="sm"
-              bg="primary"
-              color="background"
-              border="1px solid"
-              borderColor="primary"
-              borderRadius="md"
-              px={5}
-              fontWeight="800"
-              fontSize="sm"
-              flexShrink={0}
-              alignSelf={{ base: "center", md: "auto" }}
-              _hover={{ bg: "accent", color: "text" }}
-              onClick={onComposerOpen}
-            >
-              + {t("addASpot")}
-            </Button>
+            <Flex gap={2} flexShrink={0} alignSelf={{ base: "center", md: "auto" }} wrap="wrap" justify={{ base: "center", md: "flex-end" }}>
+              {canDownloadKml && typeof user === "string" && (
+                <Button
+                  as="a"
+                  href={`/api/spotmap/kml-new?as=${encodeURIComponent(user)}`}
+                  size="sm"
+                  variant="outline"
+                  borderColor="primary"
+                  color="primary"
+                  borderRadius="md"
+                  px={4}
+                  fontWeight="700"
+                  fontSize="sm"
+                  _hover={{ bg: "primary", color: "background" }}
+                  title="Download every Hive-sourced spot as a KML you can bulk-import into Google My Maps."
+                >
+                  ↓ KML
+                </Button>
+              )}
+              <Button
+                size="sm"
+                bg="primary"
+                color="background"
+                border="1px solid"
+                borderColor="primary"
+                borderRadius="md"
+                px={5}
+                fontWeight="800"
+                fontSize="sm"
+                _hover={{ bg: "accent", color: "text" }}
+                onClick={onComposerOpen}
+              >
+                + {t("addASpot")}
+              </Button>
+            </Flex>
           </Flex>
 
           {/* Tab row */}

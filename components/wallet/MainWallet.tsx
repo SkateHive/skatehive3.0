@@ -3,6 +3,9 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useFarcasterSession } from "../../hooks/useFarcasterSession";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import useMarketPrices from "@/hooks/useMarketPrices";
+import { useBtcBalance } from "@/hooks/useBtcBalance";
+import { useRegisteredBtcAddress } from "@/hooks/useRegisteredBtcAddress";
+import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
 import { useBankActions } from "@/hooks/wallet";
 import { useAccount } from "wagmi";
 import { useTranslations } from "@/contexts/LocaleContext";
@@ -30,6 +33,7 @@ import { extractNumber } from "@/lib/utils/extractNumber";
 import { Asset } from "@hiveio/dhive";
 import HivePowerSection from "./HivePowerSection";
 import SkateBankSection from "./SkateBankSection";
+import SavingsJarsSection from "./SavingsJarsSection";
 import NFTSection from "./NFTSection";
 
 import { PortfolioProvider } from "@/contexts/PortfolioContext";
@@ -41,45 +45,52 @@ import ClaimRewards from "./components/ClaimRewards";
 import UnifiedWalletTable from "./UnifiedWalletTable";
 import UnifiedSwapSection from "./UnifiedSwapSection";
 import WalletErrorBoundary from "./WalletErrorBoundary";
-import ZoraCoinsSection from "./ZoraCoinsSection";
-import { useZoraWalletData } from "@/hooks/useZoraWalletData";
 
 const HBD_SAVINGS_APR = 0.15; // 15% annual interest rate on HBD Savings
 
-type ChainFilter = "all" | "hive" | "evm" | "farcaster" | "zora";
+type ChainFilter = "all" | "hive" | "evm" | "farcaster";
 
 interface MainWalletProps {
   username?: string;
 }
 
 export default function MainWallet({ username }: MainWalletProps) {
-  const { user } = useAioha();
+  const { user: aiohaUser } = useAioha();
+  const { identities: linkedIdentities, hiveIdentity } = useLinkedIdentities();
+  // Effective Hive user: prefer the Keychain/Aioha session, else the Hive
+  // identity linked to the userbase (email / sponsored) account. This makes the
+  // Hive wallet VISIBLE without Hive Keychain. Money-moving actions (send,
+  // power up, savings, swaps) still sign through the child modals' own Aioha, so
+  // they prompt to connect Keychain when there's no active key — Keychain stays
+  // an extra tool, only needed to move funds.
+  const user = aiohaUser || hiveIdentity?.handle || null;
   const { hiveAccount, isLoading } = useHiveAccount(user || "");
   const { claimInterest } = useBankActions();
   const { isConnected, address } = useAccount();
   const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } =
     useFarcasterSession();
 
-  const { identities: linkedIdentities } = useLinkedIdentities();
-
-  // Collect all EVM addresses for Zora enrichment (active wagmi + linked DB)
-  const allEvmAddresses = useMemo(() => {
-    const addrs: string[] = [];
-    if (address) addrs.push(address);
-    linkedIdentities
-      .filter((i) => i.type === "evm" && i.address)
-      .forEach((i) => addrs.push(i.address!));
-    return [...new Set(addrs)];
-  }, [address, linkedIdentities]);
-
-  const { heldCoins: zoraHeld, createdCoins: zoraCreated, isLoading: isZoraLoading } =
-    useZoraWalletData(allEvmAddresses);
-
   const [isMounted, setIsMounted] = useState(false);
   const [chainFilter, setChainFilter] = useState<ChainFilter>("all");
   const [hivePower, setHivePower] = useState<string | undefined>(undefined);
 
-  const { hivePrice, hbdPrice, isPriceLoading } = useMarketPrices();
+  const { hivePrice, hbdPrice, btcPrice, isPriceLoading } = useMarketPrices();
+
+  // Self-claimed BTC address — prefer on-chain Hive metadata, fall back to the
+  // userbase DB so any save path is honored by the swap / Claim-to-BTC flows.
+  const metaBtc = useMemo(() => {
+    const raw = hiveAccount?.json_metadata;
+    if (!raw) return "";
+    try {
+      const migrated = migrateLegacyMetadata(JSON.parse(raw));
+      return migrated.extensions?.wallets?.btc_address || "";
+    } catch {
+      return "";
+    }
+  }, [hiveAccount?.json_metadata]);
+  const btcAddress = useRegisteredBtcAddress(user, metaBtc);
+
+  const { balanceBtc } = useBtcBalance(btcAddress);
   const toast = useToast();
   const t = useTranslations();
 
@@ -217,15 +228,14 @@ export default function MainWallet({ username }: MainWalletProps) {
     return (hive + hp) * hivePrice + (hbd + hbdSav) * hbdPrice;
   }, [user, hivePrice, hbdPrice, hiveBalances, hivePower]);
 
-  const zoraTotalValue = useMemo(
-    () => zoraHeld.reduce((sum, c) => sum + parseFloat(c.valueUsd ?? "0"), 0),
-    [zoraHeld],
-  );
+  const btcValue = useMemo(() => {
+    if (!balanceBtc || !btcPrice) return 0;
+    return balanceBtc * btcPrice;
+  }, [balanceBtc, btcPrice]);
 
   const hasLinkedFarcaster = linkedIdentities.some((i) => i.type === "farcaster");
   const hasEVM = isMounted && (isConnected || isFarcasterConnected || hasLinkedFarcaster);
   const hasFarcaster = isMounted && (isFarcasterConnected || hasLinkedFarcaster);
-  const hasZora = isMounted && allEvmAddresses.length > 0;
 
   if ((isLoading && user) || !isMounted) {
     return (
@@ -259,12 +269,6 @@ export default function MainWallet({ username }: MainWalletProps) {
       label: "Farcaster",
       logo: "/logos/farcaster.svg",
       show: hasFarcaster,
-    },
-    {
-      key: "zora",
-      label: "Zora",
-      logo: "/logos/Zorb.png",
-      show: hasZora,
     },
   ];
 
@@ -380,7 +384,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                     <TotalPortfolioValue
                       totalHiveAssetsValue={totalHiveAssetsValue}
                       chainFilter={chainFilter}
-                      zoraTotalValue={zoraTotalValue}
+                      btcValue={btcValue}
                     />
 
                     {/* Chain filter pills */}
@@ -420,34 +424,26 @@ export default function MainWallet({ username }: MainWalletProps) {
                         ))}
                     </HStack>
 
-                    {/* Zora section (when zora filter active) */}
-                    {chainFilter === "zora" ? (
-                      <ZoraCoinsSection
-                        heldCoins={zoraHeld}
-                        createdCoins={zoraCreated}
-                        isLoading={isZoraLoading}
-                      />
-                    ) : (
-                      <>
-                        {/* Unified token table */}
-                        <UnifiedWalletTable
-                          chainFilter={chainFilter}
-                          hiveBalance={hiveBalances.balance}
-                          hbdBalance={hiveBalances.hbdBalance}
-                          hivePower={hivePower || "0"}
-                          hbdSavingsBalance={hiveBalances.hbdSavingsBalance}
-                          hivePrice={hivePrice}
-                          hbdPrice={hbdPrice}
-                          hiveUser={user}
-                        />
+                    {/* Unified token table */}
+                    <UnifiedWalletTable
+                      chainFilter={chainFilter}
+                      hiveBalance={hiveBalances.balance}
+                      hbdBalance={hiveBalances.hbdBalance}
+                      hivePower={hivePower || "0"}
+                      hbdSavingsBalance={hiveBalances.hbdSavingsBalance}
+                      hivePrice={hivePrice}
+                      hbdPrice={hbdPrice}
+                      hiveUser={user}
+                      btcAddress={btcAddress}
+                      btcBalance={balanceBtc}
+                      btcPrice={btcPrice}
+                    />
 
-                        {/* Hive activity history */}
-                        {showHiveExtras && (
-                          <Box mt={4}>
-                            <HiveTransactionHistory searchAccount={user} />
-                          </Box>
-                        )}
-                      </>
+                    {/* Hive activity history */}
+                    {showHiveExtras && (
+                      <Box mt={4}>
+                        <HiveTransactionHistory searchAccount={user} />
+                      </Box>
                     )}
                   </TabPanel>
 
@@ -482,6 +478,10 @@ export default function MainWallet({ username }: MainWalletProps) {
                             hiveAccount?.savings_withdraw_requests || 0
                           }
                           onClaimInterest={handleClaimHbdInterest}
+                        />
+                        <SavingsJarsSection
+                          hbdBalance={hiveBalances.hbdBalance}
+                          hbdPrice={hbdPrice}
                         />
                       </VStack>
                     </TabPanel>
@@ -522,6 +522,9 @@ export default function MainWallet({ username }: MainWalletProps) {
                   reward_hive_balance={hiveAccount?.reward_hive_balance}
                   reward_vesting_balance={hiveAccount?.reward_vesting_balance}
                   reward_vesting_hive={hiveAccount?.reward_vesting_hive}
+                  hivePower={hivePower}
+                  btcAddress={btcAddress}
+                  hiveBalance={String(hiveAccount?.balance || "0.000 HIVE")}
                 />
               )}
             </VStack>

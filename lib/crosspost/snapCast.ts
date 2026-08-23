@@ -47,8 +47,9 @@ export interface BuildSnapCastEmbedsInput {
  * Pick at most 2 embed URLs for a snap cast, mirroring the snap composer's
  * cross-post logic:
  *   - Image snaps:    first 1-2 images (Warpcast renders inline previews).
- *   - Video snaps:    snap URL first (so the frame renders), then videoUrl
- *                     as a hint for clients that support inline video.
+ *   - Video snaps:    ONLY the snap URL (Mini App). Farcaster can't inline-play
+ *                     an IPFS video, so the raw video URL just adds a broken
+ *                     card — people open the snap and watch in the Mini App.
  *   - Text-only:      snap URL alone (frame card).
  */
 export function buildSnapCastEmbeds({
@@ -60,7 +61,7 @@ export function buildSnapCastEmbeds({
     return imageUrls.slice(0, 2).map((url) => ({ url }));
   }
   if (videoUrl) {
-    return [{ url: snapUrl }, { url: videoUrl }];
+    return [{ url: snapUrl }];
   }
   return [{ url: snapUrl }];
 }

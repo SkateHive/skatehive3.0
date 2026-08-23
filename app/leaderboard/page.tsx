@@ -144,6 +144,8 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+export const revalidate = 300; // ISR: render once, refresh every 5 min (static-safe page)
+
 export default async function LeaderboardPage() {
   const { data: skatersData } = await processLeaderboardData(60); // 1 minute cache for page data
 

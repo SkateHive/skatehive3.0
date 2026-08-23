@@ -1,3 +1,5 @@
+"use client";
+
 import React, {
   useRef,
   useImperativeHandle,
@@ -6,8 +8,6 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile } from "@ffmpeg/util";
 import { Box, Input, Button, Text, Select } from "@chakra-ui/react";
 import { useTheme } from "@/app/themeProvider";
 import VideoTimeline from "./VideoTimeline";
@@ -169,13 +169,6 @@ const GIFMakerWithSelector = forwardRef<GIFMakerRef, GIFMakerWithSelectorProps>(
       }
     };
 
-    const seekDuringDrag = (time: number) => {
-      if (videoRef.current) {
-        videoRef.current.currentTime = time;
-        setCurrentTime(time);
-      }
-    };
-
     // Timeline change handlers
     const handleStartTimeChange = (newStartTime: number) => {
       setStartTime(newStartTime);
@@ -234,11 +227,13 @@ const GIFMakerWithSelector = forwardRef<GIFMakerRef, GIFMakerWithSelectorProps>(
       try {
         if (!ffmpegRef.current) {
           setStatus("Loading FFmpeg...");
+          const { FFmpeg } = await import("@ffmpeg/ffmpeg");
           ffmpegRef.current = new FFmpeg();
           await ffmpegRef.current.load();
         }
         const ffmpeg = ffmpegRef.current;
         setStatus("Converting to GIF...");
+        const { fetchFile } = await import("@ffmpeg/util");
         await ffmpeg.writeFile(videoFile.name, await fetchFile(videoFile));
         const vfCommand = `fps=${fps},scale=320:-1:flags=lanczos`; // Debug log
         
@@ -396,11 +391,7 @@ const GIFMakerWithSelector = forwardRef<GIFMakerRef, GIFMakerWithSelectorProps>(
                 currentTime={currentTime}
                 startTime={startTime || 0}
                 endTime={endTime || videoDuration}
-                isValidSelection={isValidSelection()}
-                maxDuration={6} // 6 second limit for GIFs
-                canBypass={false} // No bypass for GIFs
                 onSeek={seekTo}
-                onSeekDuringDrag={seekDuringDrag}
                 onStartTimeChange={handleStartTimeChange}
                 onEndTimeChange={handleEndTimeChange}
                 onDragStart={handleDragStart}

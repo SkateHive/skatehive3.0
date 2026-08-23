@@ -1,29 +1,27 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
-  Box, Text, Button, Input, HStack, VStack, Image,
+  Box, Text, Button, Input, HStack, VStack,
   Spinner, Tooltip, useToast, Checkbox,
-  Modal, ModalOverlay, ModalContent, ModalBody, ModalCloseButton,
-  InputGroup, InputLeftElement, InputRightElement, useDisclosure, Wrap, WrapItem,
+  InputGroup, InputRightElement, useDisclosure,
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
-import { FaExchangeAlt, FaInfoCircle, FaSearch, FaChevronDown, FaCheck, FaCog } from "react-icons/fa";
-import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceipt, useWriteContract, useSwitchChain } from "wagmi";
-import { parseUnits, parseEther, formatUnits, formatEther, maxUint256, isAddress, UserRejectedRequestError } from "viem";
-import { base } from "wagmi/chains";
-import { getCoin } from "@zoralabs/coins-sdk";
-import { useZoraTrade } from "@/hooks/useZoraTrade";
-import { useZoraWalletData } from "@/hooks/useZoraWalletData";
+import { FaExchangeAlt, FaInfoCircle, FaChevronDown, FaCog } from "react-icons/fa";
+import { useAccount, useBalance, useChainId, usePublicClient, useSendTransaction, useWaitForTransactionReceipt, useWriteContract, useSwitchChain } from "wagmi";
+import { LIDO_ABI, LIDO_REFERRAL, LIDO_STETH, isLidoStake } from "@/lib/evm/lido";
+import { isChainBoundWallet, chainBoundSwitchMessage } from "@/lib/evm/walletChain";
+import { parseUnits, formatUnits, formatEther, maxUint256, UserRejectedRequestError } from "viem";
 import { PortfolioContext } from "@/contexts/PortfolioContext";
+import TokenSelectorModal from "./TokenSelectorModal";
+import TokenChainLogo from "./TokenChainLogo";
+import {
+  defaultPair, getSwapChain, isNativeToken, networkToChainId, type SwapToken,
+} from "@/lib/evm/swapTokens";
 
 const shimmer = keyframes`
   0%   { background-position: -200% center; }
   100% { background-position:  200% center; }
 `;
-
-// ─── Token Definitions ───────────────────────────────────────────────────────
-
-const NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
 const ERC20_ABI = [
   {
@@ -37,356 +35,6 @@ const ERC20_ABI = [
     outputs: [{ type: "bool" }],
   },
 ] as const;
-
-type TokenSource = "standard" | "zora";
-
-interface TokenInfo {
-  symbol: string;
-  address: string;
-  decimals: number;
-  logo?: string;
-  name?: string;
-  source: TokenSource;
-  balance?: string; // human-readable, for Zora coins from wallet
-}
-
-const STANDARD_TOKENS_BY_CHAIN: Record<number, TokenInfo[]> = {
-  // Base
-  8453: [
-    { symbol: "ETH",   address: NATIVE,                                        decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "WETH",  address: "0x4200000000000000000000000000000000000006",  decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "USDC",  address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",  decimals: 6,  logo: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png", source: "standard" },
-    { symbol: "DAI",   address: "0x50c5725949a6f0c72e6c4a641f24049a917db0cb",  decimals: 18, source: "standard" },
-    { symbol: "DEGEN", address: "0x4ed4e862860bed51a9570b96d89af5e1b0efefed",  decimals: 18, logo: "/logos/degen.png", source: "standard" },
-    { symbol: "HIGHER",address: "0x0578d8a44db98b23bf096a382e016e29a5ce0ffe",  decimals: 18, logo: "/logos/higher.png", source: "standard" },
-  ],
-  // Ethereum
-  1: [
-    { symbol: "ETH",  address: NATIVE,                                         decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "WETH", address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",   decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "USDC", address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",   decimals: 6,  source: "standard" },
-    { symbol: "USDT", address: "0xdac17f958d2ee523a2206206994597c13d831ec7",   decimals: 6,  source: "standard" },
-    { symbol: "DAI",  address: "0x6b175474e89094c44da98b954eedeac495271d0f",   decimals: 18, source: "standard" },
-  ],
-  // Arbitrum
-  42161: [
-    { symbol: "ETH",  address: NATIVE,                                         decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "WETH", address: "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",   decimals: 18, logo: "/logos/ethereum_logo.png", source: "standard" },
-    { symbol: "USDC", address: "0xaf88d065e77c8cc2239327c5edb3a432268e5831",   decimals: 6,  source: "standard" },
-    { symbol: "ARB",  address: "0x912ce59144191c1204e64559fe8253a0e49e6548",   decimals: 18, source: "standard" },
-  ],
-};
-
-const CHAIN_NAMES: Record<number, string> = { 8453: "Base", 1: "Ethereum", 42161: "Arbitrum" };
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-/** Determine routing: if either token is Zora → bonding curve, else → 0x */
-function getRoute(sell: TokenInfo, buy: TokenInfo): "zora" | "0x" {
-  if (sell.source === "zora" || buy.source === "zora") return "zora";
-  return "0x";
-}
-
-// ─── Token Logo Helper ──────────────────────────────────────────────────────
-
-function TokenLogo({ token, size = "28px" }: { token: TokenInfo; size?: string }) {
-  if (token.logo) {
-    return (
-      <Image src={token.logo} w={size} h={size} objectFit="contain" borderRadius="full" alt=""
-        fallback={
-          <Box w={size} h={size} borderRadius="full" bg="border" display="flex"
-            alignItems="center" justifyContent="center">
-            <Text fontSize="xs" fontWeight="bold" color="text">{token.symbol[0]}</Text>
-          </Box>
-        } />
-    );
-  }
-  if (token.source === "zora") {
-    return <Image src="/logos/Zorb.png" w={size} h={size} borderRadius="full" alt="" />;
-  }
-  return (
-    <Box w={size} h={size} borderRadius="full" bg="border" display="flex"
-      alignItems="center" justifyContent="center">
-      <Text fontSize="xs" fontWeight="bold" color="text">{token.symbol[0]}</Text>
-    </Box>
-  );
-}
-
-// ─── Token Row ──────────────────────────────────────────────────────────────
-
-function TokenRow({ token, isSelected, isExcluded, onClick }: {
-  token: TokenInfo;
-  isSelected: boolean;
-  isExcluded: boolean;
-  onClick: () => void;
-}) {
-  const bal = token.balance ? parseFloat(token.balance) : null;
-  return (
-    <HStack
-      px={3} py={2.5}
-      cursor={isExcluded ? "not-allowed" : "pointer"}
-      opacity={isExcluded ? 0.3 : 1}
-      bg={isSelected ? "muted" : "transparent"}
-      borderLeft="2px solid"
-      borderColor={isSelected ? "primary" : "transparent"}
-      _hover={isExcluded ? {} : { bg: "muted", borderColor: "primary" }}
-      transition="all 0.1s"
-      onClick={onClick}
-      spacing={3}
-    >
-      <TokenLogo token={token} size="32px" />
-      <VStack spacing={0} align="start" flex={1} minW={0}>
-        <HStack spacing={1}>
-          <Text fontSize="sm" fontWeight="black" fontFamily="mono" color="text" isTruncated>
-            {token.symbol}
-          </Text>
-          {token.name && token.name !== token.symbol && (
-            <Text fontSize="xs" color="dim" fontFamily="mono" isTruncated>
-              {token.name}
-            </Text>
-          )}
-        </HStack>
-        <Text fontSize="9px" color="dim" fontFamily="mono" noOfLines={1}>
-          {token.address === NATIVE ? "Native coin" : `${token.address.slice(0, 6)}...${token.address.slice(-4)}`}
-        </Text>
-      </VStack>
-      <VStack spacing={0} align="end" flexShrink={0}>
-        {bal !== null && bal > 0 ? (
-          <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="text">
-            {bal < 0.0001 ? bal.toExponential(2) : bal < 1 ? bal.toFixed(4) : bal < 1000 ? bal.toFixed(2) : Math.floor(bal).toLocaleString()}
-          </Text>
-        ) : isSelected ? (
-          <FaCheck color="var(--chakra-colors-primary)" size={12} />
-        ) : null}
-      </VStack>
-    </HStack>
-  );
-}
-
-// ─── Token Picker (Matcha-style modal) ──────────────────────────────────────
-
-const POPULAR_SYMBOLS = ["ETH", "USDC", "DEGEN", "HIGHER"];
-
-function TokenPicker({
-  selected,
-  tokens,
-  onSelect,
-  onSearchClick,
-  label,
-  exclude,
-}: {
-  selected: TokenInfo;
-  tokens: TokenInfo[];
-  onSelect: (t: TokenInfo) => void;
-  onSearchClick: () => void;
-  label: string;
-  exclude?: string;
-}) {
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [query, setQuery] = useState("");
-
-  const popular = useMemo(
-    () => tokens.filter((t) => t.source === "standard" && POPULAR_SYMBOLS.includes(t.symbol)),
-    [tokens],
-  );
-
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    if (!q) return tokens;
-    return tokens.filter(
-      (t) =>
-        t.symbol.toLowerCase().includes(q) ||
-        (t.name?.toLowerCase().includes(q)) ||
-        t.address.toLowerCase().includes(q),
-    );
-  }, [query, tokens]);
-
-  const standardFiltered = filtered.filter((t) => t.source === "standard");
-  const zoraFiltered = filtered.filter((t) => t.source === "zora");
-
-  const handleSelect = (t: TokenInfo) => {
-    if (t.address === exclude) return;
-    onSelect(t);
-    setQuery("");
-    onClose();
-  };
-
-  return (
-    <>
-      <Button
-        size="sm"
-        variant="outline"
-        borderColor="border"
-        borderRadius="none"
-        fontFamily="mono"
-        fontWeight="black"
-        color="text"
-        px={2}
-        flexShrink={0}
-        onClick={onOpen}
-        leftIcon={<TokenLogo token={selected} size="18px" />}
-        rightIcon={<FaChevronDown size={10} />}
-        _hover={{ borderColor: "primary", color: "primary" }}
-        aria-label={label}
-      >
-        {selected.symbol}
-      </Button>
-
-      <Modal isOpen={isOpen} onClose={() => { setQuery(""); onClose(); }} size="md" isCentered>
-        <ModalOverlay backdropFilter="blur(6px)" bg="blackAlpha.700" />
-        <ModalContent
-          bg="background"
-          border="2px solid"
-          borderColor="primary"
-          borderRadius="none"
-          mx={4}
-          maxH="85vh"
-        >
-          <ModalCloseButton color="dim" top={3} right={3} />
-          <ModalBody px={0} py={0}>
-            {/* Search */}
-            <Box px={4} pt={4} pb={3}>
-              <InputGroup size="lg">
-                <InputLeftElement pointerEvents="none" h="100%">
-                  <FaSearch color="var(--chakra-colors-dim)" />
-                </InputLeftElement>
-                <Input
-                  placeholder="Search token name or paste address"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  bg="muted"
-                  border="1px solid"
-                  borderColor="border"
-                  borderRadius="none"
-                  fontFamily="mono"
-                  fontSize="sm"
-                  color="text"
-                  h="48px"
-                  _placeholder={{ color: "dim" }}
-                  _focus={{ borderColor: "primary", boxShadow: "none" }}
-                  autoFocus
-                />
-              </InputGroup>
-            </Box>
-
-            {/* Popular tokens row */}
-            {!query && popular.length > 0 && (
-              <Box px={4} pb={3}>
-                <Text fontSize="10px" fontFamily="mono" color="dim" textTransform="uppercase"
-                  letterSpacing="wider" mb={2}>
-                  Popular
-                </Text>
-                <Wrap spacing={2}>
-                  {popular.map((t) => {
-                    const isSel = t.address === selected.address;
-                    const isExcl = t.address === exclude;
-                    return (
-                      <WrapItem key={t.address}>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          borderColor={isSel ? "primary" : "border"}
-                          borderRadius="full"
-                          fontFamily="mono"
-                          fontWeight="bold"
-                          fontSize="xs"
-                          color={isSel ? "primary" : "text"}
-                          opacity={isExcl ? 0.3 : 1}
-                          cursor={isExcl ? "not-allowed" : "pointer"}
-                          leftIcon={<TokenLogo token={t} size="16px" />}
-                          onClick={() => handleSelect(t)}
-                          _hover={isExcl ? {} : { borderColor: "primary", bg: "muted" }}
-                          h="32px"
-                          px={3}
-                        >
-                          {t.symbol}
-                        </Button>
-                      </WrapItem>
-                    );
-                  })}
-                </Wrap>
-              </Box>
-            )}
-
-            {/* Divider */}
-            <Box h="1px" bg="border" />
-
-            {/* Token list */}
-            <VStack
-              spacing={0}
-              align="stretch"
-              maxH="400px"
-              overflowY="auto"
-              sx={{
-                "&::-webkit-scrollbar": { w: "4px" },
-                "&::-webkit-scrollbar-thumb": { bg: "border", borderRadius: "2px" },
-              }}
-            >
-              {/* Standard tokens */}
-              {standardFiltered.length > 0 && (
-                <Text fontSize="10px" fontFamily="mono" color="dim" textTransform="uppercase"
-                  letterSpacing="wider" px={4} pt={3} pb={1}>
-                  Tokens
-                </Text>
-              )}
-              {standardFiltered.map((t) => (
-                <TokenRow
-                  key={t.address}
-                  token={t}
-                  isSelected={t.address === selected.address}
-                  isExcluded={t.address === exclude}
-                  onClick={() => handleSelect(t)}
-                />
-              ))}
-
-              {/* Zora coins */}
-              {zoraFiltered.length > 0 && (
-                <Text fontSize="10px" fontFamily="mono" color="dim" textTransform="uppercase"
-                  letterSpacing="wider" px={4} pt={3} pb={1}
-                  borderTop="1px solid" borderColor="border" mt={1}>
-                  Zora Coins
-                </Text>
-              )}
-              {zoraFiltered.map((t) => (
-                <TokenRow
-                  key={t.address}
-                  token={t}
-                  isSelected={t.address === selected.address}
-                  isExcluded={t.address === exclude}
-                  onClick={() => handleSelect(t)}
-                />
-              ))}
-
-              {/* Zora search CTA */}
-              <Box
-                px={4} py={3} mt={1}
-                cursor="pointer"
-                borderTop="1px solid"
-                borderColor="border"
-                _hover={{ bg: "muted" }}
-                onClick={() => { setQuery(""); onClose(); onSearchClick(); }}
-              >
-                <HStack spacing={2} justify="center">
-                  <FaSearch size={10} color="var(--chakra-colors-primary)" />
-                  <Text fontSize="xs" fontFamily="mono" color="primary" fontWeight="bold">
-                    Search Zora coin by address
-                  </Text>
-                </HStack>
-              </Box>
-
-              {/* No results */}
-              {query && standardFiltered.length === 0 && zoraFiltered.length === 0 && (
-                <Box py={6} textAlign="center">
-                  <Text fontSize="xs" color="dim" fontFamily="mono">No tokens found</Text>
-                </Box>
-              )}
-            </VStack>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-    </>
-  );
-}
 
 // ─── Error helpers ──────────────────────────────────────────────────────────
 
@@ -404,6 +52,59 @@ function friendlyError(e: unknown): string {
   );
 }
 
+// ─── Token selector trigger ──────────────────────────────────────────────────
+
+function SelectorTrigger({
+  token,
+  onSelect,
+  excludeAddress,
+  activeChainId,
+  label,
+}: {
+  token: SwapToken;
+  onSelect: (t: SwapToken) => void;
+  excludeAddress?: string;
+  activeChainId: number;
+  label: string;
+}) {
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  return (
+    <>
+      <Button
+        h="44px"
+        variant="outline"
+        borderColor="border"
+        borderRadius="none"
+        bg="background"
+        fontFamily="mono"
+        fontWeight="black"
+        fontSize="md"
+        color="text"
+        pl={2}
+        pr={3}
+        flexShrink={0}
+        onClick={onOpen}
+        aria-label={label}
+        leftIcon={<TokenChainLogo token={token} size="28px" />}
+        rightIcon={<FaChevronDown size={11} />}
+        _hover={{ borderColor: "primary", color: "primary", bg: "muted" }}
+        _active={{ bg: "muted" }}
+        transition="all 0.12s"
+      >
+        {token.symbol}
+      </Button>
+      <TokenSelectorModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onSelect={onSelect}
+        selectedAddress={token.address}
+        excludeAddress={excludeAddress}
+        activeChainId={activeChainId}
+      />
+    </>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface ERC20SwapSectionProps {
@@ -415,77 +116,17 @@ interface ERC20SwapSectionProps {
 
 export default function ERC20SwapSection({ showFeeOption = false, compact = false }: ERC20SwapSectionProps) {
   const toast = useToast();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, connector } = useAccount();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
+  const { data: ethBalance } = useBalance({ address });
 
-  // ── Zora SDK trade hook (for Zora coin routes) ──────────────────────────
-  const {
-    executeTrade: executeZoraTrade,
-    getTradeQuote: getZoraQuote,
-    isTrading: isZoraTrading,
-    ethBalance,
-  } = useZoraTrade();
-
-  // ── Fetch user's held Zora coins ────────────────────────────────────────
-  const evmAddresses = useMemo(
-    () => (address ? [address] : []),
-    [address],
-  );
-  const { heldCoins } = useZoraWalletData(evmAddresses);
-
-  // ── Build unified token list ────────────────────────────────────────────
-  const standardTokens = useMemo(
-    () => STANDARD_TOKENS_BY_CHAIN[chainId] ?? STANDARD_TOKENS_BY_CHAIN[8453],
-    [chainId],
-  );
-
-  const zoraTokens: TokenInfo[] = useMemo(
-    () => heldCoins.map((c) => ({
-      address: c.address,
-      symbol: c.symbol,
-      name: c.name,
-      logo: c.logo ?? undefined,
-      decimals: 18,
-      source: "zora" as const,
-      balance: c.balance,
-    })),
-    [heldCoins],
-  );
-
-  // Use portfolio balances (already fetched by PortfolioProvider) — safe when outside provider
   const portfolioCtx = useContext(PortfolioContext);
   const portfolioTokens = portfolioCtx?.aggregatedPortfolio?.tokens;
 
-  const allTokens = useMemo(() => {
-    const ethBal = ethBalance ? formatEther(ethBalance.value) : undefined;
-
-    // Build a quick lookup: lowercase address → balance number
-    const balanceMap = new Map<string, number>();
-    if (portfolioTokens) {
-      for (const pt of portfolioTokens) {
-        const addr = (pt.token?.address ?? pt.address ?? "").toLowerCase();
-        const bal = pt.token?.balance ?? 0;
-        if (addr && bal > 0) balanceMap.set(addr, bal);
-      }
-    }
-
-    const enriched = standardTokens.map((t) => {
-      // ETH: use wagmi balance (more accurate/realtime)
-      if (t.address === NATIVE) {
-        return ethBal ? { ...t, balance: ethBal } : t;
-      }
-      // ERC-20: use portfolio API balance
-      const bal = balanceMap.get(t.address.toLowerCase());
-      return bal ? { ...t, balance: String(bal) } : t;
-    });
-
-    return [...enriched, ...zoraTokens];
-  }, [standardTokens, zoraTokens, ethBalance, portfolioTokens]);
-
   // ── Core state ──────────────────────────────────────────────────────────
-  const [sellToken, setSellToken] = useState<TokenInfo>(standardTokens[0]);
-  const [buyToken, setBuyToken] = useState<TokenInfo>(standardTokens[2] ?? standardTokens[1]);
+  const [sellToken, setSellToken] = useState<SwapToken>(() => defaultPair(chainId).sell);
+  const [buyToken, setBuyToken] = useState<SwapToken>(() => defaultPair(chainId).buy);
   const [sellAmount, setSellAmount] = useState("");
   const [supportFee, setSupportFee] = useState(true);
 
@@ -500,32 +141,29 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const [approvalTarget, setApprovalTarget] = useState<`0x${string}` | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
 
-  // ── Zora-specific state ────────────────────────────────────────────────
-  const [zoraEstimate, setZoraEstimate] = useState("");
+  // ── Lido direct stake (ETH → stETH on mainnet) ─────────────────────────
+  const lidoStake = isLidoStake(sellToken, buyToken);
+  const mainnetClient = usePublicClient({ chainId: 1 });
 
   // ── Shared state ────────────────────────────────────────────────────────
   const [isFetching, setIsFetching] = useState(false);
 
-  // ── Zora coin search ───────────────────────────────────────────────────
-  const [searchMode, setSearchMode] = useState(false);
-  const [searchAddress, setSearchAddress] = useState("");
-  const [searchResult, setSearchResult] = useState<TokenInfo | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-
-  const route = getRoute(sellToken, buyToken);
-  const isOnBase = chainId === base.id;
-
-  // ── Balance of the currently selected sell token (from enriched list) ────
+  // ── Balance of the currently selected sell token ─────────────────────────
   const sellBalance = useMemo(() => {
-    const match = allTokens.find(
-      (t) =>
-        t.address.toLowerCase() === sellToken.address.toLowerCase() &&
-        t.source === sellToken.source,
-    );
-    return match?.balance ? parseFloat(match.balance) : 0;
-  }, [allTokens, sellToken]);
+    if (isNativeToken(sellToken.address)) {
+      return ethBalance ? parseFloat(formatEther(ethBalance.value)) : 0;
+    }
+    if (portfolioTokens) {
+      for (const pt of portfolioTokens) {
+        if (networkToChainId(pt.network ?? "") !== sellToken.chainId) continue;
+        const addr = (pt.token?.address ?? pt.address ?? "").toLowerCase();
+        if (addr === sellToken.address.toLowerCase()) return pt.token?.balance ?? 0;
+      }
+    }
+    return 0;
+  }, [sellToken, ethBalance, portfolioTokens]);
 
-  const isNativeSell = sellToken.address === NATIVE;
+  const isNativeSell = isNativeToken(sellToken.address);
 
   const setAmountFromBalance = useCallback(
     (fraction: number) => {
@@ -536,7 +174,6 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
       if (amount <= 0) return;
       setSellAmount(String(Number(amount.toFixed(sellToken.decimals > 8 ? 8 : sellToken.decimals))));
       setPrice(null);
-      setZoraEstimate("");
     },
     [sellBalance, isNativeSell, sellToken.decimals],
   );
@@ -544,133 +181,121 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const insufficientBalance =
     !!sellAmount && parseFloat(sellAmount) > 0 && parseFloat(sellAmount) > sellBalance;
 
-  // Reset tokens when chain changes
+  // Realign tokens whenever the wallet chain changes and no longer matches
+  // (e.g. the user switched network directly in their wallet).
   useEffect(() => {
-    const list = STANDARD_TOKENS_BY_CHAIN[chainId] ?? STANDARD_TOKENS_BY_CHAIN[8453];
-    setSellToken(list[0]);
-    setBuyToken(list[2] ?? list[1]);
-    setSellAmount("");
-    setPrice(null);
-    setZoraEstimate("");
+    if (sellToken.chainId !== chainId || buyToken.chainId !== chainId) {
+      const dp = defaultPair(chainId);
+      setSellToken(dp.sell);
+      setBuyToken(dp.buy);
+      setSellAmount("");
+      setPrice(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chainId]);
 
-  // ── Search by address ─────────────────────────────────────────────────
-  useEffect(() => {
-    const addr = searchAddress.trim();
-    if (!isAddress(addr)) {
-      setSearchResult(null);
-      return;
-    }
-
-    // Check if already in token list
-    const existing = allTokens.find((t) => t.address.toLowerCase() === addr.toLowerCase());
-    if (existing) {
-      setSearchResult(null);
-      setBuyToken(existing);
-      setSearchMode(false);
-      setSearchAddress("");
+  // Pick a token; if it lives on another chain, switch the wallet network too.
+  const selectToken = useCallback(
+    async (side: "sell" | "buy", token: SwapToken) => {
+      if (token.chainId === chainId) {
+        if (side === "sell") setSellToken(token);
+        else setBuyToken(token);
+        setSellAmount("");
+        setPrice(null);
+        return;
+      }
+      // A Safe/WalletConnect session cannot switch chains — say so instead of
+      // sending a switch request that hangs the session.
+      if (isChainBoundWallet(connector)) {
+        toast({ title: "Network switch not possible", description: chainBoundSwitchMessage(token.chainId), status: "warning", duration: 8000, isClosable: true });
+        return;
+      }
+      // Cross-chain: set the whole pair for the new chain, then switch network.
+      const dp = defaultPair(token.chainId);
+      const sameAddr = (a: SwapToken) => a.address.toLowerCase() === token.address.toLowerCase();
+      const other =
+        side === "sell" ? (sameAddr(dp.buy) ? dp.sell : dp.buy) : (sameAddr(dp.sell) ? dp.buy : dp.sell);
+      setSellToken(side === "sell" ? token : other);
+      setBuyToken(side === "buy" ? token : other);
       setSellAmount("");
-      return;
-    }
+      setPrice(null);
+      try {
+        await switchChain({ chainId: token.chainId });
+      } catch (e) {
+        const back = defaultPair(chainId);
+        setSellToken(back.sell);
+        setBuyToken(back.buy);
+        if (isUserRejection(e))
+          toast({ title: "Network switch cancelled", status: "info", duration: 2000, isClosable: true });
+        else
+          toast({ title: "Could not switch network", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
+      }
+    },
+    [chainId, switchChain, toast, connector],
+  );
 
-    let cancelled = false;
-    setIsSearching(true);
-
-    getCoin({ address: addr, chain: 8453 })
-      .then((res) => {
-        if (cancelled) return;
-        const coin = (res as any)?.data?.zora20Token;
-        if (coin) {
-          const image =
-            coin.mediaContent?.previewImage?.medium ??
-            coin.mediaContent?.previewImage?.small ??
-            coin.mediaContent?.originalUri ??
-            null;
-          setSearchResult({
-            address: coin.address ?? addr,
-            symbol: coin.symbol ?? "???",
-            name: coin.name ?? "",
-            logo: image ?? undefined,
-            decimals: 18,
-            source: "zora",
-          });
-        } else {
-          setSearchResult(null);
-        }
-      })
-      .catch(() => { if (!cancelled) setSearchResult(null); })
-      .finally(() => { if (!cancelled) setIsSearching(false); });
-
-    return () => { cancelled = true; };
-  }, [searchAddress, allTokens]);
-
-  // ── Debounced quote fetch ─────────────────────────────────────────────
+  // ── Debounced quote fetch (0x Protocol) ───────────────────────────────
   useEffect(() => {
     if (!sellAmount || isNaN(Number(sellAmount)) || Number(sellAmount) <= 0 || !address) {
       setPrice(null);
-      setZoraEstimate("");
       return;
     }
 
     const timeout = setTimeout(async () => {
       setIsFetching(true);
       try {
-        if (route === "0x") {
-          // ── 0x Protocol route ──────────────────────────────────────
-          const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
-          const params = new URLSearchParams({
-            chainId: String(chainId),
-            sellToken: sellToken.address,
-            buyToken: buyToken.address,
-            sellAmount: rawAmount,
-            taker: address,
-            slippageBps: String(slippageBps),
-          });
-          if (supportFee) params.set("fee", "1");
-          const res = await fetch(`/api/0x/price?${params}`);
-          const data = await res.json();
-          setPrice(data);
-          setZoraEstimate("");
+        const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
 
-          const spender = data?.issues?.allowance?.spender ?? data?.allowanceTarget;
-          const needsAllow =
-            sellToken.address !== NATIVE &&
-            !!data?.issues?.allowance &&
-            !!spender;
-          setNeedsApproval(needsAllow);
-          setApprovalTarget(needsAllow ? spender : null);
-        } else {
-          // ── Zora bonding curve route ───────────────────────────────
-          // Zora coins are always ETH ↔ coin
-          const isBuying = sellToken.source !== "zora";
-          const coinAddress = isBuying ? buyToken.address : sellToken.address;
-          const amountIn = isBuying
-            ? parseEther(sellAmount)
-            : parseUnits(sellAmount, 18);
-
-          const quote = await getZoraQuote({
-            fromToken: isBuying
-              ? { type: "eth", amount: amountIn }
-              : { type: "erc20", address: coinAddress as `0x${string}`, amount: amountIn },
-            toToken: isBuying
-              ? { type: "erc20", address: coinAddress as `0x${string}` }
-              : { type: "eth" },
-            slippage: slippageBps / 100,
-          });
-
-          setPrice(null);
-          setNeedsApproval(false);
-
-          if (quote?.quote?.amountOut) {
-            const out = isBuying
-              ? formatUnits(BigInt(quote.quote.amountOut), 18)
-              : formatEther(BigInt(quote.quote.amountOut));
-            const num = parseFloat(out);
-            setZoraEstimate(num < 0.0001 ? num.toExponential(3) : num.toFixed(6));
-          } else {
-            setZoraEstimate("—");
+        if (lidoStake) {
+          // Direct Lido stake: 1 ETH → 1 stETH, no quote needed. We still
+          // simulate submit() from the user's address so a paused/limited
+          // staking queue shows up here instead of at signing time. The
+          // simulation returns SHARES — ignore that number for display.
+          let reason: string | null = null;
+          try {
+            await mainnetClient?.simulateContract({
+              address: LIDO_STETH, abi: LIDO_ABI, functionName: "submit",
+              args: [LIDO_REFERRAL], value: BigInt(rawAmount), account: address,
+            });
+          } catch (e) {
+            // Only a contract revert means staking is unavailable. A transport
+            // failure (public RPC down / rate-limited) must not block the stake.
+            const names: string[] = [];
+            for (let c: unknown = e; c && names.length < 6; c = (c as { cause?: unknown }).cause) names.push((c as { name?: string }).name ?? "");
+            const transport = names.some((n) => /HttpRequestError|TimeoutError|RpcRequestError|TransportError/.test(n));
+            if (transport) {
+              console.warn("[swap] Lido pre-simulation skipped (RPC transport error):", friendlyError(e));
+            } else {
+              reason = friendlyError(e);
+              console.error("[swap] Lido submit() simulation reverted:", e);
+            }
           }
+          setPrice({ lido: true, buyAmount: rawAmount, minBuyAmount: rawAmount, liquidityAvailable: !reason, lidoError: reason });
+          setNeedsApproval(false);
+          setApprovalTarget(null);
+          return;
         }
+
+        const params = new URLSearchParams({
+          chainId: String(chainId),
+          sellToken: sellToken.address,
+          buyToken: buyToken.address,
+          sellAmount: rawAmount,
+          taker: address,
+          slippageBps: String(slippageBps),
+        });
+        if (supportFee) params.set("fee", "1");
+        const res = await fetch(`/api/0x/price?${params}`);
+        const data = await res.json();
+        setPrice(data);
+
+        const spender = data?.issues?.allowance?.spender ?? data?.allowanceTarget;
+        const needsAllow =
+          !isNativeToken(sellToken.address) &&
+          !!data?.issues?.allowance &&
+          !!spender;
+        setNeedsApproval(needsAllow);
+        setApprovalTarget(needsAllow ? spender : null);
       } catch (e) {
         console.error("[swap quote]", e);
       } finally {
@@ -679,7 +304,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
     }, 600);
 
     return () => clearTimeout(timeout);
-  }, [sellAmount, sellToken, buyToken, address, chainId, supportFee, route, slippageBps, getZoraQuote]);
+  }, [sellAmount, sellToken, buyToken, address, chainId, supportFee, slippageBps, lidoStake, mainnetClient]);
 
   // ── Approval (0x only) ────────────────────────────────────────────────
   const { writeContractAsync, isPending: isApproving } = useWriteContract();
@@ -708,130 +333,107 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
 
   const handleSwap = useCallback(async () => {
     if (!address) return;
+    if (!price?.liquidityAvailable) return;
+    try {
+      const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
 
-    if (route === "0x") {
-      // ── 0x Protocol swap ────────────────────────────────────────────
-      if (!price?.liquidityAvailable) return;
-      try {
-        const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
-        const params = new URLSearchParams({
-          chainId: String(chainId),
-          sellToken: sellToken.address,
-          buyToken: buyToken.address,
-          sellAmount: rawAmount,
-          taker: address,
-          slippageBps: String(slippageBps),
+      if (lidoStake) {
+        console.info(`[swap] Lido direct stake: submit(${LIDO_REFERRAL}) value=${rawAmount} from ${address}`);
+        const hash = await writeContractAsync({
+          address: LIDO_STETH, abi: LIDO_ABI, functionName: "submit",
+          args: [LIDO_REFERRAL], value: BigInt(rawAmount), chainId: 1,
         });
-        if (supportFee) params.set("fee", "1");
-        const res = await fetch(`/api/0x/quote?${params}`);
-        const quote = await res.json();
-
-        if (!quote?.transaction) {
-          toast({ title: "Quote failed", description: quote?.reason ?? "No transaction data", status: "error", duration: 4000, isClosable: true });
-          return;
-        }
-
-        const tx = quote.transaction;
-        const hash = await sendTransactionAsync({
-          to: tx.to as `0x${string}`,
-          data: tx.data as `0x${string}`,
-          value: BigInt(tx.value ?? 0),
-          gas: tx.gas != null ? BigInt(tx.gas) : undefined,
-          chainId,
-        });
-
         setTxHash(hash);
-        toast({ title: "Swap submitted!", description: hash, status: "success", duration: 6000, isClosable: true });
+        toast({ title: "Stake submitted!", description: hash, status: "success", duration: 6000, isClosable: true });
         setSellAmount("");
         setPrice(null);
-      } catch (e: unknown) {
-        if (isUserRejection(e))
-          toast({ title: "Transaction cancelled", status: "info", duration: 2000, isClosable: true });
-        else
-          toast({ title: "Swap failed", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
-      }
-    } else {
-      // ── Zora bonding curve swap ─────────────────────────────────────
-      if (!isOnBase) {
-        try { await switchChain({ chainId: base.id }); } catch { /* */ }
         return;
       }
 
-      const isBuying = sellToken.source !== "zora";
-      const coinAddress = isBuying ? buyToken.address : sellToken.address;
-      const amountIn = isBuying
-        ? parseEther(sellAmount)
-        : parseUnits(sellAmount, 18);
+      const params = new URLSearchParams({
+        chainId: String(chainId),
+        sellToken: sellToken.address,
+        buyToken: buyToken.address,
+        sellAmount: rawAmount,
+        taker: address,
+        slippageBps: String(slippageBps),
+      });
+      if (supportFee) params.set("fee", "1");
+      const res = await fetch(`/api/0x/quote?${params}`);
+      const quote = await res.json();
 
-      await executeZoraTrade({
-        fromToken: isBuying
-          ? { type: "eth", amount: amountIn }
-          : { type: "erc20", address: coinAddress as `0x${string}`, amount: amountIn },
-        toToken: isBuying
-          ? { type: "erc20", address: coinAddress as `0x${string}` }
-          : { type: "eth" },
-        slippage: slippageBps / 100,
+      if (!quote?.transaction) {
+        toast({ title: "Quote failed", description: quote?.reason ?? "No transaction data", status: "error", duration: 4000, isClosable: true });
+        return;
+      }
+
+      const tx = quote.transaction;
+      const hash = await sendTransactionAsync({
+        to: tx.to as `0x${string}`,
+        data: tx.data as `0x${string}`,
+        value: BigInt(tx.value ?? 0),
+        gas: tx.gas != null ? BigInt(tx.gas) : undefined,
+        chainId,
       });
 
+      setTxHash(hash);
+      toast({ title: "Swap submitted!", description: hash, status: "success", duration: 6000, isClosable: true });
       setSellAmount("");
-      setZoraEstimate("");
+      setPrice(null);
+    } catch (e: unknown) {
+      if (isUserRejection(e))
+        toast({ title: "Transaction cancelled", status: "info", duration: 2000, isClosable: true });
+      else
+        toast({ title: "Swap failed", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
     }
-  }, [address, price, sellAmount, sellToken, buyToken, chainId, supportFee, route, slippageBps, isOnBase, sendTransactionAsync, executeZoraTrade, switchChain, toast]);
+  }, [address, price, sellAmount, sellToken, buyToken, chainId, supportFee, slippageBps, sendTransactionAsync, writeContractAsync, lidoStake, toast]);
 
   // ── Derived display values ────────────────────────────────────────────
   const estimatedOut = useMemo(() => {
-    if (route === "zora") return zoraEstimate || "—";
     if (!price?.buyAmount) return "—";
     const val = parseFloat(formatUnits(BigInt(price.buyAmount), buyToken.decimals));
     return val < 0.0001 ? val.toExponential(4) : val.toFixed(6);
-  }, [route, zoraEstimate, price, buyToken.decimals]);
+  }, [price, buyToken.decimals]);
 
   const networkFeeEth = useMemo(() => {
-    if (route !== "0x" || !price?.totalNetworkFee) return null;
+    if (!price?.totalNetworkFee) return null;
     const eth = parseFloat(formatUnits(BigInt(price.totalNetworkFee), 18));
     return eth.toFixed(6);
-  }, [route, price]);
+  }, [price]);
 
   // Minimum received after slippage (0x returns minBuyAmount)
   const minReceived = useMemo(() => {
-    if (route !== "0x" || !price?.minBuyAmount) return null;
+    if (!price?.minBuyAmount) return null;
     const val = parseFloat(formatUnits(BigInt(price.minBuyAmount), buyToken.decimals));
     return val < 0.0001 ? val.toExponential(4) : val.toFixed(6);
-  }, [route, price, buyToken.decimals]);
+  }, [price, buyToken.decimals]);
 
   // Exchange rate: 1 sellToken = X buyToken
   const exchangeRate = useMemo(() => {
     const inAmt = parseFloat(sellAmount);
     if (!inAmt || inAmt <= 0) return null;
-    let out: number | null = null;
-    if (route === "zora") out = zoraEstimate ? parseFloat(zoraEstimate) : null;
-    else if (price?.buyAmount)
-      out = parseFloat(formatUnits(BigInt(price.buyAmount), buyToken.decimals));
+    if (!price?.buyAmount) return null;
+    const out = parseFloat(formatUnits(BigInt(price.buyAmount), buyToken.decimals));
     if (!out || isNaN(out)) return null;
     const rate = out / inAmt;
     return rate < 0.0001 ? rate.toExponential(3) : rate < 1 ? rate.toFixed(6) : rate.toFixed(4);
-  }, [route, zoraEstimate, price, sellAmount, buyToken.decimals]);
+  }, [price, sellAmount, buyToken.decimals]);
 
   const slippagePct = (slippageBps / 100).toString();
 
-  const isLoading = isFetching || isSending || isApproving || isConfirming || isZoraTrading;
-  const canSwap = route === "zora"
-    ? isConnected && !!sellAmount && parseFloat(sellAmount) > 0 && !isLoading && !insufficientBalance
-    : isConnected && !!price?.liquidityAvailable && !needsApproval && !isLoading && !!sellAmount && !insufficientBalance;
+  const isLoading = isFetching || isSending || isApproving || isConfirming;
+  const canSwap =
+    isConnected && !!price?.liquidityAvailable && !needsApproval && !isLoading && !!sellAmount && !insufficientBalance;
 
-  const routeLabel = route === "zora"
-    ? "via Zora SDK · Base"
-    : `via 0x · ${CHAIN_NAMES[chainId] ?? "Unknown"}`;
+  const routeLabel = `via 0x · ${getSwapChain(chainId)?.name ?? "Unknown"}`;
 
   const handleFlip = () => {
-    // Only allow flip if both tokens make sense as sell/buy
     const newSell = buyToken;
     const newBuy = sellToken;
     setSellToken(newSell);
     setBuyToken(newBuy);
     setSellAmount("");
     setPrice(null);
-    setZoraEstimate("");
   };
 
   const SLIPPAGE_PRESETS = [50, 100, 300]; // 0.5% · 1% · 3%
@@ -926,181 +528,129 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </Box>
           )}
 
-          {/* Sell */}
-          <Box border="1px solid" borderColor={insufficientBalance ? "red.400" : "border"} p={3} mb={1}>
-            <HStack justify="space-between" mb={1} align="center">
-              <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
-                You Pay
-              </Text>
-              {isConnected && (
-                <HStack spacing={2}>
-                  <Text fontSize="10px" color={insufficientBalance ? "red.400" : "dim"} fontFamily="mono">
-                    Bal: {sellBalance < 0.0001 ? sellBalance.toExponential(2) : sellBalance < 1 ? sellBalance.toFixed(4) : sellBalance < 1000 ? sellBalance.toFixed(2) : Math.floor(sellBalance).toLocaleString()}
-                  </Text>
-                  <Button
-                    size="xs" h="16px" px={1} variant="ghost" color="primary" fontFamily="mono" fontSize="9px"
-                    onClick={() => setAmountFromBalance(0.5)} isDisabled={sellBalance <= 0}
-                    _hover={{ bg: "muted" }}
-                  >
-                    HALF
-                  </Button>
-                  <Button
-                    size="xs" h="16px" px={1} variant="ghost" color="primary" fontFamily="mono" fontSize="9px"
-                    onClick={() => setAmountFromBalance(1)} isDisabled={sellBalance <= 0}
-                    _hover={{ bg: "muted" }}
-                  >
-                    MAX
-                  </Button>
-                </HStack>
-              )}
-            </HStack>
-            <HStack>
-              <HStack spacing={2} flex={1} minW={0}>
-                {sellToken.logo && (
-                  <Image src={sellToken.logo} w="22px" h="22px" objectFit="contain" borderRadius="full" alt=""
-                    fallback={<Box w="22px" h="22px" borderRadius="full" bg="border" />} />
+          {/* Sell + Flip + Buy (flip button overlaps the seam) */}
+          <Box mb={3}>
+            {/* Sell */}
+            <Box
+              border="1px solid"
+              borderColor={insufficientBalance ? "red.400" : "border"}
+              bg="muted"
+              p={4}
+            >
+              <HStack justify="space-between" mb={2} align="center">
+                <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
+                  You Pay
+                </Text>
+                {isConnected && (
+                  <HStack spacing={2}>
+                    <Text fontSize="11px" color={insufficientBalance ? "red.400" : "dim"} fontFamily="mono">
+                      Bal: {sellBalance < 0.0001 ? sellBalance.toExponential(2) : sellBalance < 1 ? sellBalance.toFixed(4) : sellBalance < 1000 ? sellBalance.toFixed(2) : Math.floor(sellBalance).toLocaleString()}
+                    </Text>
+                    <Button
+                      size="xs" h="20px" px={1.5} variant="outline" borderColor="border" borderRadius="none"
+                      color="primary" fontFamily="mono" fontSize="9px" fontWeight="black"
+                      onClick={() => setAmountFromBalance(0.5)} isDisabled={sellBalance <= 0}
+                      _hover={{ bg: "background", borderColor: "primary" }}
+                    >
+                      HALF
+                    </Button>
+                    <Button
+                      size="xs" h="20px" px={1.5} variant="outline" borderColor="border" borderRadius="none"
+                      color="primary" fontFamily="mono" fontSize="9px" fontWeight="black"
+                      onClick={() => setAmountFromBalance(1)} isDisabled={sellBalance <= 0}
+                      _hover={{ bg: "background", borderColor: "primary" }}
+                    >
+                      MAX
+                    </Button>
+                  </HStack>
                 )}
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={sellAmount}
-                  onChange={(e) => setSellAmount(e.target.value)}
-                  fontSize="2xl"
-                  fontFamily="mono"
-                  fontWeight="black"
-                  color="primary"
-                  variant="unstyled"
-                  flex={1}
-                  minW={0}
-                  _placeholder={{ color: "dim" }}
+              </HStack>
+              <HStack spacing={3}>
+                <HStack spacing={2.5} flex={1} minW={0}>
+                  <TokenChainLogo token={sellToken} size="34px" />
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={sellAmount}
+                    onChange={(e) => setSellAmount(e.target.value)}
+                    fontSize="3xl"
+                    fontFamily="mono"
+                    fontWeight="black"
+                    color="primary"
+                    variant="unstyled"
+                    flex={1}
+                    minW={0}
+                    h="44px"
+                    _placeholder={{ color: "dim" }}
+                  />
+                </HStack>
+                <SelectorTrigger
+                  token={sellToken}
+                  onSelect={(t) => selectToken("sell", t)}
+                  excludeAddress={buyToken.address}
+                  activeChainId={chainId}
+                  label="Sell token"
                 />
               </HStack>
-              <TokenPicker
-                selected={sellToken}
-                tokens={allTokens}
-                onSelect={(t) => { setSellToken(t); setSellAmount(""); setPrice(null); setZoraEstimate(""); }}
-                onSearchClick={() => setSearchMode(true)}
-                label="Sell token"
-                exclude={buyToken.address}
-              />
-            </HStack>
-          </Box>
-
-          {/* Flip */}
-          <Box textAlign="center" py={1}>
-            <Button size="xs" variant="ghost" color="primary" onClick={handleFlip}
-              _hover={{ bg: "primary", color: "background" }} transition="all 0.2s">
-              <FaExchangeAlt style={{ transform: "rotate(90deg)" }} />
-            </Button>
-          </Box>
-
-          {/* Buy */}
-          <Box border="1px solid" borderColor="border" p={3} mb={3}>
-            <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={1}>
-              You Receive
-            </Text>
-            <HStack>
-              <HStack spacing={2} flex={1} minW={0}>
-                {buyToken.logo && (
-                  <Image src={buyToken.logo} w="22px" h="22px" objectFit="contain" borderRadius="full" alt=""
-                    fallback={<Box w="22px" h="22px" borderRadius="full" bg="border" />} />
-                )}
-                <Text fontSize="2xl" fontFamily="mono" fontWeight="black" color="primary">
-                  {isFetching ? <Spinner size="sm" /> : estimatedOut}
-                </Text>
-              </HStack>
-              <TokenPicker
-                selected={buyToken}
-                tokens={allTokens}
-                onSelect={(t) => { setBuyToken(t); setSellAmount(""); setPrice(null); setZoraEstimate(""); }}
-                onSearchClick={() => setSearchMode(true)}
-                label="Buy token"
-                exclude={sellToken.address}
-              />
-            </HStack>
-          </Box>
-
-          {/* Search overlay */}
-          {searchMode && (
-            <Box border="1px solid" borderColor="primary" p={3} mb={3} bg="background">
-              <HStack mb={2}>
-                <Text fontSize="xs" color="primary" fontFamily="mono" fontWeight="bold"
-                  textTransform="uppercase" letterSpacing="wider" flex={1}>
-                  Search Zora Coin
-                </Text>
-                <Button size="xs" variant="ghost" color="dim" onClick={() => setSearchMode(false)}
-                  fontFamily="mono">
-                  X
-                </Button>
-              </HStack>
-              <Input
-                value={searchAddress}
-                onChange={(e) => setSearchAddress(e.target.value)}
-                placeholder="Paste coin address 0x..."
-                fontFamily="mono"
-                fontSize="sm"
-                variant="unstyled"
-                border="1px solid"
-                borderColor="border"
-                px={2}
-                py={1}
-                mb={2}
-                _placeholder={{ color: "dim" }}
-                autoFocus
-              />
-              {isSearching && (
-                <HStack spacing={2} py={1}>
-                  <Spinner size="xs" color="primary" />
-                  <Text fontSize="xs" color="dim" fontFamily="mono">Searching...</Text>
-                </HStack>
-              )}
-              {searchResult && !isSearching && (
-                <Button
-                  w="100%"
-                  variant="outline"
-                  borderColor="border"
-                  borderRadius="none"
-                  h="40px"
-                  justifyContent="flex-start"
-                  onClick={() => {
-                    setBuyToken(searchResult);
-                    setSearchMode(false);
-                    setSearchAddress("");
-                    setSearchResult(null);
-                    setSellAmount("");
-                  }}
-                  _hover={{ borderColor: "primary" }}
-                >
-                  <HStack spacing={2}>
-                    {searchResult.logo ? (
-                      <Image src={searchResult.logo} w="20px" h="20px" borderRadius="full" alt=""
-                        fallback={<Box w="20px" h="20px" borderRadius="full" bg="border" />} />
-                    ) : (
-                      <Image src="/logos/Zorb.png" w="20px" h="20px" borderRadius="full" alt="" />
-                    )}
-                    <Text fontSize="sm" fontFamily="mono" fontWeight="bold" color="primary">
-                      {searchResult.symbol}
-                    </Text>
-                    <Text fontSize="xs" fontFamily="mono" color="dim">
-                      {searchResult.name}
-                    </Text>
-                  </HStack>
-                </Button>
-              )}
-              {searchAddress && isAddress(searchAddress.trim()) && !searchResult && !isSearching && (
-                <Text fontSize="xs" color="dim" fontFamily="mono">Not a Zora coin</Text>
-              )}
             </Box>
-          )}
+
+            {/* Flip — square button punched into the seam between the two boxes */}
+            <Box h="0" position="relative" zIndex={2} textAlign="center">
+              <Button
+                position="absolute" top="0" left="50%" transform="translate(-50%, -50%)"
+                w="40px" h="40px" minW="40px" p={0}
+                borderRadius="none"
+                border="2px solid"
+                borderColor="primary"
+                bg="background"
+                color="primary"
+                onClick={handleFlip}
+                aria-label="Flip tokens"
+                _hover={{ bg: "primary", color: "background" }}
+                _active={{ transform: "translate(-50%, -50%) scale(0.94)" }}
+                transition="all 0.15s"
+              >
+                <FaExchangeAlt style={{ transform: "rotate(90deg)" }} />
+              </Button>
+            </Box>
+
+            {/* Buy */}
+            <Box border="1px solid" borderColor="border" bg="muted" p={4}>
+              <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={2}>
+                You Receive
+              </Text>
+              <HStack spacing={3}>
+                <HStack spacing={2.5} flex={1} minW={0}>
+                  <TokenChainLogo token={buyToken} size="34px" />
+                  <Text fontSize="3xl" fontFamily="mono" fontWeight="black" color={estimatedOut === "—" ? "dim" : "primary"} isTruncated>
+                    {isFetching ? <Spinner size="md" color="primary" /> : estimatedOut}
+                  </Text>
+                </HStack>
+                <SelectorTrigger
+                  token={buyToken}
+                  onSelect={(t) => selectToken("buy", t)}
+                  excludeAddress={sellToken.address}
+                  activeChainId={chainId}
+                  label="Buy token"
+                />
+              </HStack>
+            </Box>
+          </Box>
 
           {/* Swap details (rate, min received, fees) */}
           {!isFetching && exchangeRate && (
             <VStack spacing={1} align="stretch" border="1px solid" borderColor="border" p={2} mb={3} fontSize="xs" fontFamily="mono">
+              {price?.lido && (
+                <HStack justify="space-between" color="dim">
+                  <Text>Route</Text>
+                  <Text color="text">Lido direct stake — no slippage, no fee</Text>
+                </HStack>
+              )}
               <HStack justify="space-between" color="dim">
                 <Text>Rate</Text>
                 <Text color="text">1 {sellToken.symbol} = {exchangeRate} {buyToken.symbol}</Text>
               </HStack>
-              {minReceived && (
+              {minReceived && !price?.lido && (
                 <HStack justify="space-between" color="dim">
                   <HStack spacing={1}>
                     <Text>Min received</Text>
@@ -1111,20 +661,25 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
                   <Text color="text">{minReceived} {buyToken.symbol}</Text>
                 </HStack>
               )}
-              <HStack justify="space-between" color="dim">
-                <Text>Max slippage</Text>
-                <Text color="text">{slippagePct}%</Text>
-              </HStack>
+              {!price?.lido && (
+                <HStack justify="space-between" color="dim">
+                  <Text>Max slippage</Text>
+                  <Text color="text">{slippagePct}%</Text>
+                </HStack>
+              )}
+              {price?.lidoError && (
+                <Text color="red.400">Lido staking unavailable: {price.lidoError}</Text>
+              )}
               {networkFeeEth && (
                 <HStack justify="space-between" color="dim">
                   <Text>Network fee</Text>
                   <Text color="text">{networkFeeEth} ETH</Text>
                 </HStack>
               )}
-              {route === "0x" && price?.issues?.balance && (
+              {price?.issues?.balance && (
                 <Text color="red.400">Insufficient {sellToken.symbol} balance</Text>
               )}
-              {route === "0x" && price && !price.liquidityAvailable && (
+              {price && !price.liquidityAvailable && !price.lido && (
                 <Text color="red.400">No liquidity available for this pair</Text>
               )}
               {isSuccess && (
@@ -1133,22 +688,15 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </VStack>
           )}
 
-          {/* Zora route info */}
-          {route === "zora" && !isOnBase && isConnected && (
-            <Box border="1px solid" borderColor="border" p={2} mb={3} fontSize="xs" fontFamily="mono">
-              <Text color="orange.400">Zora coins trade on Base. Click swap to switch network.</Text>
-            </Box>
-          )}
-
           {/* CTA */}
           {!isConnected ? (
-            <Box border="1px solid" borderColor="border" p={3} textAlign="center">
+            <Box border="1px solid" borderColor="border" bg="muted" p={4} textAlign="center">
               <Text fontSize="xs" color="dim" fontFamily="mono">Connect EVM wallet to swap</Text>
             </Box>
-          ) : route === "0x" && needsApproval ? (
+          ) : needsApproval ? (
             <Button
-              w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest"
-              fontFamily="mono" colorScheme="orange" size="md"
+              w="100%" h="54px" borderRadius="none" fontWeight="black" letterSpacing="widest"
+              fontFamily="mono" fontSize="md" colorScheme="orange"
               sx={{ textTransform: "uppercase" }}
               isLoading={isApproving} loadingText="APPROVING..."
               onClick={handleApprove}
@@ -1157,21 +705,21 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </Button>
           ) : (
             <Button
-              w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest"
-              fontFamily="mono" colorScheme="green" size="md"
+              w="100%" h="54px" borderRadius="none" fontWeight="black" letterSpacing="widest"
+              fontFamily="mono" fontSize="md" colorScheme="green"
               sx={{ textTransform: "uppercase" }}
               isDisabled={!canSwap}
-              isLoading={isSending || isConfirming || isZoraTrading}
-              loadingText={isConfirming ? "CONFIRMING..." : "SWAPPING..."}
+              isLoading={isSending || isConfirming}
+              loadingText={isConfirming ? "CONFIRMING..." : lidoStake ? "STAKING..." : "SWAPPING..."}
               leftIcon={<FaExchangeAlt />}
               onClick={handleSwap}
             >
-              {!sellAmount ? "Enter Amount" : insufficientBalance ? `Insufficient ${sellToken.symbol}` : route === "zora" && !isOnBase ? "Switch to Base" : isFetching ? "..." : "Swap"}
+              {!sellAmount ? "Enter Amount" : insufficientBalance ? `Insufficient ${sellToken.symbol}` : isFetching ? "..." : lidoStake ? "Stake with Lido" : "Swap"}
             </Button>
           )}
 
-          {/* Optional platform fee (0x route only) */}
-          {showFeeOption && route === "0x" && (
+          {/* Optional platform fee */}
+          {showFeeOption && !lidoStake && (
             <HStack mt={2} spacing={2} justify="center">
               <Checkbox
                 size="sm"
@@ -1189,23 +737,18 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </HStack>
           )}
 
+          {lidoStake ? (
+            <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" mt={2}>
+              Staked directly with Lido (stETH.submit) — 1 ETH mints 1 stETH
+            </Text>
+          ) : (
           <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" mt={2}>
-            {route === "zora" ? (
-              <>
-                {slippagePct}% slippage · Zora bonding curve
-                <Tooltip label="Trades Zora creator coins via bonding curve. Adjust slippage in settings for low-liquidity coins.">
-                  <Box as="span" ml={1} cursor="help"><FaInfoCircle style={{ display: "inline" }} /></Box>
-                </Tooltip>
-              </>
-            ) : (
-              <>
-                Best price from 150+ sources
-                <Tooltip label="Powered by 0x Protocol — aggregates Uniswap, Curve, and 148+ other DEXes for best execution">
-                  <Box as="span" ml={1} cursor="help"><FaInfoCircle style={{ display: "inline" }} /></Box>
-                </Tooltip>
-              </>
-            )}
+            Best price from 150+ sources
+            <Tooltip label="Powered by 0x Protocol — aggregates Uniswap, Curve, and 148+ other DEXes for best execution">
+              <Box as="span" ml={1} cursor="help"><FaInfoCircle style={{ display: "inline" }} /></Box>
+            </Tooltip>
           </Text>
+          )}
     </VStack>
   );
 

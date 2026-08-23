@@ -1,4 +1,82 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { type Address } from "viem";
+import { ETH_ADDRESSES } from "@/config/app.config";
+import {
+  fetchNativeEthBalances,
+  type NativeEthBalance,
+} from "@/lib/evm/nativeEthBalances";
+
+const SUPPORTED_NATIVE_ETH_CHAIN_IDS = new Set([1, 8453, 42161]);
+
+interface CoinGeckoPriceResponse {
+  ethereum?: {
+    usd?: number;
+  };
+}
+
+async function fetchEthPriceUsd(fallbackPrice: number): Promise<number> {
+  if (fallbackPrice > 0) return fallbackPrice;
+
+  try {
+    const response = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
+      { next: { revalidate: 60 } },
+    );
+    if (!response.ok) return 0;
+
+    const data = (await response.json()) as CoinGeckoPriceResponse;
+    return typeof data.ethereum?.usd === "number" ? data.ethereum.usd : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function createNativeEthToken(balance: NativeEthBalance, price: number) {
+  const now = new Date().toISOString();
+  const balanceUSD = balance.balance * price;
+  const tokenId = `eip155:${balance.chainId}/slip44:60`;
+
+  return {
+    address: ETH_ADDRESSES.ZERO,
+    assetCaip: tokenId,
+    key: tokenId,
+    network: balance.network,
+    token: {
+      address: ETH_ADDRESSES.ZERO,
+      balance: balance.balance,
+      balanceRaw: balance.balanceRaw,
+      balanceUSD,
+      canExchange: false,
+      coingeckoId: "ethereum",
+      createdAt: now,
+      decimals: 18,
+      externallyVerified: true,
+      hide: false,
+      holdersEnabled: false,
+      id: tokenId,
+      label: null,
+      name: "Ethereum",
+      networkId: balance.chainId,
+      price,
+      priceUpdatedAt: now,
+      status: "active",
+      symbol: "ETH",
+      totalSupply: "0",
+      updatedAt: now,
+      verified: true,
+    },
+    updatedAt: now,
+  };
+}
+
+function isSupportedNativeEthToken(token: {
+  token: { networkId: number; symbol: string };
+}) {
+  return (
+    token.token.symbol.toUpperCase() === "ETH" &&
+    SUPPORTED_NATIVE_ETH_CHAIN_IDS.has(token.token.networkId)
+  );
+}
 
 // Fetch NFTs from Alchemy API (Base chain only)
 async function fetchAlchemyNFTs(address: string, apiKey: string) {
@@ -78,30 +156,41 @@ export async function GET(
   }
 
   try {
-    const alchemyApiKey = process.env.NEXT_PUBLIC_ALCHEMY_KEY;
+    const alchemyApiKey =
+      process.env.ALCHEMY_API_KEY || process.env.NEXT_PUBLIC_ALCHEMY_KEY;
+
+    const nativeBalancesPromise = isEvmAddress
+      ? fetchNativeEthBalances(address as Address, alchemyApiKey)
+      : Promise.resolve([]);
 
     // Fetch from KeepKey (tokens + other chains)
     const apiUrl = `https://api.keepkey.info/api/v1/zapper/portfolio/${address}`;
-    
-    const response = await fetch(apiUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (compatible; SkateHive/1.0)'
+    let rawData: Record<string, unknown> = {};
+
+    try {
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; SkateHive/1.0)'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`API responded with status ${response.status}`);
       }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API responded with status ${response.status}`);
-    }
 
-    const contentType = response.headers.get('content-type');
-    
-    if (!contentType || !contentType.includes('application/json')) {
-      const textResponse = await response.text();
-      throw new Error('API did not return JSON data');
-    }
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('API did not return JSON data');
+      }
 
-    const rawData = await response.json();
+      const data: unknown = await response.json();
+      if (data && typeof data === "object" && !Array.isArray(data)) {
+        rawData = data as Record<string, unknown>;
+      }
+    } catch (error) {
+      console.error("[Portfolio API] KeepKey lookup failed:", error);
+    }
 
     // Fetch Base NFTs from Alchemy if API key is available
     let baseNFTs: any[] = [];
@@ -178,12 +267,37 @@ export async function GET(
       };
     });
 
-    const ethPriceUsd = combinedTokens.reduce((price: number, token: any) => {
+    const indexedEthPriceUsd = combinedTokens.reduce((price: number, token: any) => {
       if (price > 0) return price;
       const symbol = (token.symbol || token.ticker || "").toLowerCase();
       const tokenPrice = Number(token.priceUsd ?? token.price ?? 0);
       return symbol === "eth" && tokenPrice > 0 ? tokenPrice : 0;
     }, 0);
+    const nativeBalances = await nativeBalancesPromise;
+    const ethPriceUsd = nativeBalances.some((balance) => balance.balance > 0)
+      ? await fetchEthPriceUsd(indexedEthPriceUsd)
+      : indexedEthPriceUsd;
+    const nativeEthTokens = nativeBalances
+      .filter((balance) => balance.balance > 0)
+      .map((balance) => createNativeEthToken(balance, ethPriceUsd));
+    const indexedNativeEthUsd = transformedTokens
+      .filter(isSupportedNativeEthToken)
+      .reduce(
+        (sum: number, token: { token: { balanceUSD: number } }) =>
+          sum + token.token.balanceUSD,
+        0,
+      );
+    const mergedTokens = [
+      ...transformedTokens.filter(
+        (token: Parameters<typeof isSupportedNativeEthToken>[0]) =>
+          !isSupportedNativeEthToken(token),
+      ),
+      ...nativeEthTokens,
+    ];
+    const nativeEthUsd = nativeEthTokens.reduce(
+      (sum, token) => sum + token.token.balanceUSD,
+      0,
+    );
 
     // Merge KeepKey NFTs with Basescan NFTs
     const rawNfts = Array.isArray(rawData.nfts) ? rawData.nfts : [];
@@ -237,16 +351,24 @@ export async function GET(
       };
     });
 
-    const totalBalanceUsdTokens = Number(
+    const indexedTokenTotal = Number(
       rawData.totalBalanceUsdTokens ??
         transformedTokens.reduce(
           (sum: number, token: any) => sum + (token.token.balanceUSD || 0),
           0
         )
     );
+    const totalBalanceUsdTokens = Math.max(
+      0,
+      indexedTokenTotal - indexedNativeEthUsd + nativeEthUsd,
+    );
     const totalBalanceUSDApp = Number(rawData.totalBalanceUSDApp ?? 0);
-    const totalNetWorth = Number(
-      rawData.totalNetWorth ?? totalBalanceUsdTokens + totalBalanceUSDApp
+    const indexedNetWorth = Number(
+      rawData.totalNetWorth ?? indexedTokenTotal + totalBalanceUSDApp,
+    );
+    const totalNetWorth = Math.max(
+      0,
+      indexedNetWorth - indexedTokenTotal + totalBalanceUsdTokens,
     );
 
     const transformedData = {
@@ -254,7 +376,7 @@ export async function GET(
       totalBalanceUsdTokens,
       totalBalanceUSDApp,
       nftUsdNetWorth: rawData.nftUsdNetWorth || { [addressLower]: "0" },
-      tokens: transformedTokens,
+      tokens: mergedTokens,
       nfts: transformedNfts,
     };
 

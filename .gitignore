@@ -28,6 +28,9 @@ yarn-error.log*
 # local env files
 .env*.local
 .env*
+# keep the documented template tracked — a required env var that appears
+# nowhere is exactly how the LI.FI fee silently never got collected
+!.env.example
 
 # vercel
 .vercel

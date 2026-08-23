@@ -7,6 +7,9 @@ interface MobileTokenTableProps {
   expandedTokens: Set<string>;
   onToggleExpansion: (symbol: string) => void;
   onTokenSelect: (token: ConsolidatedToken) => void;
+  /** Symbol to render greyed + clickable (e.g. a not-set-up BTC row). */
+  dimSymbol?: string;
+  onDimClick?: () => void;
 }
 
 export default function MobileTokenTable({
@@ -14,6 +17,8 @@ export default function MobileTokenTable({
   expandedTokens,
   onToggleExpansion,
   onTokenSelect,
+  dimSymbol,
+  onDimClick,
 }: MobileTokenTableProps) {
   if (consolidatedTokens.length === 0) {
     return (
@@ -42,6 +47,9 @@ export default function MobileTokenTable({
     >
       {consolidatedTokens.map((consolidatedToken) => {
         const isExpanded = expandedTokens.has(consolidatedToken.symbol);
+        const isDim =
+          !!dimSymbol &&
+          consolidatedToken.symbol.toUpperCase() === dimSymbol.toUpperCase();
 
         return (
           <MobileTokenRow
@@ -51,7 +59,8 @@ export default function MobileTokenTable({
             onToggleExpansion={() =>
               onToggleExpansion(consolidatedToken.symbol)
             }
-            onClick={() => onTokenSelect(consolidatedToken)}
+            onClick={isDim && onDimClick ? onDimClick : () => onTokenSelect(consolidatedToken)}
+            isDim={isDim}
           />
         );
       })}

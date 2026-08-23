@@ -119,8 +119,6 @@ Problemas: [descreva os problemas]
 - [ ] Popup da carteira aparece
 - [ ] Após aprovação, está logado
 - [ ] Perfil mostra endereço da carteira ou nome ENS
-- [ ] Consegue ver aba de tokens no perfil
-- [ ] Toggle de perfil Zora disponível (se aplicável)
 
 **Relatório:**
 ```

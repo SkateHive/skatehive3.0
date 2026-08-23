@@ -3,7 +3,6 @@
  */
 
 import React from 'react';
-import { fetchFile } from '@ffmpeg/util';
 import { APP_CONFIG } from "@/config/app.config";
 import { uploadToIpfsSmart } from "./ipfsUpload";
 
@@ -120,6 +119,7 @@ export async function generateThumbnailWithFFmpeg(
     }
     
     const ffmpeg = ffmpegRef.current;
+    const { fetchFile } = await import("@ffmpeg/util");
 
     await ffmpeg.writeFile("input_thumb.mp4", await fetchFile(file));
 

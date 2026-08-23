@@ -5,18 +5,29 @@ import {
   Spinner,
   InputGroup,
   InputRightElement,
+  HStack,
+  Button,
 } from "@chakra-ui/react";
 import { Grid } from "@giphy/react-components";
 import { GiphyFetch, GifsResult } from "@giphy/js-fetch-api";
 import { IGif } from "@giphy/js-types";
 import { FaSearch } from "react-icons/fa";
+import { TbGif } from "react-icons/tb";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 interface GiphySelectorProps {
   apiKey: string;
   onSelect: (gif: IGif, e: React.SyntheticEvent<HTMLElement>) => void;
+  /** When set, shows a "+ GIF" button beside the search bar to open the GIF maker. */
+  onCreateGif?: () => void;
 }
 
-const GiphySelector: React.FC<GiphySelectorProps> = ({ apiKey, onSelect }) => {
+const GiphySelector: React.FC<GiphySelectorProps> = ({
+  apiKey,
+  onSelect,
+  onCreateGif,
+}) => {
+  const t = useTranslations();
   const gf = useMemo(() => new GiphyFetch(apiKey), [apiKey]);
   const [searchTerm, setSearchTerm] = useState("skateboard funny");
   const [isLoading, setIsLoading] = useState(false);
@@ -59,27 +70,50 @@ const GiphySelector: React.FC<GiphySelectorProps> = ({ apiKey, onSelect }) => {
 
   return (
     <>
-      <InputGroup>
-        <InputRightElement>
-          {isLoading ? (
-            <Spinner />
-          ) : (
-            <FaSearch cursor="pointer" onClick={handleSearchIconClick} />
-          )}
-        </InputRightElement>
-        <Input
-          pr="4.5rem"
-          placeholder="Type to search..."
-          value={searchTerm}
-          onChange={(e) => handleSearchTermChange(e.target.value)}
-          onKeyPress={(e) => {
-            if (e.key === "Enter") {
-              fetchGifs(0); // Allows pressing Enter to search
-              setShowGrid(true); // Show grid on Enter
-            }
-          }}
-        />
-      </InputGroup>
+      <HStack spacing={2} align="center">
+        <InputGroup>
+          <InputRightElement>
+            {isLoading ? (
+              <Spinner />
+            ) : (
+              <FaSearch cursor="pointer" onClick={handleSearchIconClick} />
+            )}
+          </InputRightElement>
+          <Input
+            pr="4.5rem"
+            placeholder="Type to search..."
+            value={searchTerm}
+            onChange={(e) => handleSearchTermChange(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === "Enter") {
+                fetchGifs(0); // Allows pressing Enter to search
+                setShowGrid(true); // Show grid on Enter
+              }
+            }}
+          />
+        </InputGroup>
+        {onCreateGif && (
+          <Button
+            data-testid="giphy-create-gif"
+            aria-label={t("compose.gifMaker")}
+            leftIcon={<TbGif size={22} color="var(--chakra-colors-primary)" />}
+            onClick={onCreateGif}
+            background="none"
+            border="none"
+            boxShadow="none"
+            color="primary"
+            fontWeight="normal"
+            fontSize="sm"
+            px={2}
+            flexShrink={0}
+            _hover={{ opacity: 0.7 }}
+            _active={{ background: "none", boxShadow: "none" }}
+            _focus={{ boxShadow: "none" }}
+          >
+            +
+          </Button>
+        )}
+      </HStack>
       {showGrid && (
         <Center mt={4}>
           <Grid

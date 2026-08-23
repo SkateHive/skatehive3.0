@@ -4,6 +4,7 @@ interface MarketPrices {
   hivePrice: number | null;
   hbdPrice: number | null;
   ethPrice: number | null;
+  btcPrice: number | null;
   isPriceLoading: boolean;
   error: string | null;
   lastUpdated: Date | null;
@@ -23,6 +24,7 @@ export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPri
   const [hivePrice, setHivePrice] = useState<number | null>(null);
   const [hbdPrice, setHbdPrice] = useState<number | null>(null);
   const [ethPrice, setEthPrice] = useState<number | null>(null);
+  const [btcPrice, setBtcPrice] = useState<number | null>(null);
   const [isPriceLoading, setIsPriceLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -47,6 +49,7 @@ export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPri
       setHivePrice(data["hive"]?.usd || 0.21);
       setHbdPrice(data["hive_dollar"]?.usd || 1.0);
       setEthPrice(data["ethereum"]?.usd || 2500);
+      setBtcPrice(data["bitcoin"]?.usd || 60000);
       setLastUpdated(new Date());
       hasPrices.current = true;
 
@@ -59,6 +62,7 @@ export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPri
         setHivePrice(0.21);
         setHbdPrice(1.0);
         setEthPrice(2500);
+        setBtcPrice(60000);
         hasPrices.current = true;
       }
     } finally {
@@ -80,6 +84,7 @@ export function useMarketPrices(options: UseMarketPricesOptions = {}): MarketPri
     hivePrice,
     hbdPrice,
     ethPrice,
+    btcPrice,
     isPriceLoading,
     error,
     lastUpdated,

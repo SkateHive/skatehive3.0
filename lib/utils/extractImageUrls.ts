@@ -109,21 +109,6 @@ export function extractVideoUrls(markdown: string): string[] {
     return videoUrls;
 }
 
-// Extract Zora coin contract addresses from text (supports both zora.co and skatehive.app)
-export function extractZoraCoinLinks(text: string): string[] {
-    const coinRegex = /https:\/\/(?:www\.)?(?:zora\.co|skatehive\.app)\/coin\/([a-zA-Z0-9:]+)/g
-    const addresses: string[] = []
-
-    let match
-
-    // Extract from supported domains in textual order
-    while ((match = coinRegex.exec(text)) !== null) {
-        addresses.push(match[1])
-    }
-    
-    return addresses
-}
-
 // Extract general URLs from text (excluding images, videos, and already handled services)
 export function extractGeneralUrls(text: string): string[] {
     const urlRegex = /https?:\/\/[^\s<>"'`]+/g;
@@ -144,8 +129,6 @@ export function extractGeneralUrls(text: string): string[] {
             url.includes('youtu.be') ||
             // Skip 3speak URLs (handled by extractCustomLinks)
             url.includes('3speak.tv') ||
-            // Skip Zora URLs (handled by extractZoraCoinLinks)
-            url.includes('zora.co/coin') ||
             // Skip Instagram URLs (handled by markdown processor)
             url.includes('instagram.com') ||
             // Skip Vimeo URLs (handled by markdown processor)
