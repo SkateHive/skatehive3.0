@@ -374,12 +374,23 @@ export async function GET(
     // absent from the wallet token list above by construction. stETH price:
     // the merged mainnet stETH token (CoinGecko/upstream) else ETH price
     // (explicit ≈1:1 approximation).
-    const stEthToken = mergedTokens.find(
-      (t: any) => normalizeNetworkName(t.network) === "ethereum" && String(t.address).toLowerCase() === "0xae7ab96520de3a18e5e111b5eaab095312d7fe84",
-    );
-    const stEthPriceUsd = Number(stEthToken?.token?.price ?? 0) > 0 ? Number(stEthToken.token.price) : ethPriceUsd;
+    // Price per deposit token: the merged wallet token list (CoinGecko/upstream)
+    // for the same mainnet contract; else explicit fallbacks — stETH ≈ ETH
+    // (rebasing, ~1:1) and USD stablecoins = $1. Anything else: unknown (0) →
+    // the position becomes a read error, never a $0 line.
+    const STABLE_USD = new Set(["usdc", "usdt", "dai"]);
+    const priceFor = (tokenAddress: string, symbol: string): number => {
+      const hit = mergedTokens.find(
+        (t: any) => normalizeNetworkName(t.network) === "ethereum" && String(t.address).toLowerCase() === tokenAddress.toLowerCase(),
+      );
+      const listed = Number(hit?.token?.price ?? 0);
+      if (listed > 0) return listed;
+      if (symbol.toLowerCase() === "steth" && ethPriceUsd > 0) return ethPriceUsd; // explicit ≈1:1 approximation
+      if (STABLE_USD.has(symbol.toLowerCase())) return 1; // explicit stablecoin approximation
+      return 0;
+    };
     const defi = isEvmAddress
-      ? await fetchDefiPositions(address as Address, alchemyApiKey, stEthPriceUsd)
+      ? await fetchDefiPositions(address as Address, alchemyApiKey, priceFor)
       : { positions: [], totalUSD: 0, errors: [] };
     if (defi.errors.length) console.error(`[Portfolio API] DeFi read errors for ${address}:`, defi.errors.map((e) => `${e.label}: ${e.message}`).join(" | "));
     const nativeEthUsd = nativeEthTokens.reduce(
