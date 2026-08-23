@@ -1581,6 +1581,9 @@ export const lg = {
     reportBug: 'Babaza bug',
     screenshotHint: '⌘/Ctrl+Enter okukwata screenshot',
   },
+  editUserbaseProfile: {
+    handleTaken: 'Erinnya lino likozesebwa dda',
+  },
   cofrinhos: {
     title: 'Obusawo bw’okutereka',
     savedInGoals: 'ezateekebwa mu bigendererwa',

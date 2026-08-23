@@ -1568,6 +1568,9 @@ export const en = {
     reportBug: 'Report bug',
     screenshotHint: '⌘/Ctrl+Enter to attach screenshot',
   },
+  editUserbaseProfile: {
+    handleTaken: 'This handle is already taken',
+  },
   cofrinhos: {
     title: 'Cofrinhos',
     savedInGoals: 'saved toward goals',
