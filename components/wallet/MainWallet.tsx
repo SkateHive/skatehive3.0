@@ -42,6 +42,7 @@ import TotalPortfolioValue from "./components/TotalPortfolioValue";
 import PIXTabContent from "./components/PIXTabContent";
 import HiveTransactionHistory from "./components/HiveTransactionHistory";
 import ClaimRewards from "./components/ClaimRewards";
+import DefiPositionsSection from "@/components/wallet/components/DefiPositionsSection";
 import UnifiedWalletTable from "./UnifiedWalletTable";
 import UnifiedSwapSection from "./UnifiedSwapSection";
 import WalletErrorBoundary from "./WalletErrorBoundary";
@@ -438,6 +439,9 @@ export default function MainWallet({ username }: MainWalletProps) {
                       btcBalance={balanceBtc}
                       btcPrice={btcPrice}
                     />
+
+                    {/* In DeFi: protocol positions (separate from wallet tokens) */}
+                    <DefiPositionsSection chainFilter={chainFilter} />
 
                     {/* Hive activity history */}
                     {showHiveExtras && (

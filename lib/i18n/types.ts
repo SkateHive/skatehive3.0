@@ -287,6 +287,15 @@ export interface TranslationSchema {
     refreshData: string;
     refreshing: string;
     hideDust: string;
+    inWallet: string;
+    inDefi: string;
+    total: string;
+    defiPositions: string;
+    lockedUntil: string;
+    withdrawable: string;
+    rewardsPending: string;
+    claimableAfter: string;
+    defiReadFailed: string;
     send: {
       cancel: string;
       send: string;
