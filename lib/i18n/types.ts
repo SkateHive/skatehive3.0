@@ -1,5 +1,47 @@
 // This file defines the structure that all translation files must follow
 export interface TranslationSchema {
+  bridge: {
+    tab: string;
+    from: string;
+    to: string;
+    balance: string;
+    max: string;
+    route: string;
+    time: string;
+    minReceived: string;
+    fees: string;
+    connectWallet: string;
+    switchTo: string;
+    approve: string;
+    approving: string;
+    approvalSubmitted: string;
+    approvalFailed: string;
+    bridge: string;
+    bridging: string;
+    enterAmount: string;
+    insufficient: string;
+    noRoute: string;
+    submitted: string;
+    pending: string;
+    done: string;
+    failed: string;
+    cancelled: string;
+    poweredBy: string;
+    poweredByTip: string;
+  };
+  swapTokens: {
+    searchPlaceholder: string;
+    popular: string;
+    myTokens: string;
+    recent: string;
+    clear: string;
+    tokens: string;
+    showMore: string;
+    showLess: string;
+    importing: string;
+    imported: string;
+    noResults: string;
+  };
   swapAdmin: {
     tab: string;
     hiveTab: string;

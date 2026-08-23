@@ -22,6 +22,7 @@ import { FiCamera, FiMapPin, FiUser, FiAtSign, FiFileText, FiImage } from "react
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import { uploadToIpfs } from "@/lib/markdown/composeUtils";
 import SkateModal from "@/components/shared/SkateModal";
+import { useTranslations } from "@/lib/i18n/hooks";
 
 interface EditUserbaseProfileProps {
   isOpen: boolean;
@@ -45,6 +46,7 @@ export default function EditUserbaseProfile({
 }: EditUserbaseProfileProps) {
   const { refresh } = useUserbaseAuth();
   const toast = useToast();
+  const t = useTranslations("editUserbaseProfile");
 
   const [formData, setFormData] = useState({
     display_name: "",
@@ -157,7 +159,7 @@ export default function EditUserbaseProfile({
 
       if (!response.ok) {
         if (response.status === 409) {
-          setHandleError("This handle is already taken");
+          setHandleError(data.error || t("handleTaken"));
           return;
         }
         throw new Error(data.error || "Failed to update profile");

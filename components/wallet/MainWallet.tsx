@@ -3,6 +3,9 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useFarcasterSession } from "../../hooks/useFarcasterSession";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import useMarketPrices from "@/hooks/useMarketPrices";
+import { useBtcBalance } from "@/hooks/useBtcBalance";
+import { useRegisteredBtcAddress } from "@/hooks/useRegisteredBtcAddress";
+import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
 import { useBankActions } from "@/hooks/wallet";
 import { useAccount } from "wagmi";
 import { useTranslations } from "@/contexts/LocaleContext";
@@ -52,20 +55,42 @@ interface MainWalletProps {
 }
 
 export default function MainWallet({ username }: MainWalletProps) {
-  const { user } = useAioha();
+  const { user: aiohaUser } = useAioha();
+  const { identities: linkedIdentities, hiveIdentity } = useLinkedIdentities();
+  // Effective Hive user: prefer the Keychain/Aioha session, else the Hive
+  // identity linked to the userbase (email / sponsored) account. This makes the
+  // Hive wallet VISIBLE without Hive Keychain. Money-moving actions (send,
+  // power up, savings, swaps) still sign through the child modals' own Aioha, so
+  // they prompt to connect Keychain when there's no active key — Keychain stays
+  // an extra tool, only needed to move funds.
+  const user = aiohaUser || hiveIdentity?.handle || null;
   const { hiveAccount, isLoading } = useHiveAccount(user || "");
   const { claimInterest } = useBankActions();
   const { isConnected, address } = useAccount();
   const { isAuthenticated: isFarcasterConnected, profile: farcasterProfile } =
     useFarcasterSession();
 
-  const { identities: linkedIdentities } = useLinkedIdentities();
-
   const [isMounted, setIsMounted] = useState(false);
   const [chainFilter, setChainFilter] = useState<ChainFilter>("all");
   const [hivePower, setHivePower] = useState<string | undefined>(undefined);
 
-  const { hivePrice, hbdPrice, isPriceLoading } = useMarketPrices();
+  const { hivePrice, hbdPrice, btcPrice, isPriceLoading } = useMarketPrices();
+
+  // Self-claimed BTC address — prefer on-chain Hive metadata, fall back to the
+  // userbase DB so any save path is honored by the swap / Claim-to-BTC flows.
+  const metaBtc = useMemo(() => {
+    const raw = hiveAccount?.json_metadata;
+    if (!raw) return "";
+    try {
+      const migrated = migrateLegacyMetadata(JSON.parse(raw));
+      return migrated.extensions?.wallets?.btc_address || "";
+    } catch {
+      return "";
+    }
+  }, [hiveAccount?.json_metadata]);
+  const btcAddress = useRegisteredBtcAddress(user, metaBtc);
+
+  const { balanceBtc } = useBtcBalance(btcAddress);
   const toast = useToast();
   const t = useTranslations();
 
@@ -202,6 +227,11 @@ export default function MainWallet({ username }: MainWalletProps) {
     );
     return (hive + hp) * hivePrice + (hbd + hbdSav) * hbdPrice;
   }, [user, hivePrice, hbdPrice, hiveBalances, hivePower]);
+
+  const btcValue = useMemo(() => {
+    if (!balanceBtc || !btcPrice) return 0;
+    return balanceBtc * btcPrice;
+  }, [balanceBtc, btcPrice]);
 
   const hasLinkedFarcaster = linkedIdentities.some((i) => i.type === "farcaster");
   const hasEVM = isMounted && (isConnected || isFarcasterConnected || hasLinkedFarcaster);
@@ -354,6 +384,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                     <TotalPortfolioValue
                       totalHiveAssetsValue={totalHiveAssetsValue}
                       chainFilter={chainFilter}
+                      btcValue={btcValue}
                     />
 
                     {/* Chain filter pills */}
@@ -403,6 +434,9 @@ export default function MainWallet({ username }: MainWalletProps) {
                       hivePrice={hivePrice}
                       hbdPrice={hbdPrice}
                       hiveUser={user}
+                      btcAddress={btcAddress}
+                      btcBalance={balanceBtc}
+                      btcPrice={btcPrice}
                     />
 
                     {/* Hive activity history */}
@@ -488,6 +522,9 @@ export default function MainWallet({ username }: MainWalletProps) {
                   reward_hive_balance={hiveAccount?.reward_hive_balance}
                   reward_vesting_balance={hiveAccount?.reward_vesting_balance}
                   reward_vesting_hive={hiveAccount?.reward_vesting_hive}
+                  hivePower={hivePower}
+                  btcAddress={btcAddress}
+                  hiveBalance={String(hiveAccount?.balance || "0.000 HIVE")}
                 />
               )}
             </VStack>

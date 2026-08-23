@@ -56,12 +56,29 @@ interface PortfolioProviderProps {
   farcasterVerifiedAddresses?: string[];
 }
 
-// Returns true only when net worth differs by more than $0.01 — avoids
-// re-renders when cached and fresh data are effectively identical.
+// A cheap signature of a portfolio's *composition*, not just its total. Comparing
+// only totalNetWorth was wrong: when a token is sold/moved but the net worth lands
+// within a cent (or the fresh list simply differs), the update was skipped and the
+// stale token list (e.g. a token the user no longer holds) stayed on screen.
+function portfolioSignature(p: PortfolioData | null): string {
+  if (!p) return "";
+  const tokens = Array.isArray(p.tokens) ? p.tokens : [];
+  const parts = tokens
+    .map((t: any) => {
+      const sym = t?.token?.symbol ?? t?.symbol ?? "";
+      const net = t?.network ?? t?.token?.network ?? "";
+      const bal = Math.round((t?.token?.balance ?? t?.balance ?? 0) * 1e4);
+      return `${sym}@${net}:${bal}`;
+    })
+    .sort();
+  return `${(p.totalNetWorth ?? 0).toFixed(2)}|${tokens.length}|${parts.join(",")}`;
+}
+
+// Update the UI whenever the portfolio's total OR its token composition changes.
 function portfolioChanged(prev: PortfolioData | null, next: PortfolioData | null): boolean {
   if (!prev && !next) return false;
   if (!prev || !next) return true;
-  return Math.abs((prev.totalNetWorth ?? 0) - (next.totalNetWorth ?? 0)) > 0.01;
+  return portfolioSignature(prev) !== portfolioSignature(next);
 }
 
 export function PortfolioProvider({

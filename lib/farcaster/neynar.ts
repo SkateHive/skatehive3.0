@@ -245,7 +245,7 @@ export async function publishCast(
   parentHash?: string,
   embeds?: CastEmbed[],
   channelId?: string
-): Promise<{ success: boolean; hash?: string; error?: string }> {
+): Promise<{ success: boolean; hash?: string; error?: string; signerInvalid?: boolean }> {
   const apiKey = getApiKey();
   if (!apiKey) return { success: false, error: "API key not configured" };
 
@@ -263,7 +263,13 @@ export async function publishCast(
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
     console.error(`[Neynar] publishCast error: ${res.status}`, errText);
-    return { success: false, error: `Neynar error ${res.status}` };
+    // A 404 "Signer not found" means the stored signer no longer exists on
+    // Neynar (e.g. it was created under a previous Neynar app before an API-key
+    // rotation). Flag it so the caller can invalidate it and re-prompt the user
+    // instead of failing this cast forever.
+    const signerInvalid =
+      res.status === 404 && /signer/i.test(errText) && /not\s*found/i.test(errText);
+    return { success: false, error: `Neynar error ${res.status}`, signerInvalid };
   }
 
   const data = await res.json();

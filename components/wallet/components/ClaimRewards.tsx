@@ -6,14 +6,20 @@ import { useAioha } from "@aioha/react-ui";
 import { Asset } from "@hiveio/dhive";
 import { extractNumber } from "@/lib/utils/extractNumber";
 import { useTranslations } from "@/contexts/LocaleContext";
-import { FaGift } from "react-icons/fa";
+import { FaGift, FaBitcoin } from "react-icons/fa";
 import { shimmerStyles, pulseKeyframe } from "@/lib/utils/animations";
+import ClaimToBtcModal from "./ClaimToBtcModal";
 
 interface ClaimRewardsProps {
   reward_hive_balance?: string | Asset;
   reward_hbd_balance?: string | Asset;
   reward_vesting_balance?: string | Asset;
   reward_vesting_hive?: string | Asset;
+  /** For the "Claim to BTC" pipeline (Phase 1). */
+  hivePower?: number | string;
+  btcAddress?: string;
+  /** Liquid HIVE balance ("X.XXX HIVE") — for the inline power-up tool. */
+  hiveBalance?: string;
 }
 
 interface SkatehivePost {
@@ -26,11 +32,15 @@ export default function ClaimRewards({
   reward_hbd_balance,
   reward_vesting_balance,
   reward_vesting_hive,
+  hivePower,
+  btcAddress,
+  hiveBalance,
 }: ClaimRewardsProps) {
   const t = useTranslations();
   const { aioha, user } = useAioha();
   const [isClaiming, setIsClaiming] = useState(false);
   const [hasClaimed, setHasClaimed] = useState(false);
+  const [btcModalOpen, setBtcModalOpen] = useState(false);
   const [potentialRewards, setPotentialRewards] = useState("0.000");
   const [isLoadingRewards, setIsLoadingRewards] = useState(false);
 
@@ -93,32 +103,60 @@ export default function ClaimRewards({
   }, [aioha, user]);
 
   if (!hasRewards || hasClaimed) {
-    // Compact "potential rewards" state shown when nothing to claim
+    // Compact state: snaps-potential (when any) + an always-visible "Earn in
+    // BTC" entry so users discover + set up their BTC payout before they even
+    // have rewards to claim.
     const hasPotential = parseFloat(potentialRewards) > 0;
-    if (!hasPotential && !isLoadingRewards) return null;
+    if (!user) return null;
     return (
-      <Box
-        border="1px solid"
-        borderColor="border"
-        p={3}
-        fontSize="sm"
-        color="dim"
-        fontFamily="mono"
-      >
-        {isLoadingRewards ? (
-          <Text animation={`${pulseKeyframe} 1.5s ease-in-out infinite`}>
-            Calculating snaps rewards...
-          </Text>
-        ) : (
-          <Text>
-            Snaps potential:{" "}
-            <Text as="span" color="primary" fontWeight="bold">
-              {potentialRewards} HBD
-            </Text>{" "}
-            in next 7 days
-          </Text>
-        )}
-      </Box>
+      <>
+        <VStack align="stretch" spacing={2}>
+          {(hasPotential || isLoadingRewards) && (
+            <Box border="1px solid" borderColor="border" p={3} fontSize="sm" color="dim" fontFamily="mono">
+              {isLoadingRewards ? (
+                <Text animation={`${pulseKeyframe} 1.5s ease-in-out infinite`}>
+                  Calculating snaps rewards...
+                </Text>
+              ) : (
+                <Text>
+                  Snaps potential:{" "}
+                  <Text as="span" color="primary" fontWeight="bold">
+                    {potentialRewards} HBD
+                  </Text>{" "}
+                  in next 7 days
+                </Text>
+              )}
+            </Box>
+          )}
+          <Button
+            variant="outline"
+            borderColor="primary"
+            color="primary"
+            borderRadius="none"
+            fontFamily="mono"
+            fontSize="md"
+            fontWeight="black"
+            letterSpacing="widest"
+            size="lg"
+            h="56px"
+            leftIcon={<FaBitcoin color="#F7931A" size={20} />}
+            textTransform="uppercase"
+            _hover={{ bg: "primary", color: "background" }}
+            onClick={() => setBtcModalOpen(true)}
+          >
+            Earn in BTC
+          </Button>
+        </VStack>
+        <ClaimToBtcModal
+          isOpen={btcModalOpen}
+          onClose={() => setBtcModalOpen(false)}
+          username={user}
+          rewardHbd={parseFloat(String(pendingRewards.hbd)) || 0}
+          btcAddress={btcAddress}
+          hivePower={Number(hivePower) || 0}
+          hiveBalance={hiveBalance}
+        />
+      </>
     );
   }
 
@@ -206,25 +244,56 @@ export default function ClaimRewards({
           ))}
         </VStack>
 
-        <Button
-          w="100%"
-          colorScheme="green"
-          borderRadius="none"
-          fontWeight="black"
-          letterSpacing="widest"
-          fontFamily="mono"
-          leftIcon={<FaGift />}
-          isLoading={isClaiming}
-          loadingText="CLAIMING..."
-          onClick={handleClaimRewards}
-          size="md"
-          sx={{
-            textTransform: "uppercase",
-          }}
-        >
-          Claim Now
-        </Button>
+        <VStack spacing={2} align="stretch">
+          <Button
+            w="100%"
+            colorScheme="green"
+            borderRadius="none"
+            fontWeight="black"
+            letterSpacing="widest"
+            fontFamily="mono"
+            leftIcon={<Image src="/logos/hiveLogo.png" boxSize="18px" objectFit="contain" alt="Hive" />}
+            isLoading={isClaiming}
+            loadingText="CLAIMING..."
+            onClick={handleClaimRewards}
+            size="md"
+            sx={{ textTransform: "uppercase" }}
+          >
+            Claim Now
+          </Button>
+          {/* Always present — even with no HBD portion yet, so the user can set
+              up their BTC address + Magi RC now and convert on a future claim. */}
+          <Button
+            w="100%"
+            variant="outline"
+            borderColor="primary"
+            color="primary"
+            borderRadius="none"
+            fontWeight="black"
+            letterSpacing="widest"
+            fontFamily="mono"
+            leftIcon={<FaBitcoin color="#F7931A" />}
+            onClick={() => setBtcModalOpen(true)}
+            size="md"
+            sx={{ textTransform: "uppercase" }}
+            _hover={{ bg: "primary", color: "background" }}
+          >
+            {parseFloat(String(pendingRewards.hbd)) > 0 ? "Claim to BTC" : "Earn in BTC"}
+          </Button>
+        </VStack>
       </Box>
+
+      {user && (
+        <ClaimToBtcModal
+          isOpen={btcModalOpen}
+          onClose={() => setBtcModalOpen(false)}
+          username={user}
+          rewardHbd={parseFloat(String(pendingRewards.hbd)) || 0}
+          btcAddress={btcAddress}
+          hivePower={Number(hivePower) || 0}
+          hiveBalance={hiveBalance}
+        />
+      )}
     </Box>
   );
 }

@@ -303,6 +303,29 @@ async function publishFarcasterItem(
     payload.channel_id || undefined
   );
   if (!result.success) {
+    // The stored signer no longer exists on Neynar (orphaned by a Neynar app /
+    // API-key change). Clear it so the app re-prompts the author to authorize a
+    // fresh signer, instead of every future cross-post failing with the same
+    // 404. Clearing signer_uuid (not just the status) guarantees the re-auth
+    // flow mints a new signer rather than reusing the dead one.
+    if (result.signerInvalid && item.user_id && metadata) {
+      const nextMeta: Record<string, unknown> = {
+        ...metadata,
+        signer_status: "revoked",
+        signer_invalid_reason: "neynar_signer_not_found",
+      };
+      delete nextMeta.signer_uuid;
+      await supabase
+        .from("userbase_identities")
+        .update({ metadata: nextMeta })
+        .eq("user_id", item.user_id)
+        .eq("type", "farcaster");
+      return {
+        success: false,
+        error:
+          "Your Farcaster connection expired — reconnect Farcaster in Settings to cross-post again.",
+      };
+    }
     return { success: false, error: result.error || "Farcaster publish failed." };
   }
   // Only build a permalink when we actually have both parts. A guessed URL in

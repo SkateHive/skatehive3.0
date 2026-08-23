@@ -1,25 +1,27 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
-  Box, Text, Button, Input, HStack, VStack, Image,
+  Box, Text, Button, Input, HStack, VStack,
   Spinner, Tooltip, useToast, Checkbox,
-  Modal, ModalOverlay, ModalContent, ModalBody, ModalCloseButton,
-  InputGroup, InputLeftElement, InputRightElement, useDisclosure, Wrap, WrapItem,
+  InputGroup, InputRightElement, useDisclosure,
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
-import { FaExchangeAlt, FaInfoCircle, FaSearch, FaChevronDown, FaCheck, FaCog } from "react-icons/fa";
-import { useAccount, useBalance, useChainId, useSendTransaction, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { FaExchangeAlt, FaInfoCircle, FaChevronDown, FaCog } from "react-icons/fa";
+import { useAccount, useBalance, useChainId, usePublicClient, useSendTransaction, useWaitForTransactionReceipt, useWriteContract, useSwitchChain } from "wagmi";
+import { LIDO_ABI, LIDO_REFERRAL, LIDO_STETH, isLidoStake } from "@/lib/evm/lido";
+import { isChainBoundWallet, chainBoundSwitchMessage } from "@/lib/evm/walletChain";
 import { parseUnits, formatUnits, formatEther, maxUint256, UserRejectedRequestError } from "viem";
 import { PortfolioContext } from "@/contexts/PortfolioContext";
+import TokenSelectorModal from "./TokenSelectorModal";
+import TokenChainLogo from "./TokenChainLogo";
+import {
+  defaultPair, getSwapChain, isNativeToken, networkToChainId, type SwapToken,
+} from "@/lib/evm/swapTokens";
 
 const shimmer = keyframes`
   0%   { background-position: -200% center; }
   100% { background-position:  200% center; }
 `;
-
-// ─── Token Definitions ───────────────────────────────────────────────────────
-
-const NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
 const ERC20_ABI = [
   {
@@ -33,301 +35,6 @@ const ERC20_ABI = [
     outputs: [{ type: "bool" }],
   },
 ] as const;
-
-interface TokenInfo {
-  symbol: string;
-  address: string;
-  decimals: number;
-  logo?: string;
-  name?: string;
-  balance?: string;
-}
-
-const STANDARD_TOKENS_BY_CHAIN: Record<number, TokenInfo[]> = {
-  // Base
-  8453: [
-    { symbol: "ETH",   address: NATIVE,                                        decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "WETH",  address: "0x4200000000000000000000000000000000000006",  decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "USDC",  address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",  decimals: 6,  logo: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png" },
-    { symbol: "DAI",   address: "0x50c5725949a6f0c72e6c4a641f24049a917db0cb",  decimals: 18 },
-    { symbol: "DEGEN", address: "0x4ed4e862860bed51a9570b96d89af5e1b0efefed",  decimals: 18, logo: "/logos/degen.png" },
-    { symbol: "HIGHER",address: "0x0578d8a44db98b23bf096a382e016e29a5ce0ffe",  decimals: 18, logo: "/logos/higher.png" },
-  ],
-  // Ethereum
-  1: [
-    { symbol: "ETH",  address: NATIVE,                                         decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "WETH", address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",   decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "USDC", address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",   decimals: 6 },
-    { symbol: "USDT", address: "0xdac17f958d2ee523a2206206994597c13d831ec7",   decimals: 6 },
-    { symbol: "DAI",  address: "0x6b175474e89094c44da98b954eedeac495271d0f",   decimals: 18 },
-  ],
-  // Arbitrum
-  42161: [
-    { symbol: "ETH",  address: NATIVE,                                         decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "WETH", address: "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",   decimals: 18, logo: "/logos/ethereum_logo.png" },
-    { symbol: "USDC", address: "0xaf88d065e77c8cc2239327c5edb3a432268e5831",   decimals: 6 },
-    { symbol: "ARB",  address: "0x912ce59144191c1204e64559fe8253a0e49e6548",   decimals: 18 },
-  ],
-};
-
-const CHAIN_NAMES: Record<number, string> = { 8453: "Base", 1: "Ethereum", 42161: "Arbitrum" };
-
-// ─── Token Logo Helper ──────────────────────────────────────────────────────
-
-function TokenLogo({ token, size = "28px" }: { token: TokenInfo; size?: string }) {
-  if (token.logo) {
-    return (
-      <Image src={token.logo} w={size} h={size} objectFit="contain" borderRadius="full" alt=""
-        fallback={
-          <Box w={size} h={size} borderRadius="full" bg="border" display="flex"
-            alignItems="center" justifyContent="center">
-            <Text fontSize="xs" fontWeight="bold" color="text">{token.symbol[0]}</Text>
-          </Box>
-        } />
-    );
-  }
-  return (
-    <Box w={size} h={size} borderRadius="full" bg="border" display="flex"
-      alignItems="center" justifyContent="center">
-      <Text fontSize="xs" fontWeight="bold" color="text">{token.symbol[0]}</Text>
-    </Box>
-  );
-}
-
-// ─── Token Row ──────────────────────────────────────────────────────────────
-
-function TokenRow({ token, isSelected, isExcluded, onClick }: {
-  token: TokenInfo;
-  isSelected: boolean;
-  isExcluded: boolean;
-  onClick: () => void;
-}) {
-  const bal = token.balance ? parseFloat(token.balance) : null;
-  return (
-    <HStack
-      px={3} py={2.5}
-      cursor={isExcluded ? "not-allowed" : "pointer"}
-      opacity={isExcluded ? 0.3 : 1}
-      bg={isSelected ? "muted" : "transparent"}
-      borderLeft="2px solid"
-      borderColor={isSelected ? "primary" : "transparent"}
-      _hover={isExcluded ? {} : { bg: "muted", borderColor: "primary" }}
-      transition="all 0.1s"
-      onClick={onClick}
-      spacing={3}
-    >
-      <TokenLogo token={token} size="32px" />
-      <VStack spacing={0} align="start" flex={1} minW={0}>
-        <HStack spacing={1}>
-          <Text fontSize="sm" fontWeight="black" fontFamily="mono" color="text" isTruncated>
-            {token.symbol}
-          </Text>
-          {token.name && token.name !== token.symbol && (
-            <Text fontSize="xs" color="dim" fontFamily="mono" isTruncated>
-              {token.name}
-            </Text>
-          )}
-        </HStack>
-        <Text fontSize="9px" color="dim" fontFamily="mono" noOfLines={1}>
-          {token.address === NATIVE ? "Native coin" : `${token.address.slice(0, 6)}...${token.address.slice(-4)}`}
-        </Text>
-      </VStack>
-      <VStack spacing={0} align="end" flexShrink={0}>
-        {bal !== null && bal > 0 ? (
-          <Text fontSize="xs" fontFamily="mono" fontWeight="bold" color="text">
-            {bal < 0.0001 ? bal.toExponential(2) : bal < 1 ? bal.toFixed(4) : bal < 1000 ? bal.toFixed(2) : Math.floor(bal).toLocaleString()}
-          </Text>
-        ) : isSelected ? (
-          <FaCheck color="var(--chakra-colors-primary)" size={12} />
-        ) : null}
-      </VStack>
-    </HStack>
-  );
-}
-
-// ─── Token Picker (Matcha-style modal) ──────────────────────────────────────
-
-const POPULAR_SYMBOLS = ["ETH", "USDC", "DEGEN", "HIGHER"];
-
-function TokenPicker({
-  selected,
-  tokens,
-  onSelect,
-  label,
-  exclude,
-}: {
-  selected: TokenInfo;
-  tokens: TokenInfo[];
-  onSelect: (t: TokenInfo) => void;
-  label: string;
-  exclude?: string;
-}) {
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [query, setQuery] = useState("");
-
-  const popular = useMemo(
-    () => tokens.filter((t) => POPULAR_SYMBOLS.includes(t.symbol)),
-    [tokens],
-  );
-
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    if (!q) return tokens;
-    return tokens.filter(
-      (t) =>
-        t.symbol.toLowerCase().includes(q) ||
-        (t.name?.toLowerCase().includes(q)) ||
-        t.address.toLowerCase().includes(q),
-    );
-  }, [query, tokens]);
-
-  const handleSelect = (t: TokenInfo) => {
-    if (t.address === exclude) return;
-    onSelect(t);
-    setQuery("");
-    onClose();
-  };
-
-  return (
-    <>
-      <Button
-        size="sm"
-        variant="outline"
-        borderColor="border"
-        borderRadius="none"
-        fontFamily="mono"
-        fontWeight="black"
-        color="text"
-        px={2}
-        flexShrink={0}
-        onClick={onOpen}
-        leftIcon={<TokenLogo token={selected} size="18px" />}
-        rightIcon={<FaChevronDown size={10} />}
-        _hover={{ borderColor: "primary", color: "primary" }}
-        aria-label={label}
-      >
-        {selected.symbol}
-      </Button>
-
-      <Modal isOpen={isOpen} onClose={() => { setQuery(""); onClose(); }} size="md" isCentered>
-        <ModalOverlay backdropFilter="blur(6px)" bg="blackAlpha.700" />
-        <ModalContent
-          bg="background"
-          border="2px solid"
-          borderColor="primary"
-          borderRadius="none"
-          mx={4}
-          maxH="85vh"
-        >
-          <ModalCloseButton color="dim" top={3} right={3} />
-          <ModalBody px={0} py={0}>
-            {/* Search */}
-            <Box px={4} pt={4} pb={3}>
-              <InputGroup size="lg">
-                <InputLeftElement pointerEvents="none" h="100%">
-                  <FaSearch color="var(--chakra-colors-dim)" />
-                </InputLeftElement>
-                <Input
-                  placeholder="Search supported tokens by name or address"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  bg="muted"
-                  border="1px solid"
-                  borderColor="border"
-                  borderRadius="none"
-                  fontFamily="mono"
-                  fontSize="sm"
-                  color="text"
-                  h="48px"
-                  _placeholder={{ color: "dim" }}
-                  _focus={{ borderColor: "primary", boxShadow: "none" }}
-                  autoFocus
-                />
-              </InputGroup>
-            </Box>
-
-            {/* Popular tokens row */}
-            {!query && popular.length > 0 && (
-              <Box px={4} pb={3}>
-                <Text fontSize="10px" fontFamily="mono" color="dim" textTransform="uppercase"
-                  letterSpacing="wider" mb={2}>
-                  Popular
-                </Text>
-                <Wrap spacing={2}>
-                  {popular.map((t) => {
-                    const isSel = t.address === selected.address;
-                    const isExcl = t.address === exclude;
-                    return (
-                      <WrapItem key={t.address}>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          borderColor={isSel ? "primary" : "border"}
-                          borderRadius="full"
-                          fontFamily="mono"
-                          fontWeight="bold"
-                          fontSize="xs"
-                          color={isSel ? "primary" : "text"}
-                          opacity={isExcl ? 0.3 : 1}
-                          cursor={isExcl ? "not-allowed" : "pointer"}
-                          leftIcon={<TokenLogo token={t} size="16px" />}
-                          onClick={() => handleSelect(t)}
-                          _hover={isExcl ? {} : { borderColor: "primary", bg: "muted" }}
-                          h="32px"
-                          px={3}
-                        >
-                          {t.symbol}
-                        </Button>
-                      </WrapItem>
-                    );
-                  })}
-                </Wrap>
-              </Box>
-            )}
-
-            {/* Divider */}
-            <Box h="1px" bg="border" />
-
-            {/* Token list */}
-            <VStack
-              spacing={0}
-              align="stretch"
-              maxH="400px"
-              overflowY="auto"
-              sx={{
-                "&::-webkit-scrollbar": { w: "4px" },
-                "&::-webkit-scrollbar-thumb": { bg: "border", borderRadius: "2px" },
-              }}
-            >
-              {filtered.length > 0 && (
-                <Text fontSize="10px" fontFamily="mono" color="dim" textTransform="uppercase"
-                  letterSpacing="wider" px={4} pt={3} pb={1}>
-                  Tokens
-                </Text>
-              )}
-              {filtered.map((t) => (
-                <TokenRow
-                  key={t.address}
-                  token={t}
-                  isSelected={t.address === selected.address}
-                  isExcluded={t.address === exclude}
-                  onClick={() => handleSelect(t)}
-                />
-              ))}
-
-              {/* No results */}
-              {query && filtered.length === 0 && (
-                <Box py={6} textAlign="center">
-                  <Text fontSize="xs" color="dim" fontFamily="mono">No tokens found</Text>
-                </Box>
-              )}
-            </VStack>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-    </>
-  );
-}
 
 // ─── Error helpers ──────────────────────────────────────────────────────────
 
@@ -345,6 +52,59 @@ function friendlyError(e: unknown): string {
   );
 }
 
+// ─── Token selector trigger ──────────────────────────────────────────────────
+
+function SelectorTrigger({
+  token,
+  onSelect,
+  excludeAddress,
+  activeChainId,
+  label,
+}: {
+  token: SwapToken;
+  onSelect: (t: SwapToken) => void;
+  excludeAddress?: string;
+  activeChainId: number;
+  label: string;
+}) {
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  return (
+    <>
+      <Button
+        h="44px"
+        variant="outline"
+        borderColor="border"
+        borderRadius="none"
+        bg="background"
+        fontFamily="mono"
+        fontWeight="black"
+        fontSize="md"
+        color="text"
+        pl={2}
+        pr={3}
+        flexShrink={0}
+        onClick={onOpen}
+        aria-label={label}
+        leftIcon={<TokenChainLogo token={token} size="28px" />}
+        rightIcon={<FaChevronDown size={11} />}
+        _hover={{ borderColor: "primary", color: "primary", bg: "muted" }}
+        _active={{ bg: "muted" }}
+        transition="all 0.12s"
+      >
+        {token.symbol}
+      </Button>
+      <TokenSelectorModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onSelect={onSelect}
+        selectedAddress={token.address}
+        excludeAddress={excludeAddress}
+        activeChainId={activeChainId}
+      />
+    </>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface ERC20SwapSectionProps {
@@ -356,47 +116,17 @@ interface ERC20SwapSectionProps {
 
 export default function ERC20SwapSection({ showFeeOption = false, compact = false }: ERC20SwapSectionProps) {
   const toast = useToast();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, connector } = useAccount();
   const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
   const { data: ethBalance } = useBalance({ address });
 
-  // ── Build unified token list ────────────────────────────────────────────
-  const standardTokens = useMemo(
-    () => STANDARD_TOKENS_BY_CHAIN[chainId] ?? STANDARD_TOKENS_BY_CHAIN[8453],
-    [chainId],
-  );
-
-  // Use portfolio balances (already fetched by PortfolioProvider) — safe when outside provider
   const portfolioCtx = useContext(PortfolioContext);
   const portfolioTokens = portfolioCtx?.aggregatedPortfolio?.tokens;
 
-  const allTokens = useMemo(() => {
-    const ethBal = ethBalance ? formatEther(ethBalance.value) : undefined;
-
-    // Build a quick lookup: lowercase address → balance number
-    const balanceMap = new Map<string, number>();
-    if (portfolioTokens) {
-      for (const pt of portfolioTokens) {
-        const addr = (pt.token?.address ?? pt.address ?? "").toLowerCase();
-        const bal = pt.token?.balance ?? 0;
-        if (addr && bal > 0) balanceMap.set(addr, bal);
-      }
-    }
-
-    return standardTokens.map((t) => {
-      // ETH: use wagmi balance (more accurate/realtime)
-      if (t.address === NATIVE) {
-        return ethBal ? { ...t, balance: ethBal } : t;
-      }
-      // ERC-20: use portfolio API balance
-      const bal = balanceMap.get(t.address.toLowerCase());
-      return bal ? { ...t, balance: String(bal) } : t;
-    });
-  }, [standardTokens, ethBalance, portfolioTokens]);
-
   // ── Core state ──────────────────────────────────────────────────────────
-  const [sellToken, setSellToken] = useState<TokenInfo>(standardTokens[0]);
-  const [buyToken, setBuyToken] = useState<TokenInfo>(standardTokens[2] ?? standardTokens[1]);
+  const [sellToken, setSellToken] = useState<SwapToken>(() => defaultPair(chainId).sell);
+  const [buyToken, setBuyToken] = useState<SwapToken>(() => defaultPair(chainId).buy);
   const [sellAmount, setSellAmount] = useState("");
   const [supportFee, setSupportFee] = useState(true);
 
@@ -411,18 +141,29 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const [approvalTarget, setApprovalTarget] = useState<`0x${string}` | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
 
+  // ── Lido direct stake (ETH → stETH on mainnet) ─────────────────────────
+  const lidoStake = isLidoStake(sellToken, buyToken);
+  const mainnetClient = usePublicClient({ chainId: 1 });
+
   // ── Shared state ────────────────────────────────────────────────────────
   const [isFetching, setIsFetching] = useState(false);
 
-  // ── Balance of the currently selected sell token (from enriched list) ────
+  // ── Balance of the currently selected sell token ─────────────────────────
   const sellBalance = useMemo(() => {
-    const match = allTokens.find(
-      (t) => t.address.toLowerCase() === sellToken.address.toLowerCase(),
-    );
-    return match?.balance ? parseFloat(match.balance) : 0;
-  }, [allTokens, sellToken]);
+    if (isNativeToken(sellToken.address)) {
+      return ethBalance ? parseFloat(formatEther(ethBalance.value)) : 0;
+    }
+    if (portfolioTokens) {
+      for (const pt of portfolioTokens) {
+        if (networkToChainId(pt.network ?? "") !== sellToken.chainId) continue;
+        const addr = (pt.token?.address ?? pt.address ?? "").toLowerCase();
+        if (addr === sellToken.address.toLowerCase()) return pt.token?.balance ?? 0;
+      }
+    }
+    return 0;
+  }, [sellToken, ethBalance, portfolioTokens]);
 
-  const isNativeSell = sellToken.address === NATIVE;
+  const isNativeSell = isNativeToken(sellToken.address);
 
   const setAmountFromBalance = useCallback(
     (fraction: number) => {
@@ -440,14 +181,58 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const insufficientBalance =
     !!sellAmount && parseFloat(sellAmount) > 0 && parseFloat(sellAmount) > sellBalance;
 
-  // Reset tokens when chain changes
+  // Realign tokens whenever the wallet chain changes and no longer matches
+  // (e.g. the user switched network directly in their wallet).
   useEffect(() => {
-    const list = STANDARD_TOKENS_BY_CHAIN[chainId] ?? STANDARD_TOKENS_BY_CHAIN[8453];
-    setSellToken(list[0]);
-    setBuyToken(list[2] ?? list[1]);
-    setSellAmount("");
-    setPrice(null);
+    if (sellToken.chainId !== chainId || buyToken.chainId !== chainId) {
+      const dp = defaultPair(chainId);
+      setSellToken(dp.sell);
+      setBuyToken(dp.buy);
+      setSellAmount("");
+      setPrice(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chainId]);
+
+  // Pick a token; if it lives on another chain, switch the wallet network too.
+  const selectToken = useCallback(
+    async (side: "sell" | "buy", token: SwapToken) => {
+      if (token.chainId === chainId) {
+        if (side === "sell") setSellToken(token);
+        else setBuyToken(token);
+        setSellAmount("");
+        setPrice(null);
+        return;
+      }
+      // A Safe/WalletConnect session cannot switch chains — say so instead of
+      // sending a switch request that hangs the session.
+      if (isChainBoundWallet(connector)) {
+        toast({ title: "Network switch not possible", description: chainBoundSwitchMessage(token.chainId), status: "warning", duration: 8000, isClosable: true });
+        return;
+      }
+      // Cross-chain: set the whole pair for the new chain, then switch network.
+      const dp = defaultPair(token.chainId);
+      const sameAddr = (a: SwapToken) => a.address.toLowerCase() === token.address.toLowerCase();
+      const other =
+        side === "sell" ? (sameAddr(dp.buy) ? dp.sell : dp.buy) : (sameAddr(dp.sell) ? dp.buy : dp.sell);
+      setSellToken(side === "sell" ? token : other);
+      setBuyToken(side === "buy" ? token : other);
+      setSellAmount("");
+      setPrice(null);
+      try {
+        await switchChain({ chainId: token.chainId });
+      } catch (e) {
+        const back = defaultPair(chainId);
+        setSellToken(back.sell);
+        setBuyToken(back.buy);
+        if (isUserRejection(e))
+          toast({ title: "Network switch cancelled", status: "info", duration: 2000, isClosable: true });
+        else
+          toast({ title: "Could not switch network", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
+      }
+    },
+    [chainId, switchChain, toast, connector],
+  );
 
   // ── Debounced quote fetch (0x Protocol) ───────────────────────────────
   useEffect(() => {
@@ -460,6 +245,37 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
       setIsFetching(true);
       try {
         const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
+
+        if (lidoStake) {
+          // Direct Lido stake: 1 ETH → 1 stETH, no quote needed. We still
+          // simulate submit() from the user's address so a paused/limited
+          // staking queue shows up here instead of at signing time. The
+          // simulation returns SHARES — ignore that number for display.
+          let reason: string | null = null;
+          try {
+            await mainnetClient?.simulateContract({
+              address: LIDO_STETH, abi: LIDO_ABI, functionName: "submit",
+              args: [LIDO_REFERRAL], value: BigInt(rawAmount), account: address,
+            });
+          } catch (e) {
+            // Only a contract revert means staking is unavailable. A transport
+            // failure (public RPC down / rate-limited) must not block the stake.
+            const names: string[] = [];
+            for (let c: unknown = e; c && names.length < 6; c = (c as { cause?: unknown }).cause) names.push((c as { name?: string }).name ?? "");
+            const transport = names.some((n) => /HttpRequestError|TimeoutError|RpcRequestError|TransportError/.test(n));
+            if (transport) {
+              console.warn("[swap] Lido pre-simulation skipped (RPC transport error):", friendlyError(e));
+            } else {
+              reason = friendlyError(e);
+              console.error("[swap] Lido submit() simulation reverted:", e);
+            }
+          }
+          setPrice({ lido: true, buyAmount: rawAmount, minBuyAmount: rawAmount, liquidityAvailable: !reason, lidoError: reason });
+          setNeedsApproval(false);
+          setApprovalTarget(null);
+          return;
+        }
+
         const params = new URLSearchParams({
           chainId: String(chainId),
           sellToken: sellToken.address,
@@ -475,7 +291,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
 
         const spender = data?.issues?.allowance?.spender ?? data?.allowanceTarget;
         const needsAllow =
-          sellToken.address !== NATIVE &&
+          !isNativeToken(sellToken.address) &&
           !!data?.issues?.allowance &&
           !!spender;
         setNeedsApproval(needsAllow);
@@ -488,7 +304,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
     }, 600);
 
     return () => clearTimeout(timeout);
-  }, [sellAmount, sellToken, buyToken, address, chainId, supportFee, slippageBps]);
+  }, [sellAmount, sellToken, buyToken, address, chainId, supportFee, slippageBps, lidoStake, mainnetClient]);
 
   // ── Approval (0x only) ────────────────────────────────────────────────
   const { writeContractAsync, isPending: isApproving } = useWriteContract();
@@ -520,6 +336,20 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
     if (!price?.liquidityAvailable) return;
     try {
       const rawAmount = parseUnits(sellAmount, sellToken.decimals).toString();
+
+      if (lidoStake) {
+        console.info(`[swap] Lido direct stake: submit(${LIDO_REFERRAL}) value=${rawAmount} from ${address}`);
+        const hash = await writeContractAsync({
+          address: LIDO_STETH, abi: LIDO_ABI, functionName: "submit",
+          args: [LIDO_REFERRAL], value: BigInt(rawAmount), chainId: 1,
+        });
+        setTxHash(hash);
+        toast({ title: "Stake submitted!", description: hash, status: "success", duration: 6000, isClosable: true });
+        setSellAmount("");
+        setPrice(null);
+        return;
+      }
+
       const params = new URLSearchParams({
         chainId: String(chainId),
         sellToken: sellToken.address,
@@ -556,7 +386,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
       else
         toast({ title: "Swap failed", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
     }
-  }, [address, price, sellAmount, sellToken, buyToken, chainId, supportFee, slippageBps, sendTransactionAsync, toast]);
+  }, [address, price, sellAmount, sellToken, buyToken, chainId, supportFee, slippageBps, sendTransactionAsync, writeContractAsync, lidoStake, toast]);
 
   // ── Derived display values ────────────────────────────────────────────
   const estimatedOut = useMemo(() => {
@@ -595,7 +425,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
   const canSwap =
     isConnected && !!price?.liquidityAvailable && !needsApproval && !isLoading && !!sellAmount && !insufficientBalance;
 
-  const routeLabel = `via 0x · ${CHAIN_NAMES[chainId] ?? "Unknown"}`;
+  const routeLabel = `via 0x · ${getSwapChain(chainId)?.name ?? "Unknown"}`;
 
   const handleFlip = () => {
     const newSell = buyToken;
@@ -698,106 +528,129 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </Box>
           )}
 
-          {/* Sell */}
-          <Box border="1px solid" borderColor={insufficientBalance ? "red.400" : "border"} p={3} mb={1}>
-            <HStack justify="space-between" mb={1} align="center">
-              <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
-                You Pay
-              </Text>
-              {isConnected && (
-                <HStack spacing={2}>
-                  <Text fontSize="10px" color={insufficientBalance ? "red.400" : "dim"} fontFamily="mono">
-                    Bal: {sellBalance < 0.0001 ? sellBalance.toExponential(2) : sellBalance < 1 ? sellBalance.toFixed(4) : sellBalance < 1000 ? sellBalance.toFixed(2) : Math.floor(sellBalance).toLocaleString()}
-                  </Text>
-                  <Button
-                    size="xs" h="16px" px={1} variant="ghost" color="primary" fontFamily="mono" fontSize="9px"
-                    onClick={() => setAmountFromBalance(0.5)} isDisabled={sellBalance <= 0}
-                    _hover={{ bg: "muted" }}
-                  >
-                    HALF
-                  </Button>
-                  <Button
-                    size="xs" h="16px" px={1} variant="ghost" color="primary" fontFamily="mono" fontSize="9px"
-                    onClick={() => setAmountFromBalance(1)} isDisabled={sellBalance <= 0}
-                    _hover={{ bg: "muted" }}
-                  >
-                    MAX
-                  </Button>
-                </HStack>
-              )}
-            </HStack>
-            <HStack>
-              <HStack spacing={2} flex={1} minW={0}>
-                {sellToken.logo && (
-                  <Image src={sellToken.logo} w="22px" h="22px" objectFit="contain" borderRadius="full" alt=""
-                    fallback={<Box w="22px" h="22px" borderRadius="full" bg="border" />} />
+          {/* Sell + Flip + Buy (flip button overlaps the seam) */}
+          <Box mb={3}>
+            {/* Sell */}
+            <Box
+              border="1px solid"
+              borderColor={insufficientBalance ? "red.400" : "border"}
+              bg="muted"
+              p={4}
+            >
+              <HStack justify="space-between" mb={2} align="center">
+                <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider">
+                  You Pay
+                </Text>
+                {isConnected && (
+                  <HStack spacing={2}>
+                    <Text fontSize="11px" color={insufficientBalance ? "red.400" : "dim"} fontFamily="mono">
+                      Bal: {sellBalance < 0.0001 ? sellBalance.toExponential(2) : sellBalance < 1 ? sellBalance.toFixed(4) : sellBalance < 1000 ? sellBalance.toFixed(2) : Math.floor(sellBalance).toLocaleString()}
+                    </Text>
+                    <Button
+                      size="xs" h="20px" px={1.5} variant="outline" borderColor="border" borderRadius="none"
+                      color="primary" fontFamily="mono" fontSize="9px" fontWeight="black"
+                      onClick={() => setAmountFromBalance(0.5)} isDisabled={sellBalance <= 0}
+                      _hover={{ bg: "background", borderColor: "primary" }}
+                    >
+                      HALF
+                    </Button>
+                    <Button
+                      size="xs" h="20px" px={1.5} variant="outline" borderColor="border" borderRadius="none"
+                      color="primary" fontFamily="mono" fontSize="9px" fontWeight="black"
+                      onClick={() => setAmountFromBalance(1)} isDisabled={sellBalance <= 0}
+                      _hover={{ bg: "background", borderColor: "primary" }}
+                    >
+                      MAX
+                    </Button>
+                  </HStack>
                 )}
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={sellAmount}
-                  onChange={(e) => setSellAmount(e.target.value)}
-                  fontSize="2xl"
-                  fontFamily="mono"
-                  fontWeight="black"
-                  color="primary"
-                  variant="unstyled"
-                  flex={1}
-                  minW={0}
-                  _placeholder={{ color: "dim" }}
+              </HStack>
+              <HStack spacing={3}>
+                <HStack spacing={2.5} flex={1} minW={0}>
+                  <TokenChainLogo token={sellToken} size="34px" />
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={sellAmount}
+                    onChange={(e) => setSellAmount(e.target.value)}
+                    fontSize="3xl"
+                    fontFamily="mono"
+                    fontWeight="black"
+                    color="primary"
+                    variant="unstyled"
+                    flex={1}
+                    minW={0}
+                    h="44px"
+                    _placeholder={{ color: "dim" }}
+                  />
+                </HStack>
+                <SelectorTrigger
+                  token={sellToken}
+                  onSelect={(t) => selectToken("sell", t)}
+                  excludeAddress={buyToken.address}
+                  activeChainId={chainId}
+                  label="Sell token"
                 />
               </HStack>
-              <TokenPicker
-                selected={sellToken}
-                tokens={allTokens}
-                onSelect={(t) => { setSellToken(t); setSellAmount(""); setPrice(null); }}
-                label="Sell token"
-                exclude={buyToken.address}
-              />
-            </HStack>
-          </Box>
+            </Box>
 
-          {/* Flip */}
-          <Box textAlign="center" py={1}>
-            <Button size="xs" variant="ghost" color="primary" onClick={handleFlip}
-              _hover={{ bg: "primary", color: "background" }} transition="all 0.2s">
-              <FaExchangeAlt style={{ transform: "rotate(90deg)" }} />
-            </Button>
-          </Box>
+            {/* Flip — square button punched into the seam between the two boxes */}
+            <Box h="0" position="relative" zIndex={2} textAlign="center">
+              <Button
+                position="absolute" top="0" left="50%" transform="translate(-50%, -50%)"
+                w="40px" h="40px" minW="40px" p={0}
+                borderRadius="none"
+                border="2px solid"
+                borderColor="primary"
+                bg="background"
+                color="primary"
+                onClick={handleFlip}
+                aria-label="Flip tokens"
+                _hover={{ bg: "primary", color: "background" }}
+                _active={{ transform: "translate(-50%, -50%) scale(0.94)" }}
+                transition="all 0.15s"
+              >
+                <FaExchangeAlt style={{ transform: "rotate(90deg)" }} />
+              </Button>
+            </Box>
 
-          {/* Buy */}
-          <Box border="1px solid" borderColor="border" p={3} mb={3}>
-            <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={1}>
-              You Receive
-            </Text>
-            <HStack>
-              <HStack spacing={2} flex={1} minW={0}>
-                {buyToken.logo && (
-                  <Image src={buyToken.logo} w="22px" h="22px" objectFit="contain" borderRadius="full" alt=""
-                    fallback={<Box w="22px" h="22px" borderRadius="full" bg="border" />} />
-                )}
-                <Text fontSize="2xl" fontFamily="mono" fontWeight="black" color="primary">
-                  {isFetching ? <Spinner size="sm" /> : estimatedOut}
-                </Text>
+            {/* Buy */}
+            <Box border="1px solid" borderColor="border" bg="muted" p={4}>
+              <Text fontSize="xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="wider" mb={2}>
+                You Receive
+              </Text>
+              <HStack spacing={3}>
+                <HStack spacing={2.5} flex={1} minW={0}>
+                  <TokenChainLogo token={buyToken} size="34px" />
+                  <Text fontSize="3xl" fontFamily="mono" fontWeight="black" color={estimatedOut === "—" ? "dim" : "primary"} isTruncated>
+                    {isFetching ? <Spinner size="md" color="primary" /> : estimatedOut}
+                  </Text>
+                </HStack>
+                <SelectorTrigger
+                  token={buyToken}
+                  onSelect={(t) => selectToken("buy", t)}
+                  excludeAddress={sellToken.address}
+                  activeChainId={chainId}
+                  label="Buy token"
+                />
               </HStack>
-              <TokenPicker
-                selected={buyToken}
-                tokens={allTokens}
-                onSelect={(t) => { setBuyToken(t); setSellAmount(""); setPrice(null); }}
-                label="Buy token"
-                exclude={sellToken.address}
-              />
-            </HStack>
+            </Box>
           </Box>
 
           {/* Swap details (rate, min received, fees) */}
           {!isFetching && exchangeRate && (
             <VStack spacing={1} align="stretch" border="1px solid" borderColor="border" p={2} mb={3} fontSize="xs" fontFamily="mono">
+              {price?.lido && (
+                <HStack justify="space-between" color="dim">
+                  <Text>Route</Text>
+                  <Text color="text">Lido direct stake — no slippage, no fee</Text>
+                </HStack>
+              )}
               <HStack justify="space-between" color="dim">
                 <Text>Rate</Text>
                 <Text color="text">1 {sellToken.symbol} = {exchangeRate} {buyToken.symbol}</Text>
               </HStack>
-              {minReceived && (
+              {minReceived && !price?.lido && (
                 <HStack justify="space-between" color="dim">
                   <HStack spacing={1}>
                     <Text>Min received</Text>
@@ -808,10 +661,15 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
                   <Text color="text">{minReceived} {buyToken.symbol}</Text>
                 </HStack>
               )}
-              <HStack justify="space-between" color="dim">
-                <Text>Max slippage</Text>
-                <Text color="text">{slippagePct}%</Text>
-              </HStack>
+              {!price?.lido && (
+                <HStack justify="space-between" color="dim">
+                  <Text>Max slippage</Text>
+                  <Text color="text">{slippagePct}%</Text>
+                </HStack>
+              )}
+              {price?.lidoError && (
+                <Text color="red.400">Lido staking unavailable: {price.lidoError}</Text>
+              )}
               {networkFeeEth && (
                 <HStack justify="space-between" color="dim">
                   <Text>Network fee</Text>
@@ -821,7 +679,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
               {price?.issues?.balance && (
                 <Text color="red.400">Insufficient {sellToken.symbol} balance</Text>
               )}
-              {price && !price.liquidityAvailable && (
+              {price && !price.liquidityAvailable && !price.lido && (
                 <Text color="red.400">No liquidity available for this pair</Text>
               )}
               {isSuccess && (
@@ -832,13 +690,13 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
 
           {/* CTA */}
           {!isConnected ? (
-            <Box border="1px solid" borderColor="border" p={3} textAlign="center">
+            <Box border="1px solid" borderColor="border" bg="muted" p={4} textAlign="center">
               <Text fontSize="xs" color="dim" fontFamily="mono">Connect EVM wallet to swap</Text>
             </Box>
           ) : needsApproval ? (
             <Button
-              w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest"
-              fontFamily="mono" colorScheme="orange" size="md"
+              w="100%" h="54px" borderRadius="none" fontWeight="black" letterSpacing="widest"
+              fontFamily="mono" fontSize="md" colorScheme="orange"
               sx={{ textTransform: "uppercase" }}
               isLoading={isApproving} loadingText="APPROVING..."
               onClick={handleApprove}
@@ -847,21 +705,21 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </Button>
           ) : (
             <Button
-              w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest"
-              fontFamily="mono" colorScheme="green" size="md"
+              w="100%" h="54px" borderRadius="none" fontWeight="black" letterSpacing="widest"
+              fontFamily="mono" fontSize="md" colorScheme="green"
               sx={{ textTransform: "uppercase" }}
               isDisabled={!canSwap}
               isLoading={isSending || isConfirming}
-              loadingText={isConfirming ? "CONFIRMING..." : "SWAPPING..."}
+              loadingText={isConfirming ? "CONFIRMING..." : lidoStake ? "STAKING..." : "SWAPPING..."}
               leftIcon={<FaExchangeAlt />}
               onClick={handleSwap}
             >
-              {!sellAmount ? "Enter Amount" : insufficientBalance ? `Insufficient ${sellToken.symbol}` : isFetching ? "..." : "Swap"}
+              {!sellAmount ? "Enter Amount" : insufficientBalance ? `Insufficient ${sellToken.symbol}` : isFetching ? "..." : lidoStake ? "Stake with Lido" : "Swap"}
             </Button>
           )}
 
           {/* Optional platform fee */}
-          {showFeeOption && (
+          {showFeeOption && !lidoStake && (
             <HStack mt={2} spacing={2} justify="center">
               <Checkbox
                 size="sm"
@@ -879,12 +737,18 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
             </HStack>
           )}
 
+          {lidoStake ? (
+            <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" mt={2}>
+              Staked directly with Lido (stETH.submit) — 1 ETH mints 1 stETH
+            </Text>
+          ) : (
           <Text fontSize="xs" color="dim" fontFamily="mono" textAlign="center" mt={2}>
             Best price from 150+ sources
             <Tooltip label="Powered by 0x Protocol — aggregates Uniswap, Curve, and 148+ other DEXes for best execution">
               <Box as="span" ml={1} cursor="help"><FaInfoCircle style={{ display: "inline" }} /></Box>
             </Tooltip>
           </Text>
+          )}
     </VStack>
   );
 

@@ -22,7 +22,9 @@ import {
   FaIdCard,
   FaBolt,
   FaInstagram,
+  FaBitcoin,
 } from "react-icons/fa";
+import { migrateLegacyMetadata } from "@/lib/utils/metadataMigration";
 import { TOAST_CONFIG } from "@/config/toast.config";
 import ToastCard from "@/components/shared/ToastCard";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
@@ -40,7 +42,7 @@ const SNOOZE_MS = 24 * 60 * 60 * 1000; // 24h
 const INSTAGRAM_URL = "https://instagram.com/skatehive";
 const DEFAULT_AVATAR_MARKER = "/default/avatar";
 
-type CtaId = "avatar" | "profile" | "hp" | "instagram";
+type CtaId = "avatar" | "profile" | "hp" | "instagram" | "btc";
 
 interface CtaContext {
   handle: string;
@@ -48,6 +50,7 @@ interface CtaContext {
   hasAvatar: boolean;
   hasBio: boolean;
   hasName: boolean;
+  hasBtcAddress: boolean;
   canSign: boolean;
 }
 
@@ -130,6 +133,19 @@ const CTAS: ProfileCta[] = [
         onAction: c.canSign ? a.openPowerUp : a.goWallet,
       };
     },
+  },
+  {
+    id: "btc",
+    // Nudge users who haven't set up a Bitcoin payout yet toward BTC rewards.
+    isNeeded: (c) => !c.hasBtcAddress,
+    build: (_c, t, a) => ({
+      title: t("cta.btcTitle"),
+      description: t("cta.btcDesc"),
+      icon: <FaBitcoin size={16} />,
+      colorScheme: "orange",
+      buttonLabel: t("cta.btcBtn"),
+      onAction: a.goWallet,
+    }),
   },
   {
     id: "instagram",
@@ -231,12 +247,23 @@ export default function ProfileSetupToast() {
     const bio = (userbaseUser?.bio ?? hiveProfile.about ?? "").trim();
     const name = (userbaseUser?.display_name ?? hiveProfile.name ?? "").trim();
 
+    const hasBtcAddress = (() => {
+      const raw = (hiveAccount as { json_metadata?: string } | null)?.json_metadata;
+      if (!raw) return false;
+      try {
+        return !!migrateLegacyMetadata(JSON.parse(raw))?.extensions?.wallets?.btc_address;
+      } catch {
+        return false;
+      }
+    })();
+
     const ctx: CtaContext = {
       handle,
       hivePower,
       hasAvatar: !!avatar && !avatar.includes(DEFAULT_AVATAR_MARKER),
       hasBio: bio.length > 0,
       hasName: name.length > 0,
+      hasBtcAddress,
       canSign: isWalletConnected,
     };
 

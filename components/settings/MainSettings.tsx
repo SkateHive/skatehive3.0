@@ -12,6 +12,7 @@ import {
 } from "@chakra-ui/react";
 import { useTheme, ThemeName, themeMap } from "@/app/themeProvider";
 import VoteWeightSlider from "@/components/settings/VoteWeightSlider";
+import BtcAddressSettings from "@/components/settings/BtcAddressSettings";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useSoundSettings } from "@/contexts/SoundSettingsContext";
 import { useLocale } from "@/contexts/LocaleContext";
@@ -22,9 +23,11 @@ interface MainSettingsProps {
     hiveUsername: string | undefined;
     postingKey: string | undefined;
   };
+  /** Current BTC address parsed from Hive metadata (prefills the settings card). */
+  btcAddress?: string;
 }
 
-const MainSettings: React.FC<MainSettingsProps> = ({ userData }) => {
+const MainSettings: React.FC<MainSettingsProps> = ({ userData, btcAddress }) => {
   const t = useTranslations();
   const { themeName, setThemeName } = useTheme();
   const { soundEnabled, setSoundEnabled, isHydrated } = useSoundSettings();
@@ -211,6 +214,14 @@ const MainSettings: React.FC<MainSettingsProps> = ({ userData }) => {
           onVoteWeightUpdate={(voteWeight) => {
             // Vote weight updated
           }}
+        />
+      )}
+
+      {/* Bitcoin Address */}
+      {userData.hiveUsername && (
+        <BtcAddressSettings
+          username={userData.hiveUsername}
+          currentAddress={btcAddress}
         />
       )}
 

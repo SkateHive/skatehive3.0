@@ -6,7 +6,7 @@ import { Aioha } from "@aioha/aioha";
 import { AiohaProvider } from "@aioha/react-ui";
 import { ThemeProvider } from "./themeProvider";
 import { getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
-import { WagmiProvider, http } from "wagmi";
+import { WagmiProvider, http, fallback } from "wagmi";
 import { base, mainnet, arbitrum } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { UserProvider } from "@/contexts/UserContext";
@@ -42,16 +42,34 @@ if (typeof window !== "undefined") {
 // Create wagmiConfig once at module level to prevent re-initialization
 let wagmiConfigInstance: ReturnType<typeof getDefaultConfig> | null = null;
 
+const ALCHEMY_KEY = process.env.NEXT_PUBLIC_ALCHEMY_KEY || "";
+
 function getWagmiConfig() {
   if (!wagmiConfigInstance) {
     wagmiConfigInstance = getDefaultConfig({
       appName: APP_CONFIG.NAME,
       projectId: APP_CONFIG.WALLETCONNECT_PROJECT_ID,
       chains: [base, mainnet, arbitrum],
+      // viem's default public RPCs are rate-limited/unreliable from browsers
+      // (mainnet default eth.merkle.io answered Cloudflare 1015 on 2026-08-22,
+      // which showed mainnet balances as 0 and blocked swaps/stakes). Use
+      // Alchemy when a key is present, with public fallbacks.
       transports: {
-        [base.id]: http(),
-        [mainnet.id]: http(),
-        [arbitrum.id]: http(),
+        [base.id]: fallback([
+          ...(ALCHEMY_KEY ? [http(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`)] : []),
+          http("https://mainnet.base.org"),
+          http(),
+        ]),
+        [mainnet.id]: fallback([
+          ...(ALCHEMY_KEY ? [http(`https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`)] : []),
+          http("https://ethereum-rpc.publicnode.com"),
+          http(),
+        ]),
+        [arbitrum.id]: fallback([
+          ...(ALCHEMY_KEY ? [http(`https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`)] : []),
+          http("https://arb1.arbitrum.io/rpc"),
+          http(),
+        ]),
       },
       ssr: true,
     });
@@ -96,9 +114,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
             <ThemeProvider>
               <QueryClientProvider client={queryClient}>
                 <WagmiProvider config={wagmiConfig}>
+                  {/* No `initialChain`: RainbowKit would pass chainId=Base to every
+                      connect, and wagmi's WalletConnect connector then sends
+                      wallet_switchEthereumChain and AWAITS the change — a Safe session
+                      is chain-bound, so that hung/broke connections from mainnet and
+                      forced everyone to Base. Without it RainbowKit keeps the wallet's
+                      own chain when supported, else falls back to chains[0] (Base). */}
                   <RainbowKitProvider
                     coolMode
-                    initialChain={base}
                     theme={dynamicRainbowTheme}
                   >
                     <AiohaProvider aioha={aioha}>

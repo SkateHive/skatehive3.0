@@ -1,3 +1,4 @@
+import dynamic from "next/dynamic";
 import {
   Box,
   Image,
@@ -40,7 +41,11 @@ import { UpvoteButton } from "@/components/shared";
 import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
 import { BiDotsHorizontal } from "react-icons/bi";
 import ShareMenuButtons from "@/components/homepage/ShareMenuButtons";
-import { LuArrowUp, LuCheck } from "react-icons/lu";
+import VoteStateIcon from "@/components/shared/VoteStateIcon";
+const TipModal = dynamic(() => import("@/components/shared/TipModal"), {
+  ssr: false,
+});
+import useVoteIconState from "@/hooks/useVoteIconState";
 import VoteListPopover from "@/components/blog/VoteListModal";
 
 interface PostJsonMetadata {
@@ -107,6 +112,26 @@ export default function PostCard({
         (item) => item.voter.toLowerCase() === effectiveUser?.toLowerCase()
       )
   );
+  const { iconState, markJustVoted } = useVoteIconState({
+    voted: !!voted,
+    enableTipping: true,
+  });
+  const [isTipOpen, setIsTipOpen] = useState(false);
+
+  // Showing the gift means the vote already happened; the control stops being
+  // a vote button and becomes the way into the tip flow.
+  const handleVoteControlActivate = () => {
+    if (iconState === "tip") {
+      setIsTipOpen(true);
+      return;
+    }
+    if (voted || isVoting) return;
+    if (disableSlider) {
+      handleDirectVote();
+    } else {
+      setShowSlider(true);
+    }
+  };
 
   useEffect(() => {
     setActiveVotes(post.active_votes || []);
@@ -298,6 +323,7 @@ export default function PostCard({
       
       if (voteResult.success) {
         setVoted(true);
+        markJustVoted();
         if (effectiveUser) {
           setActiveVotes((prev) => [
             ...prev,
@@ -448,31 +474,13 @@ export default function PostCard({
               px={2}
               py={1}
               cursor="pointer"
-              onClick={() => {
-                if (!voted && !isVoting) {
-                  if (disableSlider) {
-                    // Slider disabled - vote directly with default weight
-                    handleDirectVote();
-                  } else {
-                    // Show slider for vote weight selection
-                    setShowSlider(true);
-                  }
-                }
-              }}
+              onClick={handleVoteControlActivate}
               opacity={isVoting ? 0.5 : 0.9}
               _hover={{ opacity: 0.7 }}
               transition="opacity 0.2s"
             >
               <HStack spacing={1.5}>
-                {voted ? (
-                  <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                    <LuCheck size={18} color="var(--chakra-colors-primary)" />
-                  </Box>
-                ) : (
-                  <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                    <LuArrowUp size={18} color="var(--chakra-colors-text)" />
-                  </Box>
-                )}
+                <VoteStateIcon state={iconState} size={18} />
                 <Text
                   fontSize="sm"
                   fontWeight="medium"
@@ -893,31 +901,13 @@ export default function PostCard({
                   px={2}
                   py={1}
                   cursor="pointer"
-                  onClick={() => {
-                    if (!voted && !isVoting) {
-                      if (disableSlider) {
-                        // Slider disabled - vote directly with default weight
-                        handleDirectVote();
-                      } else {
-                        // Show slider for vote weight selection
-                        setShowSlider(true);
-                      }
-                    }
-                  }}
+                  onClick={handleVoteControlActivate}
                   opacity={isVoting ? 0.5 : 0.9}
                   _hover={{ opacity: 0.7 }}
                   transition="opacity 0.2s"
                 >
                   <HStack spacing={1.5}>
-                    {voted ? (
-                      <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                        <LuCheck size={18} color="var(--chakra-colors-primary)" />
-                      </Box>
-                    ) : (
-                      <Box boxSize="18px" display="flex" alignItems="center" justifyContent="center">
-                        <LuArrowUp size={18} color="var(--chakra-colors-text)" />
-                      </Box>
-                    )}
+                    <VoteStateIcon state={iconState} size={18} />
                     <Text
                       fontSize="sm"
                       fontWeight="medium"
@@ -982,6 +972,13 @@ export default function PostCard({
           </Box>
         </Box>
       </Box>
+      {isTipOpen && (
+        <TipModal
+          isOpen={isTipOpen}
+          onClose={() => setIsTipOpen(false)}
+          discussion={post}
+        />
+      )}
     </>
   );
 }

@@ -133,6 +133,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
                   newComment={newComment}
                   setNewComment={setNewComment}
                   post={true}
+                  threadComments
                   data={commentsData}
                 />
               </>
