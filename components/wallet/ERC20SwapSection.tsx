@@ -9,6 +9,7 @@ import { keyframes } from "@emotion/react";
 import { FaExchangeAlt, FaInfoCircle, FaChevronDown, FaCog } from "react-icons/fa";
 import { useAccount, useBalance, useChainId, usePublicClient, useSendTransaction, useWaitForTransactionReceipt, useWriteContract, useSwitchChain } from "wagmi";
 import { LIDO_ABI, LIDO_REFERRAL, LIDO_STETH, isLidoStake } from "@/lib/evm/lido";
+import { isChainBoundWallet, chainBoundSwitchMessage } from "@/lib/evm/walletChain";
 import { parseUnits, formatUnits, formatEther, maxUint256, UserRejectedRequestError } from "viem";
 import { PortfolioContext } from "@/contexts/PortfolioContext";
 import TokenSelectorModal from "./TokenSelectorModal";
@@ -115,7 +116,7 @@ interface ERC20SwapSectionProps {
 
 export default function ERC20SwapSection({ showFeeOption = false, compact = false }: ERC20SwapSectionProps) {
   const toast = useToast();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, connector } = useAccount();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const { data: ethBalance } = useBalance({ address });
@@ -203,6 +204,12 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
         setPrice(null);
         return;
       }
+      // A Safe/WalletConnect session cannot switch chains — say so instead of
+      // sending a switch request that hangs the session.
+      if (isChainBoundWallet(connector)) {
+        toast({ title: "Network switch not possible", description: chainBoundSwitchMessage(token.chainId), status: "warning", duration: 8000, isClosable: true });
+        return;
+      }
       // Cross-chain: set the whole pair for the new chain, then switch network.
       const dp = defaultPair(token.chainId);
       const sameAddr = (a: SwapToken) => a.address.toLowerCase() === token.address.toLowerCase();
@@ -224,7 +231,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
           toast({ title: "Could not switch network", description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
       }
     },
-    [chainId, switchChain, toast],
+    [chainId, switchChain, toast, connector],
   );
 
   // ── Debounced quote fetch (0x Protocol) ───────────────────────────────

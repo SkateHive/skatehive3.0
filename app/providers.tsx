@@ -114,9 +114,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
             <ThemeProvider>
               <QueryClientProvider client={queryClient}>
                 <WagmiProvider config={wagmiConfig}>
+                  {/* No `initialChain`: RainbowKit would pass chainId=Base to every
+                      connect, and wagmi's WalletConnect connector then sends
+                      wallet_switchEthereumChain and AWAITS the change — a Safe session
+                      is chain-bound, so that hung/broke connections from mainnet and
+                      forced everyone to Base. Without it RainbowKit keeps the wallet's
+                      own chain when supported, else falls back to chains[0] (Base). */}
                   <RainbowKitProvider
                     coolMode
-                    initialChain={base}
                     theme={dynamicRainbowTheme}
                   >
                     <AiohaProvider aioha={aioha}>

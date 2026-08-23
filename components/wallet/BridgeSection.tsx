@@ -41,6 +41,7 @@ import {
   BRIDGE_TRACK_TIMEOUT_MS, LIFI_QUOTE_VALIDITY_MS, describeRevert, explorerTxUrl, safeQueueUrl,
   type BridgePhase, type SafeTxLookup,
 } from "@/lib/evm/safeTx";
+import { isChainBoundWallet, chainBoundSwitchMessage } from "@/lib/evm/walletChain";
 
 const ERC20_ABI = [
   { name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ type: "uint256" }] },
@@ -747,7 +748,13 @@ export default function BridgeSection() {
       ) : !onFromChain ? (
         <Button w="100%" borderRadius="none" fontWeight="black" letterSpacing="widest" fontFamily="mono"
           colorScheme="orange" h="54px" fontSize="md" sx={{ textTransform: "uppercase" }} isLoading={isSwitching}
-          onClick={() => switchChain({ chainId: fromToken.chainId })}>
+          onClick={() => {
+            if (isChainBoundWallet(connector)) {
+              toast({ title: t("bridge.switchTo").replace("{chain}", fromChainName), description: chainBoundSwitchMessage(fromToken.chainId), status: "warning", duration: 8000, isClosable: true });
+              return;
+            }
+            switchChain({ chainId: fromToken.chainId });
+          }}>
           {t("bridge.switchTo").replace("{chain}", fromChainName)}
         </Button>
       ) : needsApproval ? (
