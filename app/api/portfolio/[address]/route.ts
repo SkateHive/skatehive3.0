@@ -5,6 +5,7 @@ import {
   fetchNativeEthBalances,
   type NativeEthBalance,
 } from "@/lib/evm/nativeEthBalances";
+import { fetchErc20Balances, type Erc20Balance } from "@/lib/evm/erc20Balances";
 
 const SUPPORTED_NATIVE_ETH_CHAIN_IDS = new Set([1, 8453, 42161]);
 
@@ -287,13 +288,85 @@ export async function GET(
           sum + token.token.balanceUSD,
         0,
       );
-    const mergedTokens = [
-      ...transformedTokens.filter(
-        (token: Parameters<typeof isSupportedNativeEthToken>[0]) =>
-          !isSupportedNativeEthToken(token),
-      ),
-      ...nativeEthTokens,
-    ];
+    // ── ERC-20 from the chain (Alchemy), merged over the upstream ──────────
+    // Same idea as the native-ETH override above: the upstream is stale and
+    // has no mainnet ERC-20 coverage (it missed 1.01 stETH ≈ $2.4k on the
+    // treasury Safe). Rules: on-chain wins per (chain, contract); upstream-only
+    // tokens are kept; a failed chain keeps upstream untouched for that chain.
+    const normalizeNetworkName = (raw: unknown): string => {
+      const n = String(raw ?? "").toLowerCase();
+      if (n === "eth" || n === "mainnet" || n.includes("ethereum")) return "ethereum";
+      if (n.includes("arbitrum")) return "arbitrum";
+      if (n.includes("base")) return "base";
+      return n;
+    };
+    const erc20Results = isEvmAddress
+      ? await fetchErc20Balances(address as Address, alchemyApiKey, ethPriceUsd)
+      : [];
+    const erc20ToToken = (t: Erc20Balance) => {
+      const now = new Date().toISOString();
+      const id = `${t.network}-${t.address}`;
+      return {
+        address: t.address,
+        assetCaip: `eip155:${t.chainId}/erc20:${t.address}`,
+        key: id,
+        network: t.network,
+        token: {
+          address: t.address,
+          balance: t.balance,
+          balanceRaw: t.balanceRaw,
+          balanceUSD: t.balanceUSD,
+          canExchange: false,
+          coingeckoId: "",
+          createdAt: now,
+          decimals: t.decimals,
+          externallyVerified: false,
+          hide: false,
+          holdersEnabled: false,
+          id,
+          label: null,
+          name: t.name,
+          networkId: t.chainId,
+          price: t.price,
+          priceUpdatedAt: now,
+          status: "active",
+          symbol: t.symbol,
+          totalSupply: "0",
+          updatedAt: now,
+          verified: false,
+          ...(t.logo ? { imageUrlV2: t.logo } : {}),
+        },
+        updatedAt: now,
+      };
+    };
+    const upstreamErc20 = transformedTokens.filter(
+      (token: Parameters<typeof isSupportedNativeEthToken>[0]) =>
+        !isSupportedNativeEthToken(token),
+    );
+    const tokenKey = (network: unknown, addr: unknown) => `${normalizeNetworkName(network)}:${String(addr ?? "").toLowerCase()}`;
+    const byKey = new Map<string, any>();
+    for (const token of upstreamErc20) byKey.set(tokenKey(token.network, token.address), token);
+    let onChainOverrides = 0;
+    let onChainNew = 0;
+    for (const result of erc20Results) {
+      if (!result.ok) continue; // keep upstream for that chain, and never as zero
+      for (const t of result.tokens) {
+        const k = tokenKey(t.network, t.address);
+        const upstream = byKey.get(k);
+        if (upstream) onChainOverrides++; else onChainNew++;
+        // Balance always from chain. Price: CoinGecko when it answered; else
+        // the upstream's price for the same (chain, contract) — a stale price
+        // beats USD 0, which would hide a real holding behind the dust filter.
+        const price = t.price > 0 ? t.price : Number(upstream?.token?.price ?? 0);
+        byKey.set(k, erc20ToToken({ ...t, price, balanceUSD: t.balance * price }));
+      }
+    }
+    console.info(
+      `[Portfolio API] ERC-20 merge for ${address}: upstream=${upstreamErc20.length} ` +
+        erc20Results.map((r) => `${r.network}:${r.ok ? r.tokens.length : "FAILED"}`).join(",") +
+        ` → overrides=${onChainOverrides} new=${onChainNew}`,
+    );
+    const mergedTokens = [...byKey.values(), ...nativeEthTokens];
     const nativeEthUsd = nativeEthTokens.reduce(
       (sum, token) => sum + token.token.balanceUSD,
       0,
@@ -358,9 +431,11 @@ export async function GET(
           0
         )
     );
+    // Token total = what the list actually shows (on-chain native + merged
+    // ERC-20), not the upstream's stale figure.
     const totalBalanceUsdTokens = Math.max(
       0,
-      indexedTokenTotal - indexedNativeEthUsd + nativeEthUsd,
+      mergedTokens.reduce((sum: number, token: any) => sum + (Number(token.token?.balanceUSD) || 0), 0),
     );
     const totalBalanceUSDApp = Number(rawData.totalBalanceUSDApp ?? 0);
     const indexedNetWorth = Number(
