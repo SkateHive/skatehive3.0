@@ -6,6 +6,7 @@ import {
   type NativeEthBalance,
 } from "@/lib/evm/nativeEthBalances";
 import { fetchErc20Balances, type Erc20Balance } from "@/lib/evm/erc20Balances";
+import { fetchDefiPositions } from "@/lib/evm/defiPositions";
 
 const SUPPORTED_NATIVE_ETH_CHAIN_IDS = new Set([1, 8453, 42161]);
 
@@ -367,6 +368,31 @@ export async function GET(
         ` → overrides=${onChainOverrides} new=${onChainNew}`,
     );
     const mergedTokens = [...byKey.values(), ...nativeEthTokens];
+
+    // ── DeFi positions (claims against protocols, read from protocol state) ──
+    // Not double-counted: the Morpheus pool holds the stETH itself, so it is
+    // absent from the wallet token list above by construction. stETH price:
+    // the merged mainnet stETH token (CoinGecko/upstream) else ETH price
+    // (explicit ≈1:1 approximation).
+    // Price per deposit token: the merged wallet token list (CoinGecko/upstream)
+    // for the same mainnet contract; else explicit fallbacks — stETH ≈ ETH
+    // (rebasing, ~1:1) and USD stablecoins = $1. Anything else: unknown (0) →
+    // the position becomes a read error, never a $0 line.
+    const STABLE_USD = new Set(["usdc", "usdt", "dai"]);
+    const priceFor = (tokenAddress: string, symbol: string): number => {
+      const hit = mergedTokens.find(
+        (t: any) => normalizeNetworkName(t.network) === "ethereum" && String(t.address).toLowerCase() === tokenAddress.toLowerCase(),
+      );
+      const listed = Number(hit?.token?.price ?? 0);
+      if (listed > 0) return listed;
+      if (symbol.toLowerCase() === "steth" && ethPriceUsd > 0) return ethPriceUsd; // explicit ≈1:1 approximation
+      if (STABLE_USD.has(symbol.toLowerCase())) return 1; // explicit stablecoin approximation
+      return 0;
+    };
+    const defi = isEvmAddress
+      ? await fetchDefiPositions(address as Address, alchemyApiKey, priceFor)
+      : { positions: [], totalUSD: 0, errors: [] };
+    if (defi.errors.length) console.error(`[Portfolio API] DeFi read errors for ${address}:`, defi.errors.map((e) => `${e.label}: ${e.message}`).join(" | "));
     const nativeEthUsd = nativeEthTokens.reduce(
       (sum, token) => sum + token.token.balanceUSD,
       0,
@@ -441,10 +467,9 @@ export async function GET(
     const indexedNetWorth = Number(
       rawData.totalNetWorth ?? indexedTokenTotal + totalBalanceUSDApp,
     );
-    const totalNetWorth = Math.max(
-      0,
-      indexedNetWorth - indexedTokenTotal + totalBalanceUsdTokens,
-    );
+    const walletUsd = Math.max(0, indexedNetWorth - indexedTokenTotal + totalBalanceUsdTokens);
+    // Total = in wallet + in DeFi (shared definition across SkateHive/Gnars/SOPA).
+    const totalNetWorth = walletUsd + defi.totalUSD;
 
     const transformedData = {
       totalNetWorth,
@@ -452,6 +477,9 @@ export async function GET(
       totalBalanceUSDApp,
       nftUsdNetWorth: rawData.nftUsdNetWorth || { [addressLower]: "0" },
       tokens: mergedTokens,
+      walletUsd,
+      defiUsd: defi.totalUSD,
+      defi,
       nfts: transformedNfts,
     };
 
