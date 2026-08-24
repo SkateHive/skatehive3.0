@@ -286,6 +286,15 @@ export function PortfolioProvider({
       },
       tokens: combinedTokens,
       nfts: combinedNfts,
+      walletUsd: sum("walletUsd"),
+      defiUsd: sum("defiUsd"),
+      defi: {
+        positions: [portfolio, farcasterPortfolio, ...Object.values(farcasterVerifiedPortfolios)]
+          .flatMap((p) => p?.defi?.positions ?? []),
+        totalUSD: sum("defiUsd"),
+        errors: [portfolio, farcasterPortfolio, ...Object.values(farcasterVerifiedPortfolios)]
+          .flatMap((p) => p?.defi?.errors ?? []),
+      },
     };
   }, [portfolio, farcasterPortfolio, farcasterVerifiedPortfolios, address, farcasterAddress]);
 

@@ -36,7 +36,14 @@ export interface TokenDetail {
   sourceAddress?: string; // Added to track which address this token came from
 }
 
+import type { DefiSummary } from "@/lib/evm/defiPositions";
+
 export interface PortfolioData {
+  /** In wallet (tokens + upstream app balances). */
+  walletUsd?: number;
+  /** In DeFi (protocol positions, read from protocol state). */
+  defiUsd?: number;
+  defi?: DefiSummary;
   nftUsdNetWorth: Record<string, string>;
   nfts: TokenDetail[];
   tokens: TokenDetail[];
