@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Box,
   Text,
@@ -67,7 +67,7 @@ export default function MobileTabBar() {
 
   // Farcaster integration - use methods from island
   const farcasterMethods = useFarcasterAuthMethods();
-  const { signIn, signOut, connect, isSuccess, isError } = farcasterMethods;
+  const { signOut, connect, isSuccess, isError } = farcasterMethods;
 
   const {
     isAuthenticated: isFarcasterConnected,
@@ -78,19 +78,8 @@ export default function MobileTabBar() {
   const [isFarcasterAuthInProgress, setIsFarcasterAuthInProgress] =
     useState(false);
 
-  // Safety timeout ref to prevent stuck loading states
-  const authTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const clearAuthTimeout = useCallback(() => {
-    if (authTimeoutRef.current) {
-      clearTimeout(authTimeoutRef.current);
-      authTimeoutRef.current = null;
-    }
-  }, []);
-
   const handleFarcasterSuccess = useCallback(
     ({ username }: any) => {
-      clearAuthTimeout();
       setIsFarcasterAuthInProgress(false);
 
       setTimeout(() => {
@@ -107,12 +96,11 @@ export default function MobileTabBar() {
         });
       }, 500);
     },
-    [clearAuthTimeout, signOut, toast, tAuth]
+    [signOut, toast, tAuth]
   );
 
   const handleFarcasterError = useCallback(
     (_error: any) => {
-      clearAuthTimeout();
       setIsFarcasterAuthInProgress(false);
       setIsConnectionModalOpen(false);
       toast({
@@ -122,21 +110,8 @@ export default function MobileTabBar() {
         duration: 3000,
       });
     },
-    [clearAuthTimeout, toast, tAuth, tCommon]
+    [toast, tAuth, tCommon]
   );
-
-  const setAuthTimeoutSafety = useCallback(() => {
-    clearAuthTimeout();
-    authTimeoutRef.current = setTimeout(() => {
-      setIsFarcasterAuthInProgress(false);
-      toast({
-        title: tAuth("authenticationFailed"),
-        description: "Farcaster connection was cancelled or timed out",
-        status: "info",
-        duration: 2000,
-      });
-    }, 10000);
-  }, [clearAuthTimeout, toast, tAuth]);
 
   const actualFarcasterConnection =
     isFarcasterConnected || (isInMiniapp && !!miniappUser);
@@ -152,7 +127,6 @@ export default function MobileTabBar() {
 
     setIsModalTransitioning(true);
     setIsConnectionModalOpen(false);
-    clearAuthTimeout();
     setIsFarcasterAuthInProgress(false);
 
     if (isSuccess && actualFarcasterConnection && !isFarcasterAuthInProgress) {
@@ -165,7 +139,6 @@ export default function MobileTabBar() {
     isSuccess,
     actualFarcasterConnection,
     signOut,
-    clearAuthTimeout,
     isFarcasterAuthInProgress,
   ]);
 
@@ -215,12 +188,10 @@ export default function MobileTabBar() {
     if (isFarcasterAuthInProgress || isModalTransitioning) return;
 
     setIsFarcasterAuthInProgress(true);
-    setAuthTimeoutSafety();
 
     try {
       if (actualFarcasterConnection) {
         const connectedProfile = actualFarcasterProfile;
-        clearAuthTimeout();
         setIsFarcasterAuthInProgress(false);
         safeCloseConnectionModal();
         toast({
@@ -235,7 +206,6 @@ export default function MobileTabBar() {
       }
 
       if (isInMiniapp && miniappUser) {
-        clearAuthTimeout();
         safeCloseConnectionModal();
         toast({
           title: tAuth("connectedSuccess"),
@@ -247,7 +217,6 @@ export default function MobileTabBar() {
       }
 
       if (isInMiniapp && !miniappUser) {
-        clearAuthTimeout();
         setIsFarcasterAuthInProgress(false);
         toast({
           title: tAuth("authenticationFailed"),
@@ -258,9 +227,18 @@ export default function MobileTabBar() {
         return;
       }
 
+      // The island opens its own sign-in modal (QR / deep link), so close this
+      // one first — two stacked SkateModals fight over focus trap and overlay.
+      // Closed directly rather than via safeCloseConnectionModal: that helper
+      // also clears isFarcasterAuthInProgress, and React batches both updates in
+      // this tick, so the re-entry guard would end up false right as the flow starts.
+      setIsConnectionModalOpen(false);
+
+      // The sign-in modal owns the flow from here and releases the flag on every
+      // exit — onSuccess, onError, and onCancel when it is dismissed or its own
+      // 20s channel timeout is acknowledged.
       connect();
     } catch {
-      clearAuthTimeout();
       setIsFarcasterAuthInProgress(false);
       safeCloseConnectionModal();
       toast({
@@ -272,22 +250,14 @@ export default function MobileTabBar() {
     }
   };
 
-  // Once connect() sets channelToken, call signIn() to start polling
-  React.useEffect(() => {
-    if (isFarcasterAuthInProgress && farcasterMethods.channelToken) {
-      signIn();
-    }
-  }, [isFarcasterAuthInProgress, farcasterMethods.channelToken, signIn]);
+  // signIn() is called by FarcasterAuthIslandClient as soon as the channel
+  // token lands. Doing it here as well opened a second poll against the same
+  // relay channel — and useFarcasterAuthMethods hands back a fresh proxy every
+  // render, so this effect re-fired far more often than it looked like it would.
 
   React.useEffect(() => {
     setIsClient(true);
   }, []);
-
-  React.useEffect(() => {
-    return () => {
-      clearAuthTimeout();
-    };
-  }, [clearAuthTimeout]);
 
   if (!isClient) {
     return null;
@@ -655,6 +625,7 @@ export default function MobileTabBar() {
       <FarcasterAuthIsland
         onSuccess={handleFarcasterSuccess}
         onError={handleFarcasterError}
+        onCancel={() => setIsFarcasterAuthInProgress(false)}
       />
     </>
   );

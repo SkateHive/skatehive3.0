@@ -68,6 +68,9 @@ export default function UserbaseAccountSettings() {
   const handleFarcasterConnect = useCallback(() => {
     if (isFarcasterAuthInProgress) return;
     setIsFarcasterAuthInProgress(true);
+    // The island opens its own sign-in modal (QR / deep link), so close this
+    // one first — two stacked SkateModals fight over focus trap and overlay.
+    setIsConnectionModalOpen(false);
     try {
       farcasterAuth.connect();
     } catch {
@@ -114,6 +117,7 @@ export default function UserbaseAccountSettings() {
               description: error?.message || t("auth.farcasterAuthFailed"),
               duration: 5000 });
           }}
+          onCancel={() => setIsFarcasterAuthInProgress(false)}
         />
       </>
     );
