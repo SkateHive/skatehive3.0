@@ -19,13 +19,34 @@ const supabase =
       })
     : null;
 
+function tokensMatch(a: string, b: string): boolean {
+  const aHash = crypto.createHash("sha256").update(a).digest();
+  const bHash = crypto.createHash("sha256").update(b).digest();
+  return crypto.timingSafeEqual(aHash, bHash);
+}
+
+/**
+ * Two callers, two credentials (mirrors /api/cron):
+ *  - x-userbase-token: USERBASE_INTERNAL_TOKEN — the Vercel daily cron path
+ *  - Authorization: Bearer CRON_SECRET — the SOPA portal's hourly external
+ *    tick, and the documented MANUAL trigger for unsticking the queue:
+ *      curl -X POST https://skatehive.app/api/userbase/hive/scheduled-posts/process \
+ *           -H "Authorization: Bearer $CRON_SECRET" -d '{"source":"manual"}'
+ */
 function isAuthorized(request: NextRequest): "ok" | "unauthorized" | "not_configured" {
-  const expected = process.env.USERBASE_INTERNAL_TOKEN;
-  if (!expected) return "not_configured";
-  const token = request.headers.get("x-userbase-token") ?? "";
-  const expectedHash = crypto.createHash("sha256").update(expected).digest();
-  const providedHash = crypto.createHash("sha256").update(token).digest();
-  return crypto.timingSafeEqual(expectedHash, providedHash) ? "ok" : "unauthorized";
+  const internalToken = process.env.USERBASE_INTERNAL_TOKEN;
+  const cronSecret = process.env.CRON_SECRET;
+  if (!internalToken && !cronSecret) return "not_configured";
+  if (internalToken) {
+    const token = request.headers.get("x-userbase-token") ?? "";
+    if (token && tokensMatch(internalToken, token)) return "ok";
+  }
+  if (cronSecret) {
+    const auth = request.headers.get("authorization") ?? "";
+    const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (bearer && tokensMatch(cronSecret, bearer)) return "ok";
+  }
+  return "unauthorized";
 }
 
 async function notifyAlert(payload: Record<string, any>) {
@@ -52,8 +73,18 @@ export async function POST(request: NextRequest) {
 
   const authResult = isAuthorized(request);
   if (authResult === "not_configured") {
+    // LOUD on purpose: a missing env var on this class of endpoint has burned
+    // us repeatedly (ZEROX_API_KEY 19 days, LIFI_INTEGRATOR). Name the vars.
+    console.error(
+      "[scheduled-posts] HALTED: neither USERBASE_INTERNAL_TOKEN nor CRON_SECRET is set in this environment — no scheduled post will ever be processed here until one of them is configured (Vercel → Settings → Environment Variables, Production)."
+    );
+    await notifyAlert({
+      type: "scheduled_posts_config_missing",
+      severity: "critical",
+      message: "USERBASE_INTERNAL_TOKEN/CRON_SECRET missing — scheduled post processing is dead in this environment.",
+    });
     return NextResponse.json(
-      { error: "Scheduled posting is not configured on this server" },
+      { error: "Scheduled posting is not configured on this server: set USERBASE_INTERNAL_TOKEN or CRON_SECRET" },
       { status: 503 }
     );
   }
@@ -63,6 +94,30 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
   const limit = Math.min(Math.max(Number(body?.limit) || 50, 1), 100);
+  const tickSource =
+    typeof body?.source === "string" && body.source ? body.source.slice(0, 40) : "unknown";
+
+  // Liveness heartbeat — recorded on EVERY authorized tick, even when nothing
+  // is due. The scheduling UI reads this to tell users when processing has
+  // stalled (external trigger down) instead of silently sitting on posts.
+  const now = new Date().toISOString();
+  const { error: heartbeatError } = await supabase
+    .from("userbase_cron_heartbeat")
+    .upsert({ id: "scheduled-posts", last_tick_at: now, source: tickSource });
+  if (heartbeatError) {
+    console.error("[scheduled-posts] heartbeat upsert failed:", heartbeatError.message);
+  }
+
+  // Recover orphaned claims: a run that died mid-broadcast leaves rows in
+  // "processing". After 15 minutes they go back to pending; the (author,
+  // permlink) uniqueness means a re-broadcast of an already-published post
+  // becomes an EDIT on Hive, not a duplicate post — worst case is wasted RC.
+  const staleCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  await supabase
+    .from("userbase_scheduled_posts")
+    .update({ status: "pending", claimed_at: null, updated_at: now })
+    .eq("status", "processing")
+    .lt("claimed_at", staleCutoff);
 
   // Fetch pending posts whose scheduled time has arrived
   const { data: rows, error: fetchError } = await supabase
@@ -87,7 +142,31 @@ export async function POST(request: NextRequest) {
   let cancelled = 0;
   let failed = 0;
 
+  let skippedClaimed = 0;
   for (const row of rows ?? []) {
+    // ── ATOMIC CLAIM ─────────────────────────────────────────────────────
+    // PREMISE: there are TWO trigger sources (Vercel daily cron + the SOPA
+    // portal's hourly tick, plus manual runs). Selecting and then broadcasting
+    // without a claim would double-broadcast on overlap. The claim flips
+    // pending → processing only if the row is STILL pending; losing the race
+    // returns zero rows and we skip. (Double broadcast would not duplicate the
+    // post on Hive — same (author, permlink) is an edit — but it wastes RC and
+    // corrupts status bookkeeping.)
+    const { data: claimed, error: claimError } = await supabase
+      .from("userbase_scheduled_posts")
+      .update({ status: "processing", claimed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("id", row.id)
+      .eq("status", "pending")
+      .select("id");
+    if (claimError) {
+      console.error(`[scheduled-posts] claim failed for ${row.id}:`, claimError.message);
+      continue;
+    }
+    if (!claimed || claimed.length === 0) {
+      skippedClaimed += 1; // another trigger got it first — working as designed
+      continue;
+    }
+
     // Safety re-check: verify the user hasn't revoked posting authority since scheduling
     let hasAuthority: boolean;
     try {
@@ -285,5 +364,7 @@ export async function POST(request: NextRequest) {
     broadcasted,
     cancelled,
     failed,
+    skipped_already_claimed: skippedClaimed,
+    source: tickSource,
   });
 }

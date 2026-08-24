@@ -74,6 +74,22 @@ async function getHiveIdentity(userId: string) {
   return data?.[0]?.handle ?? null;
 }
 
+/** Liveness of the processor (external SOPA tick / Vercel cron / manual).
+ *  No tick for >3h (two hourly windows + slack) = delayed: the UI must say so
+ *  — a stalled external trigger must not look like everything is fine. */
+const PROCESSING_DELAYED_AFTER_MS = 3 * 60 * 60 * 1000;
+async function getProcessingLiveness(client: NonNullable<typeof supabase>) {
+  const { data } = await client
+    .from("userbase_cron_heartbeat")
+    .select("last_tick_at")
+    .eq("id", "scheduled-posts")
+    .maybeSingle();
+  const last = data?.last_tick_at ?? null;
+  // Never ticked = delayed too (fresh deploy where the trigger was never wired).
+  const delayed = !last || Date.now() - new Date(last).getTime() > PROCESSING_DELAYED_AFTER_MS;
+  return { last_processed_at: last, processing_delayed: delayed };
+}
+
 // GET — list caller's scheduled posts (all statuses, newest first)
 export async function GET(request: NextRequest) {
   const session = await getSessionUserId(request);
@@ -96,7 +112,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch scheduled posts" }, { status: 500 });
   }
 
-  return NextResponse.json({ scheduled_posts: data ?? [] });
+  const liveness = await getProcessingLiveness(supabase);
+  return NextResponse.json({ scheduled_posts: data ?? [], ...liveness });
 }
 
 // POST — create a new scheduled post
@@ -250,7 +267,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create scheduled post" }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, scheduled_post: inserted }, { status: 201 });
+  const liveness = await getProcessingLiveness(supabase);
+  return NextResponse.json({ success: true, scheduled_post: inserted, ...liveness }, { status: 201 });
 }
 
 // DELETE — cancel ALL pending scheduled posts for the authenticated user.

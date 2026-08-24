@@ -447,6 +447,7 @@ export interface TranslationSchema {
     selectDateTime: string;
     scheduling: string;
     schedulePost: string;
+    scheduleDelayedNote: string;
     scheduleSuccess: string;
     scheduleAuthorityNeeded: string;
     scheduleAuthoritySettingsLink: string;
@@ -1110,6 +1111,10 @@ export interface TranslationSchema {
     revokeError: string;
     revokeCleanupError: string;
     needsKeychain: string;
+    statusProcessing: string;
+    processingDelayed: string;
+    lastProcessedAt: string;
+    neverProcessed: string;
     scheduledPostsTitle: string;
     noScheduledPosts: string;
     cancelPost: string;

@@ -151,6 +151,17 @@ export default function Composer() {
         isClosable: true,
       });
 
+      // Honest scheduling: if the processor has not ticked recently, the post
+      // will NOT go out on time — tell the user now, not never.
+      if (data?.processing_delayed) {
+        toast({
+          title: t("compose.scheduleDelayedNote"),
+          status: "warning",
+          duration: 9000,
+          isClosable: true,
+        });
+      }
+
       setMarkdown("");
       setTitle("");
       setHashtags([]);

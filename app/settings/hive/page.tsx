@@ -33,7 +33,7 @@ interface ScheduledPost {
   permlink: string;
   title: string;
   scheduled_at: string;
-  status: "pending" | "broadcasted" | "failed" | "cancelled";
+  status: "pending" | "processing" | "broadcasted" | "failed" | "cancelled";
   last_error?: string | null;
   broadcasted_at?: string | null;
 }
@@ -43,6 +43,7 @@ interface ScheduledPost {
 function statusColor(status: ScheduledPost["status"]): string {
   switch (status) {
     case "pending":
+    case "processing":
       return "warning";
     case "broadcasted":
       return "primary";
@@ -93,6 +94,8 @@ export default function HiveSettingsPage() {
   // ── scheduled posts state ────────────────────────────────────────────────
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [processingDelayed, setProcessingDelayed] = useState(false);
+  const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const fetchPosts = useCallback(async () => {
@@ -103,6 +106,8 @@ export default function HiveSettingsPage() {
       if (res.ok) {
         const data = await res.json();
         setPosts(data.scheduled_posts ?? []);
+        setProcessingDelayed(!!data.processing_delayed);
+        setLastProcessedAt(data.last_processed_at ?? null);
       }
     } finally {
       setLoadingPosts(false);
@@ -252,6 +257,7 @@ export default function HiveSettingsPage() {
   function statusLabel(status: ScheduledPost["status"]): string {
     switch (status) {
       case "pending": return t("hiveSettings.statusPending");
+      case "processing": return t("hiveSettings.statusProcessing");
       case "broadcasted": return t("hiveSettings.statusBroadcasted");
       case "failed": return t("hiveSettings.statusFailed");
       case "cancelled": return t("hiveSettings.statusCancelled");
@@ -370,6 +376,20 @@ export default function HiveSettingsPage() {
                 <Heading size="sm" color="primary" fontFamily="mono">
                   {t("hiveSettings.scheduledPostsTitle")}
                 </Heading>
+
+                {/* Liveness: the processor runs on an EXTERNAL trigger (SOPA
+                    portal hourly + Vercel daily). If it stalls, posts silently
+                    don't go out — so say it, visibly, instead. */}
+                {processingDelayed && (
+                  <Box border="1px solid" borderColor="orange.300" p={3} mb={3} borderRadius="md">
+                    <Text fontSize="sm" color="orange.300" fontFamily="mono">
+                      {t("hiveSettings.processingDelayed")}
+                      {lastProcessedAt
+                        ? ` ${t("hiveSettings.lastProcessedAt").replace("{date}", new Date(lastProcessedAt).toLocaleString())}`
+                        : ` ${t("hiveSettings.neverProcessed")}`}
+                    </Text>
+                  </Box>
+                )}
 
                 {loadingPosts ? (
                   <HStack spacing={2} py={4} justify="center">
