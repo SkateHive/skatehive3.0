@@ -455,6 +455,7 @@ export const lg = {
     rewardsPending: '{symbol} pending',
     claimableAfter: 'claimable after {date}',
     defiReadFailed: 'DeFi position could not be read — {label}: {message}. Total is incomplete.',
+    priceUnavailable: 'No price available for {label} — {message} is not counted in the total.',
     send: {
       cancel: 'Kansila',
       send: 'Tumira',

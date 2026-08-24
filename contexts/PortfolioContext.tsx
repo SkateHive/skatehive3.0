@@ -295,6 +295,8 @@ export function PortfolioProvider({
         errors: [portfolio, farcasterPortfolio, ...Object.values(farcasterVerifiedPortfolios)]
           .flatMap((p) => p?.defi?.errors ?? []),
       },
+      tokenReadErrors: [portfolio, farcasterPortfolio, ...Object.values(farcasterVerifiedPortfolios)]
+        .flatMap((p) => p?.tokenReadErrors ?? []),
     };
   }, [portfolio, farcasterPortfolio, farcasterVerifiedPortfolios, address, farcasterAddress]);
 

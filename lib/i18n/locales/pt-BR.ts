@@ -453,6 +453,7 @@ export const ptBR = {
     rewardsPending: '{symbol} pendente',
     claimableAfter: 'resgatável após {date}',
     defiReadFailed: 'Não foi possível ler a posição em DeFi — {label}: {message}. O total está incompleto.',
+    priceUnavailable: 'Sem cotação disponível para {label} — {message} não está somado ao total.',
     send: {
       cancel: 'Cancelar',
       send: 'Enviar',

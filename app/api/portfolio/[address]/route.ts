@@ -7,31 +7,12 @@ import {
 } from "@/lib/evm/nativeEthBalances";
 import { fetchErc20Balances, type Erc20Balance } from "@/lib/evm/erc20Balances";
 import { fetchDefiPositions } from "@/lib/evm/defiPositions";
+import {
+  fetchCoinGeckoEthPriceUsd,
+  resolveEthPriceUsd,
+} from "@/lib/evm/ethPriceUsd";
 
 const SUPPORTED_NATIVE_ETH_CHAIN_IDS = new Set([1, 8453, 42161]);
-
-interface CoinGeckoPriceResponse {
-  ethereum?: {
-    usd?: number;
-  };
-}
-
-async function fetchEthPriceUsd(fallbackPrice: number): Promise<number> {
-  if (fallbackPrice > 0) return fallbackPrice;
-
-  try {
-    const response = await fetch(
-      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
-      { next: { revalidate: 60 } },
-    );
-    if (!response.ok) return 0;
-
-    const data = (await response.json()) as CoinGeckoPriceResponse;
-    return typeof data.ethereum?.usd === "number" ? data.ethereum.usd : 0;
-  } catch {
-    return 0;
-  }
-}
 
 function createNativeEthToken(balance: NativeEthBalance, price: number) {
   const now = new Date().toISOString();
@@ -276,12 +257,42 @@ export async function GET(
       return symbol === "eth" && tokenPrice > 0 ? tokenPrice : 0;
     }, 0);
     const nativeBalances = await nativeBalancesPromise;
-    const ethPriceUsd = nativeBalances.some((balance) => balance.balance > 0)
-      ? await fetchEthPriceUsd(indexedEthPriceUsd)
-      : indexedEthPriceUsd;
-    const nativeEthTokens = nativeBalances
-      .filter((balance) => balance.balance > 0)
-      .map((balance) => createNativeEthToken(balance, ethPriceUsd));
+    const fundedNativeBalances = nativeBalances.filter((balance) => balance.balance > 0);
+    // Price source order matches erc20Balances.ts: CoinGecko wins, the upstream
+    // indexer is only the fallback. It used to be the other way round — the
+    // upstream price short-circuited CoinGecko whenever it was above zero, and
+    // it was stale enough to report ETH near $2,032 against a $2,483 market.
+    // Only queried when there is a balance to price.
+    const coingeckoEthPriceUsd = fundedNativeBalances.length > 0
+      ? await fetchCoinGeckoEthPriceUsd()
+      : null;
+    const ethPrice = resolveEthPriceUsd({
+      coingeckoUsd: coingeckoEthPriceUsd,
+      upstreamUsd: indexedEthPriceUsd > 0 ? indexedEthPriceUsd : null,
+    });
+    // Downstream approximations (stETH≈ETH, NFT floor in ETH) all guard on
+    // `> 0`, so an undeterminable price reaches them as 0 meaning "unknown".
+    const ethPriceUsd = ethPrice.priceUsd ?? 0;
+    const tokenReadErrors: { label: string; message: string }[] = [];
+    // No price from any source: emit no ETH line at all rather than a $0.00 one
+    // for a balance that is really there. Same rule the DeFi positions follow.
+    const nativeEthTokens = ethPrice.priceUsd === null
+      ? []
+      : fundedNativeBalances.map((balance) =>
+          createNativeEthToken(balance, ethPrice.priceUsd as number),
+        );
+    if (fundedNativeBalances.length > 0 && ethPrice.priceUsd === null) {
+      const totalEth = fundedNativeBalances.reduce((sum, b) => sum + b.balance, 0);
+      const chains = fundedNativeBalances.map((b) => b.network).join(", ");
+      console.error(
+        `[Portfolio API] ETH price unavailable from CoinGecko and upstream — ` +
+          `${totalEth} ETH on ${chains} left unpriced for ${address}`,
+      );
+      tokenReadErrors.push({
+        label: "ETH",
+        message: `${totalEth} ETH (${chains})`,
+      });
+    }
     const indexedNativeEthUsd = transformedTokens
       .filter(isSupportedNativeEthToken)
       .reduce(
@@ -480,6 +491,10 @@ export async function GET(
       walletUsd,
       defiUsd: defi.totalUSD,
       defi,
+      // Balances read from the chain that no source could price. Rendered as a
+      // failure in the wallet — they are deliberately absent from the totals
+      // above rather than counted as $0.
+      tokenReadErrors,
       nfts: transformedNfts,
     };
 

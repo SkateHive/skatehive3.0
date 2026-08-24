@@ -38,12 +38,25 @@ export interface TokenDetail {
 
 import type { DefiSummary } from "@/lib/evm/defiPositions";
 
+/** A balance that was read successfully but could not be priced. */
+export interface TokenReadError {
+  /** Asset symbol, e.g. "ETH". */
+  label: string;
+  /** What was left unpriced, e.g. "0.42 ETH (ethereum, base)". */
+  message: string;
+}
+
 export interface PortfolioData {
   /** In wallet (tokens + upstream app balances). */
   walletUsd?: number;
   /** In DeFi (protocol positions, read from protocol state). */
   defiUsd?: number;
   defi?: DefiSummary;
+  /**
+   * On-chain balances that no price source could value. Kept out of the totals
+   * and shown as a read failure — never folded in as $0.
+   */
+  tokenReadErrors?: TokenReadError[];
   nftUsdNetWorth: Record<string, string>;
   nfts: TokenDetail[];
   tokens: TokenDetail[];

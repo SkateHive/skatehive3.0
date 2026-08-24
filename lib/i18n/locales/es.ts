@@ -453,6 +453,7 @@ export const es = {
     rewardsPending: '{symbol} pendiente',
     claimableAfter: 'reclamable después de {date}',
     defiReadFailed: 'No se pudo leer la posición en DeFi — {label}: {message}. El total está incompleto.',
+    priceUnavailable: 'Sin cotización disponible para {label} — {message} no está sumado al total.',
     send: {
       cancel: 'Cancelar',
       send: 'Enviar',

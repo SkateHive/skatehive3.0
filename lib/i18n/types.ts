@@ -296,6 +296,7 @@ export interface TranslationSchema {
     rewardsPending: string;
     claimableAfter: string;
     defiReadFailed: string;
+    priceUnavailable: string;
     send: {
       cancel: string;
       send: string;

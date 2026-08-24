@@ -43,6 +43,7 @@ import PIXTabContent from "./components/PIXTabContent";
 import HiveTransactionHistory from "./components/HiveTransactionHistory";
 import ClaimRewards from "./components/ClaimRewards";
 import DefiPositionsSection from "@/components/wallet/components/DefiPositionsSection";
+import UnpricedBalancesNotice from "@/components/wallet/components/UnpricedBalancesNotice";
 import UnifiedWalletTable from "./UnifiedWalletTable";
 import UnifiedSwapSection from "./UnifiedSwapSection";
 import WalletErrorBoundary from "./WalletErrorBoundary";
@@ -439,6 +440,9 @@ export default function MainWallet({ username }: MainWalletProps) {
                       btcBalance={balanceBtc}
                       btcPrice={btcPrice}
                     />
+
+                    {/* Read on-chain but unpriceable — shown as a failure, never as $0 */}
+                    <UnpricedBalancesNotice chainFilter={chainFilter} />
 
                     {/* In DeFi: protocol positions (separate from wallet tokens) */}
                     <DefiPositionsSection chainFilter={chainFilter} />
