@@ -11,6 +11,11 @@ import React, {
 } from "react";
 import { PortfolioData } from "../types/portfolio";
 import { localCacheGet, localCacheSet, localCacheDelete } from "@/lib/utils/localCache";
+import {
+  resolvePortfolioState,
+  mergeVerifiedPortfolios,
+  type FetchOutcome,
+} from "@/lib/utils/portfolioState";
 
 // ── In-memory session cache (prevents duplicate fetches within same page session) ──
 const sessionCache = new Map<string, { data: PortfolioData; ts: number }>();
@@ -114,11 +119,14 @@ export function PortfolioProvider({
     return parts.join("|");
   }, [address, farcasterAddress, farcasterVerifiedAddresses]);
 
+  // Returns an outcome rather than `PortfolioData | null`: a failure used to be
+  // indistinguishable from an empty wallet here, and the caller committed both,
+  // which is how a network blip blanked a portfolio that was valid in cache.
   const fetchPortfolio = useCallback(
-    async (walletAddress: string, signal: AbortSignal): Promise<PortfolioData | null> => {
+    async (walletAddress: string, signal: AbortSignal): Promise<FetchOutcome<PortfolioData>> => {
       // Session cache — skip network if we already fetched this session
       const inSession = getSessionCached(walletAddress);
-      if (inSession) return inSession;
+      if (inSession) return { status: "success", data: inSession };
 
       try {
         const response = await fetch(`/api/portfolio/${walletAddress}`, { signal });
@@ -130,11 +138,14 @@ export function PortfolioProvider({
 
         setSessionCache(walletAddress, data);
         localCacheSet(lsKey(walletAddress), data);
-        return data;
+        return { status: "success", data };
       } catch (err: any) {
-        if (err.name === "AbortError") return null;
+        if (err.name === "AbortError") return { status: "aborted" };
         console.error(`Error fetching portfolio for ${walletAddress}:`, err);
-        return null;
+        return {
+          status: "failed",
+          message: err instanceof Error ? err.message : "Failed to fetch portfolio",
+        };
       }
     },
     []
@@ -174,30 +185,53 @@ export function PortfolioProvider({
               addr.toLowerCase() !== farcasterAddress?.toLowerCase()
           ) || [];
 
-        const [ethPortfolio, fcPortfolio, ...verifiedPortfolios] = await Promise.all([
-          address ? fetchPortfolio(address, signal) : Promise.resolve(null),
-          farcasterAddress ? fetchPortfolio(farcasterAddress, signal) : Promise.resolve(null),
+        const idle: FetchOutcome<PortfolioData> = { status: "aborted" };
+        const [ethOutcome, fcOutcome, ...verifiedOutcomes] = await Promise.all([
+          address ? fetchPortfolio(address, signal) : Promise.resolve(idle),
+          farcasterAddress ? fetchPortfolio(farcasterAddress, signal) : Promise.resolve(idle),
           ...ethVerifiedAddresses.map((addr) => fetchPortfolio(addr, signal)),
         ]);
 
         // Ignore result if request was aborted (component unmounted / addresses changed)
         if (signal.aborted) return;
 
+        // A failed read leaves what is on screen alone. Only a success writes —
+        // including a success that is empty, which is a real answer.
+        // An address that is GONE is a different case from one that failed to
+        // read: unlinking a wallet must clear it, so that path bypasses the
+        // keep-what-you-had rule entirely.
+        const nextEth = address
+          ? resolvePortfolioState(portfolioRef.current, ethOutcome)
+          : null;
+        const nextFc = farcasterAddress
+          ? resolvePortfolioState(farcasterPortfolioRef.current, fcOutcome)
+          : null;
+
         // Only update state when data actually changed — avoids a redundant
         // re-render when fresh API data matches what was already loaded from cache.
-        if (portfolioChanged(portfolioRef.current, ethPortfolio)) setPortfolio(ethPortfolio);
-        if (portfolioChanged(farcasterPortfolioRef.current, fcPortfolio)) setFarcasterPortfolio(fcPortfolio);
+        if (portfolioChanged(portfolioRef.current, nextEth)) setPortfolio(nextEth);
+        if (portfolioChanged(farcasterPortfolioRef.current, nextFc)) setFarcasterPortfolio(nextFc);
 
+        const merged = mergeVerifiedPortfolios(
+          verifiedPortfoliosRef.current,
+          ethVerifiedAddresses.map((addr, i) => ({ address: addr, outcome: verifiedOutcomes[i] })),
+        );
+        // Unchanged rule: verified wallets worth nothing stay hidden.
         const verifiedRecord: Record<string, PortfolioData> = {};
-        ethVerifiedAddresses.forEach((addr, i) => {
-          const p = verifiedPortfolios[i];
-          if (p && p.totalNetWorth > 0) verifiedRecord[addr] = p;
-        });
+        for (const [addr, p] of Object.entries(merged)) {
+          if (p.totalNetWorth > 0) verifiedRecord[addr] = p;
+        }
         const prevVerified = verifiedPortfoliosRef.current;
         const verifiedChanged = Object.keys(verifiedRecord).some(
           addr => portfolioChanged(prevVerified[addr] ?? null, verifiedRecord[addr])
         ) || Object.keys(prevVerified).length !== Object.keys(verifiedRecord).length;
         if (verifiedChanged) setFarcasterVerifiedPortfolios(verifiedRecord);
+
+        // Surface the failure without hiding the data it failed to refresh.
+        const failures = [ethOutcome, fcOutcome, ...verifiedOutcomes].filter(
+          (o): o is { status: "failed"; message: string } => o.status === "failed",
+        );
+        setError(failures.length > 0 ? failures[0].message : null);
       } catch (err) {
         if (!signal.aborted) {
           setError(err instanceof Error ? err.message : "Unknown error");
