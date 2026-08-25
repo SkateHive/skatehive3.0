@@ -58,7 +58,7 @@ export async function swapCid({
                 Authorization: `Bearer ${getJwt()}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ swap_cid: newCid }),
+            body: JSON.stringify({ swapCid: newCid }),
         });
 
         if (!res.ok) {
