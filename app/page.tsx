@@ -52,11 +52,16 @@ export const metadata: Metadata = {
       "The global skateboarding community. Post videos, find spots, earn crypto. Built by skaters, for skaters.",
     images: [`${APP_CONFIG.BASE_URL}/ogimage.png`],
   },
-  other: buildMiniAppEmbed({
-    imageUrl: `${APP_CONFIG.BASE_URL}/ogimage.png`,
-    buttonTitle: "Open Skatehive",
-    url: APP_CONFIG.BASE_URL,
-  }),
+  other: {
+    // O metadata da pagina substitui o do layout, entao a tag do Base
+    // precisa estar aqui tambem — "/" e a URL que o Base verifica.
+    ...buildMiniAppEmbed({
+      imageUrl: `${APP_CONFIG.BASE_URL}/ogimage.png`,
+      buttonTitle: "Open Skatehive",
+      url: APP_CONFIG.BASE_URL,
+    }),
+    "base:app_id": "6a8dafbb934c036b21810d81",
+  },
 };
 
 const BASE_URL = APP_CONFIG.BASE_URL;

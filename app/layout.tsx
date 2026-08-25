@@ -146,6 +146,8 @@ export const metadata: Metadata = {
   other: {
     ...frameEmbed,
     "apple-itunes-app": "app-id=6751173076",
+    // Verificacao de dominio do Base App (skatehive.app)
+    "base:app_id": "6a8dafbb934c036b21810d81",
   },
 };
 
