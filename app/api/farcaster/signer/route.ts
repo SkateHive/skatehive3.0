@@ -99,7 +99,6 @@ export async function POST(request: NextRequest) {
 
     if (metadata.signer_status === "approved") {
       return NextResponse.json({
-        signerUuid,
         status: "approved",
       });
     }
@@ -112,12 +111,11 @@ export async function POST(request: NextRequest) {
         .from("userbase_identities")
         .update({ metadata: { ...metadata, signer_status: "approved" } })
         .eq("id", identity.id);
-      return NextResponse.json({ signerUuid, status: "approved" });
+      return NextResponse.json({ status: "approved" });
     }
 
     if (status?.status === "pending_approval" && status.signer_approval_url) {
       return NextResponse.json({
-        signerUuid,
         status: "pending_approval",
         approvalUrl: status.signer_approval_url,
       });
@@ -178,7 +176,6 @@ export async function POST(request: NextRequest) {
     .eq("id", identity.id);
 
   return NextResponse.json({
-    signerUuid: signer.signer_uuid,
     status: registered.status,
     approvalUrl: registered.signer_approval_url,
   });

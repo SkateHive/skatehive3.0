@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import { redactIdentityRows } from "@/lib/userbase/identityMetadata";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ identities: data || [] });
+  return NextResponse.json({ identities: redactIdentityRows(data || []) });
 }
 
 export async function POST(request: NextRequest) {
