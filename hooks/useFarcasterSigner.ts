@@ -3,7 +3,11 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 
 interface SignerState {
-  signerUuid: string | null;
+  // No signerUuid here on purpose. It is the Neynar capability identifier for
+  // the user's signer, and the browser has never needed it: every route that
+  // casts re-derives it server-side from the session cookie and none accepts
+  // one from the client. It used to ride along in the API response and sit in
+  // this state with no reader.
   status: "none" | "loading" | "pending_approval" | "approved" | "error";
   approvalUrl: string | null;
   error: string | null;
@@ -11,7 +15,6 @@ interface SignerState {
 
 export function useFarcasterSigner() {
   const [state, setState] = useState<SignerState>({
-    signerUuid: null,
     status: "none",
     approvalUrl: null,
     error: null,
@@ -34,7 +37,6 @@ export function useFarcasterSigner() {
 
       if (!res.ok) {
         setState({
-          signerUuid: null,
           status: "error",
           approvalUrl: null,
           error: data.error || "Failed to create signer",
@@ -43,7 +45,6 @@ export function useFarcasterSigner() {
       }
 
       const newState: SignerState = {
-        signerUuid: data.signerUuid,
         status: data.status === "approved" ? "approved" : "pending_approval",
         approvalUrl: data.approvalUrl || null,
         error: null,
@@ -59,7 +60,6 @@ export function useFarcasterSigner() {
       return newState;
     } catch (err) {
       setState({
-        signerUuid: null,
         status: "error",
         approvalUrl: null,
         error: "Network error",
@@ -80,7 +80,6 @@ export function useFarcasterSigner() {
           if (pollRef.current) clearInterval(pollRef.current);
           pollRef.current = null;
           setState({
-            signerUuid: data.signerUuid,
             status: "approved",
             approvalUrl: null,
             error: null,
