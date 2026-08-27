@@ -9,7 +9,12 @@
  * curator who assumed the preview was accurate.
  */
 
-import { buildSnapCastEmbeds, buildSnapCastText, CAST_MAX_CHARS } from "../snapCast";
+import {
+  buildSnapCastEmbeds,
+  buildSnapCastText,
+  planSnapCastEmbeds,
+  CAST_MAX_CHARS,
+} from "../snapCast";
 
 // Simple test runner (same pattern as lib/utils/__tests__)
 const tests: Array<() => void | Promise<void>> = [];
@@ -99,13 +104,56 @@ describe("buildSnapCastEmbeds", () => {
     assertEqual(embeds[1].url, "https://img/2");
   });
 
-  it("embeds a single image when that's all there is", () => {
+  it("uses the free slot for the snap URL when there is only one image", () => {
+    // BEHAVIOUR CHANGE. This used to assert `length === 1`: ranking by type
+    // short-circuited on "has images" and threw the snap URL away, so a
+    // one-image snap shipped with a spare slot and no link back to SkateHive.
+    // Under the canonical rule (one ordered candidate list, capped at two) the
+    // image keeps its slot and the link takes the one that was going spare.
     const embeds = buildSnapCastEmbeds({
       snapUrl: SNAP_URL,
       imageUrls: ["https://img/1"],
       videoUrl: null,
     });
-    assertEqual(embeds.length, 1);
+    assertEqual(embeds.length, 2);
+    assertEqual(embeds[0].url, "https://img/1", "the attachment keeps its slot");
+    assertEqual(embeds[1].url, SNAP_URL, "the text URL takes the free one");
+  });
+
+  it("reports what the two-slot cap left behind instead of dropping it silently", () => {
+    const plan = planSnapCastEmbeds({
+      snapUrl: SNAP_URL,
+      imageUrls: ["https://img/1", "https://img/2"],
+      videoUrl: null,
+    });
+    assertEqual(plan.embeds.length, 2);
+    assertEqual(plan.embeds[0].url, "https://img/1");
+    assertEqual(plan.embeds[1].url, "https://img/2");
+    // The snap URL is still in the cast TEXT — it just could not also be an
+    // embed. The caller gets told rather than having to infer it.
+    assertEqual(plan.dropped.length, 1);
+    assertEqual(plan.dropped[0], SNAP_URL);
+  });
+
+  it("does not report a deduped twin as dropped", () => {
+    // A trailing-slash variant of a kept URL was collapsed, not lost.
+    const plan = planSnapCastEmbeds({
+      snapUrl: SNAP_URL,
+      imageUrls: [SNAP_URL + "/"],
+      videoUrl: null,
+    });
+    assertEqual(plan.embeds.length, 1);
+    assertEqual(plan.dropped.length, 0, "a dedupe is not a loss");
+  });
+
+  it("reports nothing dropped when everything fits", () => {
+    const plan = planSnapCastEmbeds({
+      snapUrl: SNAP_URL,
+      imageUrls: [],
+      videoUrl: null,
+    });
+    assertEqual(plan.embeds.length, 1);
+    assertEqual(plan.dropped.length, 0);
   });
 
   it("uses the snap URL alone for a video, not the raw IPFS file", () => {
