@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import { publishCast } from "@/lib/farcaster/neynar";
 import { parseCastEmbeds } from "@/lib/farcaster/channels";
+import { CAST_MAX_BYTES, castByteLength } from "@/lib/farcaster/castText";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -87,9 +88,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing parentHash" }, { status: 400 });
   }
 
-  if (text.length > 1024) {
+  // Bytes, not characters — see the same guard in /api/farcaster/cast.
+  if (castByteLength(text.trim()) > CAST_MAX_BYTES) {
     return NextResponse.json(
-      { error: "Text too long (max 1024 chars)" },
+      { error: `Text too long (max ${CAST_MAX_BYTES} bytes)` },
       { status: 400 }
     );
   }

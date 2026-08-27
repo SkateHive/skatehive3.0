@@ -5,13 +5,25 @@
  */
 
 import { limitCastEmbeds, normalizeEmbedUrl } from "@/lib/farcaster/channels";
+import {
+  CAST_MAX_BYTES,
+  castByteLength,
+  truncateToBytes,
+} from "@/lib/farcaster/castText";
 
-export const CAST_MAX_CHARS = 1024;
+export { CAST_MAX_BYTES };
+
+const ELLIPSIS = "…";
+const ELLIPSIS_BYTES = castByteLength(ELLIPSIS);
 
 /**
  * Build the text body of a cross-posted cast: snap body trimmed to fit
- * the cast char limit, with the SkateHive URL appended on its own line
+ * the cast size limit, with the SkateHive URL appended on its own line
  * when present.
+ *
+ * Measured in UTF-8 BYTES, which is what Farcaster counts — see
+ * lib/farcaster/castText.ts. The url line is reserved first, so the link back
+ * to SkateHive always survives the trim.
  */
 export function buildSnapCastText(
   body: string,
@@ -19,17 +31,26 @@ export function buildSnapCastText(
 ): string {
   const clean = body.trim();
   if (!url) {
-    return clean.length > CAST_MAX_CHARS
-      ? clean.slice(0, CAST_MAX_CHARS - 1).trim() + "…"
-      : clean;
+    if (castByteLength(clean) <= CAST_MAX_BYTES) return clean;
+    return (
+      truncateToBytes(clean, CAST_MAX_BYTES - ELLIPSIS_BYTES).trim() + ELLIPSIS
+    );
   }
+
   const urlLine = `\n\n${url}`;
-  const budget = CAST_MAX_CHARS - urlLine.length;
-  const trimmed =
-    clean.length > budget
-      ? clean.slice(0, Math.max(0, budget - 1)).trim() + "…"
-      : clean;
-  return trimmed + urlLine;
+  const budget = CAST_MAX_BYTES - castByteLength(urlLine);
+
+  // A URL that eats the whole budget on its own leaves no room for a body, and
+  // no room for an ellipsis saying a body was there. Ship the link; a cast
+  // that is nothing but a 1KB URL is already pathological.
+  if (budget <= ELLIPSIS_BYTES) {
+    return truncateToBytes(urlLine, CAST_MAX_BYTES);
+  }
+
+  if (castByteLength(clean) <= budget) return clean + urlLine;
+
+  const trimmed = truncateToBytes(clean, budget - ELLIPSIS_BYTES).trim();
+  return trimmed + ELLIPSIS + urlLine;
 }
 
 export interface CastEmbed {

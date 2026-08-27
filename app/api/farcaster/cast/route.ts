@@ -9,6 +9,7 @@ import {
 } from "@/lib/crosspost/queue";
 import { publishQueueItemNow } from "@/lib/crosspost/publishQueueItem";
 import { parseCastEmbeds } from "@/lib/farcaster/channels";
+import { CAST_MAX_BYTES, castByteLength } from "@/lib/farcaster/castText";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -135,9 +136,13 @@ export async function POST(request: NextRequest) {
   if (!text || typeof text !== "string" || !text.trim()) {
     return NextResponse.json({ error: "Missing text" }, { status: 400 });
   }
-  if (text.length > 1024) {
+  // Bytes, not characters — Farcaster's limit is 1024 UTF-8 bytes, and this
+  // measured `.length`, which is half the real size for accented text. A
+  // Portuguese cast could pass here and be refused by Neynar. Measure what we
+  // actually send, which is the trimmed text.
+  if (castByteLength(text.trim()) > CAST_MAX_BYTES) {
     return NextResponse.json(
-      { error: "Text too long (max 1024 chars)" },
+      { error: `Text too long (max ${CAST_MAX_BYTES} bytes)` },
       { status: 400 }
     );
   }

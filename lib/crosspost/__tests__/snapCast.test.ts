@@ -13,8 +13,9 @@ import {
   buildSnapCastEmbeds,
   buildSnapCastText,
   planSnapCastEmbeds,
-  CAST_MAX_CHARS,
+  CAST_MAX_BYTES,
 } from "../snapCast";
+import { castByteLength } from "@/lib/farcaster/castText";
 
 // Simple test runner (same pattern as lib/utils/__tests__)
 const tests: Array<() => void | Promise<void>> = [];
@@ -66,29 +67,109 @@ describe("buildSnapCastText", () => {
   });
 
   it("never exceeds the cast limit, URL included", () => {
-    const long = "x".repeat(CAST_MAX_CHARS * 2);
+    const long = "x".repeat(CAST_MAX_BYTES * 2);
     const text = buildSnapCastText(long, SNAP_URL);
     assertTrue(
-      text.length <= CAST_MAX_CHARS,
-      `expected <= ${CAST_MAX_CHARS} chars, got ${text.length}`
+      castByteLength(text) <= CAST_MAX_BYTES,
+      `expected <= ${CAST_MAX_BYTES} bytes, got ${castByteLength(text)}`
     );
     assertTrue(text.endsWith(SNAP_URL), "the URL must survive truncation");
     assertTrue(text.includes("…"), "truncation should be visible to the reader");
   });
 
   it("never exceeds the cast limit without a URL either", () => {
-    const long = "y".repeat(CAST_MAX_CHARS * 2);
+    const long = "y".repeat(CAST_MAX_BYTES * 2);
     const text = buildSnapCastText(long, null);
-    assertTrue(text.length <= CAST_MAX_CHARS, `got ${text.length}`);
+    assertTrue(
+      castByteLength(text) <= CAST_MAX_BYTES,
+      `got ${castByteLength(text)}`
+    );
     assertTrue(text.endsWith("…"));
   });
 
   it("leaves a body that exactly fits alone", () => {
     const urlLine = `\n\n${SNAP_URL}`;
-    const exact = "z".repeat(CAST_MAX_CHARS - urlLine.length);
+    const exact = "z".repeat(CAST_MAX_BYTES - castByteLength(urlLine));
     const text = buildSnapCastText(exact, SNAP_URL);
-    assertEqual(text.length, CAST_MAX_CHARS);
+    assertEqual(castByteLength(text), CAST_MAX_BYTES);
     assertTrue(!text.includes("…"), "an exact fit must not be truncated");
+  });
+});
+
+describe("buildSnapCastText — the limit is BYTES, not characters", () => {
+  it("counts a Portuguese body at its real size", () => {
+    // 1024 chars, 2048 bytes. Under the old `.length` check this passed
+    // untouched and Farcaster refused it. Our community writes like this.
+    const accented = "á".repeat(1024);
+    assertEqual(accented.length, 1024, "precondition: 1024 JS characters");
+    assertEqual(castByteLength(accented), 2048, "precondition: 2048 UTF-8 bytes");
+
+    const text = buildSnapCastText(accented, SNAP_URL);
+    assertTrue(
+      castByteLength(text) <= CAST_MAX_BYTES,
+      `expected <= ${CAST_MAX_BYTES} bytes, got ${castByteLength(text)}`
+    );
+    assertTrue(text.endsWith(SNAP_URL), "the URL must survive truncation");
+    assertTrue(text.includes("…"), "truncation should be visible to the reader");
+  });
+
+  it("counts emoji at their real size too", () => {
+    const boards = "🛹".repeat(512); // 1024 chars, 2048 bytes
+    assertEqual(castByteLength(boards), 2048);
+    const text = buildSnapCastText(boards, null);
+    assertTrue(castByteLength(text) <= CAST_MAX_BYTES, `got ${castByteLength(text)}`);
+  });
+
+  it("never cuts a surrogate pair in half", () => {
+    // Every offset around the budget: whatever lands on the cut point, the
+    // output must still be well-formed UTF-16. A split pair survives
+    // encode/decode as U+FFFD, so a round-trip catches it.
+    for (let pad = 0; pad < 8; pad++) {
+      const text = buildSnapCastText("a".repeat(pad) + "🛹".repeat(700), null);
+      assertTrue(
+        !text.includes("\uFFFD"),
+        `pad=${pad}: output contains a replacement character`
+      );
+      const roundTripped = Buffer.from(text, "utf8").toString("utf8");
+      assertEqual(roundTripped, text, `pad=${pad}: not round-trip safe`);
+      assertTrue(
+        castByteLength(text) <= CAST_MAX_BYTES,
+        `pad=${pad}: ${castByteLength(text)} bytes`
+      );
+    }
+  });
+
+  it("never cuts a multi-codepoint emoji into its pieces", () => {
+    // A ZWJ family is 5 code points / 25 bytes. Landing the cut inside one
+    // would leave a stray person and a stray zero-width joiner in the cast.
+    const family = "👨‍👩‍👧‍👦";
+    assertEqual(castByteLength(family), 25, "precondition");
+    for (let pad = 0; pad < 8; pad++) {
+      const text = buildSnapCastText("a".repeat(pad) + family.repeat(60), null);
+      assertTrue(!text.includes("\uFFFD"), `pad=${pad}: replacement character`);
+      const body = text.replace(/…$/, "");
+      const strays = body.replace(new RegExp(family, "g"), "").replace(/^a*/, "");
+      assertEqual(strays, "", `pad=${pad}: left a partial emoji behind: ${JSON.stringify(strays)}`);
+    }
+  });
+
+  it("keeps a body that exactly fills the byte budget intact", () => {
+    const urlLine = `\n\n${SNAP_URL}`;
+    const budget = CAST_MAX_BYTES - castByteLength(urlLine);
+    // 2 bytes each, so half as many characters as bytes.
+    const exact = "á".repeat(budget / 2);
+    const text = buildSnapCastText(exact, SNAP_URL);
+    assertEqual(castByteLength(text), CAST_MAX_BYTES);
+    assertTrue(!text.includes("…"), "an exact fit must not be truncated");
+  });
+
+  it("ships the link when the URL alone eats the whole budget", () => {
+    const monsterUrl = "https://skatehive.app/" + "x".repeat(CAST_MAX_BYTES);
+    const text = buildSnapCastText("some body", monsterUrl);
+    assertTrue(
+      castByteLength(text) <= CAST_MAX_BYTES,
+      `got ${castByteLength(text)}`
+    );
   });
 });
 

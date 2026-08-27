@@ -37,8 +37,9 @@ import { APP_CONFIG } from "@/config/app.config";
 import {
   buildSnapCastEmbeds,
   buildSnapCastText,
-  CAST_MAX_CHARS,
+  CAST_MAX_BYTES,
 } from "@/lib/crosspost/snapCast";
+import { castByteLength } from "@/lib/farcaster/castText";
 import { buildInstagramCaption } from "@/lib/instagram/caption";
 
 // Channels mirror the SnapComposer + /api/farcaster/cast whitelist
@@ -133,6 +134,9 @@ export default function DebugCrossPostingPage() {
     () => buildSnapCastText(body, snapUrl || null),
     [body, snapUrl]
   );
+  // Farcaster counts UTF-8 bytes, not characters — an accented body is twice
+  // the size the old chars counter showed.
+  const castBytes = useMemo(() => castByteLength(castText), [castText]);
   const castEmbeds = useMemo(
     () =>
       buildSnapCastEmbeds({
@@ -361,9 +365,9 @@ export default function DebugCrossPostingPage() {
                 <Text
                   fontFamily="mono"
                   fontSize="2xs"
-                  color={castText.length > CAST_MAX_CHARS ? "error" : "dim"}
+                  color={castBytes > CAST_MAX_BYTES ? "error" : "dim"}
                 >
-                  {castText.length} / {CAST_MAX_CHARS} chars
+                  {castBytes} / {CAST_MAX_BYTES} bytes
                 </Text>
               </HStack>
 
@@ -455,7 +459,7 @@ export default function DebugCrossPostingPage() {
                   isLoading={isSending}
                   loadingText="sending…"
                   onClick={sendCastForReal}
-                  isDisabled={!castText || castText.length > CAST_MAX_CHARS}
+                  isDisabled={!castText || castBytes > CAST_MAX_BYTES}
                 >
                   send for review →
                 </Button>
