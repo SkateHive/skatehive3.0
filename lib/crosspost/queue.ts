@@ -278,3 +278,70 @@ export async function countQueueItemsForUser(args: {
   return count ?? 0;
 }
 
+
+export interface RecordPublishedCrossPostInput {
+  supabase: any;
+  target: CrossPostTarget;
+  userId: string | null;
+  requestedByHandle: string | null;
+  payload: CrossPostQueuePayload;
+  /** Whatever the platform returned — for Farcaster, `{ cast_hash }`. */
+  result: Record<string, unknown>;
+}
+
+/**
+ * File an audit row for something that was ALREADY published elsewhere.
+ *
+ * The miniapp share path posts through the Farcaster host
+ * (`sdk.actions.composeCast`), so the cast never passes through our server and
+ * `publishQueueItemNow` never runs. What we do get back is the created cast's
+ * hash, which is enough to record the fact after the event: the row goes
+ * straight to `published` with `published_at` set and the hash in `result`.
+ *
+ * `hive_author` / `hive_permlink` are deliberately NOT accepted here, and this
+ * is the important part. A share is usually somebody sharing SOMEONE ELSE's
+ * post. Those two columns form the partial unique index over active statuses,
+ * so writing an unverified pair would let any user permanently reserve another
+ * author's slot and block the real author from ever cross-posting that snap —
+ * the same denial of service `/api/farcaster/cast` binds against. NULLs are
+ * distinct in that index, so these rows reserve nothing, which is correct:
+ * a share was never a claim on the post. The permlink still travels inside
+ * `payload.permalink_url` for context.
+ *
+ * Best-effort by contract: the cast is already public by the time this runs,
+ * so a failure here loses a record, not the user's post. Callers should log
+ * and carry on rather than surfacing an error.
+ */
+export async function recordPublishedCrossPost(
+  input: RecordPublishedCrossPostInput
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const { supabase } = input;
+  if (!supabase) {
+    return { ok: false, error: "Server is missing Supabase config." };
+  }
+
+  const { data, error } = await supabase
+    .from(CROSSPOST_QUEUE_TABLE)
+    .insert({
+      user_id: input.userId,
+      requested_by_handle: input.requestedByHandle,
+      target: input.target,
+      hive_author: null,
+      hive_permlink: null,
+      status: "published" satisfies CrossPostQueueStatus,
+      payload: input.payload,
+      published_at: new Date().toISOString(),
+      result: input.result,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return {
+      ok: false,
+      error: error?.message || "Failed to record the published cross-post.",
+    };
+  }
+
+  return { ok: true, id: data.id as string };
+}

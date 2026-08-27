@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import { FaTwitter, FaLink, FaThumbsDown, FaCode, FaFacebook } from "react-icons/fa";
 import React, { useMemo, useCallback } from "react";
 import { useFarcasterContext } from "@/hooks/useFarcasterContext";
+import { DEFAULT_FARCASTER_CHANNEL } from "@/lib/farcaster/channels";
 import useHiveVote from "@/hooks/useHiveVote";
 import { isSpotPost } from "@/lib/utils/parseSpotBody";
 
@@ -128,13 +129,45 @@ const ShareMenuButtons = ({ comment }: ShareMenuButtonsProps) => {
         return;
       }
 
-      // Handle Farcaster sharing with SDK when in frame context
+      // Handle Farcaster sharing with SDK when in frame context.
+      //
+      // This branch was unreachable until useFarcasterContext was un-stubbed:
+      // isInFrame was hardcoded false, so every Farcaster share fell through
+      // to the web composer below — which, inside the miniapp, opened a new
+      // tab and kicked the user out of the app they were standing in.
       if (platform === "farcaster" && isInFrame) {
         try {
-          await composeCast(
+          const outcome = await composeCast(
             `Check out this post from @${comment.author}!`,
-            [postLink] // URL as embed, not in text
+            [postLink], // URL as embed, not in text
+            { channel: DEFAULT_FARCASTER_CHANNEL }
           );
+
+          // The host resolves with no hash when the user closed the composer
+          // without casting. Saying "Cast created" there would be a lie, and
+          // falling through to the web composer would re-prompt someone who
+          // just declined — so treat it as the cancel it is.
+          if (!outcome.hash) {
+            return;
+          }
+
+          // Attribution is best-effort: the cast is already public, published
+          // by the host. A failure here costs us a record, not the user's
+          // post, so it must never surface as a failed share.
+          void fetch("/api/farcaster/attribution", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              hash: outcome.hash,
+              text: `Check out this post from @${comment.author}!`,
+              embeds: [postLink],
+              channel: DEFAULT_FARCASTER_CHANNEL,
+              permalink_url: postLink,
+            }),
+          }).catch((error) => {
+            console.warn("[share] attribution not recorded:", error);
+          });
+
           toast({
             title: "Cast created successfully!",
             status: "success",
@@ -168,7 +201,9 @@ const ShareMenuButtons = ({ comment }: ShareMenuButtonsProps) => {
       } else if (platform === "farcaster") {
         // For web fallback, include both text and URL
         const castText = `Check out this post from @${comment.author}! ${postLink}`;
-        shareUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(
+        // farcaster.xyz is canonical; warpcast.com still redirects but costs
+        // an extra round trip.
+        shareUrl = `https://farcaster.xyz/~/compose?text=${encodeURIComponent(
           castText
         )}`;
       }
