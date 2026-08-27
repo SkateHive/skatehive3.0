@@ -8,6 +8,7 @@ import {
   type FarcasterQueuePayload,
 } from "@/lib/crosspost/queue";
 import { publishQueueItemNow } from "@/lib/crosspost/publishQueueItem";
+import { parseCastEmbeds } from "@/lib/farcaster/channels";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -141,16 +142,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // URL embeds only. The cast_id embed variant Neynar supports isn't reachable
-  // from the composer's cross-post flow, and dropping it keeps the stored
-  // payload a plain, reviewable list of links.
-  let embeds: { url: string }[] = [];
-  if (Array.isArray(body?.embeds)) {
-    embeds = body.embeds
-      .filter((e: any) => e && typeof e === "object" && typeof e.url === "string")
-      .map((e: any) => ({ url: e.url as string }))
-      .slice(0, 2);
-  }
+  const embeds = parseCastEmbeds(body?.embeds);
 
   let channelId: string | null = null;
   if (body?.channel_id) {

@@ -100,3 +100,29 @@ export function normalizeEmbedUrl(url: string): string {
     return trimmed;
   }
 }
+
+/**
+ * Read an embeds list off an untrusted request body.
+ *
+ * URL embeds only. The `cast_id` embed variant Neynar accepts isn't reachable
+ * from any SkateHive flow, and dropping it keeps what we store and replay a
+ * plain, reviewable list of links.
+ *
+ * Runs through {@link limitCastEmbeds}, so a caller gets the same dedupe and
+ * the same two-slot cap the composer applies — the cast and reply routes used
+ * to each carry their own slice, which is how they drifted apart in the first
+ * place.
+ */
+export function parseCastEmbeds(input: unknown): { url: string }[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+  const urls = input
+    .filter(
+      (e): e is { url: string } =>
+        !!e && typeof e === "object" && typeof (e as { url?: unknown }).url === "string"
+    )
+    .map((e) => e.url);
+
+  return limitCastEmbeds(urls).map((url) => ({ url }));
+}

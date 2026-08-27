@@ -13,6 +13,7 @@ import {
   DEFAULT_FARCASTER_CHANNEL,
   MAX_CAST_EMBEDS,
   limitCastEmbeds,
+  parseCastEmbeds,
   resolveChannelKey,
 } from "../channels";
 
@@ -153,6 +154,48 @@ describe("limitCastEmbeds", () => {
     assertDeepEqual(
       limitCastEmbeds(["https://a.test/1", "https://a.test/1/", "https://b.test/2", "https://c.test/3"]),
       ["https://a.test/1", "https://b.test/2"]
+    );
+  });
+});
+
+describe("parseCastEmbeds", () => {
+  it("keeps well-formed { url } entries in order", () => {
+    assertDeepEqual(
+      parseCastEmbeds([{ url: "https://a.test/1" }, { url: "https://b.test/2" }]),
+      [{ url: "https://a.test/1" }, { url: "https://b.test/2" }]
+    );
+  });
+
+  it("returns nothing for a body that has no embeds", () => {
+    assertDeepEqual(parseCastEmbeds(undefined), []);
+    assertDeepEqual(parseCastEmbeds(null), []);
+    assertDeepEqual(parseCastEmbeds("https://a.test/1"), []);
+    assertDeepEqual(parseCastEmbeds({ url: "https://a.test/1" }), []);
+  });
+
+  it("drops entries that are not an object with a string url", () => {
+    // Includes the cast_id embed variant: we accept URL embeds only.
+    assertDeepEqual(
+      parseCastEmbeds([
+        null,
+        "https://a.test/bare-string",
+        { url: 42 },
+        { cast_id: { fid: 1, hash: "0xdead" } },
+        { url: "https://a.test/ok" },
+      ]),
+      [{ url: "https://a.test/ok" }]
+    );
+  });
+
+  it("applies the same cap and dedupe the composer applies", () => {
+    assertDeepEqual(
+      parseCastEmbeds([
+        { url: "https://a.test/1" },
+        { url: "https://a.test/1/" },
+        { url: "https://b.test/2" },
+        { url: "https://c.test/3" },
+      ]),
+      [{ url: "https://a.test/1" }, { url: "https://b.test/2" }]
     );
   });
 });

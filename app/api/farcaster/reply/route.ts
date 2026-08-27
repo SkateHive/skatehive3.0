@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import { publishCast } from "@/lib/farcaster/neynar";
+import { parseCastEmbeds } from "@/lib/farcaster/channels";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -64,7 +65,7 @@ async function getSignerUuid(request: NextRequest) {
 
 /**
  * POST /api/farcaster/reply
- * Body: { text: string, parentHash: "0x..." }
+ * Body: { text: string, parentHash: "0x...", embeds?: ({ url: string })[] }
  */
 export async function POST(request: NextRequest) {
   const signer = await getSignerUuid(request);
@@ -93,7 +94,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const result = await publishCast(signer.signerUuid!, text.trim(), parentHash);
+  // Replies carry embeds too. This route dropped them on the floor for its
+  // whole life: publishCast has taken an `embeds` argument since it was
+  // written, and the call here only ever passed three. A reply with an image
+  // reached Farcaster as bare text.
+  const embeds = parseCastEmbeds(body?.embeds);
+
+  const result = await publishCast(
+    signer.signerUuid!,
+    text.trim(),
+    parentHash,
+    embeds
+  );
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 500 });
   }
