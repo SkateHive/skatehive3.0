@@ -83,7 +83,12 @@ export function limitCastEmbeds(urls: readonly (string | null | undefined)[]): s
   return out;
 }
 
-function normalizeEmbedUrl(url: string): string {
+/**
+ * Canonical comparison key for an embed URL: trimmed, with a trailing slash
+ * removed from non-root paths. For COMPARISON only — never display this, and
+ * never send it as the embed; the trailing slash can matter to a crawler.
+ */
+export function normalizeEmbedUrl(url: string): string {
   const trimmed = url.trim();
   try {
     const parsed = new URL(trimmed);
