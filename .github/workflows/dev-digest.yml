@@ -4,6 +4,11 @@ name: Dev Digest
 # DRY RUN: nothing is broadcast to Hive — the digest is only published as a
 # step summary + artifact. No secrets are referenced.
 
+# Least privilege: the job only reads the repo (artifact upload uses the
+# runner's own token, not GITHUB_TOKEN).
+permissions:
+  contents: read
+
 on:
   schedule:
     - cron: "0 18 * * 5" # Fridays, 18:00 UTC
@@ -44,6 +49,8 @@ jobs:
           if [ -s digest.md ]; then
             cat digest.md >> "$GITHUB_STEP_SUMMARY"
           else
+            # ponytail: echoes the raw input, so an out-of-range value reads back
+            # as given while the script itself falls back to 7. Cosmetic only.
             echo "No qualifying commits in the last ${DIGEST_DAYS:-7} days — digest skipped." >> "$GITHUB_STEP_SUMMARY"
           fi
 

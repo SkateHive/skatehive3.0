@@ -14,7 +14,14 @@ import { execFileSync } from "child_process";
 const DEFAULT_DIGEST_IMAGE_URL = "https://skatehive.app/ogimage.png";
 
 // DIGEST_DAYS widens the window for manual testing / backfilling a missed week.
-const DAYS = Number(process.env.DIGEST_DAYS) || 7;
+// It arrives from a workflow_dispatch input, so it is untrusted: a negative
+// value would hand git an inverted range and publish a backwards date header.
+export function resolveDays(raw: string | undefined): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 7;
+}
+
+const DAYS = resolveDays(process.env.DIGEST_DAYS);
 
 // chore/refactor/test/perf all land in "Under the hood"
 const SECTIONS = [

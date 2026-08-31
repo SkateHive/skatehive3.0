@@ -1,5 +1,5 @@
 import assert from "assert";
-import { parse, buildDigest } from "../generateDigest";
+import { parse, buildDigest, resolveDays } from "../generateDigest";
 
 // Fields are NUL-delimited, matching the git --pretty format the script uses.
 // "|" appears in both a subject and an author name below on purpose.
@@ -15,6 +15,23 @@ const lines = [
   "fix: handle a|b pipe in subject\x00Gabriel\x007777777",
   "perf: pipe in the author name\x00Foo|Bar\x008888888",
 ];
+
+// DIGEST_DAYS comes from a workflow_dispatch input, so it is untrusted.
+// A negative value used to reach git as an inverted range.
+for (const [raw, want] of [
+  ["7", 7],
+  ["30", 30],
+  ["1", 1],
+  ["-2", 7],
+  ["0", 7],
+  ["abc", 7],
+  ["", 7],
+  [undefined, 7],
+  ["3.9", 3],
+  ["1e9", 1000000000],
+] as [string | undefined, number][]) {
+  assert.strictEqual(resolveDays(raw), want, `resolveDays(${JSON.stringify(raw)})`);
+}
 
 const commits = parse(lines);
 assert.deepStrictEqual(
