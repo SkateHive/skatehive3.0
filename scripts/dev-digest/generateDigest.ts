@@ -56,7 +56,10 @@ function gitLog(): string[] {
 
   return execFileSync(
     "git",
-    ["log", `--since=${DAYS} days ago`, "--pretty=format:%s|%an|%h", ref],
+    // NUL-delimited fields: neither a subject nor an author name can contain
+    // one, whereas "|" can appear in both. Records stay newline-separated --
+    // %s is a single line by definition and git forbids LF in ident fields.
+    ["log", `--since=${DAYS} days ago`, "--pretty=format:%s%x00%an%x00%h", ref],
     { encoding: "utf8" }
   )
     .split("\n")
@@ -67,12 +70,9 @@ export function parse(lines: string[]): Commit[] {
   const commits: Commit[] = [];
 
   for (const line of lines) {
-    // subject may itself contain "|", so split off author+hash from the end
-    const parts = line.split("|");
-    if (parts.length < 3) continue;
-    const hash = parts.pop()!;
-    const author = parts.pop()!;
-    const subject = parts.join("|").trim();
+    const [rawSubject, author, hash] = line.split("\x00");
+    if (!rawSubject || !author || !hash) continue;
+    const subject = rawSubject.trim();
 
     if (/dependabot/i.test(author)) continue;
     if (NOISE.some((re) => re.test(subject))) continue;
