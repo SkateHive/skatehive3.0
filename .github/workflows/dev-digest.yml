@@ -8,6 +8,11 @@ on:
   schedule:
     - cron: "0 18 * * 5" # Fridays, 18:00 UTC
   workflow_dispatch:
+    inputs:
+      days:
+        description: "Days to look back"
+        type: string
+        default: "7"
 
 jobs:
   digest:
@@ -27,6 +32,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Generate digest
+        # Empty on scheduled runs; the script falls back to its 7-day default.
+        env:
+          DIGEST_DAYS: ${{ github.event.inputs.days }}
         run: pnpm tsx scripts/dev-digest/generateDigest.ts | tee digest.md
 
       - name: Publish to run summary
