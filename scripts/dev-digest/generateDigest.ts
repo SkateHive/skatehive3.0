@@ -1,7 +1,7 @@
 /**
- * Dev Update digest — turns the last 7 days of commits on main into
- * Hive-flavored markdown. Prints to stdout; prints nothing when there's
- * nothing worth posting.
+ * Dev Update digest — turns the last 7 days of commits on the checked-out
+ * branch into Hive-flavored markdown. Prints to stdout; prints nothing when
+ * there's nothing worth posting.
  *
  * Run: pnpm tsx scripts/dev-digest/generateDigest.ts
  *
@@ -42,8 +42,10 @@ interface Commit {
 }
 
 function gitLog(): string[] {
-  // ponytail: reads whatever ref exists — CI checks out the branch, not main.
-  const ref = ["main", "origin/main", "HEAD"].find((r) => {
+  // HEAD first, so the digest reflects the branch that was actually checked
+  // out. Preferring origin/main here silently digests a stale remote ref when
+  // the workflow is dispatched against a feature branch.
+  const ref = ["HEAD", "main", "origin/main"].find((r) => {
     try {
       execFileSync("git", ["rev-parse", "--verify", r], { stdio: "pipe" });
       return true;

@@ -38,7 +38,14 @@ jobs:
         run: pnpm tsx scripts/dev-digest/generateDigest.ts | tee digest.md
 
       - name: Publish to run summary
-        run: cat digest.md >> "$GITHUB_STEP_SUMMARY"
+        env:
+          DIGEST_DAYS: ${{ github.event.inputs.days }}
+        run: |
+          if [ -s digest.md ]; then
+            cat digest.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No qualifying commits in the last ${DIGEST_DAYS:-7} days — digest skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
