@@ -37,21 +37,28 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Generate digest
+        # shell: bash adds -o pipefail. Without it the default `bash -e` lets a
+        # crashed script exit 0 through tee, leaving an empty digest that reads
+        # as a quiet week instead of a failure.
+        shell: bash
         # Empty on scheduled runs; the script falls back to its 7-day default.
         env:
           DIGEST_DAYS: ${{ github.event.inputs.days }}
-        run: pnpm tsx scripts/dev-digest/generateDigest.ts | tee digest.md
+        run: |
+          echo "DIGEST_WINDOW=$(pnpm tsx scripts/dev-digest/generateDigest.ts --print-days)" >> "$GITHUB_ENV"
+          pnpm tsx scripts/dev-digest/generateDigest.ts | tee digest.md
+          # Nothing to publish: drop the file so no empty artifact is uploaded.
+          [ -s digest.md ] || rm -f digest.md
 
       - name: Publish to run summary
-        env:
-          DIGEST_DAYS: ${{ github.event.inputs.days }}
+        shell: bash
         run: |
           if [ -s digest.md ]; then
             cat digest.md >> "$GITHUB_STEP_SUMMARY"
           else
-            # ponytail: echoes the raw input, so an out-of-range value reads back
-            # as given while the script itself falls back to 7. Cosmetic only.
-            echo "No qualifying commits in the last ${DIGEST_DAYS:-7} days — digest skipped." >> "$GITHUB_STEP_SUMMARY"
+            # DIGEST_WINDOW is the normalized window the script actually used,
+            # so the note can never disagree with the digest.
+            echo "No qualifying commits in the last $DIGEST_WINDOW days — digest skipped." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - uses: actions/upload-artifact@v4

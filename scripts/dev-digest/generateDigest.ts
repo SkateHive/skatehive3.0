@@ -165,6 +165,12 @@ export function buildDigest(commits: Commit[]): string {
 
 // Only run when invoked directly, so tests can import the pure helpers.
 if (process.argv[1]?.endsWith("generateDigest.ts")) {
-  const digest = buildDigest(parse(gitLog()));
-  if (digest) console.log(digest);
+  // --print-days lets the workflow report the window the digest actually used,
+  // instead of echoing back a raw input this script may have rejected.
+  if (process.argv.includes("--print-days")) {
+    console.log(DAYS);
+  } else {
+    const digest = buildDigest(parse(gitLog()));
+    if (digest) console.log(digest);
+  }
 }
