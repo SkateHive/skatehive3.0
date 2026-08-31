@@ -10,6 +10,9 @@
 
 import { execFileSync } from "child_process";
 
+// Served by Next.js from public/ogimage.png at the site root.
+const DEFAULT_DIGEST_IMAGE_URL = "https://skatehive.app/ogimage.png";
+
 // DIGEST_DAYS widens the window for manual testing / backfilling a missed week.
 const DAYS = Number(process.env.DIGEST_DAYS) || 7;
 
@@ -104,7 +107,13 @@ export function buildDigest(commits: Commit[]): string {
     return [title, ...items.map((c) => `- ${c.subject} (${c.hash})`), ""];
   });
 
-  return [`## 🛹 Skatehive Dev Update — Week of ${formatRange()}`, "", ...body]
+  return [
+    `## 🛹 Skatehive Dev Update — Week of ${formatRange()}`,
+    "",
+    `![Skatehive Dev Update](${DEFAULT_DIGEST_IMAGE_URL})`,
+    "",
+    ...body,
+  ]
     .join("\n")
     .trimEnd();
 }
@@ -112,6 +121,11 @@ export function buildDigest(commits: Commit[]): string {
 /*
  * TODO(gabriel): wire this up once we have the @skatehive posting key as a
  * GitHub secret. @hiveio/dhive is already a dependency — no new install needed.
+ *
+ * When wiring this up, json_metadata.image MUST be set to
+ * [DEFAULT_DIGEST_IMAGE_URL]. That is what makes Hive frontends (peakd,
+ * ecency, skatehive itself) render it as the post's thumbnail/preview — it is
+ * separate from, and not inferred from, the inline image in the body.
  *
  * async function broadcastDigestToHive(markdown: string) {
  *   const { Client, PrivateKey } = await import("@hiveio/dhive");
@@ -124,7 +138,11 @@ export function buildDigest(commits: Commit[]): string {
  *       permlink: `dev-update-${Date.now()}`,
  *       title: "Skatehive Dev Update",
  *       body: markdown,
- *       json_metadata: JSON.stringify({ tags: ["skatehive", "devlog"], app: "skatehive" }),
+ *       json_metadata: JSON.stringify({
+ *         tags: ["skatehive", "devlog"],
+ *         app: "skatehive",
+ *         image: [DEFAULT_DIGEST_IMAGE_URL], // drives the frontend thumbnail
+ *       }),
  *     },
  *     PrivateKey.fromString(process.env.HIVE_DIGEST_POSTING_KEY!)
  *   );

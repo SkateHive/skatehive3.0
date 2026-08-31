@@ -26,6 +26,10 @@ assert.deepStrictEqual(
 
 const md = buildDigest(commits);
 assert.ok(md.startsWith("## 🛹 Skatehive Dev Update — Week of "));
+assert.ok(
+  md.includes("![Skatehive Dev Update](https://skatehive.app/ogimage.png)"),
+  "banner image sits below the heading"
+);
 assert.ok(md.includes("### 🆕 New Features\n- add token dropdown (abc1234)"));
 assert.ok(md.includes("### 🐛 Fixes\n- trim amount before parseUnits (def5678)"));
 assert.ok(md.includes("### 🔧 Under the hood\n- split the queue module (5555555)"));
