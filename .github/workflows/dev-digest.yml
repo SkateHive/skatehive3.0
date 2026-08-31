@@ -1,0 +1,39 @@
+name: Dev Digest
+
+# Weekly "Dev Update" digest of the last 7 days of commits.
+# DRY RUN: nothing is broadcast to Hive — the digest is only published as a
+# step summary + artifact. No secrets are referenced.
+
+on:
+  schedule:
+    - cron: "0 18 * * 5" # Fridays, 18:00 UTC
+  workflow_dispatch:
+
+jobs:
+  digest:
+    name: Generate digest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for `git log`
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate digest
+        run: pnpm tsx scripts/dev-digest/generateDigest.ts | tee digest.md
+
+      - name: Publish to run summary
+        run: cat digest.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dev-digest
+          path: digest.md
+          if-no-files-found: ignore
