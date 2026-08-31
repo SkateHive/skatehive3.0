@@ -28,7 +28,10 @@ for (const [raw, want] of [
   ["", 7],
   [undefined, 7],
   ["3.9", 3],
-  ["1e9", 1000000000],
+  ["1e9", 3650],
+  ["100000000", 3650],
+  ["3650", 3650],
+  ["3651", 3650],
 ] as [string | undefined, number][]) {
   assert.strictEqual(resolveDays(raw), want, `resolveDays(${JSON.stringify(raw)})`);
 }
@@ -59,6 +62,11 @@ assert.ok(
   "an author name containing | must not leak into the subject"
 );
 assert.ok(!md.includes("Docs"), "empty sections are omitted");
+
+assert.ok(
+  !buildDigest(commits).includes("Invalid Date"),
+  "the date range must always render"
+);
 
 assert.strictEqual(buildDigest([]), "", "no commits -> no output");
 
