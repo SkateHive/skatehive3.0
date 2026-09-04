@@ -228,8 +228,9 @@ Complete documentation for all SkateHive 3.0 API endpoints.
 ### OpenGraph API
 - **Status:** ✅ Active
 - **Endpoint:** `GET /api/opengraph`
-- **Use Case:** Fetch URL metadata for link previews
-- **Priority:** 🔥 Add SSRF protection and caching
+- **Use Case:** Fetch URL metadata for link previews (`components/shared/OpenGraphPreview.tsx`)
+- **SSRF protection:** https-only, target host must resolve to a public address (`lib/utils/publicUrlGuard.ts` — blocks localhost, RFC1918/link-local/CGNAT ranges, `::1`, `fc00::/7`, `.internal`/`.local`), redirects are not followed, 5s timeout, response body capped at 512KB, rate-limited per IP
+- **Caching:** `Cache-Control: public, s-maxage=3600` on responses
 
 ### OG Metadata
 - **Status:** ✅ Active
@@ -283,15 +284,17 @@ All signup endpoints are ✅ **Active** and production-ready.
 ### Critical Security 🚨
 
 1. **Instagram Download** - Add rate limiting and authentication
-2. **OpenGraph** - Add SSRF protection, domain whitelist
+2. ~~**OpenGraph** - Add SSRF protection, domain whitelist~~ ✅ Fixed — see `/api/opengraph` above
 3. **Farcaster Cleanup** - Use env var for auth token (not hardcoded)
 4. **Admin Endpoints** - Add authentication to init/setup endpoints
+
+`app/api/og-debug` (raw-HTML SSRF proxy, no allow-list, no auth) was removed entirely — it was an unlinked dev tool (`app/og-debug/page.tsx`, no nav/UI link anywhere), not something worth locking down and keeping.
 
 ### High Priority Optimizations 🔥
 
 1. **Merge Pinata Endpoints** - Consolidate `/api/pinata` and `/api/pinata-mobile`
 2. **Complete Chunked Upload** - Finish `/api/pinata-chunked` or remove
-3. **Add Caching** - Portfolio, OpenGraph, Skatespots (5-10min TTL)
+3. **Add Caching** - Portfolio, Skatespots (5-10min TTL) — OpenGraph now sends `s-maxage=3600`
 4. **Fix Farcaster Signature** - Remove app_key workaround
 
 ### Medium Priority 📊
