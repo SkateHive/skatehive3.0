@@ -28,6 +28,8 @@ export interface SpotmapRow {
   lng: number;
   address: string | null;
   thumbnail: string | null;
+  thumbnail_override: string | null;
+  thumbnail_small: string | null;
   images: { url: string; caption: string }[] | null;
   hive_author: string | null;
   hive_permlink: string | null;
