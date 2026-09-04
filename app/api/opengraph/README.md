@@ -4,10 +4,10 @@
 
 ## Overview
 
-Fetches OpenGraph metadata from external URLs for link previews. Extracts title, description, image, and site name by parsing HTML content. Includes timeout handling and fallback data generation.
+Fetches OpenGraph metadata from external URLs for link previews. Extracts title, description, image, and site name by parsing HTML content. Used by `components/shared/OpenGraphPreview.tsx` to render link-preview cards.
 
-**Status**: ⚠️ Active (Security Risk - SSRF)  
-**Method**: `GET`  
+**Status**: ✅ Active (SSRF-hardened)
+**Method**: `GET`
 **Path**: `/api/opengraph`
 
 ## Endpoint
@@ -17,7 +17,7 @@ Fetches OpenGraph metadata from external URLs for link previews. Extracts title,
 Fetches OpenGraph metadata from a provided URL.
 
 **Query Parameters:**
-- `url` (string, required): The URL to fetch OpenGraph data from
+- `url` (string, required): The URL to fetch OpenGraph data from. Must be `https`, and the host must resolve to a public IP.
 
 **Example URL:**
 ```
@@ -37,18 +37,16 @@ Fetches OpenGraph metadata from a provided URL.
 
 **Response (400 Bad Request):**
 ```json
-{
-  "error": "URL parameter is required"
-}
+{ "error": "URL parameter is required" }
 ```
-
-or
-
+or, when the guard rejects the URL:
 ```json
-{
-  "error": "Invalid URL"
-}
+{ "error": "Only https URLs are allowed" }
+{ "error": "Host is not allowed" }
+{ "error": "Host could not be resolved" }
 ```
+
+**Response (429 Too Many Requests):** rate limit exceeded for the caller's IP.
 
 ## Data Extraction
 
@@ -66,15 +64,34 @@ The endpoint automatically resolves relative image URLs:
 - `//cdn.example.com/image.jpg` → `https://cdn.example.com/image.jpg`
 - Absolute URLs are used as-is
 
-## Timeout Configuration
+## Security
 
-- **Fetch Timeout**: 10 seconds
-- Uses `AbortController` to cancel long-running requests
-- Returns fallback data if timeout is exceeded
+### SSRF protection (`lib/utils/publicUrlGuard.ts`)
+
+Every request runs through `assertPublicHttpsUrl` before any fetch happens:
+
+1. **https only** — `http:` and every other scheme are rejected.
+2. **Public host only** — the hostname is checked against a block-list, then (if it isn't a literal IP) resolved via DNS and every returned address is checked too. Blocked:
+   - `localhost`, and any hostname ending in `.internal` or `.local`
+   - IPv4: `0.0.0.0/8`, `10.0.0.0/8`, `100.64.0.0/10` (CGNAT), `127.0.0.0/8`, `169.254.0.0/16` (link-local / cloud metadata, e.g. `169.254.169.254`), `172.16.0.0/12`, `192.168.0.0/16`, `224.0.0.0/4` (multicast), `240.0.0.0/4` (reserved)
+   - IPv6: `::1`, `fc00::/7` (unique local), `fe80::/10` (link-local), and IPv4-mapped (`::ffff:a.b.c.d`) addresses in any of the above IPv4 ranges
+   - Bracketed IPv6 literals in the URL (`https://[::1]/...`) are unwrapped before this check, so they can't slip through as an unrecognized hostname.
+3. **DNS rebinding is closed, not just detected** — the guard's DNS answer is the address the actual request connects to. `assertPublicHttpsUrl` returns the exact IP it validated, and `fetchPinned()` in `route.ts` pins the outbound TCP connection to that IP via a custom `https.Agent({ lookup })`, while the `Host` header / TLS SNI stay the original hostname. Without this, the guard's lookup and the real request's lookup would be two separate DNS queries — an attacker's DNS server can answer differently a few milliseconds apart (return a public IP for the first, private for the second) and sail straight through a guard that only checks the hostname up front.
+4. **No redirects followed** — the pinned request is issued via `node:https` directly (not `fetch`, which doesn't expose a way to pin the resolved address without depending on the `undici` package, not installed here); a 3xx response is treated as a failure (falls back to basic URL-derived data) rather than being chased to wherever it points.
+5. **5 second timeout** on the pinned socket.
+6. **512KB response cap** — the body is read as a stream and truncated at 512KB, so a huge or slow-drip response can't tie up the function.
+
+### Rate limiting
+
+`lib/utils/rate-limiter.ts`, 20 requests/minute per client IP (`getClientIP`). Exceeding it returns 429.
+
+### Response caching
+
+`Cache-Control: public, s-maxage=3600` on every response (including the fallback), so repeated previews of the same URL are served from the CDN edge instead of re-fetching.
 
 ## Fallback Behavior
 
-If fetching fails, the endpoint returns basic information:
+If the target fetch fails (network error, non-2xx, redirect, timeout, or the body cap kicks in mid-parse), the endpoint returns basic information derived from the URL itself instead of an error, so the UI still has something to render:
 ```json
 {
   "title": "example.com",
@@ -83,30 +100,7 @@ If fetching fails, the endpoint returns basic information:
   "siteName": "example.com"
 }
 ```
-
-## Security Features
-
-### Implemented
-1. **Protocol Validation**: Only `http:` and `https:` protocols allowed
-2. **Timeout Protection**: 10-second timeout prevents hanging requests
-3. **User Agent**: Identifies as SkateHive bot
-
-### ⚠️ Security Concerns
-
-🚨 **CRITICAL - SSRF Vulnerability**: This endpoint can be exploited to scan internal networks or access unauthorized resources.
-
-**Attack Vectors:**
-- `?url=http://localhost:8080/admin` - Access internal services
-- `?url=http://169.254.169.254/latest/meta-data/` - AWS metadata endpoint
-- `?url=http://192.168.1.1/` - Internal network scanning
-
-**Required Mitigations:**
-1. **Whitelist Domains**: Only allow fetching from approved domains
-2. **Block Private IPs**: Reject RFC1918 addresses (10.x, 172.16.x, 192.168.x)
-3. **Block Metadata Endpoints**: Reject 169.254.169.254, 127.0.0.1
-4. **Add Rate Limiting**: Max 10 requests per minute per IP
-5. **Validate Response Content**: Ensure HTML content (not JSON, XML)
-6. **Add Authentication**: Require API key for access
+A rejected URL (bad protocol, disallowed host, unresolvable host) is a genuine 400 — the guard is meant to be a hard stop, not something to fall back past.
 
 ## Usage Examples
 
@@ -120,90 +114,15 @@ console.log('Title:', metadata.title);
 console.log('Image:', metadata.image);
 ```
 
-### React Component
-```jsx
-function LinkPreview({ url }) {
-  const [metadata, setMetadata] = useState(null);
-  
-  useEffect(() => {
-    fetch(`/api/opengraph?url=${encodeURIComponent(url)}`)
-      .then(r => r.json())
-      .then(setMetadata);
-  }, [url]);
-  
-  if (!metadata) return <div>Loading...</div>;
-  
-  return (
-    <div className="preview">
-      {metadata.image && <img src={metadata.image} alt={metadata.title} />}
-      <h3>{metadata.title}</h3>
-      <p>{metadata.description}</p>
-      <span>{metadata.siteName}</span>
-    </div>
-  );
-}
-```
-
 ### cURL
 ```bash
 curl "https://skatehive.app/api/opengraph?url=https://example.com/article"
 ```
 
-## Caching Recommendations
+## Tests
 
-⚠️ **No Caching Implemented**: Each request fetches fresh data from the external URL.
+`lib/utils/__tests__/publicUrlGuard.test.ts` (`pnpm test:public-url-guard`) covers the host validator: a public IP/hostname is allowed, each blocked IPv4/IPv6 range is rejected, `localhost` and `.internal`/`.local` hostnames are rejected, non-https protocols are rejected.
 
-**Recommended Implementation:**
-1. Add Redis cache with 1-hour TTL
-2. Use URL as cache key
-3. Implement cache headers (Cache-Control, ETag)
-4. Consider CDN caching for popular URLs
+## Related
 
-Example cache structure:
-```javascript
-const cacheKey = `og:${url}`;
-const cached = await redis.get(cacheKey);
-if (cached) return JSON.parse(cached);
-
-// Fetch fresh data
-const data = await fetchOpenGraphData(url);
-await redis.setex(cacheKey, 3600, JSON.stringify(data));
-```
-
-## Error Handling
-
-1. **Invalid URL**: Returns 400 with error message
-2. **Fetch Failure**: Returns fallback data with basic URL info
-3. **Timeout**: Returns fallback data after 10 seconds
-4. **Parse Error**: Returns fallback data with hostname as title
-
-## Performance Considerations
-
-- Each request makes an external HTTP call (slow)
-- No caching means repeated URLs are fetched multiple times
-- 10-second timeout can block the API response
-- Consider implementing background fetching + cache
-
-## Related Endpoints
-
-- `/api/og` - Potential duplicate/alternative endpoint (needs verification)
-
-## Dependencies
-
-- No external libraries
-- Uses native `fetch` API
-- Uses `AbortController` for timeout management
-
-## Migration Notes
-
-Consider migrating to a dedicated service like:
-- [Open Graph Preview](https://www.opengraph.xyz/)
-- [LinkPreview.net](https://linkpreview.net/)
-- [Microlink](https://microlink.io/)
-
-These services provide:
-- Better security (no SSRF risk)
-- Built-in caching
-- Rate limiting
-- Screenshot generation
-- Better parsing reliability
+`app/api/og-debug` (a raw-HTML SSRF proxy backing an internal-only `/og-debug` debug page, no allow-list, no auth) has been **removed** — it had no code or UI reference calling it.
