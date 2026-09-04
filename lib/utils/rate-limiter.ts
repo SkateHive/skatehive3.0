@@ -55,7 +55,15 @@ interface RateLimiter {
 const stores = new Map<string, Map<string, RateLimitRecord>>();
 
 /**
- * Get client IP address from request headers
+ * Get client IP address from request headers.
+ *
+ * These headers are client-suppliable — a caller can send any value it
+ * wants for x-forwarded-for/x-real-ip unless the platform in front of this
+ * (Vercel, a trusted proxy) overwrites them, so this is "make abuse a
+ * little more expensive", not an identity check. Combined with the in-memory
+ * store below (per serverless instance, reset on cold start, not shared
+ * across instances), this rate limiter is a soft speed bump, not a hard
+ * guarantee. That's an accepted tradeoff for now, not something to fix here.
  */
 export function getClientIP(request: NextRequest): string {
     return (

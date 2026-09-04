@@ -6,7 +6,7 @@
  * depend on DNS/network access being available in CI.
  */
 
-import { assertPublicHttpsUrl, isBlockedIp } from '../publicUrlGuard';
+import { assertPublicHttpsUrl, isBlockedIp, type DnsLookupFn } from '../publicUrlGuard';
 
 const tests: Array<() => void | Promise<void>> = [];
 let hasFailures = false;
@@ -29,13 +29,13 @@ function it(name: string, fn: () => void | Promise<void>) {
   });
 }
 
-async function assertAllowed(url: string) {
-  await assertPublicHttpsUrl(url);
+async function assertAllowed(url: string, opts?: { lookup?: DnsLookupFn }) {
+  await assertPublicHttpsUrl(url, opts);
 }
 
-async function assertRejected(url: string) {
+async function assertRejected(url: string, opts?: { lookup?: DnsLookupFn }) {
   try {
-    await assertPublicHttpsUrl(url);
+    await assertPublicHttpsUrl(url, opts);
   } catch {
     return;
   }
@@ -47,18 +47,18 @@ describe('assertPublicHttpsUrl — public host', () => {
     await assertAllowed('https://8.8.8.8/og');
   });
 
-  it('allows a public hostname', async () => {
-    // No DNS lookup needed to reach the "allowed" branch here — the guard
-    // only calls out to DNS for non-literal, non-blocked hostnames, and the
-    // hostname check doesn't reject this one; the real network call (if
-    // any) happens in dns.lookup, which we don't assert on beyond "does not
-    // throw for an obviously-public name".
-    await assertAllowed('https://example.com/og').catch((err) => {
-      // If the sandbox has no DNS/network access at all, dns.lookup itself
-      // fails — that's an environment limitation, not a guard bug. Only
-      // fail the test if the guard rejected it for being non-public.
-      if (String(err).includes('Host is not allowed')) throw err;
-    });
+  it('allows a public IPv6 literal (bracketed)', async () => {
+    await assertAllowed('https://[2606:4700:4700::1111]/og');
+  });
+
+  it('allows a public hostname (DNS stubbed — no live network)', async () => {
+    const stubLookup = async () => [{ address: '93.184.216.34', family: 4 }];
+    await assertPublicHttpsUrl('https://example.com/og', { lookup: stubLookup });
+  });
+
+  it('rejects a hostname that resolves to a private address (DNS rebinding)', async () => {
+    const stubLookup = async () => [{ address: '10.0.0.5', family: 4 }];
+    await assertRejected('https://looks-public.example/og', { lookup: stubLookup });
   });
 });
 
@@ -111,6 +111,19 @@ describe('assertPublicHttpsUrl — private IPv4 ranges', () => {
   it('rejects 100.64.0.0/10 (carrier-grade NAT)', async () => {
     await assertRejected('https://100.64.0.1/og');
   });
+
+  it('rejects 0.0.0.0/8 (this network / unspecified)', async () => {
+    await assertRejected('https://0.0.0.0/og');
+  });
+
+  it('rejects 224.0.0.0/4 (multicast)', async () => {
+    await assertRejected('https://224.0.0.1/og');
+  });
+
+  it('rejects 240.0.0.0/4 (reserved)', async () => {
+    await assertRejected('https://240.0.0.1/og');
+    await assertRejected('https://255.255.255.255/og');
+  });
 });
 
 describe('assertPublicHttpsUrl — private IPv6 ranges', () => {
@@ -120,7 +133,13 @@ describe('assertPublicHttpsUrl — private IPv6 ranges', () => {
 
   it('rejects fc00::/7 (unique local)', async () => {
     await assertRejected('https://[fc00::1]/og');
+    await assertRejected('https://[fd00::1]/og');
     await assertRejected('https://[fd12:3456:789a::1]/og');
+  });
+
+  it('rejects fe80::/10 (link-local)', async () => {
+    await assertRejected('https://[fe80::1]/og');
+    await assertRejected('https://[febf:ffff::1]/og');
   });
 });
 

@@ -71,13 +71,15 @@ The endpoint automatically resolves relative image URLs:
 Every request runs through `assertPublicHttpsUrl` before any fetch happens:
 
 1. **https only** — `http:` and every other scheme are rejected.
-2. **Public host only** — the hostname is checked against a block-list, then (if it isn't a literal IP) resolved via DNS and every returned address is checked too, so a public-looking hostname that resolves privately (DNS rebinding) is still rejected. Blocked:
+2. **Public host only** — the hostname is checked against a block-list, then (if it isn't a literal IP) resolved via DNS and every returned address is checked too. Blocked:
    - `localhost`, and any hostname ending in `.internal` or `.local`
-   - IPv4: `10.0.0.0/8`, `100.64.0.0/10` (CGNAT), `127.0.0.0/8`, `169.254.0.0/16` (link-local / cloud metadata, e.g. `169.254.169.254`), `172.16.0.0/12`, `192.168.0.0/16`
-   - IPv6: `::1`, `fc00::/7` (unique local), and IPv4-mapped (`::ffff:a.b.c.d`) addresses in any of the above IPv4 ranges
-3. **No redirects followed** — `redirect: 'manual'`; a 3xx response is treated as a failure (falls back to basic URL-derived data) rather than being chased to wherever it points.
-4. **5 second timeout** via `AbortController`.
-5. **512KB response cap** — the body is read as a stream and truncated at 512KB, so a huge or slow-drip response can't tie up the function.
+   - IPv4: `0.0.0.0/8`, `10.0.0.0/8`, `100.64.0.0/10` (CGNAT), `127.0.0.0/8`, `169.254.0.0/16` (link-local / cloud metadata, e.g. `169.254.169.254`), `172.16.0.0/12`, `192.168.0.0/16`, `224.0.0.0/4` (multicast), `240.0.0.0/4` (reserved)
+   - IPv6: `::1`, `fc00::/7` (unique local), `fe80::/10` (link-local), and IPv4-mapped (`::ffff:a.b.c.d`) addresses in any of the above IPv4 ranges
+   - Bracketed IPv6 literals in the URL (`https://[::1]/...`) are unwrapped before this check, so they can't slip through as an unrecognized hostname.
+3. **DNS rebinding is closed, not just detected** — the guard's DNS answer is the address the actual request connects to. `assertPublicHttpsUrl` returns the exact IP it validated, and `fetchPinned()` in `route.ts` pins the outbound TCP connection to that IP via a custom `https.Agent({ lookup })`, while the `Host` header / TLS SNI stay the original hostname. Without this, the guard's lookup and the real request's lookup would be two separate DNS queries — an attacker's DNS server can answer differently a few milliseconds apart (return a public IP for the first, private for the second) and sail straight through a guard that only checks the hostname up front.
+4. **No redirects followed** — the pinned request is issued via `node:https` directly (not `fetch`, which doesn't expose a way to pin the resolved address without depending on the `undici` package, not installed here); a 3xx response is treated as a failure (falls back to basic URL-derived data) rather than being chased to wherever it points.
+5. **5 second timeout** on the pinned socket.
+6. **512KB response cap** — the body is read as a stream and truncated at 512KB, so a huge or slow-drip response can't tie up the function.
 
 ### Rate limiting
 
