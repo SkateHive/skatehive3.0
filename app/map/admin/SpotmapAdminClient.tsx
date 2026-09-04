@@ -24,6 +24,7 @@ import {
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { uploadToIpfsSmart } from "@/lib/utils/ipfsUpload";
+import { validateThumbnailOverride } from "@/lib/spotmap/thumbnails";
 
 interface AdminStatus {
   ok: boolean;
@@ -171,6 +172,17 @@ export default function SpotmapAdminClient() {
   async function handleSave(spotId: string) {
     const trimmed = urlInput.trim();
     if (!trimmed) return;
+    const validation = validateThumbnailOverride(trimmed);
+    if (!validation.ok) {
+      toast({
+        title: t("invalidImageUrl"),
+        description: validation.error,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
     setSavingId(spotId);
     try {
       await patchThumbnail(spotId, trimmed);
@@ -455,6 +467,10 @@ export default function SpotmapAdminClient() {
               const currentImage = spot.thumbnail_small ?? spot.thumbnail;
               const isUploading = uploadingId === spot.id;
               const isSaving = savingId === spot.id;
+              const trimmedUrlInput = isEditing ? urlInput.trim() : "";
+              const urlValidation = trimmedUrlInput
+                ? validateThumbnailOverride(trimmedUrlInput)
+                : null;
 
               return (
                 <Box
@@ -589,13 +605,19 @@ export default function SpotmapAdminClient() {
                         </Button>
                       </HStack>
 
+                      {urlValidation && !urlValidation.ok && (
+                        <Text fontSize="2xs" color="red.300" mb={3}>
+                          {t("invalidImageUrl")}: {urlValidation.error}
+                        </Text>
+                      )}
+
                       <HStack>
                         <Button
                           size="sm"
                           bg="primary"
                           color="background"
                           _hover={{ bg: "accent", color: "text" }}
-                          isDisabled={!urlInput.trim() || isSaving}
+                          isDisabled={!urlValidation?.ok || isSaving}
                           isLoading={isSaving}
                           loadingText={t("saving")}
                           onClick={() => handleSave(spot.id)}

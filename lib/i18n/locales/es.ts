@@ -1743,7 +1743,6 @@ export const es = {
       'Busca un spot y reemplaza su miniatura sin esperar una nueva sincronización.',
     searchPlaceholder: 'Buscar spots por nombre…',
     noResults: 'Ningún spot coincide con tu búsqueda.',
-    loadingSpots: 'Cargando spots…',
     loadErrorTitle: 'Error al cargar spots',
     replaceImage: 'Reemplazar imagen',
     cancel: 'Cancelar',
