@@ -51,7 +51,8 @@ const MapSpotCard = forwardRef<HTMLDivElement, MapSpotCardProps>(function MapSpo
   const imageHref = spotHref ?? mapsHref;
   const imageOpensExternal = !spotHref;
 
-  const showImage = spot.thumbnail && !imgErrored;
+  const cardImage = spot.thumbnailSmall ?? spot.thumbnail;
+  const showImage = cardImage && !imgErrored;
   const subtitle = isHive ? (
     <>
       @{spot.hiveAuthor}
@@ -106,13 +107,13 @@ const MapSpotCard = forwardRef<HTMLDivElement, MapSpotCardProps>(function MapSpo
         {showImage ? (
           <Box position="relative" h="180px" overflow="hidden" bg="#0a0a0a">
             <NextImage
-              src={spot.thumbnail!}
+              src={cardImage!}
               alt={spot.name}
               fill
               sizes="(max-width: 768px) 100vw, 480px"
               style={{ objectFit: "cover" }}
               onError={() => setImgErrored(true)}
-              unoptimized={spot.thumbnail!.startsWith("https://ipfs.")}
+              unoptimized={cardImage!.startsWith("https://ipfs.")}
             />
             <Box
               position="absolute"
