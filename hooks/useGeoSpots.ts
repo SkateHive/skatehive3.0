@@ -13,6 +13,9 @@ export interface GeoSpot {
   lng: number;
   address: string | null;
   thumbnail: string | null;
+  // Widget-safe small variant (<=400px) — falls back to `thumbnail` when the
+  // api has none. Prefer this for map pins/cards; `thumbnail` is full-size.
+  thumbnailSmall: string | null;
   // Hive-only — used by the map popup to link to /spot/[author]/[permlink]
   hiveAuthor: string | null;
   hivePermlink: string | null;
@@ -31,6 +34,7 @@ interface SpotmapRowFromApi {
   lng: number;
   address: string | null;
   thumbnail: string | null;
+  thumbnail_small: string | null;
   hive_author: string | null;
   hive_permlink: string | null;
   hive_created: string | null;
@@ -95,6 +99,7 @@ export function useGeoSpots() {
       lng: r.lng,
       address: r.address,
       thumbnail: r.thumbnail,
+      thumbnailSmall: r.thumbnail_small,
       hiveAuthor: r.hive_author,
       hivePermlink: r.hive_permlink,
       created: r.hive_created,

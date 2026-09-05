@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSpotmapSupabase, type SpotmapRow } from "@/lib/spotmap/supabase";
+import { withEffectiveThumbnails } from "@/lib/spotmap/thumbnails";
 
 // Read endpoint for the synced spot map. One query, no pagination —
 // the map and globe views want everything at once.
@@ -15,7 +16,7 @@ export async function GET(_request: NextRequest) {
   const { data, error } = await supabase
     .from("spotmap_spots")
     .select(
-      "id, source, source_id, name, lat, lng, address, thumbnail, " +
+      "id, source, source_id, name, lat, lng, address, thumbnail, thumbnail_override, thumbnail_small, " +
         "hive_author, hive_permlink, hive_created, kml_description"
     )
     .order("hive_created", { ascending: false, nullsFirst: false })
@@ -29,8 +30,10 @@ export async function GET(_request: NextRequest) {
     );
   }
 
+  const spots = ((data ?? []) as Partial<SpotmapRow>[]).map(withEffectiveThumbnails);
+
   return NextResponse.json(
-    { success: true, count: data?.length ?? 0, spots: data ?? [] as Partial<SpotmapRow>[] },
+    { success: true, count: spots.length, spots },
     {
       headers: {
         // Edge-cache — sync is manual so freshness pressure is low.

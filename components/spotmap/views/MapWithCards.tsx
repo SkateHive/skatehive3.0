@@ -114,18 +114,24 @@ const SpotMarker = memo(function SpotMarker({
         maxWidth={260}
       >
         <div>
-          {spot.thumbnail && !spot.thumbnail.includes("googleusercontent.com") && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              className="spot-popup-image"
-              src={spot.thumbnail}
-              alt={spot.name}
-              loading="lazy"
-              onError={(e) =>
-                (e.currentTarget as HTMLImageElement).classList.add("spot-popup-image-hidden")
-              }
-            />
-          )}
+          {(() => {
+            const popupImage = spot.thumbnailSmall ?? spot.thumbnail;
+            return (
+              popupImage &&
+              !popupImage.includes("googleusercontent.com") && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  className="spot-popup-image"
+                  src={popupImage}
+                  alt={spot.name}
+                  loading="lazy"
+                  onError={(e) =>
+                    (e.currentTarget as HTMLImageElement).classList.add("spot-popup-image-hidden")
+                  }
+                />
+              )
+            );
+          })()}
           <div className="spot-popup-body">
             <div className="spot-popup-title">{spot.name}</div>
             <div className="spot-popup-meta">
