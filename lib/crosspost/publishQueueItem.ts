@@ -36,8 +36,9 @@ function isCollaboratorVisibilityError(error: string | undefined) {
 
 /** Statuses an item can be approved from. `published` and `publishing` are
  *  excluded so a double-click can never double-post; a STALE `publishing` row
- *  is added back conditionally in claimQueueItem. */
-export const CLAIMABLE_STATUSES = ["pending_review", "approved", "failed", "rejected"];
+ *  is added back conditionally in claimQueueItem. `rejected` is excluded too —
+ *  a curator's rejection is final and must never become publishable later. */
+export const CLAIMABLE_STATUSES = ["pending_review", "approved", "failed"];
 
 /**
  * How long a row may sit in `publishing` before we assume the attempt died.

@@ -230,6 +230,33 @@ describe("claimQueueItem — the double-post guard", () => {
     assertEqual(claim.ok, false, "still inside the window — a Reel may legitimately take this long");
   });
 
+  it("allows claiming an approved item", async () => {
+    const supabase = dbWith([pendingItem({ status: "approved" })]);
+    const claim = await claimQueueItem({
+      supabase,
+      id: "queue-1",
+      curatorHandle: "curator",
+      curatorUserId: null,
+    });
+    assertTrue(claim.ok, "an approved item must still be claimable");
+  });
+
+  it("refuses to claim a rejected item — a curator's rejection is final", async () => {
+    const supabase = dbWith([pendingItem({ status: "rejected" })]);
+    const claim = await claimQueueItem({
+      supabase,
+      id: "queue-1",
+      curatorHandle: "curator",
+      curatorUserId: null,
+    });
+    assertEqual(claim.ok, false, "a rejected item must never become claimable again");
+    assertEqual(
+      supabase.db.tables.userbase_crosspost_queue[0].status,
+      "rejected",
+      "the row must stay rejected, not flip to publishing"
+    );
+  });
+
   it("409s when re-approving a rejected item whose slot was retaken", async () => {
     // Author was rejected, then asked again — the newer row holds the slot, so
     // reviving the old one would violate the partial unique index.
