@@ -1,11 +1,16 @@
 /**
  * Rewrites raw commit subjects into language a Skatehive user can follow.
  *
- * The commit list is the only source of truth -- this asks Claude to restate
- * what shipped, never to invent it. Structure (heading, banner, date range)
- * stays in generateDigest.ts; only the bullet prose is delegated.
+ * Structure (heading, banner, date range) stays in generateDigest.ts; only the
+ * bullet prose is delegated.
  *
- * No API key -> returns null, and the caller falls back to the raw digest.
+ * Model output is untrusted. Each bullet must cite the indexes of the commits
+ * it came from, and a bullet citing nothing real is dropped -- the prompt's
+ * "do not invent" instruction is not by itself checkable. The citations stay
+ * out of the rendered text; they exist only to be validated here.
+ *
+ * No API key, an API error, a refusal, or nothing left after validation all
+ * return null, and the caller falls back to the raw digest.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -28,7 +33,7 @@ Your readers are skaters, not developers. They want to know what changed and wha
 
 Rules:
 - Write for someone who uses the app, never for someone who reads the code.
-- Drop every commit hash, file path, branch name and PR number.
+- Drop every commit hash, file path, branch name and PR number from the text.
 - Never use developer jargon. Translate the effect instead: "close SSRF holes in the URL-fetching OG routes" becomes "Closed a security hole in how we load link previews."
 - Merge commits that are part of the same change into one bullet. Ten commits about one feature is one bullet.
 - Only describe what is in the commit list. Never invent a feature, a number or a benefit that is not there.
@@ -36,25 +41,63 @@ Rules:
 - One sentence per bullet. Plain, direct, no marketing voice and no exclamation marks.
 - Write in English.
 
+Every commit is numbered. Each bullet must list the numbers of the commits it is based on, in a "commits" array. A bullet you cannot ground in at least one numbered commit must not be written at all.
+
 Return only JSON, no prose around it, in exactly this shape:
-{"features": ["..."], "fixes": ["..."], "internal": ["..."]}
+{"features": [{"text": "...", "commits": [1, 4]}], "fixes": [], "internal": []}
 
 Any of the three arrays may be empty.`;
 
+/** 1-indexed so the numbering reads naturally in the prompt. */
 function commitList(commits: Commit[]): string {
-  return commits.map((c) => `- ${c.type}: ${c.subject}`).join("\n");
+  return commits.map((c, i) => `${i + 1}. ${c.type}: ${c.subject}`).join("\n");
 }
 
-/** Narrow unknown JSON into string[] without trusting the model's shape. */
-function stringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((v): v is string => typeof v === "string")
-    .map((v) => v.trim())
-    .filter(Boolean);
+interface Grounded {
+  text: string;
+  commits: number[];
 }
 
-export function sectionsFromResponse(raw: string): DigestSection[] | null {
+/**
+ * Keeps only bullets that are non-empty and cite at least one commit index
+ * that actually exists. Returns the surviving text plus every cited index.
+ */
+function groundedItems(
+  value: unknown,
+  commitCount: number,
+  rejected: string[]
+): { items: string[]; cited: Set<number> } {
+  const cited = new Set<number>();
+  if (!Array.isArray(value)) return { items: [], cited };
+
+  const items: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "object" || entry === null) {
+      rejected.push(`not an object: ${JSON.stringify(entry)}`);
+      continue;
+    }
+    const { text, commits } = entry as Partial<Grounded>;
+    if (typeof text !== "string" || !text.trim()) {
+      rejected.push(`missing text: ${JSON.stringify(entry)}`);
+      continue;
+    }
+    const valid = (Array.isArray(commits) ? commits : []).filter(
+      (n): n is number => Number.isInteger(n) && n >= 1 && n <= commitCount
+    );
+    if (valid.length === 0) {
+      rejected.push(`ungrounded: ${text.trim()}`);
+      continue;
+    }
+    for (const n of valid) cited.add(n);
+    items.push(text.trim());
+  }
+  return { items, cited };
+}
+
+export function sectionsFromResponse(
+  raw: string,
+  commitCount: number
+): DigestSection[] | null {
   // The model may wrap JSON in a fence despite instructions.
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) return null;
@@ -68,14 +111,40 @@ export function sectionsFromResponse(raw: string): DigestSection[] | null {
   if (typeof parsed !== "object" || parsed === null) return null;
 
   const obj = parsed as Record<string, unknown>;
+  const rejected: string[] = [];
+  const features = groundedItems(obj.features, commitCount, rejected);
+  const fixes = groundedItems(obj.fixes, commitCount, rejected);
+  const internal = groundedItems(obj.internal, commitCount, rejected);
+
+  for (const reason of rejected) {
+    console.error(`Dropped bullet -- ${reason}`);
+  }
+
   const sections: DigestSection[] = [
-    { title: HUMANIZED_TITLES.features, items: stringArray(obj.features) },
-    { title: HUMANIZED_TITLES.fixes, items: stringArray(obj.fixes) },
-    { title: HUMANIZED_TITLES.internal, items: stringArray(obj.internal) },
+    { title: HUMANIZED_TITLES.features, items: features.items },
+    { title: HUMANIZED_TITLES.fixes, items: fixes.items },
+    { title: HUMANIZED_TITLES.internal, items: internal.items },
   ];
 
   // An empty rewrite is a failure, not a quiet week -- the caller has commits.
   if (sections.every((s) => s.items.length === 0)) return null;
+
+  // Coverage is reported, not enforced: merging related commits and skipping
+  // pure noise are both intended, so a gap is worth seeing but not a failure.
+  const covered = new Set([
+    ...features.cited,
+    ...fixes.cited,
+    ...internal.cited,
+  ]);
+  if (covered.size < commitCount) {
+    const missing = Array.from({ length: commitCount }, (_, i) => i + 1)
+      .filter((n) => !covered.has(n))
+      .join(", ");
+    console.error(
+      `${commitCount - covered.size} of ${commitCount} commits not cited by any bullet: ${missing}`
+    );
+  }
+
   return sections;
 }
 
@@ -98,7 +167,7 @@ export async function humanizeCommits(
       messages: [
         {
           role: "user",
-          content: `Here are this week's commits. Rewrite them for the changelog.\n\n${commitList(commits)}`,
+          content: `Here are this week's commits, numbered. Rewrite them for the changelog.\n\n${commitList(commits)}`,
         },
       ],
     });
@@ -115,9 +184,11 @@ export async function humanizeCommits(
       .map((b) => b.text)
       .join("\n");
 
-    const sections = sectionsFromResponse(text);
+    const sections = sectionsFromResponse(text, commits.length);
     if (!sections) {
-      console.error("Could not parse the rewrite as JSON -- falling back to raw commit subjects.");
+      console.error(
+        "Rewrite produced nothing usable -- falling back to raw commit subjects."
+      );
     }
     return sections;
   } catch (error) {
