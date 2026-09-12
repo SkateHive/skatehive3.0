@@ -963,7 +963,7 @@ export const lg = {
     modeHiveDesc: 'Ekola Hive account eya nnamaddala ku blockchain. 3 HIVE ziva mu wallet yo era operation esainibwa ne Keychain.',
     modeHiveLocked: 'Yingira ne Hive okusobola okusasulira account.',
     liteSendButton: 'Weereza mwaliko ogwa bwereere',
-    liteInviteSent: 'Mwaliko gutumiddwa! Mukwano gwo afunye login link ku email \u2014 evaawo mu ddakiika 15. Bw\'eba evuddewo, asobola okusaba endala ku Skatehive login screen.',
+    liteInviteSent: 'Mwaliko gutumiddwa \u2014 mukwano gwo atandika nga {handle}. Login link mu email ye evaawo mu ddakiika 15; bw\'eba evuddewo, asobola okusaba endala ku Skatehive login screen.',
     liteInviteFailed: 'Tetusobodde kutumira mwaliko.',
     actNoneAvailable: 'Tolina ACTs, n\'olwekyo option eno ezikiddwa. Kozesa 3 HIVE fee.',
     rescueTitle: 'Account ekoleddwa \u2014 naye email tefulumye',
@@ -986,6 +986,8 @@ export const lg = {
     stepShare: 'Bunya ebigambo',
     getAppTitle: 'Funa app',
     getAppOther: 'Ku Android ne desktop, ggulawo skatehive.app ogigire okuva mu browser yo.',
+    liteAlreadyMember: 'Email eyo erina dda akawunti ku Skatehive, n\'olwekyo tewali mwaliko gutumiddwa.',
+    modeLiteLocked: 'Yingira okusobola okuweereza mwaliko ogwa bwereere.',
   },
   blog: {
     scanningGoat: 'Okusaganya GOAT posts...',

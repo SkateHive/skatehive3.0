@@ -787,6 +787,8 @@ export interface TranslationSchema {
     stepShare: string;
     getAppTitle: string;
     getAppOther: string;
+    liteAlreadyMember: string;
+    modeLiteLocked: string;
   };
   blog: {
     scanningGoat: string;

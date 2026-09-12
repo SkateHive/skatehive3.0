@@ -37,6 +37,7 @@ import * as dhive from "@hiveio/dhive";
 import useHiveAccount from "@/hooks/useHiveAccount";
 import { useKeychainSDK } from "@/hooks/useKeychainSDK";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import SocialShareButtons from "@/components/invite/SocialShareButtons";
 import { APP_CONFIG } from "@/config/app.config";
 
@@ -152,6 +153,7 @@ function StatusBox({
 export default function InvitePageClient() {
   const t = useTranslations();
   const { user } = useAioha();
+  const { user: appUser, isLoading: isSessionLoading } = useUserbaseAuth();
   const { hiveAccount, isLoading: isAccountLoading } = useHiveAccount(
     user || ""
   );
@@ -175,6 +177,9 @@ export default function InvitePageClient() {
   const [emailError, setEmailError] = useState<string | null>(null);
 
   const hasHiveLogin = Boolean(user) && Boolean(hiveAccount);
+  // Lite invites now create an account and send mail on the sender's behalf, so
+  // they need a signed-in sender to attribute and rate-limit against.
+  const hasSession = Boolean(appUser);
   const actBalance = Number(hiveAccount?.pending_claimed_accounts ?? 0);
 
   // Cached balance drives the up-front warning; the click re-checks on chain.
@@ -337,28 +342,36 @@ export default function InvitePageClient() {
    */
   const handleCreateLiteAccount = async () => {
     resetFeedback();
-    if (!validateForm()) return;
+
+    const emailValidationError = validateEmail(desiredEmail);
+    if (emailValidationError) {
+      setErrorMessage(emailValidationError);
+      setEmailError(emailValidationError);
+      return;
+    }
 
     setLoading(true);
     try {
-      const res = await fetch("/api/userbase/auth/sign-up", {
+      // No handle is sent: the server derives it from the address, so the
+      // sender cannot name their friend permanently — or reserve the good
+      // names in bulk.
+      const res = await fetch("/api/userbase/invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: desiredEmail.trim(),
-          display_name: desiredUsername,
-          handle: desiredUsername,
-        }),
+        body: JSON.stringify({ email: desiredEmail.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
-        const details =
-          typeof data?.details === "string" ? data.details : null;
-        const baseError = data?.error || t('invite.liteInviteFailed');
-        setErrorMessage(details ? `${baseError} (${details})` : baseError);
+        setErrorMessage(data?.error || t('invite.liteInviteFailed'));
         return;
       }
-      setSuccessMessage(t('invite.liteInviteSent'));
+      if (data?.already_member) {
+        setSuccessMessage(t('invite.liteAlreadyMember'));
+        return;
+      }
+      setSuccessMessage(
+        t('invite.liteInviteSent').replace('{handle}', `@${data?.handle ?? ""}`)
+      );
     } catch (error: any) {
       setErrorMessage(error?.message || t('invite.unknownError'));
     } finally {
@@ -472,11 +485,13 @@ export default function InvitePageClient() {
     }
   };
 
+  const emailReady = Boolean(desiredEmail) && emailError === null;
   const canSubmit =
-    accountAvailable &&
-    Boolean(desiredEmail) &&
-    emailError === null &&
-    (mode === "lite" || Boolean(generated)) &&
+    emailReady &&
+    // The lite path only needs an address; the handle is derived server-side.
+    (mode === "lite"
+      ? hasSession
+      : accountAvailable && Boolean(generated)) &&
     // While the rescue box is up the account already exists, so another click
     // would only burn a Keychain prompt on a name the chain will reject.
     rescue === null;
@@ -493,8 +508,9 @@ export default function InvitePageClient() {
       title: t('invite.modeLite'),
       description: t('invite.modeLiteDesc'),
       badge: t('invite.badgeFree'),
-      locked: false,
-      notes: [],
+      locked: !hasSession,
+      notes:
+        !hasSession && !isSessionLoading ? [t('invite.modeLiteLocked')] : [],
     },
     {
       id: "hive",
@@ -516,7 +532,7 @@ export default function InvitePageClient() {
           <Heading size="lg" color="primary">
             {t('invite.title')}
           </Heading>
-          {desiredUsername && (
+          {mode === "hive" && desiredUsername && (
             <Text fontSize="sm" color="dim" mt={1} fontFamily="mono">
               &gt; @{desiredUsername}
             </Text>
@@ -647,61 +663,65 @@ export default function InvitePageClient() {
           <SectionLabel index="02" label={t('invite.stepDetails')} />
           <Box p={4} bg="panel" border="1px solid" borderColor="border">
             <VStack spacing={5} align="stretch">
-              <FormControl>
-                <Flex align="baseline" justify="space-between" mb={2}>
-                  <Text fontWeight="bold" color="text" fontSize="sm">
-                    {t('invite.usernameLabel')}
-                  </Text>
-                  {isCheckedOnce && desiredUsername && (
-                    <Text
-                      fontSize="xs"
-                      fontFamily="mono"
-                      color={accountAvailable ? "success" : "error"}
-                    >
-                      {accountAvailable
-                        ? t('invite.usernameAvailable')
-                        : accountInvalid}
+              {/* Only the paid path needs a name up front: it is burned on
+                  chain. A lite invite derives the handle from the address. */}
+              {mode === "hive" && (
+                <FormControl>
+                  <Flex align="baseline" justify="space-between" mb={2}>
+                    <Text fontWeight="bold" color="text" fontSize="sm">
+                      {t('invite.usernameLabel')}
                     </Text>
-                  )}
-                </Flex>
-                <InputGroup>
-                  <Input
-                    type="text"
-                    placeholder={t('invite.usernamePlaceholder')}
-                    value={desiredUsername}
-                    onChange={(e) =>
-                      setDesiredUsername(normalizeUsername(e.target.value))
-                    }
-                    fontFamily="mono"
-                    bg="inputBg"
-                    color="inputText"
-                    borderColor={
-                      isCheckedOnce && desiredUsername
-                        ? accountAvailable
-                          ? "success"
-                          : "error"
-                        : "inputBorder"
-                    }
-                    _placeholder={{ color: "inputPlaceholder" }}
-                    _hover={{ borderColor: "primary" }}
-                    _focus={{ borderColor: "primary", boxShadow: "none" }}
-                  />
-                  <InputRightElement>
-                    {isCheckingUsername ? (
-                      <Spinner size="sm" color="primary" />
-                    ) : isCheckedOnce && desiredUsername ? (
-                      accountAvailable ? (
-                        <Icon as={FaCheck} color="success" boxSize={4} />
-                      ) : (
-                        <Icon as={FaTimes} color="error" boxSize={4} />
-                      )
-                    ) : null}
-                  </InputRightElement>
-                </InputGroup>
-                <Text fontSize="xs" color="dim" mt={2}>
-                  {t('invite.usernameHint')}
-                </Text>
-              </FormControl>
+                    {isCheckedOnce && desiredUsername && (
+                      <Text
+                        fontSize="xs"
+                        fontFamily="mono"
+                        color={accountAvailable ? "success" : "error"}
+                      >
+                        {accountAvailable
+                          ? t('invite.usernameAvailable')
+                          : accountInvalid}
+                      </Text>
+                    )}
+                  </Flex>
+                  <InputGroup>
+                    <Input
+                      type="text"
+                      placeholder={t('invite.usernamePlaceholder')}
+                      value={desiredUsername}
+                      onChange={(e) =>
+                        setDesiredUsername(normalizeUsername(e.target.value))
+                      }
+                      fontFamily="mono"
+                      bg="inputBg"
+                      color="inputText"
+                      borderColor={
+                        isCheckedOnce && desiredUsername
+                          ? accountAvailable
+                            ? "success"
+                            : "error"
+                          : "inputBorder"
+                      }
+                      _placeholder={{ color: "inputPlaceholder" }}
+                      _hover={{ borderColor: "primary" }}
+                      _focus={{ borderColor: "primary", boxShadow: "none" }}
+                    />
+                    <InputRightElement>
+                      {isCheckingUsername ? (
+                        <Spinner size="sm" color="primary" />
+                      ) : isCheckedOnce && desiredUsername ? (
+                        accountAvailable ? (
+                          <Icon as={FaCheck} color="success" boxSize={4} />
+                        ) : (
+                          <Icon as={FaTimes} color="error" boxSize={4} />
+                        )
+                      ) : null}
+                    </InputRightElement>
+                  </InputGroup>
+                  <Text fontSize="xs" color="dim" mt={2}>
+                    {t('invite.usernameHint')}
+                  </Text>
+                </FormControl>
+              )}
 
               <FormControl isInvalid={emailError !== null && desiredEmail !== ""}>
                 <Flex align="baseline" justify="space-between" mb={2}>

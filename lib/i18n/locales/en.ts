@@ -945,7 +945,7 @@ export const en = {
     modeHiveDesc: 'Creates a real Hive account on the blockchain. The 3 HIVE fee comes out of your own wallet and is signed with Keychain.',
     modeHiveLocked: 'Log in with Hive to pay for an account.',
     liteSendButton: 'Send free invite',
-    liteInviteSent: 'Invite sent! Your friend got a login link by email \u2014 it expires in 15 minutes. If it lapses, they can request a new one on the Skatehive login screen.',
+    liteInviteSent: 'Invite sent \u2014 your friend starts out as {handle}. The login link in their email expires in 15 minutes; if it lapses they can request a new one from the Skatehive login screen.',
     liteInviteFailed: 'Could not send the invite.',
     actNoneAvailable: 'You have no ACTs, so this option is off. Use the 3 HIVE fee instead.',
     rescueTitle: 'Account created \u2014 but the email did not go out',
@@ -968,6 +968,8 @@ export const en = {
     stepShare: 'Spread the word',
     getAppTitle: 'Get the app',
     getAppOther: 'On Android and desktop, open skatehive.app and install it straight from your browser.',
+    liteAlreadyMember: 'That email already has a Skatehive account, so no invite was sent.',
+    modeLiteLocked: 'Sign in to send a free invite.',
   },
   blog: {
     scanningGoat: 'Scanning for GOAT posts...',

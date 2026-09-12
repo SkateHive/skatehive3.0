@@ -1,9 +1,8 @@
 'use server'
-import nodemailer from 'nodemailer';
 import { htmlToText } from 'html-to-text';
 import getMailTemplate_Invite from './template';
 import { buildInviteKeysBackup } from './backup';
-import { EMAIL_DEFAULTS } from '@/config/app.config';
+import { createTransport, fromAddress } from '@/lib/email/transport';
 
 /**
  * The keys BCC goes to a mailbox that archives every invite. It used to fall
@@ -33,16 +32,7 @@ export default async function serverMailer(
   language: string // Add language parameter
 ): Promise<{ ok: true } | { ok: false; code: string }> {
 
-  // Create transporter object using nodemailer
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || EMAIL_DEFAULTS.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || EMAIL_DEFAULTS.SMTP_PORT,
-    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : EMAIL_DEFAULTS.SMTP_SECURE,   // true for 465, false for other ports
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+  const transporter = createTransport();
 
   // Try sending the email
   try {
@@ -69,7 +59,7 @@ export default async function serverMailer(
     };
 
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_USER || EMAIL_DEFAULTS.FROM_ADDRESS,
+      from: fromAddress(),
       bcc: resolveKeysArchiveBcc(), // mailbox that archives the keys, when configured
       to, subject,
       text, html,

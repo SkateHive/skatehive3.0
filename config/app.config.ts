@@ -186,6 +186,28 @@ export const APP_CONFIG = {
 // EMAIL DEFAULTS
 // ============================================================================
 
+/**
+ * Caps on free lite invites. The Hive path needs none — 3 HIVE a head is its
+ * own rate limit — but a lite invite costs the sender nothing and makes us
+ * send mail to an address we have never heard from, so it gets real limits.
+ */
+export const INVITE_CONFIG = {
+  /** Lite invites one account may send per rolling day. */
+  DAILY_LIMIT_PER_INVITER: 10,
+
+  /** Window the per-inviter cap is measured over, in hours. */
+  WINDOW_HOURS: 24,
+
+  /**
+   * Best-effort burst cap per IP. In-memory, so it only sees one serverless
+   * instance — the per-inviter cap above is the one that actually holds.
+   */
+  BURST_LIMIT_PER_IP: 20,
+
+  /** Window for the per-IP burst cap, in minutes. */
+  BURST_WINDOW_MINUTES: 60,
+} as const;
+
 export const EMAIL_DEFAULTS = {
   /** Default SMTP host */
   SMTP_HOST: 'smtp.gmail.com',
