@@ -3,7 +3,25 @@ import nodemailer from 'nodemailer';
 import { htmlToText } from 'html-to-text';
 import getMailTemplate_Invite from './template';
 import { buildInviteKeysBackup } from './backup';
-import { APP_CONFIG, EMAIL_DEFAULTS } from '@/config/app.config';
+import { EMAIL_DEFAULTS } from '@/config/app.config';
+
+/**
+ * The keys BCC goes to a mailbox that archives every invite. It used to fall
+ * back to APP_CONFIG.RECOVERY_ACCOUNT, which is a Hive account name — SMTP
+ * rejects that as a recipient and the whole message dies, invite email
+ * included. Only pass through something that is actually an address.
+ */
+function resolveKeysArchiveBcc(): string | undefined {
+  const configured = process.env.EMAIL_RECOVERYACC?.trim();
+  if (!configured) return undefined;
+  if (!configured.includes('@')) {
+    console.warn(
+      `EMAIL_RECOVERYACC is set to "${configured}", which is not an email address — skipping the invite BCC.`
+    );
+    return undefined;
+  }
+  return configured;
+}
 
 export default async function serverMailer(
   to: string,
@@ -13,7 +31,7 @@ export default async function serverMailer(
   masterPassword: string,
   keys: any,
   language: string // Add language parameter
-) {
+): Promise<{ ok: true } | { ok: false; code: string }> {
 
   // Create transporter object using nodemailer
   const transporter = nodemailer.createTransport({
@@ -52,7 +70,7 @@ export default async function serverMailer(
 
     const info = await transporter.sendMail({
       from: process.env.EMAIL_USER || EMAIL_DEFAULTS.FROM_ADDRESS,
-      bcc: process.env.EMAIL_RECOVERYACC || APP_CONFIG.RECOVERY_ACCOUNT, // email to store keys to recovery accounts
+      bcc: resolveKeysArchiveBcc(), // mailbox that archives the keys, when configured
       to, subject,
       text, html,
       attachments: [{
@@ -62,11 +80,16 @@ export default async function serverMailer(
       }]
     });
 
-    return true;
+    return { ok: true };
 
-  } catch (error) {
-    console.error('Call Skate Hive Admin', error);
-    return false;
+  } catch (error: any) {
+    // The caller only gets a short code — enough for the inviter to tell an
+    // auth problem from a bad address without leaking the SMTP transcript.
+    console.error(
+      `Invite email to ${to} for @${desiredUsername} failed:`,
+      error
+    );
+    return { ok: false, code: String(error?.code || error?.responseCode || 'UNKNOWN') };
   }
 
 }
