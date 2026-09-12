@@ -982,6 +982,9 @@ export const ptBR = {
     nextLite: 'A gente cria a conta e manda um link de acesso por email. Ele entra e j\u00e1 pode postar, votar e comentar \u2014 sem carteira e sem taxa.',
     nextHive: 'O Keychain pede sua assinatura e cobra a taxa. A conta vai pra blockchain e mandamos as chaves por email pro seu amigo.',
     notEnoughHive: 'HIVE insuficiente. Voc\u00ea tem {balance} e criar uma conta custa 3 HIVE. Recarregue a carteira, ou mande um convite lite gr\u00e1tis.',
+    stepShare: 'Espalhe a palavra',
+    getAppTitle: 'Baixe o app',
+    getAppOther: 'No Android e no desktop, abra o skatehive.app e instale direto pelo navegador.',
   },
   blog: {
     scanningGoat: 'Procurando posts GOAT...',

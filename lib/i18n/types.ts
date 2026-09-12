@@ -784,6 +784,9 @@ export interface TranslationSchema {
     nextLite: string;
     nextHive: string;
     notEnoughHive: string;
+    stepShare: string;
+    getAppTitle: string;
+    getAppOther: string;
   };
   blog: {
     scanningGoat: string;

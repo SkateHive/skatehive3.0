@@ -131,7 +131,14 @@ export const APP_CONFIG = {
   
   /** Recovery account name */
   RECOVERY_ACCOUNT: 'skatehive',
-  
+
+  /**
+   * Skatehive on the App Store. Deliberately storefront-less: the app is
+   * published worldwide, and a /br/ style link would drop an overseas friend
+   * into the Brazilian store instead of their own.
+   */
+  APP_STORE_URL: 'https://apps.apple.com/app/id6751173076',
+
   /** WalletConnect Project ID (from env or fallback) */
   get WALLETCONNECT_PROJECT_ID() {
     return process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 

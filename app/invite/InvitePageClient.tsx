@@ -23,7 +23,7 @@ import {
   AccordionIcon,
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
-import { FaCheck, FaTimes } from "react-icons/fa";
+import { FaApple, FaCheck, FaTimes } from "react-icons/fa";
 import {
   client,
   generatePassword,
@@ -38,6 +38,7 @@ import useHiveAccount from "@/hooks/useHiveAccount";
 import { useKeychainSDK } from "@/hooks/useKeychainSDK";
 import { useTranslations } from "@/contexts/LocaleContext";
 import SocialShareButtons from "@/components/invite/SocialShareButtons";
+import { APP_CONFIG } from "@/config/app.config";
 
 const randomLanguages = [
   { code: "EN", label: "English" },
@@ -855,20 +856,49 @@ export default function InvitePageClient() {
           </Box>
         )}
 
-        {/* Spread the Word Section - Visible if not logged in with Hive */}
-        {!hiveAccount && !isAccountLoading && (
-          <Box p={6} bg="panel" border="1px solid" borderColor="border" textAlign="center">
-            <VStack spacing={4}>
-              <Heading size="md" color="secondary">
-                {t('invite.spreadTheWord')}
-              </Heading>
-              <Text color="dim" fontSize="sm">
+        {/* 03 — sharing tools, useful to every visitor, Hive account or not */}
+        <Box>
+          <SectionLabel index="03" label={t('invite.stepShare')} />
+          <VStack spacing={0} align="stretch">
+            <Box p={4} bg="panel" border="1px solid" borderColor="border">
+              <Text fontWeight="bold" color="text" fontSize="sm" mb={3}>
+                {t('invite.getAppTitle')}
+              </Text>
+              <Button
+                as="a"
+                href={APP_CONFIG.APP_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                leftIcon={<Icon as={FaApple} />}
+                bg="primary"
+                color="background"
+                _hover={{ bg: "success" }}
+                size="md"
+              >
+                App Store
+              </Button>
+              <Text fontSize="xs" color="dim" mt={3}>
+                {t('invite.getAppOther')}
+              </Text>
+            </Box>
+
+            <Box
+              p={4}
+              mt="-1px"
+              bg="panel"
+              border="1px solid"
+              borderColor="border"
+              textAlign="center"
+            >
+              <Text color="dim" fontSize="sm" mb={4}>
                 {t('invite.shareDescription')}
               </Text>
+              {/* Shares the site, not the store link: it works on every device,
+                  and an iPhone friend who lands there gets the app banner. */}
               <SocialShareButtons />
-            </VStack>
-          </Box>
-        )}
+            </Box>
+          </VStack>
+        </Box>
       </VStack>
     </Box>
   );

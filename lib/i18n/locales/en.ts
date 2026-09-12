@@ -965,6 +965,9 @@ export const en = {
     nextLite: 'We create the account and email your friend a login link. They sign in and can post, vote and comment straight away \u2014 no wallet, no fee.',
     nextHive: 'Keychain asks you to sign and charges the fee. The account goes on chain and we email the keys to your friend.',
     notEnoughHive: 'Not enough HIVE. You have {balance} and creating an account costs 3 HIVE. Top up your wallet, or send a free lite invite instead.',
+    stepShare: 'Spread the word',
+    getAppTitle: 'Get the app',
+    getAppOther: 'On Android and desktop, open skatehive.app and install it straight from your browser.',
   },
   blog: {
     scanningGoat: 'Scanning for GOAT posts...',
