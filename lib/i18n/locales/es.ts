@@ -981,6 +981,7 @@ export const es = {
     nextTitle: 'Qu\u00e9 pasa despu\u00e9s',
     nextLite: 'Creamos la cuenta y le enviamos un enlace de acceso por email. Entra y ya puede publicar, votar y comentar \u2014 sin billetera y sin tarifa.',
     nextHive: 'Keychain te pide firmar y cobra la tarifa. La cuenta va a la blockchain y enviamos las claves por email a tu amigo.',
+    notEnoughHive: 'HIVE insuficiente. Tienes {balance} y crear una cuenta cuesta 3 HIVE. Recarga tu billetera, o env\u00eda una invitaci\u00f3n lite gratis.',
   },
   blog: {
     scanningGoat: 'Buscando posts GOAT...',

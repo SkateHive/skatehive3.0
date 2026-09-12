@@ -22,8 +22,10 @@ import {
   AccordionPanel,
   AccordionIcon,
 } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
 import { FaCheck, FaTimes } from "react-icons/fa";
 import {
+  client,
   generatePassword,
   getPrivateKeys,
   validateAccountName,
@@ -50,10 +52,40 @@ const randomLanguages = [
  */
 type InviteMode = "lite" | "hive";
 
+/** Fee the chain charges for account_create. */
+const HIVE_ACCOUNT_FEE = 3;
+
+/**
+ * Selection has to survive a distracted reader, so the chosen card breathes
+ * instead of just changing hue. The glow rides on `currentColor`, which the
+ * card sets to the theme's primary — at blur 0 it hides behind the box, so the
+ * animation fades in and out on its own.
+ */
+const selectedGlow = keyframes`
+  0%, 100% { box-shadow: 0 0 2px 0 currentColor; }
+  50%      { box-shadow: 0 0 12px 1px currentColor; }
+`;
+
 interface GeneratedAccount {
   username: string;
   masterPassword: string;
   keys: any;
+}
+
+/**
+ * Reads the inviter's liquid HIVE straight from the chain. Returns null when
+ * the lookup fails — an unreachable node must never block an invite that would
+ * otherwise have gone through.
+ */
+async function fetchLiquidHive(username: string): Promise<number | null> {
+  try {
+    const [account] = await client.database.getAccounts([username]);
+    if (!account) return null;
+    const balance = parseFloat(String(account.balance));
+    return Number.isFinite(balance) ? balance : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -143,6 +175,18 @@ export default function InvitePageClient() {
 
   const hasHiveLogin = Boolean(user) && Boolean(hiveAccount);
   const actBalance = Number(hiveAccount?.pending_claimed_accounts ?? 0);
+
+  // Cached balance drives the up-front warning; the click re-checks on chain.
+  const liquidHive = hiveAccount ? parseFloat(String(hiveAccount.balance)) : NaN;
+  const payingFee = mode === "hive" && !useAccountToken;
+  const shortOnHive =
+    payingFee && Number.isFinite(liquidHive) && liquidHive < HIVE_ACCOUNT_FEE;
+
+  const feeShortfallMessage = useCallback(
+    (balance: number) =>
+      t('invite.notEnoughHive').replace('{balance}', `${balance.toFixed(3)} HIVE`),
+    [t]
+  );
 
   // Email validation helper
   const validateEmail = useCallback((email: string): string | null => {
@@ -352,6 +396,17 @@ export default function InvitePageClient() {
 
     setLoading(true);
     try {
+      // Re-read the balance rather than trusting the cached account, which the
+      // hook may serve up to a day stale. Catching it here means a plain error
+      // on the page instead of a Keychain prompt that dies on broadcast.
+      if (!useAccountToken) {
+        const balance = await fetchLiquidHive(String(user));
+        if (balance !== null && balance < HIVE_ACCOUNT_FEE) {
+          setErrorMessage(feeShortfallMessage(balance));
+          return;
+        }
+      }
+
       const { username, masterPassword, keys } = generated;
       // Use Hive Keychain to broadcast account creation
       const keychain = new KeychainSDK(window);
@@ -430,7 +485,7 @@ export default function InvitePageClient() {
     description: string;
     badge: string;
     locked: boolean;
-    lockNote: string | null;
+    notes: string[];
   }> = [
     {
       id: "lite",
@@ -438,15 +493,18 @@ export default function InvitePageClient() {
       description: t('invite.modeLiteDesc'),
       badge: t('invite.badgeFree'),
       locked: false,
-      lockNote: null,
+      notes: [],
     },
     {
       id: "hive",
       title: t('invite.modeHive'),
       description: t('invite.modeHiveDesc'),
-      badge: useAccountToken ? "1 ACT" : "3 HIVE",
+      badge: useAccountToken ? "1 ACT" : `${HIVE_ACCOUNT_FEE} HIVE`,
       locked: !hasHiveLogin,
-      lockNote: !hasHiveLogin && !isAccountLoading ? t('invite.modeHiveLocked') : null,
+      notes: [
+        ...(!hasHiveLogin && !isAccountLoading ? [t('invite.modeHiveLocked')] : []),
+        ...(shortOnHive ? [feeShortfallMessage(liquidHive)] : []),
+      ],
     },
   ];
 
@@ -478,12 +536,22 @@ export default function InvitePageClient() {
                   textAlign="left"
                   w="100%"
                   p={4}
-                  mt="-1px"
+                  mt={selected ? 0 : "-1px"}
+                  position="relative"
+                  zIndex={selected ? 1 : 0}
                   bg={selected ? "panelHover" : "panel"}
                   border="1px solid"
                   borderColor={selected ? "primary" : "border"}
-                  borderLeftWidth="3px"
-                  borderLeftColor={selected ? "primary" : "transparent"}
+                  borderLeftWidth={selected ? "4px" : "1px"}
+                  borderLeftColor={selected ? "primary" : "border"}
+                  color="primary"
+                  animation={selected ? `${selectedGlow} 2.4s ease-in-out infinite` : undefined}
+                  sx={{
+                    "@media (prefers-reduced-motion: reduce)": {
+                      animation: "none",
+                      boxShadow: selected ? "0 0 6px 0 currentColor" : undefined,
+                    },
+                  }}
                   cursor={m.locked ? "not-allowed" : "pointer"}
                   _hover={m.locked ? undefined : { bg: "panelHover" }}
                   onClick={() => {
@@ -494,7 +562,11 @@ export default function InvitePageClient() {
                 >
                   <Flex align="center" gap={3}>
                     {/* Checkbox glyph, so selection does not rely on hue alone */}
-                    <Text fontFamily="mono" color={selected ? "primary" : "dim"}>
+                    <Text
+                      fontFamily="mono"
+                      fontWeight="bold"
+                      color={selected ? "primary" : "dim"}
+                    >
                       [{selected ? "x" : " "}]
                     </Text>
                     <Text
@@ -520,11 +592,11 @@ export default function InvitePageClient() {
                   <Text fontSize="sm" color="dim" mt={2} pl={7}>
                     {m.description}
                   </Text>
-                  {m.lockNote && (
-                    <Text fontSize="sm" color="warning" mt={2} pl={7}>
-                      ! {m.lockNote}
+                  {m.notes.map((note) => (
+                    <Text key={note} fontSize="sm" color="warning" mt={2} pl={7}>
+                      ! {note}
                     </Text>
-                  )}
+                  ))}
                 </Box>
               );
             })}

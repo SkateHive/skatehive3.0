@@ -783,6 +783,7 @@ export interface TranslationSchema {
     nextTitle: string;
     nextLite: string;
     nextHive: string;
+    notEnoughHive: string;
   };
   blog: {
     scanningGoat: string;

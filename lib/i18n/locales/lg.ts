@@ -982,6 +982,7 @@ export const lg = {
     nextTitle: 'Ekiddako kye kiki',
     nextLite: 'Tukola account era tumuweereza login link ku email. Ayingira era asobola okuteeka, okulonda n\'okuwandiika \u2014 awatali wallet era awatali fee.',
     nextHive: 'Keychain ekusaba osaine era ekusasuza fee. Account egenda ku blockchain era tuweereza keys ku email ya mukwano gwo.',
+    notEnoughHive: 'HIVE tezimala. Olina {balance} ate okukola account kyetaagisa 3 HIVE. Ongera ku wallet yo, oba weereza mwaliko lite ogwa bwereere.',
   },
   blog: {
     scanningGoat: 'Okusaganya GOAT posts...',
