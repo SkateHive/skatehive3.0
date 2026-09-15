@@ -13,6 +13,7 @@ import {
   getAvatarUrl,
   normalizeIdentifier,
 } from "@/lib/userbase/accountProvisioning";
+import { assessInviteQuota } from "@/lib/userbase/inviteQuota";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -127,15 +128,26 @@ export async function POST(request: NextRequest) {
     Date.now() - INVITE_CONFIG.WINDOW_HOURS * 60 * 60 * 1000
   ).toISOString();
 
+  // head: true is deliberately not used here. A HEAD request carries no body,
+  // so supabase-js has nothing to parse an error out of: against a missing
+  // table it returns { error: null, count: null } with a 204, and the guard
+  // below would wave the request through. The same query without head returns
+  // a real 404 and a real error. limit(1) keeps the row cost at one; the count
+  // is exact either way.
   const { count: sentToday, error: countError } = await supabase
     .from("userbase_invites")
-    .select("id", { count: "exact", head: true })
+    .select("id", { count: "exact" })
     .eq("inviter_user_id", inviterId)
-    .gte("created_at", windowStart);
+    .gte("created_at", windowStart)
+    .limit(1);
 
-  if (countError) {
-    // The table is the only thing standing between a signed-in account and
-    // unlimited mail, so a broken count must close the door, not open it.
+  const quota = assessInviteQuota(
+    sentToday,
+    countError,
+    INVITE_CONFIG.DAILY_LIMIT_PER_INVITER
+  );
+
+  if (!quota.allow && quota.reason === "unavailable") {
     console.error("Invite rate-limit lookup failed:", countError);
     return NextResponse.json(
       { error: "Invites are unavailable right now. Try again later." },
@@ -143,10 +155,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if ((sentToday ?? 0) >= INVITE_CONFIG.DAILY_LIMIT_PER_INVITER) {
+  if (!quota.allow) {
     return NextResponse.json(
       {
-        error: `You have sent your ${INVITE_CONFIG.DAILY_LIMIT_PER_INVITER} invites for today. More tomorrow.`,
+        error: `You have sent your ${quota.limit} invites for today. More tomorrow.`,
       },
       { status: 429 }
     );
@@ -225,6 +237,35 @@ export async function POST(request: NextRequest) {
   const link = new URL("/api/userbase/auth/magic-link", getBaseUrl(request));
   link.searchParams.set("token", token);
 
+  // The quota slot is claimed before the send, not after it.
+  //
+  // This row is the only record the rate limit counts, and writing it
+  // afterwards meant a failed write left mail already delivered and nothing
+  // counted — and since every later request counted the same zero, one broken
+  // insert turned the daily cap off for good. Reserving first inverts the
+  // failure: if the row cannot be written, nothing is sent.
+  //
+  // The original intent — not charging a sender for an invite that bounced —
+  // is preserved by releasing the row when the send fails, just below.
+  const { data: reservation, error: reserveError } = await supabase
+    .from("userbase_invites")
+    .insert({
+      inviter_user_id: inviterId,
+      kind: "lite",
+      invitee_email: identifier,
+      invitee_user_id: createdUser.id,
+    })
+    .select("id")
+    .single();
+
+  if (reserveError || !reservation) {
+    console.error("Failed to reserve invite quota:", reserveError);
+    return NextResponse.json(
+      { error: "Invites are unavailable right now. Try again later." },
+      { status: 503 }
+    );
+  }
+
   try {
     const transporter = createTransport();
     const magic = buildMagicLinkEmail(link.toString());
@@ -255,6 +296,15 @@ export async function POST(request: NextRequest) {
     }
   } catch (mailError: any) {
     console.error(`Invite email to ${identifier} failed:`, mailError);
+    // Nothing was delivered, so give the slot back. If this delete fails the
+    // sender is one invite down for the day, which is the safe way to be wrong.
+    const { error: releaseError } = await supabase
+      .from("userbase_invites")
+      .delete()
+      .eq("id", reservation.id);
+    if (releaseError) {
+      console.error("Failed to release invite reservation:", releaseError);
+    }
     return NextResponse.json(
       {
         error: "Could not send the invite email.",
@@ -262,17 +312,6 @@ export async function POST(request: NextRequest) {
       },
       { status: 502 }
     );
-  }
-
-  // Logged after the send so a bounced invite does not spend the sender's quota.
-  const { error: logError } = await supabase.from("userbase_invites").insert({
-    inviter_user_id: inviterId,
-    kind: "lite",
-    invitee_email: identifier,
-    invitee_user_id: createdUser.id,
-  });
-  if (logError) {
-    console.error("Failed to log lite invite:", logError);
   }
 
   return NextResponse.json({
