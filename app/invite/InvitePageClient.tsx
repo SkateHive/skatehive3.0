@@ -39,6 +39,7 @@ import { useKeychainSDK } from "@/hooks/useKeychainSDK";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import SocialShareButtons from "@/components/invite/SocialShareButtons";
+import InstagramStoryShare from "@/components/invite/InstagramStoryShare";
 import { APP_CONFIG } from "@/config/app.config";
 
 const randomLanguages = [
@@ -101,22 +102,40 @@ function normalizeUsername(value: string) {
 }
 
 /** Numbered step marker — the theme caps font sizes, so hierarchy comes from
- *  weight, case and the dim index rather than from size. */
-function SectionLabel({ index, label }: { index: string; label: string }) {
+ *  weight, case and the dim index rather than from size. The uppercase label
+ *  alone read as a category tag and left the reader to infer what the step
+ *  wanted, so it carries a plain-language line underneath. */
+function SectionLabel({
+  index,
+  label,
+  subtitle,
+}: {
+  index: string;
+  label: string;
+  subtitle?: string;
+}) {
   return (
-    <Flex align="baseline" gap={2} mb={2}>
-      <Text fontFamily="mono" fontSize="xs" color="primary">
-        {index}
-      </Text>
-      <Text
-        fontSize="xs"
-        color="dim"
-        textTransform="uppercase"
-        letterSpacing="0.1em"
-      >
-        {label}
-      </Text>
-    </Flex>
+    <Box mb={3}>
+      <Flex align="baseline" gap={2}>
+        <Text fontFamily="mono" fontSize="xs" color="primary">
+          {index}
+        </Text>
+        <Text
+          fontSize="sm"
+          fontWeight="bold"
+          color="text"
+          textTransform="uppercase"
+          letterSpacing="0.08em"
+        >
+          {label}
+        </Text>
+      </Flex>
+      {subtitle && (
+        <Text fontSize="xs" color="dim" mt={1} pl={6}>
+          {subtitle}
+        </Text>
+      )}
+    </Box>
   );
 }
 
@@ -532,6 +551,9 @@ export default function InvitePageClient() {
           <Heading size="lg" color="primary">
             {t('invite.title')}
           </Heading>
+          <Text fontSize="sm" color="dim" mt={2}>
+            {t('invite.subtitle')}
+          </Text>
           {mode === "hive" && desiredUsername && (
             <Text fontSize="sm" color="dim" mt={1} fontFamily="mono">
               &gt; @{desiredUsername}
@@ -541,7 +563,11 @@ export default function InvitePageClient() {
 
         {/* 01 — account type */}
         <Box>
-          <SectionLabel index="01" label={t('invite.stepType')} />
+          <SectionLabel
+            index="01"
+            label={t('invite.stepType')}
+            subtitle={t('invite.stepTypeSub')}
+          />
           <VStack spacing={0} align="stretch">
             {modes.map((m) => {
               const selected = mode === m.id;
@@ -660,7 +686,15 @@ export default function InvitePageClient() {
 
         {/* 02 — who is being invited */}
         <Box>
-          <SectionLabel index="02" label={t('invite.stepDetails')} />
+          <SectionLabel
+            index="02"
+            label={t('invite.stepDetails')}
+            subtitle={
+              mode === "lite"
+                ? t('invite.stepDetailsSubLite')
+                : t('invite.stepDetailsSubHive')
+            }
+          />
           <Box p={4} bg="panel" border="1px solid" borderColor="border">
             <VStack spacing={5} align="stretch">
               {/* Only the paid path needs a name up front: it is burned on
@@ -763,6 +797,11 @@ export default function InvitePageClient() {
                       ))}
                   </InputRightElement>
                 </InputGroup>
+                <Text fontSize="xs" color="dim" mt={2}>
+                  {mode === "lite"
+                    ? t('invite.emailHintLite')
+                    : t('invite.emailHintHive')}
+                </Text>
               </FormControl>
 
               {/* Only the keys email is localized; the magic link is not. */}
@@ -787,6 +826,9 @@ export default function InvitePageClient() {
                       </option>
                     ))}
                   </Select>
+                  <Text fontSize="xs" color="dim" mt={2}>
+                    {t('invite.languageHint')}
+                  </Text>
                 </FormControl>
               )}
             </VStack>
@@ -878,7 +920,11 @@ export default function InvitePageClient() {
 
         {/* 03 — sharing tools, useful to every visitor, Hive account or not */}
         <Box>
-          <SectionLabel index="03" label={t('invite.stepShare')} />
+          <SectionLabel
+            index="03"
+            label={t('invite.stepShare')}
+            subtitle={t('invite.stepShareSub')}
+          />
           <VStack spacing={0} align="stretch">
             <Box p={4} bg="panel" border="1px solid" borderColor="border">
               <Text fontWeight="bold" color="text" fontSize="sm" mb={3}>
@@ -913,6 +959,12 @@ export default function InvitePageClient() {
               <Text color="dim" fontSize="sm" mb={4}>
                 {t('invite.shareDescription')}
               </Text>
+              {/* A story is the highest-reach share a skater has, so it gets
+                  its own row above the link-based buttons rather than being
+                  buried among them. */}
+              <Flex justify="center" mb={4}>
+                <InstagramStoryShare />
+              </Flex>
               {/* Shares the site, not the store link: it works on every device,
                   and an iPhone friend who lands there gets the app banner. */}
               <SocialShareButtons />

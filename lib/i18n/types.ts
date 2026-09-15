@@ -789,6 +789,28 @@ export interface TranslationSchema {
     getAppOther: string;
     liteAlreadyMember: string;
     modeLiteLocked: string;
+    subtitle: string;
+    stepTypeSub: string;
+    stepDetailsSubLite: string;
+    stepDetailsSubHive: string;
+    stepShareSub: string;
+    emailHintLite: string;
+    emailHintHive: string;
+    languageHint: string;
+    storyButton: string;
+    storyTagline: string;
+    storyDownloaded: string;
+    storyDownloadedHint: string;
+    storyDownloadedHintApp: string;
+    storyFailed: string;
+    storyKitTitle: string;
+    storyKitImageDone: string;
+    storyKitHint: string;
+    storyKitLinkLabel: string;
+    storyKitRedownload: string;
+    storyKitReopen: string;
+    storySaveButton: string;
+    storyKitHintApp: string;
   };
   blog: {
     scanningGoat: string;

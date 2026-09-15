@@ -139,6 +139,15 @@ export const APP_CONFIG = {
    */
   APP_STORE_URL: 'https://apps.apple.com/app/id6751173076',
 
+  /**
+   * Where the desktop story flow sends people. Instagram publishes no web
+   * share endpoint — there is no sharer.php or intent/tweet equivalent, and no
+   * query parameter that can carry an image — so this is the bare site and the
+   * upload stays manual. Kept here so it is one edit if Instagram ever ships a
+   * real create URL.
+   */
+  INSTAGRAM_WEB_URL: 'https://www.instagram.com/',
+
   /** WalletConnect Project ID (from env or fallback) */
   get WALLETCONNECT_PROJECT_ID() {
     return process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 
