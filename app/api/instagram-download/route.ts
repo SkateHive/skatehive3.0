@@ -9,13 +9,13 @@ const getInstagramServers = () => {
   if (isVercel) {
     // Vercel production - prioritize Mac Mini M4, then Pi
     return [
-      'https://minivlad.tail83ea3e.ts.net/instagram/download',         // Mac Mini M4 (primary)
+      'https://transcode.skatehive.app/macmini/instagram/download',         // Mac Mini M4 (primary)
       'https://vladsberry.tail83ea3e.ts.net/instagram/download'   // Raspberry Pi (secondary)
     ];
   } else {
     // Other production - prioritize Mac Mini M4, then Pi
     return [
-      'https://minivlad.tail83ea3e.ts.net/instagram/download',         // Mac Mini M4 (primary)
+      'https://transcode.skatehive.app/macmini/instagram/download',         // Mac Mini M4 (primary)
       'https://vladsberry.tail83ea3e.ts.net/instagram/download'   // Raspberry Pi (secondary)
     ];
   }

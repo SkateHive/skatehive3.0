@@ -12,8 +12,8 @@
  * video-transcoder codebase.
  *
  * Priority order: Oracle → Mac Mini M4.
- * Keep the public Oracle endpoint first: Funnel can pass a health check and
- * stall the next TLS connection before an upload reaches the Mac Mini.
+ * Oracle handles direct uploads; Mac Mini uses the same HTTPS ingress through
+ * a supervised, loopback-only private tunnel. Neither route relies on Funnel.
  * IMPORTANT: video blobs must be uploaded directly to transcoder hosts. Do not
  * proxy uploads through Vercel/API routes; serverless body limits turn normal
  * phone clips into 413 FUNCTION_PAYLOAD_TOO_LARGE failures before Mac Mini sees them.
@@ -68,10 +68,10 @@ export const TRANSCODE_SERVERS: TranscodeServer[] = [
     name: 'Mac Mini M4 (Secondary)',
     label: 'SECONDARY',
     emoji: '🍎',
-    baseUrl: 'https://minivlad.tail83ea3e.ts.net/video',
-    healthUrl: 'https://minivlad.tail83ea3e.ts.net/video/healthz',
-    transcodeUrl: 'https://minivlad.tail83ea3e.ts.net/video/transcode',
+    baseUrl: 'https://transcode.skatehive.app/macmini/video',
+    healthUrl: 'https://transcode.skatehive.app/macmini/video/healthz',
+    transcodeUrl: 'https://transcode.skatehive.app/macmini/video/transcode',
     useProxy: false, // Direct browser upload — avoids Vercel body limits
-    note: 'Tailscale Funnel — direct upload, no Vercel proxy',
+    note: 'HTTPS ingress → private tunnel → Mac Mini',
   },
 ];

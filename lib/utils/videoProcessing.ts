@@ -172,26 +172,30 @@ const isLocalhostDev =
 // ---------------------------------------------------------------------------
 
 async function checkServerHealth(server: ServerConfig): Promise<boolean> {
+  const controller = new AbortController();
+  // Cover headers AND body. A stalled/truncated JSON response must not hang
+  // the fallback chain or leave a live timer after a network failure.
+  const timeoutId = setTimeout(() => controller.abort(), 5_000);
   try {
     const directHealthUrl = `${server.url}/healthz`;
     const healthUrl = server.useProxy || isLocalhostDev
       ? `/api/video-proxy?url=${encodeURIComponent(directHealthUrl)}`
       : directHealthUrl;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
     const response = await fetch(healthUrl, {
       method: "GET",
       signal: controller.signal,
+      cache: "no-store",
     });
-    clearTimeout(timeoutId);
     if (!response.ok) return false;
 
-    const data = await response.json().catch(() => null);
-    if (!data) return true;
-    const hasCapacity = !data.capacity || Number(data.capacity.available ?? 1) > 0;
-    return hasCapacity;
+    const data = await response.json();
+    const healthy = data?.ok === true || data?.healthy === true || data?.status === "ok";
+    const hasCapacity = !data?.capacity || Number(data.capacity.available) > 0;
+    return healthy && hasCapacity;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -385,8 +389,6 @@ async function tryServer(
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-
       if (!response.ok) {
         const errorText = await response
           .text()
@@ -404,8 +406,9 @@ async function tryServer(
       }
 
       const result = await response.json();
+      clearTimeout(timeoutId);
 
-      if (!result.cid && !result.gatewayUrl && !result.ipfsUrl) {
+      if (typeof result.cid !== "string" || !result.cid) {
         throw new Error(
           result.error ?? `${label} processing failed — no valid URL returned`
         );
