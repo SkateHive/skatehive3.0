@@ -1,0 +1,71 @@
+/* Popup styling for the skaters map. The surrounding Leaflet chrome (controls,
+   popup frame, cluster bubbles) is themed by the shared
+   components/spotmap/views/LeafletWorldMap.css via the `.skatehive-leaflet`
+   wrapper, which this map reuses. */
+
+.skater-popup-title {
+  color: #a7ff00;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.3;
+  padding: 10px 12px 2px;
+}
+
+.skater-popup-count {
+  color: #9a9a9a;
+  font-size: 11px;
+  padding: 0 12px 8px;
+}
+
+.skater-popup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 8px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.skater-popup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #e6e6e6;
+}
+
+.skater-popup-row:hover {
+  background: rgba(167, 255, 0, 0.12);
+  color: #ffffff;
+}
+
+.skater-popup-row img {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #1a1a1a;
+  flex-shrink: 0;
+}
+
+.skater-popup-name {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skater-popup-handle {
+  font-size: 11px;
+  color: #9a9a9a;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.skater-popup-more {
+  color: #9a9a9a;
+  font-size: 11px;
+  padding: 2px 12px 10px;
+}

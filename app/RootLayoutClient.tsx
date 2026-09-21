@@ -177,7 +177,9 @@ function InnerLayout({
     pathname === "/blog" ||
     pathname?.startsWith("/blog/tag/") ||
     pathname === "/videos" ||
-    pathname === "/skaters";
+    // startsWith, not ===: /skaters/[country] pages page through the same
+    // load-more grid and were showing the footer the exact match excluded.
+    pathname?.startsWith("/skaters");
 
   const handleOpenAirdrop = () => {
     if (searchProps) searchProps.setIsSearchOpen(false);

@@ -1,4 +1,9 @@
 import { APP_CONFIG } from '@/config/app.config';
+import { getSkaterDirectory } from '@/lib/skaters/fetchSkaters';
+import { countrySlug } from '@/lib/skaters/geo';
+
+/** Country pages below this have too little on them to be worth indexing. */
+const SITEMAP_MIN_SKATERS_PER_COUNTRY = 3;
 
 export async function GET() {
   const baseUrl = APP_CONFIG.BASE_URL;
@@ -34,6 +39,19 @@ export async function GET() {
 
   for (const trick of tricks) {
     pages.push({ path: `/tricks/${trick}`, freq: 'weekly', prio: 0.7 });
+  }
+
+  // One entry per country that actually has skaters in it. Built from the same
+  // cached snapshot the directory renders from, so the sitemap can never
+  // advertise a country page that comes back empty.
+  try {
+    const { countries } = await getSkaterDirectory();
+    for (const entry of countries) {
+      if (entry.count < SITEMAP_MIN_SKATERS_PER_COUNTRY) continue;
+      pages.push({ path: `/skaters/${countrySlug(entry.country)}`, freq: 'weekly', prio: 0.6 });
+    }
+  } catch (error) {
+    console.error('[sitemap] could not add skater country pages:', error);
   }
 
   for (const page of pages) {
