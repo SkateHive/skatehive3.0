@@ -4,6 +4,22 @@ export const COMPOSE_DRAFTS_STORAGE_KEY = "skatehive.compose.drafts.v1";
 export const ACTIVE_COMPOSE_DRAFT_KEY = "skatehive.compose.activeDraftId.v1";
 export const COMPOSE_TEMPLATES_STORAGE_KEY = "skatehive.compose.templates.v1";
 
+// Drafts are namespaced per logged-in user so switching accounts on the same
+// browser never shows (or overwrites) another user's in-progress draft.
+const GUEST_DRAFT_NAMESPACE = "guest";
+
+function draftsKeyFor(userKey: string | null | undefined) {
+  return userKey
+    ? `${COMPOSE_DRAFTS_STORAGE_KEY}.user.${encodeURIComponent(userKey)}`
+    : `${COMPOSE_DRAFTS_STORAGE_KEY}.${GUEST_DRAFT_NAMESPACE}`;
+}
+
+function activeDraftKeyFor(userKey: string | null | undefined) {
+  return userKey
+    ? `${ACTIVE_COMPOSE_DRAFT_KEY}.user.${encodeURIComponent(userKey)}`
+    : `${ACTIVE_COMPOSE_DRAFT_KEY}.${GUEST_DRAFT_NAMESPACE}`;
+}
+
 export type ComposeDraft = {
   id: string;
   title: string;
@@ -57,11 +73,11 @@ export function createDraftId() {
   return `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-export function readComposeDrafts(): ComposeDraft[] {
+export function readComposeDrafts(userKey?: string | null): ComposeDraft[] {
   if (typeof window === "undefined") return [];
 
   try {
-    const raw = window.localStorage.getItem(COMPOSE_DRAFTS_STORAGE_KEY);
+    const raw = window.localStorage.getItem(draftsKeyFor(userKey));
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
@@ -83,34 +99,47 @@ export function readComposeDrafts(): ComposeDraft[] {
   }
 }
 
-export function writeComposeDrafts(drafts: ComposeDraft[]) {
+export function writeComposeDrafts(drafts: ComposeDraft[], userKey?: string | null) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(COMPOSE_DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
+  window.localStorage.setItem(draftsKeyFor(userKey), JSON.stringify(drafts));
 }
 
-export function saveComposeDraft(draft: ComposeDraft) {
-  const drafts = readComposeDrafts();
+export function saveComposeDraft(draft: ComposeDraft, userKey?: string | null) {
+  const drafts = readComposeDrafts(userKey);
   const nextDrafts = [
     draft,
     ...drafts.filter((existingDraft) => existingDraft.id !== draft.id),
   ].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 
-  writeComposeDrafts(nextDrafts);
-  window.localStorage.setItem(ACTIVE_COMPOSE_DRAFT_KEY, draft.id);
+  writeComposeDrafts(nextDrafts, userKey);
+  window.localStorage.setItem(activeDraftKeyFor(userKey), draft.id);
 
   return draft;
 }
 
-export function deleteComposeDraft(id: string) {
-  writeComposeDrafts(readComposeDrafts().filter((draft) => draft.id !== id));
+export function deleteComposeDraft(id: string, userKey?: string | null) {
+  writeComposeDrafts(
+    readComposeDrafts(userKey).filter((draft) => draft.id !== id),
+    userKey
+  );
 
-  if (window.localStorage.getItem(ACTIVE_COMPOSE_DRAFT_KEY) === id) {
-    window.localStorage.removeItem(ACTIVE_COMPOSE_DRAFT_KEY);
+  if (window.localStorage.getItem(activeDraftKeyFor(userKey)) === id) {
+    window.localStorage.removeItem(activeDraftKeyFor(userKey));
   }
 }
 
-export function getComposeDraft(id: string) {
-  return readComposeDrafts().find((draft) => draft.id === id) ?? null;
+export function getComposeDraft(id: string, userKey?: string | null) {
+  return readComposeDrafts(userKey).find((draft) => draft.id === id) ?? null;
+}
+
+export function getActiveComposeDraftId(userKey?: string | null): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(activeDraftKeyFor(userKey));
+}
+
+export function clearActiveComposeDraftId(userKey?: string | null) {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(activeDraftKeyFor(userKey));
 }
 
 export function readComposeTemplates(): ComposeTemplate[] {

@@ -40,10 +40,10 @@ import { ErrorBoundaryWithReport } from "@/components/shared/ErrorBoundary";
 import { useRouter } from "next/navigation";
 import { FaArrowLeft, FaFileAlt, FaSave } from "react-icons/fa";
 import {
-  ACTIVE_COMPOSE_DRAFT_KEY,
   ComposeDraft,
   createDraftId,
   createTemplateFromDraft,
+  getActiveComposeDraftId,
   getComposeDraft,
   getComposeTemplates,
   saveComposeTemplate,
@@ -200,7 +200,7 @@ export default function Composer() {
     (draftId?: string): ComposeDraft => {
       const now = new Date().toISOString();
       const id = draftId || activeDraftId || createDraftId();
-      const existingDraft = draftId || activeDraftId ? getComposeDraft(id) : null;
+      const existingDraft = draftId || activeDraftId ? getComposeDraft(id, user) : null;
 
       return {
         id,
@@ -222,6 +222,7 @@ export default function Composer() {
       selectedThumbnail,
       title,
       uploadedThumbnail,
+      user,
     ]
   );
 
@@ -230,11 +231,11 @@ export default function Composer() {
       if (!force && !hasDraftContent) return;
 
       const draft = buildDraft();
-      saveComposeDraft(draft);
+      saveComposeDraft(draft, user);
       setActiveDraftId(draft.id);
       setLastDraftSavedAt(draft.updatedAt);
     },
-    [buildDraft, hasDraftContent]
+    [buildDraft, hasDraftContent, user]
   );
 
   const handleSaveTemplate = useCallback(() => {
@@ -275,10 +276,27 @@ export default function Composer() {
       setLastDraftSavedAt(draft.updatedAt);
     };
 
+    const clearDraftState = (nextActiveDraftId: string | null) => {
+      setTitle("");
+      setMarkdown("");
+      setHashtags([]);
+      setHashtagInput("");
+      setBeneficiaries([]);
+      setSelectedThumbnail(null);
+      setUploadedThumbnail(null);
+      setActiveDraftId(nextActiveDraftId);
+      setLastDraftSavedAt(null);
+    };
+
     if (draftId) {
-      const draft = getComposeDraft(draftId);
+      // A missing/unauthorized draft id (stale link, or another user's id
+      // after switching accounts) must not leave a prior user's content on
+      // screen.
+      const draft = getComposeDraft(draftId, user);
       if (draft) {
         restoreDraft(draft);
+      } else {
+        clearDraftState(null);
       }
     } else if (templateId) {
       const template = getComposeTemplates().find((item) => item.id === templateId);
@@ -295,19 +313,23 @@ export default function Composer() {
     } else if (startsNewDraft) {
       setActiveDraftId(createDraftId());
     } else {
-      const storedDraftId = window.localStorage.getItem(ACTIVE_COMPOSE_DRAFT_KEY);
-      if (storedDraftId) {
-        const draft = getComposeDraft(storedDraftId);
-        if (draft) {
-          restoreDraft(draft);
-        } else {
-          setActiveDraftId(storedDraftId);
-        }
+      const storedDraftId = getActiveComposeDraftId(user);
+      const draft = storedDraftId ? getComposeDraft(storedDraftId, user) : null;
+
+      if (draft) {
+        restoreDraft(draft);
+      } else if (hasLoadedInitialDraft) {
+        // User switched accounts mid-session with no draft of their own —
+        // clear the previous user's in-memory content instead of leaking it.
+        clearDraftState(storedDraftId || null);
+      } else if (storedDraftId) {
+        setActiveDraftId(storedDraftId);
       }
     }
 
     setHasLoadedInitialDraft(true);
   }, [
+    hasLoadedInitialDraft,
     setBeneficiaries,
     setHashtagInput,
     setHashtags,
@@ -316,6 +338,7 @@ export default function Composer() {
     setTitle,
     setUploadedThumbnail,
     t,
+    user,
   ]);
 
   useEffect(() => {
