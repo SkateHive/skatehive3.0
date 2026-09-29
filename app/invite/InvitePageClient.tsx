@@ -470,14 +470,13 @@ export default function InvitePageClient() {
       }
 
       setSuccessMessage(t('invite.accountCreatedSendingEmail'));
-      // Now send the invite email
+      // Now send the invite email. The master password is the proof of
+      // creation: the server derives the keys from it and reads the creator
+      // off the chain, so nothing else about the email is taken from here.
       const payload = {
         to: desiredEmail,
-        subject: `Welcome to Skatehive @${username}`,
-        createdby: user,
         desiredUsername: username,
         masterPassword,
-        keys,
         language: selectedLanguage,
       };
       const res = await fetch("/api/invite", {

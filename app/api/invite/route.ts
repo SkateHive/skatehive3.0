@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import serverMailer from '@/lib/invite/route';
 import { resolveSessionUserId } from '@/lib/userbase/session';
+import { validateAccountName } from '@/lib/invite/helpers';
+import { verifyInviteClaim } from '@/lib/invite/verifyNewAccount';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -29,22 +31,66 @@ async function logHiveInvite(request: NextRequest, to: string, hiveUsername: str
     try {
         const inviterId = await resolveSessionUserId(request, supabase);
         if (!inviterId) return;
-        await supabase.from('userbase_invites').insert({
-            inviter_user_id: inviterId,
-            kind: 'hive',
-            invitee_email: String(to).trim().toLowerCase(),
-            hive_username: hiveUsername,
-        });
+        // One row per account, however many times the mail is retried.
+        const { error } = await supabase.from('userbase_invites').upsert(
+            {
+                inviter_user_id: inviterId,
+                kind: 'hive',
+                invitee_email: String(to).trim().toLowerCase(),
+                hive_username: hiveUsername,
+            },
+            { onConflict: 'hive_username', ignoreDuplicates: true }
+        );
+        if (error) console.error('Failed to log hive invite:', error);
     } catch (error) {
         console.error('Failed to log hive invite:', error);
     }
 }
 
+// Waiting out block propagation in verifyInviteClaim takes up to ~12s.
+export const maxDuration = 30;
+
+const CLAIM_ERRORS = {
+    not_found: { status: 404, error: 'That account is not on chain yet.' },
+    key_mismatch: { status: 403, error: 'Those credentials do not belong to that account.' },
+    too_old: { status: 403, error: 'Invite emails can only be sent for newly created accounts.' },
+} as const;
+
+function isEmail(value: unknown): value is string {
+    return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { to, subject, createdby, desiredUsername, masterPassword, keys, language } = body;
-        const result = await serverMailer(to, subject, createdby, desiredUsername, masterPassword, keys, language);
+        const { to, desiredUsername, masterPassword, language } = body ?? {};
+
+        if (!isEmail(to)) {
+            return NextResponse.json({ success: false, error: 'A valid email address is required.' }, { status: 400 });
+        }
+        if (validateAccountName(String(desiredUsername ?? '')) !== null
+            || typeof masterPassword !== 'string' || !masterPassword) {
+            return NextResponse.json({ success: false, error: 'Invalid account details.' }, { status: 400 });
+        }
+
+        // The only proof this route accepts. Creator and keys come back from the
+        // chain and from derivation; the request's own `createdby`, `keys` and
+        // `subject` are ignored, since they are interpolated into the email.
+        const claim = await verifyInviteClaim(desiredUsername, masterPassword);
+        if (!claim.ok) {
+            const { status, error } = CLAIM_ERRORS[claim.reason];
+            return NextResponse.json({ success: false, error, code: claim.reason }, { status });
+        }
+
+        const result = await serverMailer(
+            to.trim(),
+            `Welcome to Skatehive @${desiredUsername}`,
+            claim.createdBy,
+            desiredUsername,
+            masterPassword,
+            claim.keys,
+            typeof language === 'string' ? language : 'EN'
+        );
 
         await logHiveInvite(req, to, desiredUsername);
 
