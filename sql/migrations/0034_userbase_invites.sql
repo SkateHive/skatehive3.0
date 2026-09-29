@@ -8,6 +8,16 @@
 -- Before this, nothing recorded who brought whom in. The lite path also needs
 -- it as its rate-limit source: counting a sender's rows over the last day is
 -- the only cap that holds across serverless instances.
+--
+-- Safe to run more than once, and runs as one transaction: either all of it
+-- lands or none of it does. Purely additive — no existing row is changed.
+--
+-- Not covered: userbase_merge_users does not move invites or invited_by onto
+-- the surviving account (nor does it for the tables added since 0019). Rows
+-- stay on the merged-away account; nothing is lost, but it needs a follow-up
+-- migration written against the live function definition.
+
+begin;
 
 -- Direct lineage for lite accounts. Denormalized on purpose — "who brought this
 -- skater in" is a one-column read on the profile, not a join.
@@ -30,7 +40,10 @@ create table if not exists public.userbase_invites (
   invitee_user_id uuid references public.userbase_users(id) on delete set null,
   -- Set for kind = 'hive': the account name broadcast to the chain.
   hive_username text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- A hive invite is only worth keeping if it says which account it paid for.
+  constraint userbase_invites_hive_named
+    check (kind <> 'hive' or hive_username is not null)
 );
 
 -- Rate limit fast path: a sender's invites inside the trailing window.
@@ -42,8 +55,18 @@ create index if not exists userbase_invites_invitee_idx
   on public.userbase_invites(invitee_user_id)
   where invitee_user_id is not null;
 
+-- One attribution row per Hive account, so a retried invite mail cannot log
+-- the same account twice. Deliberately not partial: the route upserts on this
+-- column, and PostgREST can only target a plain unique index. Lite rows leave
+-- it null, and nulls never collide.
+create unique index if not exists userbase_invites_hive_username_key
+  on public.userbase_invites(hive_username);
+
 alter table public.userbase_invites enable row level security;
 alter table public.userbase_invites force row level security;
+
+drop policy if exists "Service role can manage userbase_invites"
+  on public.userbase_invites;
 
 create policy "Service role can manage userbase_invites"
   on public.userbase_invites
@@ -52,3 +75,5 @@ create policy "Service role can manage userbase_invites"
   with check (auth.jwt() ->> 'role' = 'service_role');
 
 revoke all on table public.userbase_invites from anon, authenticated;
+
+commit;
