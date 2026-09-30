@@ -92,6 +92,17 @@ async function run() {
       ? reply({ cid: 'QmBadPoster', thumbnailUrl: 'not-a-url' }) : reply(goodHealth);
     assert.equal((await processVideoOnServer(file)).thumbnailUrl, undefined);
 
+    // Scheme-only and non-numeric ports are not durable poster URLs.
+    storage.clear();
+    globalThis.fetch = async (_input, init) => init?.method === 'POST'
+      ? reply({ cid: 'QmBarePoster', thumbnailUrl: 'https://' }) : reply(goodHealth);
+    assert.equal((await processVideoOnServer(file)).thumbnailUrl, undefined);
+
+    storage.clear();
+    globalThis.fetch = async (_input, init) => init?.method === 'POST'
+      ? reply({ cid: 'QmBadPort', thumbnailUrl: 'https://example.com:invalid/poster.jpg' }) : reply(goodHealth);
+    assert.equal((await processVideoOnServer(file)).thumbnailUrl, undefined);
+
     console.log('PASS: offline, busy, invalid health, stalled body and invalid result');
   } finally {
     globalThis.fetch = originalFetch;

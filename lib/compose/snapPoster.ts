@@ -13,12 +13,19 @@
 
 const POSTER_URL_MAX_LENGTH = 2048;
 
-/** Absolute http(s) poster URL, or undefined when the value is missing or unsafe. */
+/** Absolute http(s) poster URL with a hostname, or undefined when missing or malformed. */
 export function readPosterUrl(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > POSTER_URL_MAX_LENGTH) return undefined;
-  if (!/^https?:\/\//i.test(trimmed)) return undefined;
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+  if (!url.hostname) return undefined;
   return trimmed;
 }
 
@@ -48,7 +55,7 @@ export function applyVideoPoster<T extends SnapPosterMetadata>(
   metadata: T,
   videoUrl: string | null | undefined,
   posterUrl: string | null | undefined,
-): T {
+): T & SnapPosterMetadata {
   const poster = readPosterUrl(posterUrl);
   if (!videoUrl || !poster) return metadata;
 

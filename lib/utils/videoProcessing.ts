@@ -322,7 +322,14 @@ function readTranscoderThumbnailUrl(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > 2048) return undefined;
-  if (!/^https?:\/\//i.test(trimmed)) return undefined;
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+  if (!url.hostname) return undefined;
   return trimmed;
 }
 

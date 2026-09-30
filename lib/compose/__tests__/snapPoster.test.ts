@@ -21,6 +21,9 @@ function run() {
   assert.equal(selectSnapPoster(null, ""), null);
   assert.equal(selectSnapPoster(null, "not-a-url"), null);
   assert.equal(selectSnapPoster(null, "javascript:alert(1)"), null);
+  assert.equal(selectSnapPoster("https://", POSTER), POSTER);
+  assert.equal(selectSnapPoster(null, "https://"), null);
+  assert.equal(selectSnapPoster(null, "https://example.com:invalid/poster.jpg"), null);
 
   const untrimmed = applyVideoPoster(
     { app: "Skatehive App 3.0", tags: ["snaps"], images: [] as string[] },
