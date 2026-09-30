@@ -27,6 +27,7 @@ import {
   TerminalLine,
 } from "./VideoUploadTerminal";
 import type { TrimmedVideoFile } from "./VideoTrimModal";
+import { selectSnapPoster } from "@/lib/compose/snapPoster";
 import { useTranslations } from "@/lib/i18n/hooks";
 
 // Enable debug mode via localStorage or environment
@@ -166,8 +167,15 @@ function extractStatusCode(errorMessage: string): number | undefined {
   return match ? parseInt(match[1], 10) : undefined;
 }
 
+export interface VideoUploadResult {
+  url?: string;
+  hash?: string;
+  /** Durable poster URL. Omitted when the worker did not return one. */
+  thumbnailUrl?: string;
+}
+
 export interface VideoUploaderProps {
-  onUpload: (result: { url?: string; hash?: string } | null) => void;
+  onUpload: (result: VideoUploadResult | null) => void;
   username?: string;
   onUploadStart?: () => void;
   onUploadFinish?: () => void;
@@ -347,9 +355,16 @@ const VideoUploader = forwardRef<VideoUploaderRef, VideoUploaderProps>(
           terminal.addLine(t('terminal.ipfsCid').replace('{hash}', result.hash || ''), "info");
           terminal.addLine(`🎉 ${t('terminal.videoReady')}`, "success");
 
+          // Trim already has a frame when the author captured one. An untrimmed
+          // upload does not — keep the poster the transcoder returned instead
+          // of dropping it and storing only the video URL.
+          const thumbnailUrl =
+            selectSnapPoster(existingThumbnail, result.thumbnailUrl) ?? undefined;
+
           onUpload({
             url: result.url,
             hash: result.hash,
+            ...(thumbnailUrl ? { thumbnailUrl } : {}),
           });
         } else {
           // Server failures are already logged via onServerAttempt/onServerFailed callbacks
