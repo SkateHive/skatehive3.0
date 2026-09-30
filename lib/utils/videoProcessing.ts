@@ -20,6 +20,11 @@ export interface ProcessingResult {
   success: boolean;
   url?: string;
   hash?: string;
+  /**
+   * Poster the transcoder already uploaded. Optional: older workers omit it,
+   * and a non-URL value is dropped so it cannot be written on-chain.
+   */
+  thumbnailUrl?: string;
   error?: string;
   /** Which server(s) failed. 'pi' is retained for the error-demo panel only. */
   failedServer?: "macmini" | "oracle" | "pi" | "all";
@@ -310,6 +315,18 @@ export async function processVideoOnServer(
 }
 
 // ---------------------------------------------------------------------------
+// Optional poster from /transcode. Older workers omit the field entirely.
+// ---------------------------------------------------------------------------
+
+function readTranscoderThumbnailUrl(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 2048) return undefined;
+  if (!/^https?:\/\//i.test(trimmed)) return undefined;
+  return trimmed;
+}
+
+// ---------------------------------------------------------------------------
 // Single-server attempt
 // ---------------------------------------------------------------------------
 
@@ -416,9 +433,15 @@ async function tryServer(
 
       const hash = result.cid;
       const skateHiveUrl = `https://${APP_CONFIG.IPFS_GATEWAY}/ipfs/${hash}`;
+      const thumbnailUrl = readTranscoderThumbnailUrl(result.thumbnailUrl);
       enhancedOptions?.onProgress?.(100, "complete");
 
-      return { success: true, url: skateHiveUrl, hash };
+      return {
+        success: true,
+        url: skateHiveUrl,
+        hash,
+        ...(thumbnailUrl ? { thumbnailUrl } : {}),
+      };
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === "AbortError") {
