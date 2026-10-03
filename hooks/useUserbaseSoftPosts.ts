@@ -64,7 +64,7 @@ export default function useUserbaseSoftPosts(userId?: string | null) {
       try {
         const response = await fetch(
           `/api/userbase/soft-posts/by-user?${queryString}`,
-          { cache: "no-store" }
+          { cache: "no-store", signal: AbortSignal.timeout(12000) }
         );
         if (!mounted) return;
         const data = await response.json();
