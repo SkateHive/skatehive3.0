@@ -1,14 +1,17 @@
 "use client";
 import {
   Box,
+  Button,
   Skeleton,
   SimpleGrid,
   Flex,
   SkeletonCircle,
+  Text,
 } from "@chakra-ui/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import PostGrid from "@/components/blog/PostGrid";
 import { Discussion } from "@hiveio/dhive";
+import { useTranslations } from "@/lib/i18n/hooks";
 
 /**
  * PostsInfiniteScroll Props
@@ -22,6 +25,9 @@ interface PostsInfiniteScrollProps {
   /** Whether there are more items to load. Parent MUST manage this. */
   hasMore: boolean;
   isLoading?: boolean;
+  /** Set when the feed failed to load. Shown instead of an endless skeleton. */
+  error?: string | null;
+  onRetry?: () => void;
   viewMode: "grid" | "list" | "magazine";
   context?: "blog" | "profile" | "rightsidebar";
   hideAuthorInfo?: boolean;
@@ -37,9 +43,12 @@ export default function PostsInfiniteScroll({
   hideAuthorInfo = false,
   hasMore,
   isLoading = false,
+  error = null,
+  onRetry,
   scrollableTargetId = "scrollableDiv",
   scrollThreshold = "200px",
 }: PostsInfiniteScrollProps) {
+  const t = useTranslations("common");
   // Determine columns based on context and viewMode
   const columns =
     viewMode === "grid" || viewMode === "magazine"
@@ -102,8 +111,29 @@ export default function PostsInfiniteScroll({
     </SimpleGrid>
   );
 
-  if (isLoading && allPosts.length === 0) {
-    return skeletonGrid;
+  // Zero posts must not fall through to InfiniteScroll. With hasMore left
+  // true, its loader is this same skeleton and it never goes away, because
+  // dataLength stays 0.
+  if (allPosts.length === 0) {
+    if (isLoading) return skeletonGrid;
+    return (
+      <Box py={10} px={4} textAlign="center">
+        <Text color="text" mb={error ? 4 : 0}>
+          {error ? t("postsLoadError") : t("noPosts")}
+        </Text>
+        {error && onRetry && (
+          <Button
+            size="sm"
+            variant="outline"
+            borderColor="primary"
+            color="primary"
+            onClick={onRetry}
+          >
+            {t("tryAgain")}
+          </Button>
+        )}
+      </Box>
+    );
   }
 
   return (
