@@ -135,6 +135,45 @@ function getSanitizedHTML(html: string): string {
     return clean;
 }
 
+/**
+ * True when an `@mention` match sits inside a URL or an HTML tag, such as
+ * `href="/@brumest"`. Rewriting those matches nests a second `<a>` inside the
+ * attribute and the markdown renderer then escapes the broken tag as text.
+ */
+export function mentionIsInsideMarkup(content: string, offset: number): boolean {
+    const charBefore = offset > 0 ? content[offset - 1] : "";
+    if (charBefore === "/" || charBefore === "@") return true;
+    const lastOpen = content.lastIndexOf("<", offset);
+    const lastClose = content.lastIndexOf(">", offset);
+    return lastOpen > lastClose;
+}
+
+const SAFE_ANCHOR_HREF = /^(?:https?:\/\/|\/(?!\/))/i;
+
+/**
+ * Turn a safe `<a href>` into a markdown link before mention rewriting and
+ * markdown-it. Unsafe hrefs (javascript:, protocol-relative) keep their text
+ * and lose the tag so the markup cannot render or execute.
+ */
+export function promoteSafeAnchors(content: string): string {
+    return content.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, (_match, attrs: string, inner: string) => {
+        const hrefMatch = String(attrs).match(
+            /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/i
+        );
+        const href = (hrefMatch?.[1] ?? hrefMatch?.[2] ?? hrefMatch?.[3] ?? "").trim();
+        const text = inner.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().replace(/[\[\]]/g, "");
+        if (!text) return "";
+        if (
+            !SAFE_ANCHOR_HREF.test(href) ||
+            href.length > 500 ||
+            /[\s()]/.test(href)
+        ) {
+            return text;
+        }
+        return `[${text}](${href})`;
+    });
+}
+
 export function processMediaContent(content: string): string {
     // Generate hash-based cache key for memory efficiency
     const cacheKey = getCacheKey(content);
@@ -145,7 +184,7 @@ export function processMediaContent(content: string): string {
         return cached;
     }
 
-    let processedContent = content;
+    let processedContent = promoteSafeAnchors(content);
     // Remove Schema.org VideoObject wrapper div and meta tags from legacy posts
     // This wrapper causes visual issues and is now handled by JSON-LD in the page head
     processedContent = processedContent.replace(
@@ -345,6 +384,12 @@ async function processMentionsWithValidation(content: string): Promise<string> {
         /@([a-z0-9\-.]+)(\s|$|[^a-z0-9\-.])/gi,
         (match, username, trailing, offset) => {
             const cleanUsername = username.toLowerCase();
+
+            // `href="/@name"` and markdown URLs like `(/@name)` must stay put.
+            // Replacing the @name nests a second anchor inside the attribute.
+            if (mentionIsInsideMarkup(content, offset)) {
+                return match;
+            }
             
             // Check if this mention is part of a URL by looking at the context
             const beforeMatch = content.substring(Math.max(0, offset - 50), offset);
