@@ -21,6 +21,10 @@ import {
 } from "@chakra-ui/react";
 import type { DivIcon, LatLngBounds, Map as LeafletMap } from "leaflet";
 import { useGeoSpots, type GeoSpot } from "@/hooks/useGeoSpots";
+import {
+  SKATE_MAP_TILE_ATTRIBUTION,
+  SKATE_MAP_TILE_URL,
+} from "@/lib/spotmap/basemap";
 import MapSpotCard from "../MapSpotCard";
 import MobileMapSheet from "../MobileMapSheet";
 import "leaflet/dist/leaflet.css";
@@ -356,7 +360,7 @@ export default function MapWithCards({ useGeolocation = false }: MapWithCardsPro
       h="100%"
       borderLeft={{ base: "none", lg: "1px solid" }}
       borderColor={{ base: "transparent", lg: "whiteAlpha.100" }}
-      bg="#0a0a0a"
+      bg="#d5e3ef"
     >
       <MapContainer
         // @ts-ignore — react-leaflet types only resolve after dynamic import
@@ -368,7 +372,7 @@ export default function MapWithCards({ useGeolocation = false }: MapWithCardsPro
           [85, 180],
         ]}
         maxBoundsViscosity={1}
-        style={{ width: "100%", height: "100%", background: "#0a0a0a" }}
+        style={{ width: "100%", height: "100%", background: "#d5e3ef" }}
         worldCopyJump
         attributionControl={false}
         preferCanvas
@@ -376,22 +380,10 @@ export default function MapWithCards({ useGeolocation = false }: MapWithCardsPro
           mapRef.current = m;
         }}
       >
-        {/* CARTO's free dark_all raster tiles now require a signed-up API key
-            (changed late Aug 2026 — every tile came back watermarked "API KEY
-            REQUIRED") and that raster service is being retired regardless, so
-            an account there would only be a stopgap. Esri's Dark Gray Canvas
-            is free, no key, no signup — base (imagery) + reference (labels/
-            borders, transparent PNG) stacked to match what dark_all gave us
-            as one tile. */}
         <TileLayer
           // @ts-ignore
-          attribution='&copy; Esri, HERE, Garmin, OpenStreetMap contributors'
-          url="https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-          noWrap
-        />
-        <TileLayer
-          // @ts-ignore
-          url="https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+          attribution={SKATE_MAP_TILE_ATTRIBUTION}
+          url={SKATE_MAP_TILE_URL}
           noWrap
         />
         <MapBoundsTracker onBoundsChange={setBounds} />
