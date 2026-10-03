@@ -39,6 +39,7 @@ import { UpvoteButton } from "@/components/shared";
 import { useComments } from "@/hooks/useComments";
 import HiveMarkdown from "../shared/HiveMarkdown";
 import { useHeicFallback } from "@/hooks/useHeicFallback";
+import { getYouTubeVideoId, youtubeEmbedUrl } from "@/lib/utils/youtube";
 
 interface SnapWithMedia extends Discussion {
   media: {
@@ -129,6 +130,9 @@ const SnapModal = ({
       return false;
     }
   })();
+  // YouTube iframe srcs (watch, embed, shorts, youtu.be) are HTML pages too.
+  // VideoRenderer treats them as media files and shows "Video failed to load".
+  const youtubeId = getYouTubeVideoId(currentMedia);
   const { src: mediaSrc, onError: onMediaError } = useHeicFallback(currentMedia || "");
 
   const nextMedia = useCallback(() => {
@@ -420,6 +424,17 @@ const SnapModal = ({
                     height="100%"
                     border="none"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : youtubeId ? (
+                  <Box
+                    as="iframe"
+                    src={youtubeEmbedUrl(youtubeId)}
+                    title={`YouTube video by @${currentSnap.author}`}
+                    width="100%"
+                    height="100%"
+                    border="none"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
                   />
                 ) : (

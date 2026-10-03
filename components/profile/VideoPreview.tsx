@@ -2,6 +2,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Box, Icon } from "@chakra-ui/react";
 import { FaPlay } from "react-icons/fa";
+import { getYouTubeVideoId, youtubePosterUrl } from "@/lib/utils/youtube";
 
 interface VideoPreviewProps {
     src: string;
@@ -22,10 +23,47 @@ const isOdyseeUrl = (url: string) => {
 };
 
 export default function VideoPreview({ src, onClick }: VideoPreviewProps) {
+    const youtubeId = getYouTubeVideoId(src);
+    if (youtubeId) {
+        return <YouTubeVideoPreview videoId={youtubeId} onClick={onClick} />;
+    }
     if (isOdyseeUrl(src)) {
         return <OdyseeVideoPreview src={src} onClick={onClick} />;
     }
     return <FileVideoPreview src={src} onClick={onClick} />;
+}
+
+function YouTubeVideoPreview({
+    videoId,
+    onClick,
+}: {
+    videoId: string;
+    onClick?: () => void;
+}) {
+    return (
+        <Box
+            position="relative"
+            width="100%"
+            cursor="pointer"
+            bg="black"
+            onClick={onClick}
+            _hover={{ transform: "scale(1.02)", transition: "transform 0.2s" }}
+        >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src={youtubePosterUrl(videoId)}
+                alt=""
+                loading="lazy"
+                style={{
+                    width: "100%",
+                    height: "auto",
+                    objectFit: "cover",
+                    display: "block",
+                }}
+            />
+            <PlayOverlays showCenter />
+        </Box>
+    );
 }
 
 // Shared play-icon overlays used by both preview variants.

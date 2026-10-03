@@ -833,7 +833,11 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   }, []);
 
   useEffect(() => {
-    // Redirect from Hive-only views if user doesn't have Hive
+    // Redirect from Hive-only views if user doesn't have Hive.
+    // Wait until the account lookup settles. On a cold cache isLoading
+    // starts true; treating that gap as "not a Hive profile" rewrites a
+    // snap permalink onto the posts grid before the snap can open.
+    if (isLoading) return;
     if (canShowHiveViews || hasSoftSnaps) return;
     if (["snaps", "videoparts", "magazine"].includes(viewMode)) {
       // Prefer casts if Farcaster available, otherwise grid
@@ -844,6 +848,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
       }
     }
   }, [
+    isLoading,
     canShowHiveViews,
     hasSoftSnaps,
     viewMode,
