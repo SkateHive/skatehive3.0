@@ -19,7 +19,10 @@ export default function useHiveAccount(username: string) {
   const [hiveAccount, setHiveAccount] = useState<HiveAccount | null>(() =>
     username ? localCacheGet<HiveAccount>(CACHE_KEY(username), MAX_AGE_MS) : null
   );
-  const [isLoading, setIsLoading] = useState(false);
+  // Start loading when a lookup will run. A false initial value lets the
+  // profile page decide "no Hive account" in the same commit the fetch
+  // starts, which bounces /user/:name/snap/:permlink onto the posts grid.
+  const [isLoading, setIsLoading] = useState(() => Boolean(username));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

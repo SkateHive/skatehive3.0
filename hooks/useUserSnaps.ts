@@ -21,6 +21,12 @@ export default function useUserSnaps(username: string) {
     const initialLoadDoneRef = useRef<boolean>(false);
     const cursorRef = useRef<{ startPermlink: string; beforeDate: string } | null>(null);
     const apiPageRef = useRef<number>(1);
+    // Bumped when a new initial load starts. In-flight fetches from a
+    // previous run (React Strict Mode remounts the effect) must not mark
+    // permlinks fetched or advance the cursor after the new run resets them,
+    // or the snap the URL asked for gets dropped and the grid falls back to
+    // unrelated Hive posts.
+    const requestIdRef = useRef(0);
 
     const resetSnaps = useCallback(() => {
         setSnaps([]);
@@ -95,7 +101,7 @@ export default function useUserSnaps(username: string) {
 
     const hasMedia = (snap: Discussion) => extractMediaFromSnap(snap).hasMedia;
 
-    const fetchUserSnapsFromHive = async (username: string): Promise<{ snaps: Discussion[]; exhausted: boolean }> => {
+    const fetchUserSnapsFromHive = async (username: string, requestId: number): Promise<{ snaps: Discussion[]; exhausted: boolean; stale?: boolean }> => {
         try {
             const currentCursor = cursorRef.current || {
                 startPermlink: '',
@@ -117,6 +123,10 @@ export default function useUserSnaps(username: string) {
                 });
 
                 guard += 1;
+
+                if (requestId !== requestIdRef.current) {
+                    return { snaps: [], exhausted: false, stale: true };
+                }
 
                 if (!posts.length) {
                     log('Hive: no posts returned', { cursor: currentCursor, guard });
@@ -162,16 +172,22 @@ export default function useUserSnaps(username: string) {
         }
     };
 
-    const fetchUserSnapsFromAPI = async (username: string): Promise<{ snaps: Discussion[]; exhausted: boolean }> => {
+    const fetchUserSnapsFromAPI = async (username: string, requestId: number): Promise<{ snaps: Discussion[]; exhausted: boolean; stale?: boolean }> => {
         const page = apiPageRef.current;
         let apiUrl = `https://api.skatehive.app/api/v2/feed/${encodeURIComponent(username)}?limit=${SNAP_PAGE_SIZE}&page=${page}`;
 
         const response = await fetch(apiUrl);
+        if (requestId !== requestIdRef.current) {
+            return { snaps: [], exhausted: false, stale: true };
+        }
         if (!response.ok) {
             throw new Error(`API request failed: ${response.status}`);
         }
 
         const data = await response.json();
+        if (requestId !== requestIdRef.current) {
+            return { snaps: [], exhausted: false, stale: true };
+        }
         // debug('User feed API response:', data);
 
         // Handle different possible response structures
@@ -255,6 +271,10 @@ export default function useUserSnaps(username: string) {
             //     })));
             // }
 
+            if (requestId !== requestIdRef.current) {
+                return { snaps: [], exhausted: false, stale: true };
+            }
+
             // Mark as fetched
             mediaSnaps.forEach(snap => {
                 fetchedPermlinksRef.current.add(snap.permlink);
@@ -274,7 +294,7 @@ export default function useUserSnaps(username: string) {
         }
     };
 
-    const fetchUserSnaps = useCallback(async (): Promise<Discussion[]> => {
+    const fetchUserSnaps = useCallback(async (requestId: number): Promise<Discussion[]> => {
         log('fetchUserSnaps:start', {
             username,
             cursor: cursorRef.current,
@@ -298,14 +318,16 @@ export default function useUserSnaps(username: string) {
 
             // Try API method first
             try {
-                const apiResult = await fetchUserSnapsFromAPI(username);
+                const apiResult = await fetchUserSnapsFromAPI(username, requestId);
+                if (apiResult.stale || requestId !== requestIdRef.current) return [];
                 userSnaps = apiResult.snaps;
                 exhausted = apiResult.exhausted;
 
                 // If API returns no results, try Hive blockchain as fallback
                 if (userSnaps.length === 0) {
                     try {
-                        const hiveResult = await fetchUserSnapsFromHive(username);
+                        const hiveResult = await fetchUserSnapsFromHive(username, requestId);
+                        if (hiveResult.stale || requestId !== requestIdRef.current) return [];
                         userSnaps = hiveResult.snaps;
                         exhausted = hiveResult.exhausted;
                     } catch (hiveError) {
@@ -315,7 +337,8 @@ export default function useUserSnaps(username: string) {
             } catch (apiError) {
                 // Fallback to Hive blockchain if API method fails
                 try {
-                    const hiveResult = await fetchUserSnapsFromHive(username);
+                    const hiveResult = await fetchUserSnapsFromHive(username, requestId);
+                    if (hiveResult.stale || requestId !== requestIdRef.current) return [];
                     userSnaps = hiveResult.snaps;
                     exhausted = hiveResult.exhausted;
                 } catch (hiveError) {
@@ -323,6 +346,8 @@ export default function useUserSnaps(username: string) {
                     return [];
                 }
             }
+
+            if (requestId !== requestIdRef.current) return [];
 
             if (exhausted) {
                 setHasMore(false);
@@ -346,7 +371,7 @@ export default function useUserSnaps(username: string) {
 
         setIsLoading(true);
         try {
-            const newSnaps = await fetchUserSnaps();
+            const newSnaps = await fetchUserSnaps(requestIdRef.current);
 
             if (newSnaps.length === 0) {
                 log('loadMoreSnaps: empty batch', {
@@ -376,6 +401,7 @@ export default function useUserSnaps(username: string) {
 
         // Reset state for new username
         resetSnaps();
+        const requestId = ++requestIdRef.current;
 
         // Use a flag to prevent double-fetch in StrictMode
         let cancelled = false;
@@ -385,8 +411,8 @@ export default function useUserSnaps(username: string) {
 
             setIsLoading(true);
             try {
-                const newSnaps = await fetchUserSnaps();
-                if (cancelled) return;
+                const newSnaps = await fetchUserSnaps(requestId);
+                if (cancelled || requestId !== requestIdRef.current) return;
 
                 if (newSnaps.length > 0) {
                     setSnaps(newSnaps);
