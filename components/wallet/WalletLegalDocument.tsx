@@ -95,7 +95,7 @@ export default function WalletLegalDocument({
                 <strong>Hive:</strong> @skatehive
               </Text>
               <Text>
-                <strong>Discord:</strong> discord.gg/skatehive
+                <strong>Discord:</strong> chat.skatehive.app
               </Text>
             </VStack>
           </Box>
