@@ -72,6 +72,9 @@ export const ETH_ADDRESSES = {
   /** Higher ERC20 token */
   HIGHER_ERC20: '0x0578d8A44db98B23BF096A382e016e29a5Ce0ffe' as Address,
 
+  /** BOAR ERC20 token */
+  BOAR_ERC20: '0x0cbf291Ba052174879d90bf781dF1A5F2BC5Bb07' as Address,
+
   /** Gnars NFT contract */
   GNARS_NFT: '0x880fb3cf5c6cc2d7dfc13a993e839a9411200c17' as Address,
 

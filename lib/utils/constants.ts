@@ -15,6 +15,7 @@ export const USDC_CONTRACT_ADDRESS = ETH_ADDRESSES.USDC;
 export const SKATEHIVE_ERC20_ADDRESS = ETH_ADDRESSES.SKATEHIVE_ERC20;
 export const GNARS_ERC20_ADDRESS = ETH_ADDRESSES.GNARS_ERC20;
 export const HIGHER_ERC20_ADDRESS = ETH_ADDRESSES.HIGHER_ERC20;
+export const BOAR_ERC20_ADDRESS = ETH_ADDRESSES.BOAR_ERC20;
 
 // Supabase config - use getSupabaseConfigSafe() to avoid build-time errors
 // Callers should handle undefined values or use getSupabaseConfig() for validation
