@@ -4,6 +4,7 @@ import { verifyAccountCreationComplete } from '@/lib/hive/accountCreation';
 import { storeEncryptedKey } from '@/lib/userbase/keyManagement';
 import { sendSponsorshipEmail } from '@/lib/email/sendSponsorshipEmail';
 import { HiveAccountKeys } from '@/lib/hive/keyGeneration';
+import { resolveSessionUserId } from '@/lib/userbase/session';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -52,6 +53,16 @@ export async function POST(
     );
   }
 
+  // Only the signed-in sponsor of this sponsorship may complete it: this route
+  // stores keys and emails them, so it must not trust anonymous callers.
+  const userId = await resolveSessionUserId(request, supabase);
+  if (!userId) {
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
   try {
     const body: ProcessSponsorshipRequest = await request.json();
     const { sponsorship_id, transaction_id, keys } = body;
@@ -75,6 +86,13 @@ export async function POST(
       return NextResponse.json(
         { success: false, error: 'Sponsorship not found' },
         { status: 404 }
+      );
+    }
+
+    if (sponsorship.sponsor_user_id !== userId) {
+      return NextResponse.json(
+        { success: false, error: 'Only the sponsor can process this sponsorship' },
+        { status: 403 }
       );
     }
 
