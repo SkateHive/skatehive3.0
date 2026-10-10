@@ -45,10 +45,13 @@ const sections: WalletLegalSection[] = [
     ],
     items: [
       "Hive and EVM network nodes (RPC), to read balances and broadcast your signed transactions;",
-      "Hive Keychain backend services (hive-keychain.com), which the Wallet is built on, for prices, token data, transaction history and swap quotes;",
-      "price feeds such as CoinGecko and block explorers such as Blockscout;",
-      "images.hive.blog, to show profile pictures;",
+      "Hive Keychain backend services (api.hive-keychain.com, evm.hive-keychain.com, swap.hive-keychain.com, api-multisig.hive-keychain.com), which the Wallet is built on, for prices, token and NFT data, transaction history, security checks, swap quotes, multisig and paid account creation;",
+      "price feeds such as CoinGecko, and LI.FI for EVM swap routes;",
+      "block explorers such as Blockscout, and chainlist.org and icons.llamao.fi for EVM network details and icons;",
+      "images.hive.blog and files.peakd.com for profile pictures and images, IPFS gateways for NFT images, Gravatar for account avatars, and placehold.co for placeholder images;",
+      "Google's favicon service, which receives the domain name of each website you connect, to show that website's icon;",
       "HiveAuth, only if you use the keyless mode;",
+      "the PeakD notifications service (hivehub.dev), only if you turn on notifications;",
       "swap and payment providers, only when you start a swap or purchase with them.",
     ],
     footer:
@@ -62,8 +65,15 @@ const sections: WalletLegalSection[] = [
   },
   {
     title: "Browser permissions",
-    paragraphs: [
-      "The Wallet asks the browser for storage (to keep your encrypted data), notifications (to tell you when a transaction confirms), the side panel, and access to websites (so sites can request signatures from the Wallet). It does not collect or send anywhere the content of the websites you visit.",
+    items: [
+      "Access to websites: lets Hive and EVM websites request signatures from the Wallet, and lets the \"Wallet links\" feature open the Wallet when you click a Hive signing link (such as hivesigner or hive:// links). The Wallet does not collect or send anywhere the content of the websites you visit.",
+      "Scripting: adds the Wallet's connection script to websites, including tabs already open when the Wallet is installed or updated.",
+      "Storage: keeps your encrypted data and settings.",
+      "Offscreen: keeps the unlocked Wallet key in memory only while the Wallet is unlocked.",
+      "Idle: locks the Wallet when your device locks or after the idle time you choose.",
+      "Alarms: runs scheduled tasks such as auto-lock and the reward claims you turn on.",
+      "Notifications: tells you when a transaction confirms.",
+      "Side panel: lets you open the Wallet in the browser side panel.",
     ],
   },
   {
