@@ -64,6 +64,7 @@ import { publishSnapToInstagram } from "@/lib/instagram/publishSnap";
 import { createTrimmedVideo } from "@/lib/utils/videoTrim";
 import { uploadThumbnail } from "@/lib/utils/videoThumbnailUtils";
 import { processVideoOnServer } from "@/lib/utils/videoProcessing";
+import { applyVideoPoster, selectSnapPoster } from "@/lib/compose/snapPoster";
 import { IGif } from "@giphy/js-types";
 import { FaImage } from "react-icons/fa";
 import { FaInstagram } from "react-icons/fa";
@@ -1112,14 +1113,12 @@ const SnapComposer = React.memo(function SnapComposer({
           images: validUrls,
         };
 
-        // For video snaps, persist the locally-captured thumbnail (canvas
-        // frame uploaded to IPFS) in json_metadata.thumbnail. The
-        // /api/og/post/... route reads thumbnail[0] when building the
-        // Farcaster frame image, so this is what makes the cross-post
-        // embed show the video's first frame instead of a placeholder.
-        if (videoUrl && videoThumbnailUrl) {
-          metadata.thumbnail = [videoThumbnailUrl];
-        }
+        // Video snaps persist a poster: a captured frame when the author
+        // picked one, otherwise the transcoder thumbnail. thumbnail feeds
+        // the OG card; images/image is what other clients read. Missing
+        // poster (worker not yet returning thumbnailUrl) leaves metadata
+        // unchanged.
+        applyVideoPoster(metadata, videoUrl, videoThumbnailUrl);
 
         // Cross-post linkage: store the Farcaster fid + username on the Hive
         // snap so the connection is durable and queryable later. The cast
@@ -1580,8 +1579,11 @@ const SnapComposer = React.memo(function SnapComposer({
         });
         if (!res.success || !res.url) throw new Error(res.error || "Video upload failed");
 
+        // A captured cover wins. Publishing without a trim or a captured frame
+        // used to store only the video URL and drop the transcoder poster.
+        const poster = selectSnapPoster(cover, res.thumbnailUrl);
         setVideoUrl(res.url);
-        setVideoThumbnailUrl(cover);
+        setVideoThumbnailUrl(poster);
         setPendingVideoFile(null);
         cleanup();
         progress = 100;
@@ -2331,6 +2333,11 @@ const SnapComposer = React.memo(function SnapComposer({
                 if (result?.url) {
                   // Store video URL for preview - iframe will be added at submission time
                   setVideoUrl(result.url);
+                }
+                // Untrimmed uploads have no local frame. Keep the worker poster
+                // unless a captured cover is already stored.
+                if (result?.thumbnailUrl) {
+                  setVideoThumbnailUrl((current) => current || result.thumbnailUrl || null);
                 }
               }}
               username={effectiveUser || undefined}
