@@ -773,6 +773,10 @@ export interface TranslationSchema {
     rescueUsername: string;
     rescueMasterPassword: string;
     rescueSendTo: string;
+    liteInviteResent: string;
+    inviteConnectionLost: string;
+    rescueResend: string;
+    rescueResendHint: string;
     stepType: string;
     stepDetails: string;
     badgeFree: string;

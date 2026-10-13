@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
+  CloseButton,
   Flex,
   Icon,
   Input,
@@ -254,15 +255,23 @@ export default function InstagramStoryShare({
           px={4}
           py={3}
         >
-          <Text
-            fontSize="xs"
-            color="dim"
-            textTransform="uppercase"
-            letterSpacing="0.1em"
-            mb={3}
-          >
-            {t("invite.storyKitTitle")}
-          </Text>
+          <Flex align="center" justify="space-between" mb={3}>
+            <Text
+              fontSize="xs"
+              color="dim"
+              textTransform="uppercase"
+              letterSpacing="0.1em"
+            >
+              {t("invite.storyKitTitle")}
+            </Text>
+            <CloseButton
+              size="sm"
+              color="dim"
+              _hover={{ color: "primary" }}
+              aria-label={t("common.close")}
+              onClick={() => setHandedOff(false)}
+            />
+          </Flex>
 
           <Flex align="center" gap={2} mb={1}>
             <Icon as={FaCheck} color="success" boxSize={3} />

@@ -72,7 +72,7 @@ const selectedGlow = keyframes`
 interface GeneratedAccount {
   username: string;
   masterPassword: string;
-  keys: any;
+  keys: ReturnType<typeof getPrivateKeys>;
 }
 
 /**
@@ -86,6 +86,19 @@ async function fetchLiquidHive(username: string): Promise<number | null> {
     if (!account) return null;
     const balance = parseFloat(String(account.balance));
     return Number.isFinite(balance) ? balance : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether an account name is on chain. Null when the node cannot say, which
+ * callers must not read as "no".
+ */
+async function hiveAccountExists(username: string): Promise<boolean | null> {
+  try {
+    const [account] = await client.database.getAccounts([username]);
+    return Boolean(account);
   } catch {
     return null;
   }
@@ -192,6 +205,9 @@ export default function InvitePageClient() {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [rescue, setRescue] = useState<GeneratedAccount | null>(null);
+  const [rescueEmailed, setRescueEmailed] = useState(false);
+  const [rescueDownloaded, setRescueDownloaded] = useState(false);
+  const [resending, setResending] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
 
@@ -310,10 +326,19 @@ export default function InvitePageClient() {
     }
   }, [desiredEmail, isMounted, validateEmail]);
 
+  // Deliberately leaves `rescue` alone. Those keys belong to an account that is
+  // already on chain and paid for; switching mode or sending another invite
+  // must never be what makes them disappear.
   const resetFeedback = () => {
     setSuccessMessage("");
     setErrorMessage("");
-    setRescue(null);
+  };
+
+  // Each rescued account starts unsaved, even if an earlier one was emailed.
+  const showRescue = (account: GeneratedAccount | null) => {
+    setRescue(account);
+    setRescueEmailed(false);
+    setRescueDownloaded(false);
   };
 
   const downloadKeysBackup = (account: GeneratedAccount) => {
@@ -389,7 +414,8 @@ export default function InvitePageClient() {
         return;
       }
       setSuccessMessage(
-        t('invite.liteInviteSent').replace('{handle}', `@${data?.handle ?? ""}`)
+        t(data?.resent ? 'invite.liteInviteResent' : 'invite.liteInviteSent')
+          .replace('{handle}', `@${data?.handle ?? ""}`)
       );
     } catch (error: any) {
       setErrorMessage(error?.message || t('invite.unknownError'));
@@ -399,9 +425,44 @@ export default function InvitePageClient() {
   };
 
   /**
+   * Mails the keys of an account that is already on chain. Never throws: the
+   * account exists whatever happens here, so every failure — the route saying
+   * no, or the network dropping — has to come back as a message the page can
+   * show beside the keys.
+   */
+  const sendHiveInviteEmail = async (
+    account: GeneratedAccount
+  ): Promise<{ ok: true } | { ok: false; message: string }> => {
+    try {
+      // The master password is the proof of creation: the server derives the
+      // keys from it and reads the creator off the chain, so nothing else about
+      // the email is taken from here.
+      const res = await fetch("/api/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: desiredEmail.trim(),
+          desiredUsername: account.username,
+          masterPassword: account.masterPassword,
+          language: selectedLanguage,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (data?.success) return { ok: true };
+      const code = typeof data?.code === "string" ? ` (${data.code})` : "";
+      return {
+        ok: false,
+        message: (data?.error || t('invite.inviteFailedRetry')) + code,
+      };
+    } catch {
+      return { ok: false, message: t('invite.inviteConnectionLost') };
+    }
+  };
+
+  /**
    * Paid path: broadcasts account creation through Keychain, then mails the
-   * keys. If the mail fails the account still exists, so the keys are handed
-   * to the inviter instead of being lost with the page.
+   * keys. Once the account may exist, every way out of here either confirms
+   * the mail went or leaves the keys on screen — they live nowhere else.
    */
   const handleCreateAccount = async () => {
     resetFeedback();
@@ -427,7 +488,15 @@ export default function InvitePageClient() {
       return;
     }
 
+    // A saved rescue box belongs to the previous invite; an unsaved one is
+    // never dropped here (canSubmit keeps this unreachable until it is saved).
+    if (rescue && !rescueEmailed && !rescueDownloaded) return;
+    if (rescue) showRescue(null);
+
     setLoading(true);
+    // Set the moment Keychain reports the broadcast. From then on the keys
+    // must reach the friend or the screen.
+    let landed = false;
     try {
       // Re-read the balance rather than trusting the cached account, which the
       // hook may serve up to a day stale. Catching it here means a plain error
@@ -440,7 +509,7 @@ export default function InvitePageClient() {
         }
       }
 
-      const { username, masterPassword, keys } = generated;
+      const { username, keys } = generated;
       // Use Hive Keychain to broadcast account creation
       const keychain = new KeychainSDK(window);
       const authorities = {
@@ -468,24 +537,11 @@ export default function InvitePageClient() {
         setErrorMessage(broadcast.error + ": " + broadcast.message);
         return;
       }
+      landed = true;
 
       setSuccessMessage(t('invite.accountCreatedSendingEmail'));
-      // Now send the invite email. The master password is the proof of
-      // creation: the server derives the keys from it and reads the creator
-      // off the chain, so nothing else about the email is taken from here.
-      const payload = {
-        to: desiredEmail,
-        desiredUsername: username,
-        masterPassword,
-        language: selectedLanguage,
-      };
-      const res = await fetch("/api/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.success) {
+      const sent = await sendHiveInviteEmail(generated);
+      if (sent.ok) {
         setSuccessMessage(t('invite.inviteSentSuccess'));
         return;
       }
@@ -493,13 +549,54 @@ export default function InvitePageClient() {
       // The fee is spent and the account is real, but nobody holds the keys
       // except this page. Surface them before they are gone.
       setSuccessMessage("");
-      setRescue(generated);
-      const code = typeof data?.code === "string" ? ` (${data.code})` : "";
-      setErrorMessage((data.error || t('invite.inviteFailedRetry')) + code);
+      showRescue(generated);
+      setErrorMessage(sent.message);
     } catch (error: any) {
-      setErrorMessage(error.message || t('invite.unknownError'));
+      setSuccessMessage("");
+      // Keychain can throw after the operation reached the chain (a dropped
+      // connection, a closed popup mid-flight), so "it threw" is not "nothing
+      // happened". If the name is now taken by anyone, these keys may be the
+      // only copy — show them. A name the node cannot confirm either way is
+      // treated the same: a spare backup costs nothing, a lost one costs the
+      // account.
+      const mayExist =
+        landed || (await hiveAccountExists(generated.username)) !== false;
+      if (mayExist) {
+        showRescue(generated);
+        setErrorMessage(t('invite.inviteConnectionLost'));
+      } else {
+        setErrorMessage(error?.message || t('invite.unknownError'));
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Sends the invite email again for an account in the rescue box. The route
+   * accepts it for 24 hours after creation, and reads the address fresh from
+   * the form, so a mistyped email can be corrected and resent.
+   */
+  const handleResendHiveEmail = async () => {
+    if (!rescue) return;
+    const emailValidationError = validateEmail(desiredEmail);
+    if (emailValidationError) {
+      setEmailError(emailValidationError);
+      setErrorMessage(emailValidationError);
+      return;
+    }
+    resetFeedback();
+    setResending(true);
+    try {
+      const sent = await sendHiveInviteEmail(rescue);
+      if (sent.ok) {
+        setRescueEmailed(true);
+        setSuccessMessage(t('invite.inviteSentSuccess'));
+      } else {
+        setErrorMessage(sent.message);
+      }
+    } finally {
+      setResending(false);
     }
   };
 
@@ -509,10 +606,11 @@ export default function InvitePageClient() {
     // The lite path only needs an address; the handle is derived server-side.
     (mode === "lite"
       ? hasSession
-      : accountAvailable && Boolean(generated)) &&
-    // While the rescue box is up the account already exists, so another click
-    // would only burn a Keychain prompt on a name the chain will reject.
-    rescue === null;
+      : accountAvailable &&
+        Boolean(generated) &&
+        // Until the rescued keys are saved somewhere, this page holds the only
+        // copy, and a new invite that fails too would replace them.
+        (rescue === null || rescueEmailed || rescueDownloaded));
   const modes: Array<{
     id: InviteMode;
     title: string;
@@ -906,10 +1004,31 @@ export default function InvitePageClient() {
                 bg="warning"
                 color="background"
                 _hover={{ bg: "primary" }}
-                onClick={() => downloadKeysBackup(rescue)}
+                onClick={() => {
+                  downloadKeysBackup(rescue);
+                  setRescueDownloaded(true);
+                }}
               >
                 {t('invite.rescueDownload')}
               </Button>
+              {!rescueEmailed && (
+                <>
+                  <Button
+                    variant="outline"
+                    borderColor="warning"
+                    color="warning"
+                    _hover={{ bg: "panelHover" }}
+                    onClick={handleResendHiveEmail}
+                    isLoading={resending}
+                    isDisabled={!emailReady}
+                  >
+                    {t('invite.rescueResend')}
+                  </Button>
+                  <Text fontSize="xs" color="dim">
+                    {t('invite.rescueResendHint')}
+                  </Text>
+                </>
+              )}
               <Text fontSize="xs" color="dim">
                 {t('invite.rescueSendTo')}
               </Text>
