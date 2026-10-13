@@ -46,6 +46,13 @@ export function assessInviteClaim(
     return { ok: false, reason: 'not_found' };
   }
 
+  // Age before key: checked the other way round, an old account answered
+  // key_mismatch or too_old depending on whether the guess was right.
+  const createdAt = parseChainTime(account.created);
+  if (!Number.isFinite(createdAt) || now - createdAt > INVITE_MAIL_WINDOW_MS) {
+    return { ok: false, reason: 'too_old' };
+  }
+
   const ownerPubkey = dhive.PrivateKey.fromLogin(username, masterPassword, 'owner')
     .createPublic()
     .toString();
@@ -53,11 +60,6 @@ export function assessInviteClaim(
     ([key]) => String(key) === ownerPubkey
   );
   if (!holdsOwner) return { ok: false, reason: 'key_mismatch' };
-
-  const createdAt = parseChainTime(account.created);
-  if (!Number.isFinite(createdAt) || now - createdAt > INVITE_MAIL_WINDOW_MS) {
-    return { ok: false, reason: 'too_old' };
-  }
 
   const keys: Record<string, string> = {};
   for (const role of ['owner', 'active', 'posting', 'memo'] as const) {

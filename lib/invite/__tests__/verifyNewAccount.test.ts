@@ -79,6 +79,15 @@ check(
   ) === JSON.stringify({ ok: false, reason: "too_old" })
 );
 
+// Checked the other way round, an old account answered key_mismatch or too_old
+// depending on the guess, which let anyone test passwords against it.
+check(
+  "an old account answers too_old whether or not the password is right",
+  JSON.stringify(
+    assessInviteClaim(account({ created: "2026-09-27T11:58:00" }), USERNAME, "SKATE000wrongwrongwrong1", NOW)
+  ) === JSON.stringify({ ok: false, reason: "too_old" })
+);
+
 check(
   "the window edge still counts as fresh",
   assessInviteClaim(

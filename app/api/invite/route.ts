@@ -31,7 +31,9 @@ async function logHiveInvite(request: NextRequest, to: string, hiveUsername: str
     try {
         const inviterId = await resolveSessionUserId(request, supabase);
         if (!inviterId) return;
-        // One row per account, however many times the mail is retried.
+        // One row per account, however many times the mail is retried. A resend
+        // after fixing a mistyped address overwrites it, so the row holds the
+        // address that actually received the keys.
         const { error } = await supabase.from('userbase_invites').upsert(
             {
                 inviter_user_id: inviterId,
@@ -39,7 +41,7 @@ async function logHiveInvite(request: NextRequest, to: string, hiveUsername: str
                 invitee_email: String(to).trim().toLowerCase(),
                 hive_username: hiveUsername,
             },
-            { onConflict: 'hive_username', ignoreDuplicates: true }
+            { onConflict: 'hive_username' }
         );
         if (error) console.error('Failed to log hive invite:', error);
     } catch (error) {
@@ -92,9 +94,8 @@ export async function POST(req: NextRequest) {
             typeof language === 'string' ? language : 'EN'
         );
 
-        await logHiveInvite(req, to, desiredUsername);
-
         if (result.ok) {
+            await logHiveInvite(req, to, desiredUsername);
             return NextResponse.json({ success: true });
         }
         // The account is already on chain by the time we get here, so the client
