@@ -4,6 +4,7 @@ import serverMailer from '@/lib/invite/route';
 import { resolveSessionUserId } from '@/lib/userbase/session';
 import { validateAccountName } from '@/lib/invite/helpers';
 import { verifyInviteClaim } from '@/lib/invite/verifyNewAccount';
+import { createRateLimiter, getClientIP } from '@/lib/utils/rate-limiter';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -20,8 +21,8 @@ const supabase =
  *
  * Deliberately best-effort and never a gate: by the time this route runs the
  * account is already on chain and the fee is spent, so refusing an unsigned
- * request would cost the inviter 3 HIVE and strand the keys. The Hive path
- * needs no rate limit for the same reason — the fee is the limit.
+ * request would cost the inviter 3 HIVE and strand the keys. The fee is what
+ * limits the mail; the per-IP limiter below only guards the chain lookup.
  *
  * Attribution comes from the session cookie, not the `createdby` field, which
  * the client supplies and could say anything.
@@ -52,6 +53,15 @@ async function logHiveInvite(request: NextRequest, to: string, hiveUsername: str
 // Waiting out block propagation in verifyInviteClaim takes up to ~12s.
 export const maxDuration = 30;
 
+// The fee limits mail, not verification: an account name that is not on chain
+// holds the function for ~12s and costs five RPC calls, unauthenticated. A real
+// inviter needs one send plus the odd resend. Per-instance, so a speed bump.
+const claimLimiter = createRateLimiter({
+    limit: 10,
+    windowMs: 10 * 60 * 1000,
+    keyPrefix: 'hive-invite',
+});
+
 const CLAIM_ERRORS = {
     not_found: { status: 404, error: 'That account is not on chain yet.' },
     key_mismatch: { status: 403, error: 'Those credentials do not belong to that account.' },
@@ -73,6 +83,13 @@ export async function POST(req: NextRequest) {
         if (validateAccountName(String(desiredUsername ?? '')) !== null
             || typeof masterPassword !== 'string' || !masterPassword) {
             return NextResponse.json({ success: false, error: 'Invalid account details.' }, { status: 400 });
+        }
+
+        if (!claimLimiter.check(getClientIP(req)).allowed) {
+            return NextResponse.json(
+                { success: false, error: 'Too many requests. Try again later.' },
+                { status: 429 }
+            );
         }
 
         // The only proof this route accepts. Creator and keys come back from the

@@ -358,7 +358,9 @@ export default function InvitePageClient() {
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
+    // Safari starts the download after click() returns; revoking now cancels
+    // it silently, and this click is what marks the rescued keys as saved.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const validateForm = () => {

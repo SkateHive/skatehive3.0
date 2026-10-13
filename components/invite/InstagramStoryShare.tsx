@@ -104,7 +104,8 @@ export default function InstagramStoryShare({
     a.href = href;
     a.download = "skatehive-story.png";
     a.click();
-    URL.revokeObjectURL(href);
+    // Safari starts the download after click() returns; revoking now cancels it.
+    setTimeout(() => URL.revokeObjectURL(href), 1000);
   }, []);
 
   const renderStory = useCallback(async (): Promise<Blob | null> => {
