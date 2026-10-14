@@ -35,6 +35,7 @@ import HivePowerSection from "./HivePowerSection";
 import SkateBankSection from "./SkateBankSection";
 import SavingsJarsSection from "./SavingsJarsSection";
 import NFTSection from "./NFTSection";
+import EarnSection from "./EarnSection";
 
 import { PortfolioProvider } from "@/contexts/PortfolioContext";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
@@ -351,6 +352,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                     [
                       { label: "Wallet Overview", show: true },
                       { label: "Art", show: isConnected },
+                      { label: "Earn", show: isConnected },
                       { label: "SkateBank", show: !!user },
                       { label: "PIX", show: !!user },
                     ] as { label: string; show: boolean }[]
@@ -459,6 +461,13 @@ export default function MainWallet({ username }: MainWalletProps) {
                   {isConnected && (
                     <TabPanel p={0}>
                       <NFTSection />
+                    </TabPanel>
+                  )}
+
+                  {/* ── EARN ── */}
+                  {isConnected && (
+                    <TabPanel p={0}>
+                      <EarnSection />
                     </TabPanel>
                   )}
 

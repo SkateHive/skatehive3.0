@@ -297,6 +297,37 @@ export interface TranslationSchema {
     claimableAfter: string;
     defiReadFailed: string;
     priceUnavailable: string;
+    earn: {
+      title: string;
+      subtitle: string;
+      usdcTitle: string;
+      usdcDesc: string;
+      viewOnMorpho: string;
+      ethTitle: string;
+      ethDesc: string;
+      viewOnLido: string;
+      deposited: string;
+      available: string;
+      staked: string;
+      deposit: string;
+      withdraw: string;
+      stake: string;
+      max: string;
+      approving: string;
+      depositing: string;
+      withdrawing: string;
+      staking: string;
+      enterAmount: string;
+      insufficient: string;
+      successDeposit: string;
+      successWithdraw: string;
+      successStake: string;
+      cancelled: string;
+      failed: string;
+      switchFailed: string;
+      unstakeHint: string;
+      risk: string;
+    };
     send: {
       cancel: string;
       send: string;
