@@ -297,6 +297,18 @@ export interface TranslationSchema {
     claimableAfter: string;
     defiReadFailed: string;
     priceUnavailable: string;
+    savingsRate: {
+      skatebankInfo: string;
+      hbdInfo: string;
+      depositIntro: string;
+      depositHeading: string;
+      depositRate: string;
+      depositMonthly: string;
+      depositWithdrawal: string;
+      depositBacked: string;
+      withdrawCancel: string;
+      withdrawWarning: string;
+    };
     yield: {
       hbdTitle: string;
       earnedSoFar: string;

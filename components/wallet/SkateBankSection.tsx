@@ -103,7 +103,7 @@ const SkateBankSection = memo(function HBDSection({
           {/* Info box */}
           <Box p={3} bg="muted" mb={3}>
             <Text color="dim" fontSize="xs" fontFamily="mono" lineHeight="tall">
-              {formatRate(hbdRate)} APR on your dollar savings (set by Hive witnesses, can change). Monthly interest. 3-day withdrawal period.
+              {t("wallet.savingsRate.skatebankInfo").replace("{rate}", formatRate(hbdRate))}
             </Text>
           </Box>
 

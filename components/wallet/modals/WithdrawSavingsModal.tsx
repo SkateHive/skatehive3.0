@@ -91,13 +91,13 @@ export function WithdrawSavingsModal({
 
                 <Box p={2} bg="muted" borderRadius="md">
                     <Text fontSize="xs" color="gray.400">
-                        💡 You can cancel pending withdrawals before they complete
+                        {t("wallet.savingsRate.withdrawCancel")}
                     </Text>
                 </Box>
 
                 <Box p={2} bg="red.900" borderRadius="md" borderLeft="4px solid" borderColor="red.500">
                     <Text fontSize="xs" color="red.200">
-                        ⚠️ Withdrawn funds will stop earning {formatRate(hbdRate)} APR interest
+                        {t("wallet.savingsRate.withdrawWarning").replace("{rate}", formatRate(hbdRate))}
                     </Text>
                 </Box>
             </VStack>

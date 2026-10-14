@@ -454,6 +454,18 @@ export const ptBR = {
     claimableAfter: 'resgatável após {date}',
     defiReadFailed: 'Não foi possível ler a posição em DeFi — {label}: {message}. O total está incompleto.',
     priceUnavailable: 'Sem cotação disponível para {label} — {message} não está somado ao total.',
+    savingsRate: {
+      skatebankInfo: '{rate} a.a. na sua poupança em dólar, definido pelos witnesses da Hive (pode mudar). Juros mensais. Saque leva 3 dias.',
+      hbdInfo: 'HBD líquido, pronto para transações. Mova para a Poupança no SkateBank para render {rate} a.a.',
+      depositIntro: 'Deposite HBD na sua poupança e renda {rate} a.a.',
+      depositHeading: '💰 Renda {rate} a.a.',
+      depositRate: '• Taxa atual de {rate} ao ano, definida pelos witnesses da Hive (pode mudar)',
+      depositMonthly: '• Juros pagos mensalmente',
+      depositWithdrawal: '• Saques levam 3 dias',
+      depositBacked: '• Garantido pela blockchain da Hive',
+      withdrawCancel: '💡 Você pode cancelar saques pendentes antes de serem concluídos',
+      withdrawWarning: '⚠️ O valor sacado deixa de render {rate} a.a.',
+    },
     yield: {
       hbdTitle: 'Poupança em HBD',
       earnedSoFar: 'Rendeu até agora',
@@ -479,7 +491,7 @@ export const ptBR = {
     },
     earn: {
       title: 'Render',
-      subtitle: 'Coloque USDC e ETH parados para render — o dinheiro continua na sua carteira.',
+      subtitle: 'Coloque USDC e ETH parados para render. A custódia é sua: as shares do vault e o stETH ficam na sua própria carteira.',
       usdcTitle: 'Poupança em USDC',
       usdcDesc: 'Depositado no vault {vault} da Morpho (Base). Rende a cada bloco; saque quando quiser.',
       viewOnMorpho: 'Ver na Morpho',

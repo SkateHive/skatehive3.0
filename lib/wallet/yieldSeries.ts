@@ -97,14 +97,21 @@ export function buildSavingsSeries(
   const points: YieldPoint[] = [];
   let invested = 0;
   let balance = 0;
+  // Interest accrued since the last payment, settled at every balance change
+  // so each segment accrues at the balance it actually had.
+  let pending = 0;
   let lastT = ev[0].t;
-  const accrue = (to: number) => balance * apr * ((to - lastT) / (365 * DAY));
+  const accrue = (to: number) => (balance * apr * (to - lastT)) / (365 * DAY);
+  const fillDays = (from: number, to: number) => {
+    for (let t = Math.floor(from / DAY) * DAY + DAY; t < to; t += DAY) {
+      points.push({ t, invested, value: balance + pending + accrue(t) });
+    }
+  };
 
   for (const e of ev) {
-    // Step through days so the accrual reads as a slope, not a staircase.
-    for (let t = Math.floor(lastT / DAY) * DAY + DAY; t < e.t; t += DAY) {
-      points.push({ t, invested, value: balance + accrue(t) });
-    }
+    fillDays(lastT, e.t);
+    pending += accrue(e.t);
+    lastT = e.t;
     if (e.kind === "deposit") {
       invested += e.amount;
       balance += e.amount;
@@ -112,17 +119,14 @@ export function buildSavingsSeries(
       invested -= e.amount;
       balance -= e.amount;
     } else {
+      // The payment realises the accrual (estimate replaced by the real amount).
       balance += e.amount;
-      lastT = e.t;
+      pending = 0;
     }
-    // Accrual between payments is an estimate (the chain tracks HBD-seconds);
-    // the final point is corrected to the real balance.
-    points.push({ t: e.t, invested, value: Math.max(0, balance) });
+    points.push({ t: e.t, invested, value: Math.max(0, balance + pending) });
   }
-  for (let t = Math.floor(ev[ev.length - 1].t / DAY) * DAY + DAY; t < now; t += DAY) {
-    points.push({ t, invested, value: balance + accrue(t) });
-  }
-  // History can be truncated (1000-op window) — trust the chain for "now".
+  fillDays(lastT, now);
+  // History can be truncated or the estimate off — trust the chain for "now".
   points.push({ t: now, invested, value: currentBalance + accruedInterest });
   return points;
 }

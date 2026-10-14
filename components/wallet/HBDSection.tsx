@@ -136,8 +136,7 @@ const HBDSection = memo(function HBDSection({
                 {showInfo && (
                     <Box mt={3} p={3} bg="muted">
                         <Text color="dim" fontSize="sm">
-                            Liquid HBD ready for transactions. Convert to Savings in SkateBank
-                            to earn {formatRate(hbdRate)} APR!
+                            {t("wallet.savingsRate.hbdInfo").replace("{rate}", formatRate(hbdRate))}
                         </Text>
                     </Box>
                 )}

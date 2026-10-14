@@ -437,6 +437,18 @@ export const en = {
     claimableAfter: 'claimable after {date}',
     defiReadFailed: 'DeFi position could not be read — {label}: {message}. Total is incomplete.',
     priceUnavailable: 'No price available for {label} — {message} is not counted in the total.',
+    savingsRate: {
+      skatebankInfo: '{rate} APR on your dollar savings, set by Hive witnesses (it can change). Monthly interest. 3-day withdrawal period.',
+      hbdInfo: 'Liquid HBD ready for transactions. Move it to Savings in SkateBank to earn {rate} APR.',
+      depositIntro: 'Deposit HBD to your savings account and earn {rate} APR.',
+      depositHeading: '💰 Earn {rate} APR',
+      depositRate: '• Current rate {rate} a year, set by Hive witnesses (it can change)',
+      depositMonthly: '• Interest paid monthly',
+      depositWithdrawal: '• Withdrawals take 3 days',
+      depositBacked: '• Backed by the Hive blockchain',
+      withdrawCancel: '💡 You can cancel pending withdrawals before they complete',
+      withdrawWarning: '⚠️ Withdrawn funds will stop earning {rate} APR interest',
+    },
     yield: {
       hbdTitle: 'HBD savings',
       earnedSoFar: 'Earned so far',
@@ -462,7 +474,7 @@ export const en = {
     },
     earn: {
       title: 'Earn',
-      subtitle: 'Put idle USDC and ETH to work — your funds stay in your wallet.',
+      subtitle: 'Put idle USDC and ETH to work. You keep custody: the vault shares and stETH sit in your own wallet.',
       usdcTitle: 'USDC savings',
       usdcDesc: 'Deposited in the {vault} vault on Morpho (Base). Yield accrues every block; withdraw anytime.',
       viewOnMorpho: 'View on Morpho',

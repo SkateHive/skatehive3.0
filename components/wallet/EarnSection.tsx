@@ -113,7 +113,7 @@ function ActivityList({ items }: { items: VaultActivity[] }) {
       <Text fontFamily="mono" fontSize="xs" color="dim" mb={1} textTransform="uppercase">{t("wallet.earn.history")}</Text>
       <VStack align="stretch" spacing={1}>
         {items.slice(0, 5).map((a) => (
-          <HStack key={a.txHash} justify="space-between" fontFamily="mono" fontSize="xs">
+          <HStack key={`${a.txHash}:${a.logIndex}`} justify="space-between" fontFamily="mono" fontSize="xs">
             <Link href={BASESCAN_TX(a.txHash)} isExternal color="primary">
               {a.type === "Deposit" ? t("wallet.earn.deposit") : t("wallet.earn.withdraw")}
             </Link>

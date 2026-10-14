@@ -48,6 +48,7 @@ export async function fetchHbdSavingsEvents(account: string): Promise<SavingsEve
   try {
     const events: SavingsEvent[] = [];
     let start = -1;
+    let complete = false;
     for (let page = 0; page < MAX_PAGES; page++) {
       const body = `{"jsonrpc":"2.0","id":1,"method":"account_history_api.get_account_history","params":{"account":${JSON.stringify(
         account,
@@ -71,11 +72,18 @@ export async function fetchHbdSavingsEvents(account: string): Promise<SavingsEve
         }
       }
 
-      // `limit` counts matching ops; a short page means we reached the start.
+      // `limit` counts matching ops and the node scans the whole range for
+      // them (verified on blocktrades: 8.1M ops, filtered page spans index
+      // 87,619 → 8,150,115), so a short page means we reached the start.
       const oldest = history[0]?.[0];
-      if (history.length < PAGE || typeof oldest !== "number" || oldest <= 0) break;
+      if (history.length < PAGE || typeof oldest !== "number" || oldest <= 0) {
+        complete = true;
+        break;
+      }
       start = oldest - 1;
     }
+    // Page cap hit: missing old deposits would show as earnings → unknown.
+    if (!complete) return null;
     return events.sort((a, b) => a.t - b.t);
   } catch {
     return null;

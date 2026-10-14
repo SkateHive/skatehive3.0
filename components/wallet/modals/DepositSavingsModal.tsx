@@ -67,20 +67,21 @@ export function DepositSavingsModal({
         >
             <VStack spacing={4} align="stretch">
                 <Text fontSize="sm" color="text">
-                    Deposit HBD to your savings account and earn {formatRate(hbdRate)} APR!
+                    {t("wallet.savingsRate.depositIntro").replace("{rate}", formatRate(hbdRate))}
                 </Text>
 
                 <Box p={3} bg="green.900" borderRadius="md" borderLeft="4px solid" borderColor="green.500">
                     <Text fontSize="sm" fontWeight="bold" color="green.200" mb={2}>
-                        💰 Earn {formatRate(hbdRate)} APR
+                        {t("wallet.savingsRate.depositHeading").replace("{rate}", formatRate(hbdRate))}
                     </Text>
                     <Text fontSize="xs" color="green.100">
-                        • Current rate {formatRate(hbdRate)} a year, set by Hive witnesses (it can change)
+                        {t("wallet.savingsRate.depositRate").replace("{rate}", formatRate(hbdRate))}
                         <br />
-                        • Interest paid monthly
+                        {t("wallet.savingsRate.depositMonthly")}
                         <br />
-                        • Completely safe and secure
-                        <br />• Backed by the Hive blockchain
+                        {t("wallet.savingsRate.depositWithdrawal")}
+                        <br />
+                        {t("wallet.savingsRate.depositBacked")}
                     </Text>
                 </Box>
 

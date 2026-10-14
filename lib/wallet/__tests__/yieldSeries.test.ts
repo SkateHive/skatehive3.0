@@ -94,6 +94,23 @@ it("accrues between payments instead of staying flat", () => {
   ok(mid.value > 365, "expected accrued value above principal");
 });
 
+it("accrues each segment at the balance it had (no back-dating deposits)", () => {
+  // 100 HBD for 20 days, then 200 HBD: day 21 ≈ 100×20d + 200×1d of interest.
+  const pts = buildSavingsSeries(
+    [
+      { t: T0, kind: "deposit", amount: 100 },
+      { t: T0 + 20 * DAY, kind: "deposit", amount: 100 },
+    ],
+    200,
+    0,
+    0.1,
+    T0 + 30 * DAY,
+  );
+  const day21 = pts.find((p) => p.t >= T0 + 21 * DAY && p.t < T0 + 22 * DAY)!;
+  const expected = 200 + (100 * 0.1 * (20 * DAY)) / (365 * DAY) + (200 * 0.1 * (day21.t - (T0 + 20 * DAY))) / (365 * DAY);
+  near(day21.value, expected, 1e-9);
+});
+
 it("balance only, no history → one point", () => {
   const pts = buildSavingsSeries([], 20, 0.5, 0.1, T0);
   ok(pts.length === 1, "expected one point");

@@ -24,6 +24,9 @@ export default function SavingsYieldChart({ username, savingsBalance, accruedInt
 
   useEffect(() => {
     let cancelled = false;
+    // Never pair the previous account's history with this account's balance.
+    setEvents(null);
+    setFailed(false);
     fetchHbdSavingsEvents(username).then((ev) => {
       if (cancelled) return;
       setEvents(ev ?? []);

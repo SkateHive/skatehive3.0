@@ -82,6 +82,8 @@ export interface VaultActivity {
   shares: bigint;
   timestamp: number;
   txHash: string;
+  /** one tx can emit several vault logs */
+  logIndex: number;
 }
 
 /**
@@ -105,6 +107,7 @@ export async function fetchMorphoVaultActivity(
     const seen = new Set<string>();
     const items: VaultActivity[] = [];
     let before: number | null = null;
+    let complete = false;
     for (let page = 0; page < 20; page++) {
       const res: Response = await fetch("https://api.morpho.org/graphql", {
         method: "POST",
@@ -119,16 +122,25 @@ export async function fetchMorphoVaultActivity(
       const json: { data?: { vaultV1Transactions?: { items?: unknown } } } = await res.json();
       const raw = json?.data?.vaultV1Transactions?.items;
       if (!Array.isArray(raw)) return null;
+      const known = items.length;
       for (const t of raw as { txHash: string; logIndex: number; timestamp: number; type: "Deposit" | "Withdraw"; assets: string | number; shares: string | number }[]) {
         // Pages overlap on the boundary timestamp — dedupe by log position.
         const key = `${t.txHash}:${t.logIndex}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        items.push({ type: t.type, assets: BigInt(t.assets), shares: BigInt(t.shares), timestamp: Number(t.timestamp), txHash: t.txHash });
+        items.push({ type: t.type, assets: BigInt(t.assets), shares: BigInt(t.shares), timestamp: Number(t.timestamp), txHash: t.txHash, logIndex: Number(t.logIndex) });
       }
-      if (raw.length < PAGE) break;
+      if (raw.length < PAGE) {
+        complete = true;
+        break;
+      }
+      // A full page with nothing new (100+ logs on one timestamp) can't advance.
+      if (items.length === known) return null;
       before = Number(raw[raw.length - 1].timestamp);
     }
+    // Hitting the page cap means older deposits may be missing — that would
+    // read as earnings, so report unknown instead of a partial history.
+    if (!complete) return null;
     const principal = items.reduce((s, t) => (t.type === "Deposit" ? s + t.assets : s - t.assets), 0n);
     return { principal, items };
   } catch {

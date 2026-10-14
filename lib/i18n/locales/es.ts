@@ -454,6 +454,18 @@ export const es = {
     claimableAfter: 'reclamable después de {date}',
     defiReadFailed: 'No se pudo leer la posición en DeFi — {label}: {message}. El total está incompleto.',
     priceUnavailable: 'Sin cotización disponible para {label} — {message} no está sumado al total.',
+    savingsRate: {
+      skatebankInfo: '{rate} anual en tu ahorro en dólares, definido por los witnesses de Hive (puede cambiar). Interés mensual. El retiro tarda 3 días.',
+      hbdInfo: 'HBD líquido, listo para transacciones. Muévelo al Ahorro en SkateBank para rendir {rate} anual.',
+      depositIntro: 'Deposita HBD en tu ahorro y gana {rate} anual.',
+      depositHeading: '💰 Gana {rate} anual',
+      depositRate: '• Tasa actual de {rate} al año, definida por los witnesses de Hive (puede cambiar)',
+      depositMonthly: '• Intereses pagados mensualmente',
+      depositWithdrawal: '• Los retiros tardan 3 días',
+      depositBacked: '• Respaldado por la blockchain de Hive',
+      withdrawCancel: '💡 Puedes cancelar retiros pendientes antes de que se completen',
+      withdrawWarning: '⚠️ Los fondos retirados dejarán de rendir {rate} anual',
+    },
     yield: {
       hbdTitle: 'Ahorro en HBD',
       earnedSoFar: 'Rendido hasta ahora',
@@ -479,7 +491,7 @@ export const es = {
     },
     earn: {
       title: 'Rendir',
-      subtitle: 'Pon a rendir tus USDC y ETH inactivos — tus fondos siguen en tu billetera.',
+      subtitle: 'Pon a rendir tus USDC y ETH inactivos. Mantienes la custodia: las shares del vault y el stETH quedan en tu propia billetera.',
       usdcTitle: 'Ahorro en USDC',
       usdcDesc: 'Depositado en el vault {vault} de Morpho (Base). Rinde en cada bloque; retira cuando quieras.',
       viewOnMorpho: 'Ver en Morpho',
