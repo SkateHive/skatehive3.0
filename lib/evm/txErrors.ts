@@ -15,3 +15,14 @@ export function friendlyError(e: unknown): string {
     "Unknown error"
   );
 }
+
+/**
+ * True when the failure is the RPC transport (node down, rate-limited,
+ * timeout) rather than the contract reverting. A transport failure in a
+ * pre-flight simulation must not block the user's transaction.
+ */
+export function isTransportError(e: unknown): boolean {
+  const names: string[] = [];
+  for (let c: unknown = e; c && names.length < 6; c = (c as { cause?: unknown }).cause) names.push((c as { name?: string }).name ?? "");
+  return names.some((n) => /HttpRequestError|TimeoutError|RpcRequestError|TransportError/.test(n));
+}

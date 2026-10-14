@@ -11,7 +11,7 @@ import { useAccount, useBalance, useChainId, usePublicClient, useSendTransaction
 import { LIDO_ABI, LIDO_REFERRAL, LIDO_STETH, isLidoStake } from "@/lib/evm/lido";
 import { isChainBoundWallet, chainBoundSwitchMessage } from "@/lib/evm/walletChain";
 import { parseUnits, formatUnits, formatEther, maxUint256 } from "viem";
-import { friendlyError, isUserRejection } from "@/lib/evm/txErrors";
+import { friendlyError, isTransportError, isUserRejection } from "@/lib/evm/txErrors";
 import { PortfolioContext } from "@/contexts/PortfolioContext";
 import TokenSelectorModal from "./TokenSelectorModal";
 import TokenChainLogo from "./TokenChainLogo";
@@ -245,10 +245,7 @@ export default function ERC20SwapSection({ showFeeOption = false, compact = fals
           } catch (e) {
             // Only a contract revert means staking is unavailable. A transport
             // failure (public RPC down / rate-limited) must not block the stake.
-            const names: string[] = [];
-            for (let c: unknown = e; c && names.length < 6; c = (c as { cause?: unknown }).cause) names.push((c as { name?: string }).name ?? "");
-            const transport = names.some((n) => /HttpRequestError|TimeoutError|RpcRequestError|TransportError/.test(n));
-            if (transport) {
+            if (isTransportError(e)) {
               console.warn("[swap] Lido pre-simulation skipped (RPC transport error):", friendlyError(e));
             } else {
               reason = friendlyError(e);

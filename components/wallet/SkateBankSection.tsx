@@ -15,6 +15,7 @@ import {
 import { useMemo, memo } from "react";
 import { DepositSavingsModal, WithdrawSavingsModal } from "./modals";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { useHbdSavingsRate, formatRate } from "@/hooks/wallet/useHbdSavingsRate";
 import { shimmerStyles } from "@/lib/utils/animations";
 
 interface HBDSectionProps {
@@ -50,6 +51,7 @@ const SkateBankSection = memo(function HBDSection({
   onClaimInterest,
 }: HBDSectionProps) {
   const t = useTranslations();
+  const hbdRate = useHbdSavingsRate();
 
   const { isOpen: isDepositOpen, onOpen: onDepositOpen, onClose: onDepositClose } = useDisclosure();
   const { isOpen: isWithdrawOpen, onOpen: onWithdrawOpen, onClose: onWithdrawClose } = useDisclosure();
@@ -101,7 +103,7 @@ const SkateBankSection = memo(function HBDSection({
           {/* Info box */}
           <Box p={3} bg="muted" mb={3}>
             <Text color="dim" fontSize="xs" fontFamily="mono" lineHeight="tall">
-              15% APR on your dollar savings. Monthly interest. 3-day withdrawal period.
+              {formatRate(hbdRate)} APR on your dollar savings (set by Hive witnesses, can change). Monthly interest. 3-day withdrawal period.
             </Text>
           </Box>
 
@@ -153,7 +155,8 @@ const SkateBankSection = memo(function HBDSection({
           </HStack>
 
           {/* Claimable interest */}
-          {estimatedClaimableInterest > 0 && (
+          {/* Below 0.001 HBD (Hive's precision) there is nothing to pay out. */}
+          {estimatedClaimableInterest >= 0.001 && (
             <Box p={3} bg="muted" border="1px solid" borderColor={daysUntilClaim === 0 ? "primary" : "border"}>
               <HStack justify="space-between" align="center">
                 <Box>

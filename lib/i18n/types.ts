@@ -297,6 +297,29 @@ export interface TranslationSchema {
     claimableAfter: string;
     defiReadFailed: string;
     priceUnavailable: string;
+    yield: {
+      hbdTitle: string;
+      earnedSoFar: string;
+      onInvested: string;
+      since: string;
+      valueNow: string;
+      in12Months: string;
+      return: string;
+      legendValue: string;
+      legendInvested: string;
+      legendProjected: string;
+      share: string;
+      hideAmounts: string;
+      showAmounts: string;
+      table: string;
+      chart: string;
+      date: string;
+      empty: string;
+      loadError: string;
+      shareText: string;
+      downloaded: string;
+      shareFailed: string;
+    };
     earn: {
       title: string;
       subtitle: string;
@@ -307,6 +330,11 @@ export interface TranslationSchema {
       ethDesc: string;
       viewOnLido: string;
       deposited: string;
+      currentValue: string;
+      earned: string;
+      perMonth: string;
+      shares: string;
+      history: string;
       available: string;
       staked: string;
       deposit: string;
@@ -325,6 +353,7 @@ export interface TranslationSchema {
       cancelled: string;
       failed: string;
       switchFailed: string;
+      stakingUnavailable: string;
       unstakeHint: string;
       risk: string;
     };

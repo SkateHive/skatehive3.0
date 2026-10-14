@@ -5,6 +5,7 @@ import { AmountInput } from "./components";
 import { WithdrawHBDSavingsModalProps } from "./types";
 import { useBankActions } from "@/hooks/wallet";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { useHbdSavingsRate, formatRate } from "@/hooks/wallet/useHbdSavingsRate";
 
 /**
  * Modal for withdrawing HBD from savings
@@ -18,6 +19,7 @@ export function WithdrawSavingsModal({
     const { withdrawFromSavings } = useBankActions();
     const toast = useToast();
     const t = useTranslations();
+  const hbdRate = useHbdSavingsRate();
 
     const handleConfirm = async () => {
         const parsedAmount = parseFloat(amount);
@@ -95,7 +97,7 @@ export function WithdrawSavingsModal({
 
                 <Box p={2} bg="red.900" borderRadius="md" borderLeft="4px solid" borderColor="red.500">
                     <Text fontSize="xs" color="red.200">
-                        ⚠️ Withdrawn funds will stop earning 15% APR interest
+                        ⚠️ Withdrawn funds will stop earning {formatRate(hbdRate)} APR interest
                     </Text>
                 </Box>
             </VStack>
