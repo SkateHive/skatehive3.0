@@ -44,6 +44,8 @@ jobs:
         # Empty on scheduled runs; the script falls back to its 7-day default.
         env:
           DIGEST_DAYS: ${{ github.event.inputs.days }}
+          # Absent -> the script prints raw commit subjects instead of prose.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           echo "DIGEST_WINDOW=$(pnpm tsx scripts/dev-digest/generateDigest.ts --print-days)" >> "$GITHUB_ENV"
           pnpm tsx scripts/dev-digest/generateDigest.ts | tee digest.md
