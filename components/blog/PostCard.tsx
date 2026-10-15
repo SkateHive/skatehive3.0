@@ -47,6 +47,11 @@ const TipModal = dynamic(() => import("@/components/shared/TipModal"), {
 });
 import useVoteIconState from "@/hooks/useVoteIconState";
 import VoteListPopover from "@/components/blog/VoteListModal";
+import PostOwnerMenuItems from "@/components/blog/PostOwnerMenuItems";
+import { usePostDelete } from "@/hooks/usePostDelete";
+const DeletePostDialog = dynamic(() => import("@/components/shared/DeletePostDialog"), {
+  ssr: false,
+});
 
 interface PostJsonMetadata {
   app?: string;
@@ -90,6 +95,46 @@ export default function PostCard({
   const displayAvatar =
     softPost?.user?.avatar_url ||
     `https://images.hive.blog/u/${author}/avatar/sm`;
+  const [isDeleted, setIsDeleted] = useState(false);
+  const deletion = usePostDelete(post, {
+    softPostUserId: softPost?.user?.id,
+    onDeleted: () => setIsDeleted(true),
+    onRestored: () => setIsDeleted(false),
+  });
+  const { canDeleteThisPost } = deletion;
+  const ownerMenuItems = canDeleteThisPost ? (
+    <PostOwnerMenuItems
+      author={post.author}
+      permlink={post.permlink}
+      onDelete={deletion.requestDelete}
+      isDeleting={deletion.isDeleting}
+    />
+  ) : null;
+  const deleteDialog = canDeleteThisPost ? (
+    <DeletePostDialog deletion={deletion} />
+  ) : null;
+  // Where the author row (and its menu) is hidden — profile grid, list view —
+  // owners still need a way in, so they get a corner menu instead.
+  const ownerCornerMenu = canDeleteThisPost ? (
+    <Box position="absolute" top={2} right={2} zIndex={3}>
+      <Menu>
+        <MenuButton
+          as={IconButton}
+          aria-label="Post actions"
+          icon={<BiDotsHorizontal />}
+          size="sm"
+          variant="ghost"
+          _active={{ bg: "none" }}
+          _hover={{ bg: "none" }}
+          bg="background"
+          color="primary"
+        />
+        <MenuList bg="background" color="primary">
+          {ownerMenuItems}
+        </MenuList>
+      </Menu>
+    </Box>
+  ) : null;
   const [showSlider, setShowSlider] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const { vote, effectiveUser, canVote } = useHiveVote();
@@ -382,9 +427,14 @@ export default function PostCard({
     };
   }, [post.total_payout_value, post.curator_payout_value]);
 
+  if (isDeleted) {
+    return null;
+  }
+
   if (listView) {
     return (
       <Box
+        position="relative"
         overflow="hidden"
         height="200px"
         display="flex"
@@ -542,6 +592,8 @@ export default function PostCard({
             </Tooltip>
           </HStack>
         </Flex>
+        {ownerCornerMenu}
+        {deleteDialog}
       </Box>
     );
   }
@@ -626,6 +678,7 @@ export default function PostCard({
           >
             <MatrixOverlay />
           </Box>
+          {hideAuthorInfo && ownerCornerMenu}
         <Box
           py={4}
           px={4}
@@ -685,6 +738,7 @@ export default function PostCard({
                     color="primary"
                   />
                   <MenuList bg="background" color="primary">
+                    {ownerMenuItems}
                     <ShareMenuButtons comment={post} />
                   </MenuList>
                 </Menu>
@@ -979,6 +1033,7 @@ export default function PostCard({
           discussion={post}
         />
       )}
+      {deleteDialog}
     </>
   );
 }

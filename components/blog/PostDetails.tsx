@@ -36,7 +36,7 @@ import React, {
   useEffect,
 } from "react";
 import { Discussion } from "@hiveio/dhive";
-import { FaHeart, FaRegHeart, FaShareSquare, FaEdit, FaInstagram } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaShareSquare, FaEdit, FaInstagram, FaTrash } from "react-icons/fa";
 import { getPostDate } from "@/lib/utils/GetPostDate";
 import { useAioha } from "@aioha/react-ui";
 import useHiveVote from "@/hooks/useHiveVote";
@@ -48,6 +48,9 @@ import VoteListPopover from "./VoteListModal";
 import { MarkdownProcessor } from "@/lib/markdown/MarkdownProcessor";
 import { EnhancedMarkdownRenderer } from "@/components/markdown/EnhancedMarkdownRenderer";
 import { usePostEdit } from "@/hooks/usePostEdit";
+import { usePostDelete } from "@/hooks/usePostDelete";
+import DeletePostDialog from "@/components/shared/DeletePostDialog";
+import { useRouter } from "next/navigation";
 import ThumbnailPicker from "@/components/compose/ThumbnailPicker";
 import { DEFAULT_VOTE_WEIGHT } from "@/lib/utils/constants";
 import useVoteWeight from "@/hooks/useVoteWeight";
@@ -295,11 +298,35 @@ export default function PostDetails({
     upgradeAction,
     closeUpgradeModal,
     canEditThisPost,
-  } = usePostEdit(post);
+  } = usePostEdit(post, softPost?.user.id);
 
-  // Edit-button visibility: any user whose effective Hive identity matches
-  // the post's author, whether they're on Keychain or using a stored key.
+  // Edit/delete visibility: the viewer owns the post through Keychain, a
+  // stored key, or as the lite author behind a shared-account post.
   const isAuthor = canEditThisPost;
+
+  // Post cards link here with ?edit=1. Ownership resolves async (linked
+  // identities, soft-post overlay), so wait for it and open the editor once.
+  const openedEditFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (openedEditFromUrlRef.current || !isAuthor) return;
+    if (new URLSearchParams(window.location.search).get("edit") !== "1") return;
+    openedEditFromUrlRef.current = true;
+    handleEditClick();
+    // Drop the flag so a refresh doesn't reopen the editor.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("edit");
+    window.history.replaceState(window.history.state, "", url.toString());
+  }, [isAuthor, handleEditClick]);
+
+  const router = useRouter();
+  const deletion = usePostDelete(post, {
+    softPostUserId: softPost?.user.id,
+    onDeleted: () =>
+      router.push(`/user/${softPost?.user.handle || post.author}?view=magazine`),
+    // The undo toast outlives this page, so bring the author back to it.
+    onRestored: () => router.push(`/post/${post.author}/${post.permlink}`),
+  });
+
 
   const {
     hivePower,
@@ -723,6 +750,21 @@ export default function PostDetails({
                   p={1}
                 />
               )}
+              {isAuthor && (
+                <IconButton
+                  aria-label="Delete post"
+                  icon={<FaTrash />}
+                  size="sm"
+                  variant="ghost"
+                  color="primary"
+                  onClick={deletion.requestDelete}
+                  _hover={{ bg: "transparent", color: "error" }}
+                  fontSize="13px"
+                  minW="auto"
+                  h="auto"
+                  p={1}
+                />
+              )}
               <IconButton
                 aria-label={voted ? "Unvote" : "Vote"}
                 icon={voted ? <FaHeart /> : <FaRegHeart />}
@@ -953,6 +995,8 @@ export default function PostDetails({
           limit={4}
         />
       </Container>
+
+      {isAuthor && <DeletePostDialog deletion={deletion} />}
 
       {/* Hive Upgrade Prompt Modal for lite users */}
       <HiveUpgradePromptModal
