@@ -30,6 +30,7 @@ import useHiveVote from "@/hooks/useHiveVote";
 import useVoteWeight from "@/hooks/useVoteWeight";
 import useSoftVoteOverlay from "@/hooks/useSoftVoteOverlay";
 import BountyRewarder from "./BountyRewarder";
+import { isActiveBountyClaim } from "@/lib/hive/bountyClaims";
 
 interface BountyDetailProps {
   post: Discussion;
@@ -67,7 +68,7 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
   const [voted, setVoted] = useState(
     hasSoftVote ||
       post.active_votes?.some(
-        (item) => item.voter.toLowerCase() === effectiveUser?.toLowerCase()
+        (item) => isActiveBountyClaim(item, post.author) && item.voter.toLowerCase() === effectiveUser?.toLowerCase()
       )
   );
 
@@ -80,7 +81,7 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
     setVoted(
       hasSoftVote ||
         post.active_votes?.some(
-          (item) => item.voter.toLowerCase() === effectiveUser?.toLowerCase()
+          (item) => isActiveBountyClaim(item, post.author) && item.voter.toLowerCase() === effectiveUser?.toLowerCase()
         ) ||
         false
     );
@@ -89,8 +90,8 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const hasClaimed = useMemo(
-    () => activeVotes.some((v) => v.voter?.toLowerCase() === effectiveUser?.toLowerCase()),
-    [activeVotes, effectiveUser]
+    () => activeVotes.some((v) => isActiveBountyClaim(v, post.author) && v.voter?.toLowerCase() === effectiveUser?.toLowerCase()),
+    [activeVotes, effectiveUser, post.author]
   );
 
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -171,7 +172,7 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
       if (result.success) {
         if (effectiveUser) {
           setActiveVotes((prev) => [
-            ...prev,
+            ...prev.filter((v) => v.voter?.toLowerCase() !== effectiveUser.toLowerCase()),
             { voter: effectiveUser, percent: 10000 },
           ]);
         }
@@ -189,7 +190,7 @@ const BountyDetail: React.FC<BountyDetailProps> = ({ post }) => {
     if (!activeVotes) return [];
     const seen = new Set();
     const filtered = activeVotes
-      .filter((v) => v.voter && v.voter !== post.author)
+      .filter((v) => isActiveBountyClaim(v, post.author))
       .filter((v) => {
         if (seen.has(v.voter)) return false;
         seen.add(v.voter);

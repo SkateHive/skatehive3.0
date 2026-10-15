@@ -17,6 +17,11 @@ interface FollowButtonProps {
   useStoredPostingKey?: boolean;
   /** Called after a follow/unfollow is confirmed with the follower-count delta (+1 or -1) */
   onFollowConfirmed?: (delta: number) => void;
+  /** Localised button text. Defaults to English, as every existing caller expects. */
+  followLabel?: string;
+  unfollowLabel?: string;
+  /** Chakra button size — the skaters grid needs a denser button than a profile header. */
+  size?: string;
 }
 
 export default function FollowButton({
@@ -29,6 +34,9 @@ export default function FollowButton({
   isLiteUser = false,
   useStoredPostingKey = false,
   onFollowConfirmed,
+  followLabel = "Follow",
+  unfollowLabel = "Unfollow",
+  size = "sm",
 }: FollowButtonProps) {
   const toast = useToast();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -141,11 +149,11 @@ export default function FollowButton({
         fontSize="xs"
         px={3}
         py={1}
-        size="sm"
+        size={size}
         variant="solid"
         letterSpacing="wide"
       >
-        {isFollowing ? "Unfollow" : "Follow"}
+        {isFollowing ? unfollowLabel : followLabel}
       </Button>
       <HiveUpgradePromptModal
         isOpen={showUpgradeModal}

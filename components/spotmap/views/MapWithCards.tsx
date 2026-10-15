@@ -376,10 +376,22 @@ export default function MapWithCards({ useGeolocation = false }: MapWithCardsPro
           mapRef.current = m;
         }}
       >
+        {/* CARTO's free dark_all raster tiles now require a signed-up API key
+            (changed late Aug 2026 — every tile came back watermarked "API KEY
+            REQUIRED") and that raster service is being retired regardless, so
+            an account there would only be a stopgap. Esri's Dark Gray Canvas
+            is free, no key, no signup — base (imagery) + reference (labels/
+            borders, transparent PNG) stacked to match what dark_all gave us
+            as one tile. */}
         <TileLayer
           // @ts-ignore
-          attribution='&copy; OpenStreetMap, CARTO'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; Esri, HERE, Garmin, OpenStreetMap contributors'
+          url="https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+          noWrap
+        />
+        <TileLayer
+          // @ts-ignore
+          url="https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
           noWrap
         />
         <MapBoundsTracker onBoundsChange={setBounds} />

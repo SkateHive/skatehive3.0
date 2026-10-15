@@ -5,7 +5,7 @@ const getInstagramServers = () => {
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   return [
-    'https://minivlad.tail83ea3e.ts.net',        // Mac Mini M4 (primary)
+    'https://transcode.skatehive.app/macmini',        // Mac Mini M4 (primary)
     'https://vladsberry.tail83ea3e.ts.net'      // Raspberry Pi (secondary)
   ];
 };

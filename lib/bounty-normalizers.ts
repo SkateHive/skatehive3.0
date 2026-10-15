@@ -4,6 +4,7 @@ import type { UnifiedBounty } from '@/types/unified-bounty';
 import { extractFirstImage } from '@/lib/poidh-utils';
 import { CHAIN_LABEL_SHORT } from '@/lib/poidh-constants';
 import { formatEther } from 'viem';
+import { isActiveBountyClaim } from '@/lib/hive/bountyClaims';
 
 // ── Hive bounty regex helpers ────────────────────────────────
 
@@ -72,7 +73,9 @@ export function normalizeHiveBounty(
     createdAt,
     deadline,
     submissionCount,
-    claimCount: discussion.active_votes?.length ?? 0,
+    claimCount: new Set(discussion.active_votes?.filter((vote) =>
+      isActiveBountyClaim(vote, discussion.author)
+    ).map((vote) => vote.voter.toLowerCase())).size,
     authorDisplay: `@${discussion.author}`,
     authorAvatar: `https://images.hive.blog/u/${discussion.author}/avatar/sm`,
     winnerDisplay: winnerUsername ? `@${winnerUsername}` : null,

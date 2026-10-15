@@ -79,10 +79,18 @@ export function useUserBalances() {
 
       // Convert to balance format
       tokenMap.forEach(tokenDetail => {
-        // Only include tokens that are in our token dictionary (supported for airdrops)
-        if (tokenDictionary[tokenDetail.token.symbol]) {
+        // Only include tokens that are in our token dictionary (supported for airdrops).
+        // Match on contract address too: some tokens report a symbol that differs
+        // from the dictionary key in case (BOAR is "boar" on-chain).
+        const address = tokenDetail.token.address?.toLowerCase();
+        const dictionaryKey = tokenDictionary[tokenDetail.token.symbol]
+          ? tokenDetail.token.symbol
+          : Object.keys(tokenDictionary).find(
+              (key) => tokenDictionary[key].address.toLowerCase() === address
+            );
+        if (dictionaryKey) {
           balances.push({
-            symbol: tokenDetail.token.symbol,
+            symbol: dictionaryKey,
             balance: tokenDetail.token.balance.toFixed(6),
             network: tokenDetail.network,
             usdValue: tokenDetail.token.balanceUSD,
