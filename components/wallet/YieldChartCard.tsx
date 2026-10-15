@@ -120,6 +120,14 @@ export default function YieldChartCard({ title, subtitle, currency, rate, rateLa
   }, [points, projection]);
 
   const lastReal = rows.filter((r) => r.value != null).pop();
+  // Enough decimals that adjacent ticks differ (0.103 → 0.113 needs 3+).
+  const tickDigits = useMemo(() => {
+    const vals = rows.flatMap((r) => [r.value, r.projected, r.invested].filter((v): v is number => v != null));
+    if (!vals.length) return 2;
+    const span = Math.max(...vals) - Math.min(...vals);
+    if (span <= 0) return 2;
+    return Math.min(6, Math.max(0, Math.ceil(-Math.log10(span / 4)) + 1));
+  }, [rows]);
   const projectedEnd = projection[projection.length - 1];
 
   const decimals = summary && summary.value < 10 ? 4 : 2;
@@ -225,7 +233,7 @@ export default function YieldChartCard({ title, subtitle, currency, rate, rateLa
               ].map((s, i) => (
                 <Box key={s.label} flex={1} p={2} borderLeft={i ? "1px solid" : "none"} borderColor="border" minW={0}>
                   <Text fontFamily="mono" fontSize="10px" color="dim" noOfLines={1}>{s.label}</Text>
-                  <Text fontFamily="mono" fontSize="sm" fontWeight="bold" color="text" noOfLines={1}>{s.value}</Text>
+                  <Text fontFamily="mono" fontSize={{ base: "xs", md: "sm" }} fontWeight="bold" color="text" wordBreak="break-word">{s.value}</Text>
                 </Box>
               ))}
             </HStack>
@@ -272,7 +280,7 @@ export default function YieldChartCard({ title, subtitle, currency, rate, rateLa
                       axisLine={false}
                       tickLine={false}
                       domain={["auto", "auto"]}
-                      tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toLocaleString(locale, { maximumFractionDigits: v < 10 ? 2 : 0 }))}
+                      tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toLocaleString(locale, { maximumFractionDigits: tickDigits }))}
                     />
                     <Tooltip
                       content={<TooltipBody money={money} date={longDate} primary={primary} dim={dim} projectedLabel={t("wallet.yield.legendProjected")} investedLabel={t("wallet.yield.legendInvested")} />}
@@ -319,14 +327,14 @@ export default function YieldChartCard({ title, subtitle, currency, rate, rateLa
       {/* Controls — excluded from the exported image */}
       {summary && !error && (
         <HStack spacing={0} borderTop="1px solid" borderColor="border" data-noexport="true">
-          <Button flex={1} size="sm" variant="ghost" borderRadius="none" fontFamily="mono" leftIcon={<FaShareAlt />} isLoading={sharing} onClick={share}>
+          <Button flex={1} size="sm" h="auto" minH={8} py={2} whiteSpace="normal" fontSize={{ base: "xs", md: "sm" }} variant="ghost" borderRadius="none" fontFamily="mono" leftIcon={<FaShareAlt />} isLoading={sharing} onClick={share}>
             {t("wallet.yield.share")}
           </Button>
-          <Button flex={1} size="sm" variant="ghost" borderRadius="none" fontFamily="mono" borderLeft="1px solid" borderColor="border"
+          <Button flex={1} size="sm" h="auto" minH={8} py={2} whiteSpace="normal" fontSize={{ base: "xs", md: "sm" }} variant="ghost" borderRadius="none" fontFamily="mono" borderLeft="1px solid" borderColor="border"
             leftIcon={hideAmounts ? <FaEye /> : <FaEyeSlash />} onClick={() => setHideAmounts((v) => !v)}>
             {hideAmounts ? t("wallet.yield.showAmounts") : t("wallet.yield.hideAmounts")}
           </Button>
-          <Button flex={1} size="sm" variant="ghost" borderRadius="none" fontFamily="mono" borderLeft="1px solid" borderColor="border"
+          <Button flex={1} size="sm" h="auto" minH={8} py={2} whiteSpace="normal" fontSize={{ base: "xs", md: "sm" }} variant="ghost" borderRadius="none" fontFamily="mono" borderLeft="1px solid" borderColor="border"
             leftIcon={showTable ? <FaChartArea /> : <FaTable />} onClick={() => setShowTable((v) => !v)}>
             {showTable ? t("wallet.yield.chart") : t("wallet.yield.table")}
           </Button>

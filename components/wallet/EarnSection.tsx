@@ -117,8 +117,8 @@ function ActivityList({ items }: { items: VaultActivity[] }) {
             <Link href={BASESCAN_TX(a.txHash)} isExternal color="primary">
               {a.type === "Deposit" ? t("wallet.earn.deposit") : t("wallet.earn.withdraw")}
             </Link>
-            <Text color="dim">{new Date(a.timestamp * 1000).toLocaleDateString()}</Text>
-            <Text color="text">{a.type === "Deposit" ? "+" : "−"}{fmtNum(a.assets, USDC_DECIMALS, 2)} USDC</Text>
+            <Text color="dim" fontSize="xs">{new Date(a.timestamp * 1000).toLocaleDateString()}</Text>
+            <Text color="text" fontSize="xs">{a.type === "Deposit" ? "+" : "−"}{fmtNum(a.assets, USDC_DECIMALS, 2)} USDC</Text>
           </HStack>
         ))}
       </VStack>
