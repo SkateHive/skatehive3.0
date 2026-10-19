@@ -260,7 +260,9 @@ function InnerLayout({
           }}
         >
           {children}
-          {!isMobile && !hasInfiniteScroll && <FooterLinks />}
+          {/* isMobile is undefined until the breakpoint resolves; wait for an
+              explicit desktop result so the footer never flashes on mobile. */}
+          {isMobile === false && !hasInfiniteScroll && <FooterLinks />}
         </Box>
       </Flex>
       {isMobile && <MobileTabBar />}

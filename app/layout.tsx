@@ -34,7 +34,7 @@ const jsonLdOrganization = {
   description:
     "The infinity skateboard magazine. Post skate videos, find spots on the map, earn crypto rewards, and connect with skaters worldwide.",
   sameAs: [
-    "https://twitter.com/skatehive",
+    "https://x.com/Skate_Hive",
     "https://warpcast.com/skatehive",
     "https://github.com/skatehive",
   ],
