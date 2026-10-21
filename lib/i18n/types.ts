@@ -92,6 +92,23 @@ export interface TranslationSchema {
     videos: string;
     create: string;
   };
+  footer: {
+    tagline: string;
+    explore: string;
+    community: string;
+    skateshops: string;
+    blog: string;
+    auction: string;
+    swap: string;
+    invite: string;
+    dao: string;
+    witness: string;
+    support: string;
+    privacy: string;
+    contribute: string;
+    builtWith: string;
+    followUs: string;
+  };
   common: {
     loading: string;
     error: string;

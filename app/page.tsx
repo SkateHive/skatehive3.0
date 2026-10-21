@@ -86,7 +86,7 @@ const orgJsonLd = {
   url: BASE_URL,
   logo: `${BASE_URL}/SKATE_HIVE_VECTOR_FIN.svg`,
   sameAs: [
-    "https://twitter.com/skatehive",
+    "https://x.com/Skate_Hive",
     "https://github.com/sktbrd/skatehive",
   ],
 };
