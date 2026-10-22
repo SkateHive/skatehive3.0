@@ -76,6 +76,16 @@ interface GeneratedAccount {
 }
 
 /**
+ * An account already broadcast, with the Hive account that signed and paid for
+ * it. The creator is fixed at broadcast time: read later, the logged-in user
+ * may have switched accounts or logged out, and the backup file would name the
+ * wrong inviter.
+ */
+interface RescuedAccount extends GeneratedAccount {
+  creator: string;
+}
+
+/**
  * Reads the inviter's liquid HIVE straight from the chain. Returns null when
  * the lookup fails — an unreachable node must never block an invite that would
  * otherwise have gone through.
@@ -204,7 +214,7 @@ export default function InvitePageClient() {
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [rescue, setRescue] = useState<GeneratedAccount | null>(null);
+  const [rescue, setRescue] = useState<RescuedAccount | null>(null);
   const [rescueEmailed, setRescueEmailed] = useState(false);
   const [rescueDownloaded, setRescueDownloaded] = useState(false);
   const [resending, setResending] = useState(false);
@@ -343,17 +353,17 @@ export default function InvitePageClient() {
   };
 
   // Each rescued account starts unsaved, even if an earlier one was emailed.
-  const showRescue = (account: GeneratedAccount | null) => {
+  const showRescue = (account: RescuedAccount | null) => {
     setRescue(account);
     setRescueEmailed(false);
     setRescueDownloaded(false);
   };
 
-  const downloadKeysBackup = (account: GeneratedAccount) => {
+  const downloadKeysBackup = (account: RescuedAccount) => {
     // Same file the invite email attaches, so a rescued account and an emailed
     // one hand the friend the exact same document.
     const backup = buildInviteKeysBackup({
-      createdby: user || "skatehive",
+      createdby: account.creator,
       desiredUsername: account.username,
       masterPassword: account.masterPassword,
       keys: account.keys,
@@ -509,6 +519,9 @@ export default function InvitePageClient() {
     if (rescue) showRescue(null);
 
     setLoading(true);
+    // The creator is captured once and used both to sign and in the backup,
+    // so the file always names the account that actually paid.
+    const signed: RescuedAccount = { ...generated, creator: String(user) };
     // Set the moment Keychain reports the broadcast. From then on the keys
     // must reach the friend or the screen.
     let landed = false;
@@ -517,18 +530,18 @@ export default function InvitePageClient() {
       // hook may serve up to a day stale. Catching it here means a plain error
       // on the page instead of a Keychain prompt that dies on broadcast.
       if (!useAccountToken) {
-        const balance = await fetchLiquidHive(String(user));
+        const balance = await fetchLiquidHive(signed.creator);
         if (balance !== null && balance < HIVE_ACCOUNT_FEE) {
           setErrorMessage(feeShortfallMessage(balance));
           return;
         }
       }
 
-      const { username, keys } = generated;
+      const { username, keys } = signed;
       // Use Hive Keychain to broadcast account creation
       const keychain = new KeychainSDK(window);
       const authorities = {
-        creator: String(user),
+        creator: signed.creator,
         new_account_name: username,
         owner: dhive.Authority.from(keys.ownerPubkey),
         active: dhive.Authority.from(keys.activePubkey),
@@ -543,7 +556,7 @@ export default function InvitePageClient() {
 
       const formParamsAsObject = {
         type: KeychainRequestTypes.broadcast,
-        username: user || "",
+        username: signed.creator,
         operations: [createAccountOperation],
         method: KeychainKeyTypes.active,
       };
@@ -555,7 +568,7 @@ export default function InvitePageClient() {
       landed = true;
 
       setSuccessMessage(t('invite.accountCreatedSendingEmail'));
-      const sent = await sendHiveInviteEmail(generated);
+      const sent = await sendHiveInviteEmail(signed);
       if (sent.ok) {
         setSuccessMessage(t('invite.inviteSentSuccess'));
         return;
@@ -564,7 +577,7 @@ export default function InvitePageClient() {
       // The fee is spent and the account is real, but nobody holds the keys
       // except this page. Surface them before they are gone.
       setSuccessMessage("");
-      showRescue(generated);
+      showRescue(signed);
       setErrorMessage(sent.message);
     } catch (error: any) {
       setSuccessMessage("");
@@ -575,9 +588,9 @@ export default function InvitePageClient() {
       // treated the same: a spare backup costs nothing, a lost one costs the
       // account.
       const mayExist =
-        landed || (await hiveAccountExists(generated.username)) !== false;
+        landed || (await hiveAccountExists(signed.username)) !== false;
       if (mayExist) {
-        showRescue(generated);
+        showRescue(signed);
         setErrorMessage(t('invite.inviteConnectionLost'));
       } else {
         setErrorMessage(error?.message || t('invite.unknownError'));
