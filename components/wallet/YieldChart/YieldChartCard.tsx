@@ -121,13 +121,26 @@ export default function YieldChartCard({ title, subtitle, currency, rate, rateLa
 
   const lastReal = rows.filter((r) => r.value != null).pop();
   // Enough decimals that adjacent ticks differ (0.103 → 0.113 needs 3+).
-  const tickDigits = useMemo(() => {
+  // Unclamped, so it can be negative for wide ranges (span 400 → −1).
+  const spanDigits = useMemo(() => {
     const vals = rows.flatMap((r) => [r.value, r.projected, r.invested].filter((v): v is number => v != null));
     if (!vals.length) return 2;
     const span = Math.max(...vals) - Math.min(...vals);
     if (span <= 0) return 2;
-    return Math.min(6, Math.max(0, Math.ceil(-Math.log10(span / 4)) + 1));
+    return Math.ceil(-Math.log10(span / 4)) + 1;
   }, [rows]);
+  const tickDigits = Math.min(6, Math.max(0, spanDigits));
+  // Compact (1.2K, 1,2 mil) only while adjacent ticks stay distinct: 1,000.00 →
+  // 1,000.02 would all read "1K", so a narrow range keeps the full number.
+  const yTick = useMemo(() => {
+    const full = new Intl.NumberFormat(locale, { maximumFractionDigits: tickDigits });
+    return (v: number) => {
+      const magnitude = Math.abs(v) >= 1e6 ? 6 : Math.abs(v) >= 1e3 ? 3 : 0;
+      const compactDigits = Math.max(0, spanDigits + magnitude);
+      if (magnitude === 0 || compactDigits > 2) return full.format(v);
+      return new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: compactDigits }).format(v);
+    };
+  }, [locale, spanDigits, tickDigits]);
   const projectedEnd = projection[projection.length - 1];
 
   const decimals = summary && summary.value < 10 ? 4 : 2;
@@ -275,12 +288,12 @@ export default function YieldChartCard({ title, subtitle, currency, rate, rateLa
                     />
                     <YAxis
                       hide={hideAmounts}
-                      width={40}
+                      width="auto"
                       tick={{ fill: dim, fontSize: 10 }}
                       axisLine={false}
                       tickLine={false}
                       domain={["auto", "auto"]}
-                      tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toLocaleString(locale, { maximumFractionDigits: tickDigits }))}
+                      tickFormatter={yTick}
                     />
                     <Tooltip
                       content={<TooltipBody money={money} date={longDate} primary={primary} dim={dim} projectedLabel={t("wallet.yield.legendProjected")} investedLabel={t("wallet.yield.legendInvested")} />}

@@ -36,7 +36,7 @@ import SkateBankSection from "./SkateBankSection";
 import SavingsJarsSection from "./SavingsJarsSection";
 import NFTSection from "./NFTSection";
 import EarnSection from "./EarnSection";
-import SavingsYieldChart from "./SavingsYieldChart";
+import { SavingsYieldChart } from "./YieldChart";
 import { useHbdSavingsRate } from "@/hooks/wallet/useHbdSavingsRate";
 import { estimateSavingsInterest, type SavingsAccountFields } from "@/lib/hive/savingsInterest";
 
@@ -326,17 +326,17 @@ export default function MainWallet({ username }: MainWalletProps) {
                 >
                   {(
                     [
-                      { label: "Wallet Overview", show: true },
-                      { label: "Art", show: isConnected },
-                      { label: "Earn", show: isConnected },
-                      { label: "SkateBank", show: !!user },
-                      { label: "PIX", show: !!user },
-                    ] as { label: string; show: boolean }[]
+                      { key: "overview", show: true },
+                      { key: "art", show: isConnected },
+                      { key: "earn", show: isConnected },
+                      { key: "skatebank", show: !!user },
+                      { key: "pix", show: !!user },
+                    ] as const
                   )
-                    .filter((t) => t.show)
-                    .map((t, i, arr) => (
+                    .filter((tab) => tab.show)
+                    .map((tab, i, arr) => (
                       <Tab
-                        key={t.label}
+                        key={tab.key}
                         flex={1}
                         borderRadius="none"
                         borderRight={i < arr.length - 1 ? "1px solid" : "none"}
@@ -352,7 +352,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                         }}
                         _hover={{ opacity: 0.8 }}
                       >
-                        {t.label}
+                        {t(`wallet.tabs.${tab.key}`)}
                       </Tab>
                     ))}
                 </TabList>

@@ -22,7 +22,7 @@ import {
   fetchLidoApr, fetchMorphoSharePrices, fetchMorphoVaultActivity, fetchMorphoVaultApy, type VaultActivity,
 } from "@/lib/evm/earn";
 import { buildVaultSeries } from "@/lib/wallet/yieldSeries";
-import YieldChartCard, { shortAddress } from "./YieldChartCard";
+import { YieldChartCard, shortAddress } from "./YieldChart";
 
 const MAINNET_ID = 1;
 /** Fallback ETH kept back on "max" when the fee can't be estimated. */
