@@ -406,8 +406,10 @@ export default function InvitePageClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: desiredEmail.trim() }),
       });
-      const data = await res.json();
-      if (!res.ok) {
+      // A gateway error (Vercel's 502/504) answers in HTML, and parsing that
+      // would put "Unexpected token <" on screen instead of a real message.
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) {
         setErrorMessage(data?.error || t('invite.liteInviteFailed'));
         return;
       }
@@ -419,8 +421,11 @@ export default function InvitePageClient() {
         t(data?.resent ? 'invite.liteInviteResent' : 'invite.liteInviteSent')
           .replace('{handle}', `@${data?.handle ?? ""}`)
       );
-    } catch (error: any) {
-      setErrorMessage(error?.message || t('invite.unknownError'));
+    } catch {
+      // Only the network gets here ("Failed to fetch"), which means nothing to
+      // the sender. A failed lite invite leaves nothing behind, so retrying is
+      // always safe.
+      setErrorMessage(t('invite.liteInviteFailed'));
     } finally {
       setLoading(false);
     }

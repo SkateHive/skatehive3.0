@@ -82,7 +82,10 @@ export async function POST(req: NextRequest) {
         }
         // The password is printed into the email, so only the shape the invite
         // page generates gets through — never text someone chose to put there.
-        if (validateAccountName(String(desiredUsername ?? '')) !== null
+        // No String() coercion: ["abc"] would read as "abc", pass validation,
+        // and then reach the chain lookup as an array.
+        if (typeof desiredUsername !== 'string'
+            || validateAccountName(desiredUsername) !== null
             || !isGeneratedInvitePassword(masterPassword)) {
             return NextResponse.json({ success: false, error: 'Invalid account details.' }, { status: 400 });
         }
