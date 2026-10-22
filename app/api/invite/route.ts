@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import serverMailer from '@/lib/invite/route';
 import { resolveSessionUserId } from '@/lib/userbase/session';
-import { validateAccountName } from '@/lib/invite/helpers';
+import { isGeneratedInvitePassword, validateAccountName } from '@/lib/invite/helpers';
 import { verifyInviteClaim } from '@/lib/invite/verifyNewAccount';
 import { createRateLimiter, getClientIP } from '@/lib/utils/rate-limiter';
 
@@ -80,8 +80,10 @@ export async function POST(req: NextRequest) {
         if (!isEmail(to)) {
             return NextResponse.json({ success: false, error: 'A valid email address is required.' }, { status: 400 });
         }
+        // The password is printed into the email, so only the shape the invite
+        // page generates gets through — never text someone chose to put there.
         if (validateAccountName(String(desiredUsername ?? '')) !== null
-            || typeof masterPassword !== 'string' || !masterPassword) {
+            || !isGeneratedInvitePassword(masterPassword)) {
             return NextResponse.json({ success: false, error: 'Invalid account details.' }, { status: 400 });
         }
 
