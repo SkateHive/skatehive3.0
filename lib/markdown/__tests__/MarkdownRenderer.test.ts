@@ -1,4 +1,8 @@
-import { processMediaContent } from "../MarkdownRenderer";
+import {
+  mentionIsInsideMarkup,
+  processMediaContent,
+  promoteSafeAnchors,
+} from "../MarkdownRenderer";
 
 const tests: Array<() => void | Promise<void>> = [];
 let hasFailures = false;
@@ -86,6 +90,49 @@ describe("processMediaContent YouTube autoembed", () => {
 
     assertIncludes(result, "[[YOUTUBE:s:dQw4w9WgXcQ]]");
     assertNotIncludes(result, "[short]");
+  });
+});
+
+describe("curated-by HTML anchors", () => {
+  it("turns a safe profile anchor into a markdown link", () => {
+    const input =
+      '<center><b>Curated by <a href="/@brumest">brumest</a></b></center>';
+    const result = promoteSafeAnchors(input);
+
+    assertIncludes(result, "[brumest](/@brumest)");
+    assertNotIncludes(result, "<a");
+    assertNotIncludes(result, "href=");
+  });
+
+  it("strips javascript anchors down to their text", () => {
+    const result = promoteSafeAnchors('<a href="javascript:alert(1)">click</a>');
+
+    assertIncludes(result, "click");
+    assertNotIncludes(result, "javascript:");
+    assertNotIncludes(result, "<a");
+  });
+
+  it("does not rewrite @mentions that are already inside a link target", () => {
+    const href = 'Curated by <a href="/@brumest">brumest</a>';
+    const at = href.indexOf("@brumest");
+    if (!mentionIsInsideMarkup(href, at)) {
+      throw new Error("expected the href mention to be left alone");
+    }
+
+    const plain = "thanks @brumest";
+    const plainAt = plain.indexOf("@brumest");
+    if (mentionIsInsideMarkup(plain, plainAt)) {
+      throw new Error("expected a plain mention to stay rewritable");
+    }
+  });
+
+  it("keeps the curated-by anchor out of processMediaContent as a raw tag", () => {
+    const result = processMediaContent(
+      '<b>Curated by <a href="/@brumest">brumest</a></b>'
+    );
+
+    assertIncludes(result, "[brumest](/@brumest)");
+    assertNotIncludes(result, "<a href");
   });
 });
 
