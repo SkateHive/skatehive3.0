@@ -91,7 +91,9 @@ export const usePostEdit = (discussion: Discussion) => {
 
             // Some feeds hand us metadata already parsed; JSON.parse on that
             // threw and the save went out with {}, wiping tags and images.
-            const parsedMetadata: any = parseJsonMetadata(discussion.json_metadata) || {};
+            // Copied so a failed save doesn't leave the new thumbnail on the
+            // local post (parseJsonMetadata returns objects as-is).
+            const parsedMetadata: any = { ...parseJsonMetadata(discussion.json_metadata) };
 
             // Update thumbnail if selected
             if (selectedThumbnail) {

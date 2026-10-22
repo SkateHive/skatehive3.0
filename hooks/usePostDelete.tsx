@@ -172,7 +172,7 @@ export const usePostDelete = (
             <Text fontSize="sm">
               {deletedOnChain
                 ? "Removed from the Hive blockchain."
-                : "Hive keeps posts with votes or replies, so it was cleared and hidden from Skatehive."}
+                : "The post was cleared and hidden from Skatehive. Hive keeps its edit history."}
             </Text>
             <Button
               size="xs"
