@@ -6,6 +6,7 @@ import { SlPencil } from "react-icons/sl";
 interface PostOwnerMenuItemsProps {
   author: string;
   permlink: string;
+  canEdit: boolean;
   onDelete: () => void;
   isDeleting: boolean;
 }
@@ -15,20 +16,23 @@ interface PostOwnerMenuItemsProps {
 export default function PostOwnerMenuItems({
   author,
   permlink,
+  canEdit,
   onDelete,
   isDeleting,
 }: PostOwnerMenuItemsProps) {
   return (
     <>
-      <MenuItem
-        as={NextLink}
-        href={`/post/${author}/${permlink}?edit=1`}
-        bg="background"
-        color="primary"
-      >
-        <SlPencil style={{ marginRight: "8px" }} />
-        Edit
-      </MenuItem>
+      {canEdit && (
+        <MenuItem
+          as={NextLink}
+          href={`/post/${author}/${permlink}?edit=1`}
+          bg="background"
+          color="primary"
+        >
+          <SlPencil style={{ marginRight: "8px" }} />
+          Edit
+        </MenuItem>
+      )}
       <MenuItem
         onClick={onDelete}
         bg="background"

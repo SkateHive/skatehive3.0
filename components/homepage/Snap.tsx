@@ -168,7 +168,7 @@ const Snap = React.memo(function Snap({
     handleCancelEdit,
     handleSaveEdit,
     canEditThisPost,
-  } = usePostEdit(discussion, softPost?.user.id);
+  } = usePostEdit(discussion);
 
   const [isDeleted, setIsDeleted] = useState(false);
   const deletion = usePostDelete(discussion, {

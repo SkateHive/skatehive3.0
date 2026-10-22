@@ -1,23 +1,16 @@
 import { useState, useCallback } from "react";
 import { useToast } from "@chakra-ui/react";
 import { Discussion } from "@hiveio/dhive";
-import { usePostSigner } from "@/hooks/usePostSigner";
+import useHivePostUpdate from "@/hooks/useHivePostUpdate";
 import { parseJsonMetadata } from "@/lib/hive/metadata-utils";
 
 export type UpgradeAction = "follow" | "edit" | "delete" | "wallet" | "general";
 
-export const usePostEdit = (
-    discussion: Discussion,
-    softPostUserId?: string | null
-) => {
+export const usePostEdit = (discussion: Discussion) => {
     const toast = useToast();
 
-    // Keychain, the stored posting key, or (for lite accounts) the shared
-    // account — usePostSigner works out which one owns this post.
-    const { canManage: canEditThisPost, broadcastComment } = usePostSigner(
-        discussion,
-        softPostUserId
-    );
+    // Keychain user or the userbase-linked Hive handle — author must match.
+    const { canUpdate: canEditThisPost, updatePost } = useHivePostUpdate(discussion);
 
     const [isEditing, setIsEditing] = useState(false);
     const [editedContent, setEditedContent] = useState(discussion.body);
@@ -113,11 +106,7 @@ export const usePostEdit = (
                 }
             }
 
-            await broadcastComment({
-                parent_author: discussion.parent_author || "",
-                parent_permlink: discussion.parent_permlink || discussion.category || "",
-                author: discussion.author,
-                permlink: discussion.permlink,
+            await updatePost({
                 title: discussion.title || "",
                 body: editedContent,
                 json_metadata: JSON.stringify(parsedMetadata),
@@ -147,7 +136,7 @@ export const usePostEdit = (
         } finally {
             setIsSaving(false);
         }
-    }, [canEditThisPost, broadcastComment, editedContent, discussion, toast, selectedThumbnail]);
+    }, [canEditThisPost, updatePost, editedContent, discussion, toast, selectedThumbnail]);
 
     return {
         isEditing,
@@ -163,8 +152,8 @@ export const usePostEdit = (
         showUpgradeModal,
         upgradeAction,
         closeUpgradeModal,
-        // True when the viewer owns this post (directly or as the lite
-        // author behind a shared-account post). Gates the "Edit" item.
+        // True when the active identity matches the post's author. Gates
+        // the "Edit" item.
         canEditThisPost,
     };
 };

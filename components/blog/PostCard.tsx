@@ -106,6 +106,7 @@ export default function PostCard({
     <PostOwnerMenuItems
       author={post.author}
       permlink={post.permlink}
+      canEdit={!deletion.requiresHiveAccount}
       onDelete={deletion.requestDelete}
       isDeleting={deletion.isDeleting}
     />

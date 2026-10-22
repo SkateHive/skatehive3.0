@@ -1,7 +1,10 @@
 import { useCallback, useState } from "react";
 import { Button, HStack, Text, useToast } from "@chakra-ui/react";
-import { Discussion } from "@hiveio/dhive";
-import { usePostSigner, PostSignerCancelled } from "@/hooks/usePostSigner";
+import { useAioha } from "@aioha/react-ui";
+import { KeyTypes } from "@aioha/aioha";
+import { Discussion, Operation } from "@hiveio/dhive";
+import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
+import useHivePostUpdate, { KeychainCancelledError } from "@/hooks/useHivePostUpdate";
 import { canDeleteOnChain } from "@/lib/hive/postDeletion";
 import { parseJsonMetadata } from "@/lib/hive/metadata-utils";
 
@@ -32,15 +35,19 @@ export const usePostDelete = (
   const [isDeleting, setIsDeleting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
-  const { mode, canManage, broadcastComment, deleteComment } = usePostSigner(
-    discussion,
-    softPostUserId
-  );
+  const { aioha } = useAioha();
+  const { user: userbaseUser } = useUserbaseAuth();
+  const { canUpdate, updatePost, isWalletConnected } = useHivePostUpdate(discussion);
 
   // Deleting is a Hive-account feature. Lite accounts (email, wallet,
   // Farcaster without a Hive identity) still see the action on their own
-  // posts, but get the upgrade prompt instead — a nudge to get a Hive account.
-  const requiresHiveAccount = mode === "lite";
+  // soft posts, but get the upgrade prompt instead — a nudge to get a Hive
+  // account. Nothing is signed for them.
+  const requiresHiveAccount =
+    !canUpdate &&
+    !!softPostUserId &&
+    !!userbaseUser?.id &&
+    softPostUserId === userbaseUser.id;
 
   const requestDelete = useCallback(() => {
     if (requiresHiveAccount) {
@@ -55,18 +62,21 @@ export const usePostDelete = (
 
   const publishBody = useCallback(
     (body: string, title: string, jsonMetadata: string) =>
-      broadcastComment({
-        parent_author: discussion.parent_author || "",
-        parent_permlink:
-          discussion.parent_permlink || discussion.category || "",
-        author: discussion.author,
-        permlink: discussion.permlink,
-        title,
-        body,
-        json_metadata: jsonMetadata,
-      }),
-    [broadcastComment, discussion]
+      updatePost({ title, body, json_metadata: jsonMetadata }),
+    [updatePost]
   );
+
+  // delete_comment only goes through Keychain; the userbase API has no
+  // delete route, so stored-key users always get the soft delete.
+  const deleteOnChain = useCallback(async () => {
+    const operation: Operation = [
+      "delete_comment",
+      { author: discussion.author, permlink: discussion.permlink },
+    ];
+    const result = await aioha.signAndBroadcastTx([operation], KeyTypes.Posting);
+    if (result?.errorCode === 4001) throw new KeychainCancelledError();
+    if (!result?.success) throw new Error(result?.error || "Delete failed");
+  }, [aioha, discussion.author, discussion.permlink]);
 
   const deletePost = useCallback(async () => {
     if (requiresHiveAccount) {
@@ -74,7 +84,7 @@ export const usePostDelete = (
       setIsUpgradeOpen(true);
       return;
     }
-    if (!canManage) {
+    if (!canUpdate) {
       toast({
         title: "Not allowed",
         description: "You can only delete your own posts.",
@@ -96,12 +106,12 @@ export const usePostDelete = (
     setIsDeleting(true);
     try {
       let deletedOnChain = false;
-      if (mode === "keychain" && canDeleteOnChain(discussion)) {
+      if (isWalletConnected && canDeleteOnChain(discussion)) {
         try {
-          await deleteComment();
+          await deleteOnChain();
           deletedOnChain = true;
         } catch (error) {
-          if (error instanceof PostSignerCancelled) throw error;
+          if (error instanceof KeychainCancelledError) throw error;
           // The feed data can be stale (a vote or reply landed since it was
           // fetched), so a refused delete still falls through to the soft one.
           console.warn("delete_comment refused, soft deleting instead:", error);
@@ -131,7 +141,7 @@ export const usePostDelete = (
           });
         } catch (error: any) {
           onDeleteSettled?.();
-          if (error instanceof PostSignerCancelled) {
+          if (error instanceof KeychainCancelledError) {
             toast({
               title: "Restore cancelled",
               description: "The post stays deleted.",
@@ -179,7 +189,7 @@ export const usePostDelete = (
         },
       });
     } catch (error: any) {
-      if (error instanceof PostSignerCancelled) {
+      if (error instanceof KeychainCancelledError) {
         toast({
           title: "Delete cancelled",
           status: "info",
@@ -199,12 +209,14 @@ export const usePostDelete = (
     } finally {
       setIsDeleting(false);
     }
-  }, [requiresHiveAccount, canManage, mode, discussion, deleteComment, publishBody, onDeleted, onRestored, onDeleteSettled, toast]);
+  }, [requiresHiveAccount, canUpdate, isWalletConnected, discussion, deleteOnChain, publishBody, onDeleted, onRestored, onDeleteSettled, toast]);
 
   return {
     isDeleting,
     // Owners see the action; lite owners get the upgrade prompt on click.
-    canDeleteThisPost: canManage,
+    canDeleteThisPost: canUpdate || requiresHiveAccount,
+    // Lite owners can't edit either, so cards hide Edit for them.
+    requiresHiveAccount,
     requestDelete,
     deletePost,
     isConfirmOpen,

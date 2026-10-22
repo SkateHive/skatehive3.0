@@ -298,7 +298,7 @@ export default function PostDetails({
     upgradeAction,
     closeUpgradeModal,
     canEditThisPost,
-  } = usePostEdit(post, softPost?.user.id);
+  } = usePostEdit(post);
 
   // Edit/delete visibility: the viewer owns the post through Keychain, a
   // stored key, or as the lite author behind a shared-account post.
@@ -750,7 +750,7 @@ export default function PostDetails({
                   p={1}
                 />
               )}
-              {isAuthor && (
+              {deletion.canDeleteThisPost && (
                 <IconButton
                   aria-label="Delete post"
                   icon={<FaTrash />}
@@ -996,7 +996,7 @@ export default function PostDetails({
         />
       </Container>
 
-      {isAuthor && <DeletePostDialog deletion={deletion} />}
+      {deletion.canDeleteThisPost && <DeletePostDialog deletion={deletion} />}
 
       {/* Hive Upgrade Prompt Modal for lite users */}
       <HiveUpgradePromptModal
