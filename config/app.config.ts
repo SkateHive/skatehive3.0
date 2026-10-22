@@ -131,7 +131,23 @@ export const APP_CONFIG = {
   
   /** Recovery account name */
   RECOVERY_ACCOUNT: 'skatehive',
-  
+
+  /**
+   * Skatehive on the App Store. Deliberately storefront-less: the app is
+   * published worldwide, and a /br/ style link would drop an overseas friend
+   * into the Brazilian store instead of their own.
+   */
+  APP_STORE_URL: 'https://apps.apple.com/app/id6751173076',
+
+  /**
+   * Where the desktop story flow sends people. Instagram publishes no web
+   * share endpoint — there is no sharer.php or intent/tweet equivalent, and no
+   * query parameter that can carry an image — so this is the bare site and the
+   * upload stays manual. Kept here so it is one edit if Instagram ever ships a
+   * real create URL.
+   */
+  INSTAGRAM_WEB_URL: 'https://www.instagram.com/',
+
   /** WalletConnect Project ID (from env or fallback) */
   get WALLETCONNECT_PROJECT_ID() {
     return process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 
@@ -178,6 +194,28 @@ export const APP_CONFIG = {
 // ============================================================================
 // EMAIL DEFAULTS
 // ============================================================================
+
+/**
+ * Caps on free lite invites. The Hive path needs none — 3 HIVE a head is its
+ * own rate limit — but a lite invite costs the sender nothing and makes us
+ * send mail to an address we have never heard from, so it gets real limits.
+ */
+export const INVITE_CONFIG = {
+  /** Lite invites one account may send per rolling day. */
+  DAILY_LIMIT_PER_INVITER: 10,
+
+  /** Window the per-inviter cap is measured over, in hours. */
+  WINDOW_HOURS: 24,
+
+  /**
+   * Best-effort burst cap per IP. In-memory, so it only sees one serverless
+   * instance — the per-inviter cap above is the one that actually holds.
+   */
+  BURST_LIMIT_PER_IP: 20,
+
+  /** Window for the per-IP burst cap, in minutes. */
+  BURST_WINDOW_MINUTES: 60,
+} as const;
 
 export const EMAIL_DEFAULTS = {
   /** Default SMTP host */

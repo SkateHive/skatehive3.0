@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-import nodemailer from "nodemailer";
-import { APP_CONFIG, EMAIL_DEFAULTS } from "@/config/app.config";
+import { APP_CONFIG } from "@/config/app.config";
 import { checkHiveAccountExists, validateHiveUsernameFormat } from "@/lib/utils/hiveAccountUtils";
 import { buildWelcomeEmail } from "@/lib/email/welcomeTemplate";
+import { createTransport, fromAddress } from "@/lib/email/transport";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -52,21 +52,6 @@ function sanitizeRedirect(value: string | null) {
   if (value.includes("://")) return "/";
   if (value.includes("\n") || value.includes("\r")) return "/";
   return value;
-}
-
-function createTransport() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || EMAIL_DEFAULTS.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || String(EMAIL_DEFAULTS.SMTP_PORT), 10),
-    secure:
-      process.env.SMTP_SECURE
-        ? process.env.SMTP_SECURE === "true"
-        : EMAIL_DEFAULTS.SMTP_SECURE,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
 }
 
 function getAvatarUrl(seed: string) {
@@ -312,7 +297,7 @@ export async function POST(request: NextRequest) {
 
     const transporter = createTransport();
     await transporter.sendMail({
-      from: process.env.EMAIL_USER || EMAIL_DEFAULTS.FROM_ADDRESS,
+      from: fromAddress(),
       to: identifier,
       subject: "Your Skatehive login link",
       text: `Click to sign in: ${link.toString()}`,
@@ -325,7 +310,7 @@ export async function POST(request: NextRequest) {
       try {
         const welcome = buildWelcomeEmail({ handle, displayName });
         await transporter.sendMail({
-          from: process.env.EMAIL_USER || EMAIL_DEFAULTS.FROM_ADDRESS,
+          from: fromAddress(),
           to: identifier,
           subject: welcome.subject,
           text: welcome.text,

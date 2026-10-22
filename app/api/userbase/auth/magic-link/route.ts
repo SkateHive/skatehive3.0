@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
-import { APP_CONFIG, EMAIL_DEFAULTS } from '@/config/app.config';
+import { APP_CONFIG } from '@/config/app.config';
 import { checkHiveAccountExists, validateHiveUsernameFormat } from '@/lib/utils/hiveAccountUtils';
 import { buildMagicLinkEmail } from '@/lib/email/magicLinkTemplate';
+import { createTransport, fromAddress } from '@/lib/email/transport';
 import { buildWelcomeEmail } from '@/lib/email/welcomeTemplate';
+import {
+  createUserWithUniqueHandle,
+  deriveDisplayName,
+  getAvatarUrl,
+  normalizeIdentifier,
+  toHiveSafeBaseHandle,
+} from '@/lib/userbase/accountProvisioning';
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -22,46 +29,6 @@ const supabase = supabaseUrl && supabaseServiceKey
 
 const MAGIC_LINK_TTL_MINUTES = 15;
 const SESSION_TTL_DAYS = 30;
-
-function normalizeIdentifier(identifier: string) {
-  return identifier.trim().toLowerCase();
-}
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-}
-
-function toHiveSafeBaseHandle(value: string) {
-  const sanitized = slugify(value) || "skater";
-  return sanitized.slice(0, 16).replace(/(^-|-$)+/g, "") || "skater";
-}
-
-function deriveDisplayName(identifier: string) {
-  const local = identifier.split("@")[0] || "";
-  const words = local
-    .replace(/[_\-.]+/g, " ")
-    .split(" ")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .slice(0, 4);
-
-  if (words.length === 0) {
-    return "Skater";
-  }
-
-  return words
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
-function getAvatarUrl(seed: string) {
-  const safeSeed = encodeURIComponent(seed || "skatehive");
-  return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${safeSeed}`;
-}
 
 function hashToken(token: string) {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -86,98 +53,11 @@ function sanitizeRedirect(value: string | null) {
   return value;
 }
 
-function createTransport() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || EMAIL_DEFAULTS.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || String(EMAIL_DEFAULTS.SMTP_PORT), 10),
-    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : EMAIL_DEFAULTS.SMTP_SECURE,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-}
-
 /**
  * Atomically creates a user with a unique handle.
  * Instead of checking availability first (TOCTOU race), we attempt inserts
  * directly and catch unique constraint errors (23505) to retry with suffixes.
  */
-async function createUserWithUniqueHandle(
-  baseHandle: string,
-  displayName: string,
-  avatarUrl: string,
-  maxAttempts = 7
-): Promise<{ id: string; handle: string } | null> {
-  const sanitized = toHiveSafeBaseHandle(baseHandle);
-
-  if (!validateHiveUsernameFormat(sanitized).isValid || await checkHiveAccountExists(sanitized)) {
-    // Avoid creating an app account handle that already exists on Hive
-  } else {
-  // First attempt: try the sanitized handle directly
-  const { data: firstAttempt, error: firstError } = await supabase!
-    .from("userbase_users")
-    .insert({
-      handle: sanitized,
-      display_name: displayName,
-      avatar_url: avatarUrl,
-      status: "active",
-      onboarding_step: 0,
-    })
-    .select("id, handle")
-    .single();
-
-  if (firstAttempt && !firstError) {
-    return firstAttempt;
-  }
-
-  // If error is not a unique constraint violation, surface it
-  if (firstError?.code !== "23505") {
-    console.error("Failed to create user (non-unique error):", firstError);
-    return null;
-  }
-  }
-
-  // Retry with random suffixes
-  for (let attempt = 0; attempt < maxAttempts - 1; attempt++) {
-    const suffix = crypto.randomBytes(2).toString("hex");
-    const candidate = `${sanitized.slice(0, 11).replace(/-$/g, "")}-${suffix}`;
-
-    if (!validateHiveUsernameFormat(candidate).isValid || await checkHiveAccountExists(candidate)) {
-      continue;
-    }
-
-    const { data, error } = await supabase!
-      .from("userbase_users")
-      .insert({
-        handle: candidate,
-        display_name: displayName,
-        avatar_url: avatarUrl,
-        status: "active",
-        onboarding_step: 0,
-      })
-      .select("id, handle")
-      .single();
-
-    if (data && !error) {
-      return data;
-    }
-
-    // If it's a unique constraint error, continue retrying
-    if (error?.code === "23505") {
-      continue;
-    }
-
-    // Non-unique error, bail out
-    console.error("Failed to create user (non-unique error):", error);
-    return null;
-  }
-
-  // All attempts exhausted
-  console.error("Failed to create user: all handle attempts exhausted");
-  return null;
-}
-
 /**
  * Atomically updates a user's handle if they don't have one.
  * Uses insert-retry pattern to avoid TOCTOU race.
@@ -323,6 +203,7 @@ export async function POST(request: NextRequest) {
 
       // Use atomic insert with retry to avoid TOCTOU race
       const createdUser = await createUserWithUniqueHandle(
+        supabase,
         baseHandle,
         displayName,
         resolvedAvatar
@@ -452,7 +333,7 @@ export async function POST(request: NextRequest) {
 
     const transporter = createTransport();
     await transporter.sendMail({
-      from: process.env.EMAIL_USER || EMAIL_DEFAULTS.FROM_ADDRESS,
+      from: fromAddress(),
       to: identifier,
       subject,
       text,
@@ -465,7 +346,7 @@ export async function POST(request: NextRequest) {
       try {
         const welcome = buildWelcomeEmail(welcomeRecipient);
         await transporter.sendMail({
-          from: process.env.EMAIL_USER || EMAIL_DEFAULTS.FROM_ADDRESS,
+          from: fromAddress(),
           to: identifier,
           subject: welcome.subject,
           text: welcome.text,
