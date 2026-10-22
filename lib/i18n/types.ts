@@ -143,6 +143,9 @@ export interface TranslationSchema {
     magazineTotalRewards: string;
     profileNotFound: string;
     noSnaps: string;
+    noPosts: string;
+    postsLoadError: string;
+    tryAgain: string;
   };
   auth: {
     connectWallet: string;
