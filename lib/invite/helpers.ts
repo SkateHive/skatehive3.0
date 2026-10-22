@@ -26,6 +26,23 @@ export const generatePassword = () => {
     return key.substring(0, 25);
 }
 
+/**
+ * The exact shape generatePassword() produces: the prefix, then the first 17
+ * characters of a WIF key, which always open with 5H, 5J or 5K and continue
+ * in base58.
+ *
+ * /api/invite prints the master password into an email sent from Skatehive,
+ * so it only accepts this shape. Free text would let anyone who creates an
+ * account with a crafted "password" mail their own message to any address
+ * under our name. Change this together with generatePassword(), or paid
+ * invites stop sending their email.
+ */
+export const INVITE_PASSWORD_PATTERN = /^SKATE0005[HJK][1-9A-HJ-NP-Za-km-z]{15}$/;
+
+export function isGeneratedInvitePassword(value: unknown): value is string {
+    return typeof value === 'string' && INVITE_PASSWORD_PATTERN.test(value);
+}
+
 /** * Generates private keys for a given username and password.
  * @param {string} username - The username for which to generate private keys.
  * @param {string} password - The password used to generate the private keys.

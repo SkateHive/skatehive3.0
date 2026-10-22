@@ -54,7 +54,7 @@ export function MagFooter({ tagline }: { tagline: string }) {
       <Flex gap="20px" fontSize="12px" color={P.ui} letterSpacing="1px">
         <Box as="a" href="https://instagram.com/skatehive" target="_blank" rel="noopener" color={P.ui} _hover={{ color: P.accentHover }}>INSTAGRAM</Box>
         <Box as="a" href="https://youtube.com/@skatehive" target="_blank" rel="noopener" color={P.ui} _hover={{ color: P.accentHover }}>YOUTUBE</Box>
-        <Box as="a" href="https://discord.gg/skatehive" target="_blank" rel="noopener" color={P.ui} _hover={{ color: P.accentHover }}>DISCORD</Box>
+        <Box as="a" href="https://discord.gg/gJxxSxswUv" target="_blank" rel="noopener" color={P.ui} _hover={{ color: P.accentHover }}>DISCORD</Box>
       </Flex>
     </Flex>
   );
