@@ -23,6 +23,13 @@ export default function MapBoundsTracker({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // The pane is sized by flex/viewport CSS that may not be resolved on the
+    // first Leaflet layout pass. Without this the tile layer stays 0px and
+    // the dark wrapper reads as a blank map.
+    const fixSize = () => map.invalidateSize();
+    const frame = requestAnimationFrame(fixSize);
+    const later = window.setTimeout(fixSize, 200);
+
     const emit = () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => onBoundsChange(map.getBounds()), debounceMs);
@@ -32,6 +39,8 @@ export default function MapBoundsTracker({
     map.on("moveend", emit);
     map.on("zoomend", emit);
     return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(later);
       map.off("moveend", emit);
       map.off("zoomend", emit);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);

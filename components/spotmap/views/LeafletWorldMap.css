@@ -2,6 +2,20 @@
    Scoped via the `.skatehive-leaflet` wrapper so we don't clobber Leaflet's
    defaults globally for any other page that might embed a map. */
 
+/* Leaflet 1.9 sets `mix-blend-mode: plus-lighter` on tiles to hide Chrome
+   seams. Plus-lighter adds each tile to the pane behind it, so dark tiles on
+   the #0a0a0a pane collapse to black. Force a normal composite and give the
+   container a real height so the canvas is not a 0px black box. */
+.skatehive-leaflet .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #d5e3ef;
+  font-family: inherit;
+}
+.skatehive-leaflet .leaflet-container img.leaflet-tile {
+  mix-blend-mode: normal !important;
+}
+
 .skatehive-leaflet .leaflet-popup-content-wrapper {
   background: #0a0a0a;
   color: #e6e6e6;

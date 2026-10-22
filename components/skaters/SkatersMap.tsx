@@ -9,6 +9,10 @@ import type { LatLng } from "@/lib/skaters/geo";
 import type { Skater } from "@/lib/skaters/types";
 import type { TranslationFunction } from "@/contexts/LocaleContext";
 import useSpotmapPins from "@/hooks/useSpotmapPins";
+import {
+  SKATE_MAP_TILE_ATTRIBUTION,
+  SKATE_MAP_TILE_URL,
+} from "@/lib/spotmap/basemap";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
@@ -77,6 +81,18 @@ export default function SkatersMap({ skaters, t, onSelectCountry, origin = null 
     if (!origin || !mapReady || !mapRef.current) return;
     mapRef.current.flyTo([origin[0], origin[1]], NEAR_ME_ZOOM, { duration: 1.2 });
   }, [origin, mapReady]);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const map = mapRef.current;
+    const fixSize = () => map.invalidateSize();
+    const frame = requestAnimationFrame(fixSize);
+    const later = window.setTimeout(fixSize, 200);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(later);
+    };
+  }, [mapReady]);
 
   // Leaflet itself can only be imported on the client, so the icons are built
   // after mount rather than at module scope.
@@ -210,7 +226,7 @@ export default function SkatersMap({ skaters, t, onSelectCountry, origin = null 
             [85, 180],
           ]}
           maxBoundsViscosity={1}
-          style={{ width: "100%", height: "100%", background: "#0a0a0a" }}
+          style={{ width: "100%", height: "100%", background: "#d5e3ef" }}
           worldCopyJump
           attributionControl={false}
           scrollWheelZoom={false}
@@ -221,13 +237,8 @@ export default function SkatersMap({ skaters, t, onSelectCountry, origin = null 
         >
           <TileLayer
             // @ts-ignore
-            attribution="&copy; Esri, HERE, Garmin, OpenStreetMap contributors"
-            url="https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-            noWrap
-          />
-          <TileLayer
-            // @ts-ignore
-            url="https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+            attribution={SKATE_MAP_TILE_ATTRIBUTION}
+            url={SKATE_MAP_TILE_URL}
             noWrap
           />
           {showSkaters && iconFactory && (
