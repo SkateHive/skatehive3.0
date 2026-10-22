@@ -314,6 +314,13 @@ export interface TranslationSchema {
     claimableAfter: string;
     defiReadFailed: string;
     priceUnavailable: string;
+    tabs: {
+      overview: string;
+      art: string;
+      earn: string;
+      skatebank: string;
+      pix: string;
+    };
     savingsRate: {
       skatebankInfo: string;
       hbdInfo: string;
@@ -381,6 +388,7 @@ export interface TranslationSchema {
       successStake: string;
       cancelled: string;
       failed: string;
+      reverted: string;
       switchFailed: string;
       stakingUnavailable: string;
       unstakeHint: string;

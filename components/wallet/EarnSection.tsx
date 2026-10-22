@@ -45,6 +45,23 @@ function safeParse(value: string, decimals: number): bigint | null {
   }
 }
 
+type EarnClient = NonNullable<ReturnType<typeof usePublicClient>>;
+
+/** viem resolves the receipt of a reverted tx instead of throwing — make it throw. */
+async function waitForSuccess(client: EarnClient, hash: `0x${string}`, revertedMessage: string) {
+  const receipt = await client.waitForTransactionReceipt({ hash });
+  if (receipt.status !== "success") throw new Error(revertedMessage);
+}
+
+/** Run a pre-sign simulation; only a contract revert blocks, RPC hiccups don't. */
+async function preflight(simulate: () => Promise<unknown>) {
+  try {
+    await simulate();
+  } catch (e) {
+    if (!isTransportError(e)) throw e;
+  }
+}
+
 /** Switch the wallet to `target` if needed. Returns false when it couldn't. */
 function useEnsureChain() {
   const chainId = useChainId();
@@ -264,20 +281,31 @@ function MorphoUsdcCard({ owner }: { owner?: string }) {
           const approveHash = await writeContractAsync({
             address: USDC_BASE, abi: ERC20_EARN_ABI, functionName: "approve", args: [vault, parsed], chainId: EARN_CHAIN_ID,
           });
-          await client.waitForTransactionReceipt({ hash: approveHash });
+          await waitForSuccess(client, approveHash, t("wallet.earn.reverted"));
         }
         setStep("depositing");
+        // A paused vault or a reached supply cap reverts here, before the user signs.
+        await preflight(() =>
+          client.simulateContract({ address: vault, abi: ERC4626_ABI, functionName: "deposit", args: [parsed, address], account: address }),
+        );
         const hash = await writeContractAsync({
           address: vault, abi: ERC4626_ABI, functionName: "deposit", args: [parsed, address], chainId: EARN_CHAIN_ID,
         });
-        await client.waitForTransactionReceipt({ hash });
+        await waitForSuccess(client, hash, t("wallet.earn.reverted"));
         toast({ title: t("wallet.earn.successDeposit"), description: hash, status: "success", duration: 6000, isClosable: true });
       } else {
         setStep("withdrawing");
-        const hash = isMax && canRedeemAll && shares
-          ? await writeContractAsync({ address: vault, abi: ERC4626_ABI, functionName: "redeem", args: [shares, address, address], chainId: EARN_CHAIN_ID })
+        const redeemAll = isMax && canRedeemAll && !!shares;
+        // Missing vault liquidity reverts here, before the user signs.
+        await preflight(() =>
+          redeemAll
+            ? client.simulateContract({ address: vault, abi: ERC4626_ABI, functionName: "redeem", args: [shares!, address, address], account: address })
+            : client.simulateContract({ address: vault, abi: ERC4626_ABI, functionName: "withdraw", args: [parsed, address, address], account: address }),
+        );
+        const hash = redeemAll
+          ? await writeContractAsync({ address: vault, abi: ERC4626_ABI, functionName: "redeem", args: [shares!, address, address], chainId: EARN_CHAIN_ID })
           : await writeContractAsync({ address: vault, abi: ERC4626_ABI, functionName: "withdraw", args: [parsed, address, address], chainId: EARN_CHAIN_ID });
-        await client.waitForTransactionReceipt({ hash });
+        await waitForSuccess(client, hash, t("wallet.earn.reverted"));
         toast({ title: t("wallet.earn.successWithdraw"), description: hash, status: "success", duration: 6000, isClosable: true });
       }
       setAmount("");
@@ -335,7 +363,7 @@ function MorphoUsdcCard({ owner }: { owner?: string }) {
       {position != null && position > 0n && (
         <>
           <Row label={t("wallet.earn.deposited")} value={activity ? `${fmtNum(activity.principal, USDC_DECIMALS, 2)} USDC` : "—"} />
-          <Row label={t("wallet.earn.earned")} value={`+${fmtNum(earned, USDC_DECIMALS, 6)} USDC`} color="green.400" />
+          <Row label={t("wallet.earn.earned")} value={earned == null ? "—" : `+${fmtNum(earned, USDC_DECIMALS, 6)} USDC`} color={earned == null ? "dim" : "green.400"} />
           <Row label={t("wallet.earn.perMonth")} value={monthly == null ? "—" : `~${monthly.toLocaleString(undefined, { maximumFractionDigits: 4 })} USDC`} />
           <Row label={t("wallet.earn.shares")} value={`${fmtNum(shares, 18, 4)} gtUSDCp`} />
         </>
@@ -440,7 +468,7 @@ function LidoEthCard() {
       const hash = await writeContractAsync({
         address: LIDO_STETH, abi: LIDO_ABI, functionName: "submit", args: [LIDO_REFERRAL], value: parsed, chainId: MAINNET_ID,
       });
-      await client.waitForTransactionReceipt({ hash });
+      await waitForSuccess(client, hash, t("wallet.earn.reverted"));
       toast({ title: t("wallet.earn.successStake"), description: hash, status: "success", duration: 6000, isClosable: true });
       setAmount("");
     } catch (e) {

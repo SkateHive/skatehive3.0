@@ -454,6 +454,13 @@ export const en = {
     claimableAfter: 'claimable after {date}',
     defiReadFailed: 'DeFi position could not be read — {label}: {message}. Total is incomplete.',
     priceUnavailable: 'No price available for {label} — {message} is not counted in the total.',
+    tabs: {
+      overview: 'Wallet Overview',
+      art: 'Art',
+      earn: 'Earn',
+      skatebank: 'SkateBank',
+      pix: 'PIX',
+    },
     savingsRate: {
       skatebankInfo: '{rate} APR on your dollar savings, set by Hive witnesses (it can change). Monthly interest. 3-day withdrawal period.',
       hbdInfo: 'Liquid HBD ready for transactions. Move it to Savings in SkateBank to earn {rate} APR.',
@@ -521,6 +528,7 @@ export const en = {
       successStake: 'Stake confirmed',
       cancelled: 'Transaction cancelled',
       failed: 'Transaction failed',
+      reverted: 'Transaction reverted on-chain',
       switchFailed: 'Could not switch network',
       stakingUnavailable: 'Lido staking is unavailable right now',
       unstakeHint: 'To unstake, swap stETH → ETH in the Swap panel.',

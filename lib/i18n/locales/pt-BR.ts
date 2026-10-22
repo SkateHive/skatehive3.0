@@ -471,6 +471,13 @@ export const ptBR = {
     claimableAfter: 'resgatável após {date}',
     defiReadFailed: 'Não foi possível ler a posição em DeFi — {label}: {message}. O total está incompleto.',
     priceUnavailable: 'Sem cotação disponível para {label} — {message} não está somado ao total.',
+    tabs: {
+      overview: 'Visão geral',
+      art: 'Arte',
+      earn: 'Render',
+      skatebank: 'SkateBank',
+      pix: 'PIX',
+    },
     savingsRate: {
       skatebankInfo: '{rate} a.a. na sua poupança em dólar, definido pelos witnesses da Hive (pode mudar). Juros mensais. Saque leva 3 dias.',
       hbdInfo: 'HBD líquido, pronto para transações. Mova para a Poupança no SkateBank para render {rate} a.a.',
@@ -538,6 +545,7 @@ export const ptBR = {
       successStake: 'Stake confirmado',
       cancelled: 'Transação cancelada',
       failed: 'A transação falhou',
+      reverted: 'A transação foi revertida na blockchain',
       switchFailed: 'Não foi possível trocar de rede',
       stakingUnavailable: 'O stake na Lido está indisponível agora',
       unstakeHint: 'Para sair do stake, troque stETH → ETH no painel de Swap.',
