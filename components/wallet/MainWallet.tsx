@@ -35,6 +35,10 @@ import HivePowerSection from "./HivePowerSection";
 import SkateBankSection from "./SkateBankSection";
 import SavingsJarsSection from "./SavingsJarsSection";
 import NFTSection from "./NFTSection";
+import EarnSection from "./EarnSection";
+import { SavingsYieldChart } from "./YieldChart";
+import { useHbdSavingsRate } from "@/hooks/wallet/useHbdSavingsRate";
+import { estimateSavingsInterest, type SavingsAccountFields } from "@/lib/hive/savingsInterest";
 
 import { PortfolioProvider } from "@/contexts/PortfolioContext";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
@@ -48,7 +52,6 @@ import UnifiedWalletTable from "./UnifiedWalletTable";
 import UnifiedSwapSection from "./UnifiedSwapSection";
 import WalletErrorBoundary from "./WalletErrorBoundary";
 
-const HBD_SAVINGS_APR = 0.15; // 15% annual interest rate on HBD Savings
 
 type ChainFilter = "all" | "hive" | "evm" | "farcaster";
 
@@ -166,6 +169,8 @@ export default function MainWallet({ username }: MainWalletProps) {
     hiveAccount?.savings_hbd_balance,
   ]);
 
+  const hbdRate = useHbdSavingsRate();
+
   const hbdInterestData = useMemo(() => {
     if (!user || !hiveAccount?.savings_hbd_balance) {
       return {
@@ -175,43 +180,15 @@ export default function MainWallet({ username }: MainWalletProps) {
         lastInterestPayment: undefined,
       };
     }
-    const savingsHbdBalance = parseFloat(
-      String(hiveAccount.savings_hbd_balance || "0.000"),
-    );
-    const lastInterestPayment = hiveAccount.savings_hbd_last_interest_payment;
-    let daysSinceLastPayment = 0;
-    if (lastInterestPayment) {
-      const last = new Date(lastInterestPayment);
-      daysSinceLastPayment = Math.max(
-        0,
-        Math.floor((Date.now() - last.getTime()) / (1000 * 60 * 60 * 24)),
-      );
-    }
-    const estimatedClaimableInterest =
-      savingsHbdBalance * HBD_SAVINGS_APR * (daysSinceLastPayment / 365);
-    let daysUntilClaim = 0;
-    if (lastInterestPayment) {
-      const nextClaimDate = new Date(
-        new Date(lastInterestPayment).getTime() + 30 * 24 * 60 * 60 * 1000,
-      );
-      daysUntilClaim = Math.max(
-        0,
-        Math.ceil(
-          (nextClaimDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-        ),
-      );
-    }
+    const est = estimateSavingsInterest(hiveAccount as SavingsAccountFields, hbdRate);
     return {
-      savingsHbdBalance,
-      estimatedClaimableInterest,
-      daysUntilClaim,
-      lastInterestPayment,
+      savingsHbdBalance: est.balance,
+      estimatedClaimableInterest: est.accrued,
+      daysUntilClaim: est.daysUntilClaim,
+      // undefined when the chain says "never paid" (1970-01-01)
+      lastInterestPayment: est.lastPayment != null ? hiveAccount.savings_hbd_last_interest_payment : undefined,
     };
-  }, [
-    user,
-    hiveAccount?.savings_hbd_balance,
-    hiveAccount?.savings_hbd_last_interest_payment,
-  ]);
+  }, [user, hiveAccount, hbdRate]);
 
   const totalHiveAssetsValue = useMemo(() => {
     if (!user || !hivePrice || !hbdPrice) return 0;
@@ -349,16 +326,17 @@ export default function MainWallet({ username }: MainWalletProps) {
                 >
                   {(
                     [
-                      { label: "Wallet Overview", show: true },
-                      { label: "Art", show: isConnected },
-                      { label: "SkateBank", show: !!user },
-                      { label: "PIX", show: !!user },
-                    ] as { label: string; show: boolean }[]
+                      { key: "overview", show: true },
+                      { key: "art", show: isConnected },
+                      { key: "earn", show: isConnected },
+                      { key: "skatebank", show: !!user },
+                      { key: "pix", show: !!user },
+                    ] as const
                   )
-                    .filter((t) => t.show)
-                    .map((t, i, arr) => (
+                    .filter((tab) => tab.show)
+                    .map((tab, i, arr) => (
                       <Tab
-                        key={t.label}
+                        key={tab.key}
                         flex={1}
                         borderRadius="none"
                         borderRight={i < arr.length - 1 ? "1px solid" : "none"}
@@ -374,7 +352,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                         }}
                         _hover={{ opacity: 0.8 }}
                       >
-                        {t.label}
+                        {t(`wallet.tabs.${tab.key}`)}
                       </Tab>
                     ))}
                 </TabList>
@@ -462,6 +440,13 @@ export default function MainWallet({ username }: MainWalletProps) {
                     </TabPanel>
                   )}
 
+                  {/* ── EARN ── */}
+                  {isConnected && (
+                    <TabPanel p={0}>
+                      <EarnSection owner={user ? `@${user}` : undefined} />
+                    </TabPanel>
+                  )}
+
                   {/* ── SKATEBANK ── */}
                   {user && (
                     <TabPanel p={0}>
@@ -486,6 +471,12 @@ export default function MainWallet({ username }: MainWalletProps) {
                             hiveAccount?.savings_withdraw_requests || 0
                           }
                           onClaimInterest={handleClaimHbdInterest}
+                        />
+                        <SavingsYieldChart
+                          username={user}
+                          savingsBalance={hbdInterestData.savingsHbdBalance}
+                          accruedInterest={hbdInterestData.estimatedClaimableInterest}
+                          apr={hbdRate}
                         />
                         <SavingsJarsSection
                           hbdBalance={hiveBalances.hbdBalance}

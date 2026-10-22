@@ -8,3 +8,4 @@ export { useHBDActions } from './useHBDActions';
 export { useBankActions } from './useBankActions';
 export { useSavingsJars, jarProgress } from './useSavingsJars';
 export type { SavingsJar, JarsSummary, JarInput, JarEvent } from './useSavingsJars';
+export { useHbdSavingsRate, formatRate, HBD_RATE_FALLBACK } from './useHbdSavingsRate';
