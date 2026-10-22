@@ -1,6 +1,7 @@
 import { getLocalizedStrings } from "./localization";
 
 import { APP_CONFIG } from "@/config/app.config";
+import { escapeHtml } from "@/lib/email/escapeHtml";
 
 export default function getMailTemplate_Invite(
   createdby: string,
@@ -10,6 +11,12 @@ export default function getMailTemplate_Invite(
   language: string
 ) {
   const localizedStrings = getLocalizedStrings(language);
+
+  // The master password is whatever the caller chose when deriving the keys,
+  // so none of these may reach the HTML raw.
+  createdby = escapeHtml(createdby);
+  desiredUsername = escapeHtml(desiredUsername);
+  masterPassword = escapeHtml(masterPassword);
 
   // Replace placeholder in localized string
   const onboardedMessage = localizedStrings.onboardedMessage.replace('{createdby}', createdby);

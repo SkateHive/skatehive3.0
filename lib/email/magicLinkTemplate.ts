@@ -1,4 +1,5 @@
 import { APP_CONFIG } from '@/config/app.config';
+import { escapeHtml } from './escapeHtml';
 
 export interface MagicLinkEmail {
   subject: string;
@@ -6,15 +7,51 @@ export interface MagicLinkEmail {
   text: string;
 }
 
-export function buildMagicLinkEmail(loginUrl: string): MagicLinkEmail {
+/** Who sent an invite. Both fields are user-chosen, so they are escaped. */
+export interface MagicLinkInviter {
+  handle: string;
+  displayName?: string | null;
+}
+
+/**
+ * The sign-in email. With `invitedBy` it becomes the lite invite: a friend who
+ * never asked for this mail is told up front who sent it, rather than getting a
+ * bare "Sign in" that reads like phishing.
+ */
+export function buildMagicLinkEmail(
+  loginUrl: string,
+  { invitedBy }: { invitedBy?: MagicLinkInviter } = {}
+): MagicLinkEmail {
   const fallbackLogo = 'https://docs.skatehive.app/img/skatehive.png';
+
+  const inviterHandle = invitedBy ? `@${invitedBy.handle}` : '';
+  const inviterName = invitedBy?.displayName?.trim() || inviterHandle;
+  // "Ana (@ana)" when the two differ, just "@ana" when they do not.
+  const inviterLabel =
+    invitedBy && inviterName !== inviterHandle
+      ? `${inviterName} (${inviterHandle})`
+      : inviterHandle;
+
+  const title = invitedBy
+    ? `${inviterHandle} invited you to Skatehive`
+    : 'Sign in to Skatehive';
+  const heading = invitedBy
+    ? `${escapeHtml(inviterName)} invited you.`
+    : 'Drop in.';
+  const intro = invitedBy
+    ? `<strong style="color:#ffffff;">${escapeHtml(inviterLabel)}</strong> saved you a spot on Skatehive, the skateboarding community. Your account is ready &mdash; tap the button below to drop in. This link is good for one ride and expires in 15 minutes; if it lapses, sign in with this email address at ${APP_CONFIG.DOMAIN} to get a new one.`
+    : 'Tap the button below to sign in to your Skatehive account. This link is good for one ride &mdash; it expires in 15 minutes.';
+  const button = invitedBy ? 'Accept the invite &rarr;' : 'Sign in to Skatehive &rarr;';
+  const disclaimer = invitedBy
+    ? `Don't know ${escapeHtml(inviterHandle)}? You can safely ignore this email &mdash; nothing happens until this link is used.`
+    : "If you didn't request this email, you can safely ignore it &mdash; someone may have typed your address by mistake. Your account stays locked until this link is used.";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sign in to Skatehive</title>
+<title>${escapeHtml(title)}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e0e0e0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0a0a0a;padding:24px 12px;">
@@ -29,9 +66,9 @@ export function buildMagicLinkEmail(loginUrl: string): MagicLinkEmail {
           </tr>
           <tr>
             <td style="padding:36px 32px 8px;">
-              <h2 style="margin:0 0 12px;font-size:24px;font-weight:700;color:#ffffff;">Drop in.</h2>
+              <h2 style="margin:0 0 12px;font-size:24px;font-weight:700;color:#ffffff;">${heading}</h2>
               <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#bdbdbd;">
-                Tap the button below to sign in to your Skatehive account. This link is good for one ride &mdash; it expires in 15 minutes.
+                ${intro}
               </p>
             </td>
           </tr>
@@ -40,7 +77,7 @@ export function buildMagicLinkEmail(loginUrl: string): MagicLinkEmail {
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td align="center" bgcolor="#4caf50" style="border-radius:8px;">
-                    <a href="${loginUrl}" target="_blank" style="display:inline-block;padding:14px 36px;font-size:16px;font-weight:700;color:#0a0a0a;text-decoration:none;border-radius:8px;letter-spacing:0.5px;">Sign in to Skatehive &rarr;</a>
+                    <a href="${loginUrl}" target="_blank" style="display:inline-block;padding:14px 36px;font-size:16px;font-weight:700;color:#0a0a0a;text-decoration:none;border-radius:8px;letter-spacing:0.5px;">${button}</a>
                   </td>
                 </tr>
               </table>
@@ -58,7 +95,7 @@ export function buildMagicLinkEmail(loginUrl: string): MagicLinkEmail {
             <td style="padding:24px 32px;">
               <div style="border-top:1px solid #1f1f1f;padding-top:20px;">
                 <p style="margin:0;font-size:12px;line-height:1.6;color:#666;">
-                  If you didn't request this email, you can safely ignore it &mdash; someone may have typed your address by mistake. Your account stays locked until this link is used.
+                  ${disclaimer}
                 </p>
               </div>
             </td>
@@ -78,20 +115,32 @@ export function buildMagicLinkEmail(loginUrl: string): MagicLinkEmail {
 </body>
 </html>`;
 
-  const text = [
-    'Sign in to Skatehive',
-    '',
-    'Click the link below to sign in. It expires in 15 minutes.',
-    '',
-    loginUrl,
-    '',
-    "If you didn't request this email, you can safely ignore it.",
-    '',
-    `— ${APP_CONFIG.DOMAIN}`,
-  ].join('\n');
+  const text = (
+    invitedBy
+      ? [
+          title,
+          '',
+          `${inviterLabel} saved you a spot on Skatehive. Click the link below to accept. It expires in 15 minutes; if it lapses, sign in with this email address at ${APP_CONFIG.DOMAIN} to get a new one.`,
+          '',
+          loginUrl,
+          '',
+          `Don't know ${inviterHandle}? You can safely ignore this email.`,
+        ]
+      : [
+          'Sign in to Skatehive',
+          '',
+          'Click the link below to sign in. It expires in 15 minutes.',
+          '',
+          loginUrl,
+          '',
+          "If you didn't request this email, you can safely ignore it.",
+        ]
+  )
+    .concat(['', `— ${APP_CONFIG.DOMAIN}`])
+    .join('\n');
 
   return {
-    subject: 'Sign in to Skatehive',
+    subject: title,
     html,
     text,
   };
