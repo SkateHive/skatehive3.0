@@ -222,6 +222,7 @@ export async function POST(request: NextRequest) {
 
   const reservationId = quota.reservationId;
   let createdUserId: string | null = null;
+  let magicLinkTokenHash: string | null = null;
 
   /**
    * Undoes everything this request made, so the invite can simply be sent
@@ -238,6 +239,17 @@ export async function POST(request: NextRequest) {
     if (releaseError) {
       // The sender is one invite down for the day: the safe way to be wrong.
       console.error("Failed to release invite reservation:", releaseError);
+    }
+    // A resend reuses an existing account, so no user delete cascades this
+    // one away; remove the link that never reached anyone explicitly.
+    if (magicLinkTokenHash) {
+      const { error: linkError } = await supabase
+        .from("userbase_magic_links")
+        .delete()
+        .eq("token_hash", magicLinkTokenHash);
+      if (linkError) {
+        console.error("Failed to roll back invite magic link:", linkError);
+      }
     }
     if (createdUserId) {
       const { error: userError } = await supabase
@@ -298,6 +310,7 @@ export async function POST(request: NextRequest) {
   }
 
   const token = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
   const expiresAt = new Date(
     Date.now() + MAGIC_LINK_TTL_MINUTES * 60 * 1000
   ).toISOString();
@@ -307,7 +320,7 @@ export async function POST(request: NextRequest) {
     .insert({
       user_id: invitee.id,
       identifier,
-      token_hash: crypto.createHash("sha256").update(token).digest("hex"),
+      token_hash: tokenHash,
       created_at: new Date().toISOString(),
       expires_at: expiresAt,
     });
@@ -316,6 +329,7 @@ export async function POST(request: NextRequest) {
     console.error("Failed to create invite magic link:", tokenError);
     return failed(500, { error: "Could not send the invite. Try again." });
   }
+  magicLinkTokenHash = tokenHash;
 
   const link = new URL("/api/userbase/auth/magic-link", getBaseUrl(request));
   link.searchParams.set("token", token);

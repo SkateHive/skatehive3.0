@@ -102,6 +102,10 @@ revoke all on table public.userbase_invites from anon, authenticated;
 -- a request sees always includes every slot claimed before it. Different
 -- inviters never wait on each other.
 --
+-- Only lite rows count. Hive invites are logged in the same table but are paid
+-- for, so 3 HIVE an account is their limit; counting them here would lock an
+-- inviter who paid for accounts out of the free invites for the day.
+--
 -- Returns one row: the new reservation id, or null when the cap is spent, and
 -- how many slots were already in use.
 create or replace function public.userbase_reserve_invite(
@@ -125,6 +129,7 @@ begin
   select count(*)::integer into v_used
   from public.userbase_invites i
   where i.inviter_user_id = p_inviter
+    and i.kind = 'lite'
     and i.created_at >= now() - make_interval(hours => p_window_hours);
 
   if v_used >= p_limit then
