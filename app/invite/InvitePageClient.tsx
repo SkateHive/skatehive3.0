@@ -262,6 +262,9 @@ export default function InvitePageClient() {
   // Debounced auto-check for username availability
   useEffect(() => {
     if (!isMounted) return;
+    // A lookup still in flight when the name changes belongs to the old name.
+    // Applied late, it would mark the new, unchecked name as available.
+    let stale = false;
     const checkUsername = async () => {
       if (!desiredUsername) {
         setIsCheckedOnce(false);
@@ -281,6 +284,7 @@ export default function InvitePageClient() {
       setAccountInvalid("");
       setIsCheckingUsername(true);
       const isAvailable = await checkAccountExists(desiredUsername);
+      if (stale) return;
       setIsCheckedOnce(true);
       setAccountAvailable(isAvailable);
       setIsCheckingUsername(false);
@@ -294,7 +298,11 @@ export default function InvitePageClient() {
       checkUsername();
     }, 500);
 
-    return () => clearTimeout(debounceTimer);
+    return () => {
+      stale = true;
+      clearTimeout(debounceTimer);
+      setIsCheckingUsername(false);
+    };
   }, [desiredUsername, isMounted, t]);
 
   // Keys are only meaningful for the on-chain path, and they must always match
@@ -826,9 +834,18 @@ export default function InvitePageClient() {
                       type="text"
                       placeholder={t('invite.usernamePlaceholder')}
                       value={desiredUsername}
-                      onChange={(e) =>
-                        setDesiredUsername(normalizeUsername(e.target.value))
-                      }
+                      onChange={(e) => {
+                        const next = normalizeUsername(e.target.value);
+                        // A keystroke normalization drops (a space, a leading @)
+                        // leaves the name as it was, and so does its check.
+                        if (next === desiredUsername) return;
+                        setDesiredUsername(next);
+                        // The last verdict was for the previous name. Clear it
+                        // now, or it can be submitted during the debounce.
+                        setAccountAvailable(false);
+                        setIsCheckedOnce(false);
+                        setAccountInvalid(null);
+                      }}
                       fontFamily="mono"
                       bg="inputBg"
                       color="inputText"
