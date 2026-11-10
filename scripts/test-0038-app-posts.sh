@@ -132,6 +132,10 @@ begin
 
   -- ---------- moderator binding ----------
   perform pg_temp.expect(format($q$select * from userbase_app_moderator_challenge_create(%L,'coletivoxv','randomguy')$q$, x1), 'UB403');
+  -- pharraxv is seeded revoked (not on Hive yet): no challenge, no binding
+  assert (select revoked_at is not null from userbase_app_moderator_allowlist where hive_handle = 'pharraxv');
+  assert (select revoked_at is null from userbase_app_moderator_allowlist where hive_handle = 'wilbor');
+  perform pg_temp.expect(format($q$select * from userbase_app_moderator_challenge_create(%L,'coletivoxv','pharraxv')$q$, m), 'UB403');
   select * into ch from userbase_app_moderator_challenge_create(x1,'coletivoxv','XVlad');
   assert ch.message like '%account: xvlad%' and ch.message like '%app: coletivoxv%', 'challenge message names app+handle';
   assert ch.expires_at <= now() + interval '5 minutes';

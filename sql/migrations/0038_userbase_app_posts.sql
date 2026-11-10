@@ -64,9 +64,16 @@ create table if not exists public.userbase_app_moderator_allowlist (
 
 -- Being listed grants nothing on its own: each handle still needs a binding.
 insert into public.userbase_app_moderator_allowlist (app, hive_handle) values
-  ('coletivoxv', 'pharraxv'),
   ('coletivoxv', 'wilbor'),
   ('coletivoxv', 'xvlad')
+on conflict (app, hive_handle) do nothing;
+-- PENDING: 'pharraxv' does not exist on Hive yet, so anyone could register it
+-- and become a moderator. Listed REVOKED until the right account is confirmed;
+-- to activate later (after checking the account on chain):
+--   update public.userbase_app_moderator_allowlist set revoked_at = null
+--   where app = 'coletivoxv' and hive_handle = '<confirmed handle>';
+insert into public.userbase_app_moderator_allowlist (app, hive_handle, revoked_at) values
+  ('coletivoxv', 'pharraxv', now())
 on conflict (app, hive_handle) do nothing;
 
 create table if not exists public.userbase_app_moderator_challenges (
