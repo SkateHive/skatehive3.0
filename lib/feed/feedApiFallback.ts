@@ -3,8 +3,11 @@
 // FEED_API_TIMEOUT_MS budgets only the API request. When it runs out (or the
 // API answers with an error) the feed falls back to reading the Hive nodes,
 // which has its own, separate cost, so the worst case for a page is this
-// budget plus the fallback, not 8s in total.
-export const FEED_API_TIMEOUT_MS = 8000;
+// budget plus the fallback, not 20s in total.
+// 20s, not less: a healthy cold API response was measured at ~15s (first hit
+// on a fresh function with a cold HAFSQL cache), and cutting it off would
+// throw away a good answer with no evidence the Hive nodes are any faster.
+export const FEED_API_TIMEOUT_MS = 20_000;
 
 type FetchLike = (input: string, init?: { signal?: AbortSignal }) => Promise<Response>;
 

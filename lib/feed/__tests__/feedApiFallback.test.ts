@@ -13,7 +13,7 @@ const hangingFetch = (_url: string, init?: { signal?: AbortSignal }) =>
   });
 
 async function main() {
-  assert.strictEqual(FEED_API_TIMEOUT_MS, 8000, "API leg budget");
+  assert.strictEqual(FEED_API_TIMEOUT_MS, 20_000, "API leg budget");
 
   // 1. A hanging API request is cut off by the timeout.
   const t0 = Date.now();
@@ -56,7 +56,20 @@ async function main() {
   assert.deepStrictEqual(viaApi, ["api"]);
   assert.strictEqual(fallbackCalls, 0);
 
-  // 6. Both fail -> the fallback's error reaches the caller (hook logs it).
+  // 6. API error response (null) + failing fallback: the fallback runs exactly
+  //    once and its error reaches the caller. (The old hook ran it a second
+  //    time from its catch block.)
+  fallbackCalls = 0;
+  await assert.rejects(
+    loadWithFallback(async () => null, async () => {
+      fallbackCalls++;
+      throw new Error("hive down");
+    }),
+    /hive down/
+  );
+  assert.strictEqual(fallbackCalls, 1, "fallback must not run twice");
+
+  // 7. Both fail -> the fallback's error reaches the caller (hook logs it).
   await assert.rejects(
     loadWithFallback(async () => {
       throw new Error("api down");
