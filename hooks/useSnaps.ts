@@ -8,6 +8,9 @@ interface lastContainerInfo {
   date: string;
 }
 
+// The feed API answers in ~1s warm (~5s cold); anything slower is treated as down.
+const FEED_API_TIMEOUT_MS = 8000;
+
 export const useSnaps = () => {
   // Data source priority: 1 = API first, 2 = Hive blockchain first
 
@@ -151,7 +154,9 @@ export const useSnaps = () => {
     const apiUrl = `https://api.skatehive.app/api/v2/feed?limit=${limit}&page=${currentPage}`;
     // const apiUrl = `http://localhost:3001/api/v2/feed?limit=${limit}&page=${currentPage}`;
 
-    const response = await fetch(apiUrl);
+    // Don't let a slow API hold the feed hostage: past FEED_API_TIMEOUT_MS
+    // the fetch aborts and the caller falls back to the Hive nodes.
+    const response = await fetch(apiUrl, { signal: AbortSignal.timeout(FEED_API_TIMEOUT_MS) });
     if (!response.ok) {
       console.error('API fetch failed');
       return await getMoreSnaps();
