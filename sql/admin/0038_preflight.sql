@@ -1,6 +1,8 @@
 -- 0038_preflight.sql — READ ONLY. Run BEFORE applying
 -- sql/migrations/0038_userbase_app_posts.sql. Every row must be ok = true.
 -- Catalog metadata only; no user data is read.
+-- Positive privilege checks test one privilege each: a list like
+-- 'select,update' is true when ANY of them is held.
 with checks(name, ok) as (values
   ('0036 applied: userbase_app_sessions', to_regclass('public.userbase_app_sessions') is not null),
   ('0036 applied: userbase_app_memberships', to_regclass('public.userbase_app_memberships') is not null),
@@ -22,7 +24,8 @@ with checks(name, ok) as (values
   ('service_role can read users/auth_methods/app_sessions/memberships (RPCs run as caller)',
      has_table_privilege('service_role','public.userbase_users','select')
      and has_table_privilege('service_role','public.userbase_auth_methods','select')
-     and has_table_privilege('service_role','public.userbase_app_sessions','select,update')
+     and has_table_privilege('service_role','public.userbase_app_sessions','select')
+     and has_table_privilege('service_role','public.userbase_app_sessions','update')
      and has_table_privilege('service_role','public.userbase_app_memberships','select')),
   ('absent: 0038 tables', to_regclass('public.userbase_app_posts') is null
      and to_regclass('public.userbase_app_post_events') is null
