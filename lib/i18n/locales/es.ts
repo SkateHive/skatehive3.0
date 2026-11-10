@@ -2033,9 +2033,9 @@ export const es = {
     howToInstall: 'Cómo instalar',
     step1: 'Toca Descargar APK y abre el archivo cuando termine.',
     step2: 'Si Android lo pide, permite que tu navegador instale apps desconocidas.',
-    step3: 'Si Play Protect avisa sobre la app, toca Más detalles y luego Instalar de todas formas.',
+    step3: 'Android puede avisar que la app viene de un desarrollador desconocido. Es normal para un APK: toca Más detalles y luego Instalar de todas formas. Si Play Protect dice que la app es dañina, no la instales y avísanos en Discord.',
     step4: 'Abre Skatehive e inicia sesión.',
-    apkNote: 'Cuando la app llegue a Google Play se actualizará desde allí, sin reinstalar.',
+    apkNote: 'Instala el APK solo desde esta página. Avisaremos cuando la app esté en Google Play.',
     releaseNotes: 'Notas de la versión',
   },
 };

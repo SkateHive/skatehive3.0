@@ -89,7 +89,7 @@ export default function DownloadPageClient() {
           {t("googlePlay")}
         </Button>
       ) : (
-        <HStack color="textSecondary" spacing={2}>
+        <HStack color="text" opacity={0.7} spacing={2}>
           <FaGooglePlay />
           <Text>{t("googlePlay")}</Text>
           <Badge colorScheme="green">{t("comingSoon")}</Badge>
@@ -106,7 +106,7 @@ export default function DownloadPageClient() {
           <ListItem>{t("step4")}</ListItem>
         </OrderedList>
       </Box>
-      <Text color="textSecondary" fontSize="xs">
+      <Text color="text" opacity={0.7} fontSize="xs">
         {t("apkNote")}{" "}
         <Link href={ANDROID_RELEASES_URL} isExternal color="primary">
           {t("releaseNotes")}
