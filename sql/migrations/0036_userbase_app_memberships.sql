@@ -27,7 +27,11 @@
 -- nobody to anything. No email copy either: each session points at the
 -- verified userbase_auth_methods row it was issued through.
 --
--- Only service_role touches any of it. Safe to run more than once; one
+-- Only service_role touches any of it: explicit grants on the new tables, no
+-- access for PUBLIC/anon/authenticated (Supabase's default privileges would
+-- otherwise grant them). The functions run as the caller (SECURITY INVOKER),
+-- so they need service_role's existing rights on userbase_users (select) and
+-- userbase_auth_methods (select, update) — Supabase grants those already. Safe to run more than once; one
 -- transaction; additive — no existing table or function changes.
 --
 -- Not covered: userbase_merge_users does not move memberships or app sessions
@@ -101,11 +105,13 @@ create index if not exists userbase_app_sessions_expires_idx
 
 alter table public.userbase_app_memberships enable row level security;
 alter table public.userbase_app_memberships force row level security;
-revoke all on table public.userbase_app_memberships from anon, authenticated;
+revoke all on table public.userbase_app_memberships from public, anon, authenticated;
+grant select, insert, update, delete on table public.userbase_app_memberships to service_role;
 
 alter table public.userbase_app_sessions enable row level security;
 alter table public.userbase_app_sessions force row level security;
-revoke all on table public.userbase_app_sessions from anon, authenticated;
+revoke all on table public.userbase_app_sessions from public, anon, authenticated;
+grant select, insert, update, delete on table public.userbase_app_sessions to service_role;
 
 -- Record one verified login and issue its app session, atomically.
 -- Call only after the OTP (or signup) was verified server-side, with the email

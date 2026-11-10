@@ -20,11 +20,29 @@ sleep 1
 
 psql_run() { docker exec -i "$NAME" psql -U postgres -v ON_ERROR_STOP=1 -q "$@"; }
 
-# Supabase roles, then the base schema the migration builds on.
+# Supabase-like roles and default privileges: every new table and function in
+# public is granted to anon/authenticated/service_role unless revoked, and
+# service_role bypasses RLS. Then the base schema, with 0006's revokes.
 psql_run <<'SQL'
-create role anon; create role authenticated; create role service_role;
+create role anon nologin; create role authenticated nologin;
+create role service_role nologin bypassrls;
+grant usage on schema public to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant all on functions to anon, authenticated, service_role;
 SQL
 psql_run < "$MIG/0001_userbase.sql" 2>/dev/null
+psql_run <<'SQL'
+alter table userbase_users enable row level security;
+alter table userbase_users force row level security;
+alter table userbase_auth_methods enable row level security;
+alter table userbase_auth_methods force row level security;
+alter table userbase_sessions enable row level security;
+alter table userbase_sessions force row level security;
+revoke all on table userbase_users, userbase_auth_methods, userbase_sessions
+  from anon, authenticated;
+SQL
 
 echo "apply twice (idempotent)"
 psql_run < "$MIG/0036_userbase_app_memberships.sql"
@@ -213,6 +231,53 @@ do $$ begin
   assert (select relforcerowsecurity from pg_class where relname = 'userbase_app_sessions');
   assert (select relforcerowsecurity from pg_class where relname = 'userbase_app_memberships');
 end $$;
+SQL
+
+echo "real roles: service_role can run every path, anon/authenticated cannot"
+psql_run <<'SQL'
+insert into userbase_users (id, handle) values ('00000000-0000-0000-0000-000000000005', 'eve');
+insert into userbase_auth_methods (user_id, type, identifier, verified_at)
+  values ('00000000-0000-0000-0000-000000000005', 'email_magic', 'eve@example.com', now());
+
+set role service_role;
+do $$
+declare r record; tok text := encode(sha256('svc1'::bytea), 'hex');
+begin
+  assert current_user = 'service_role';
+  assert (select count(*) from userbase_app_login('00000000-0000-0000-0000-000000000005',
+    'coletivoxv', 'eve@example.com', tok, now() + interval '30 days', 'email_otp', 'ua')) = 1,
+    'service_role login';
+  -- force a slide so the update path runs as service_role too
+  update userbase_app_sessions set last_used_at = now() - interval '2 days' where token_hash = tok;
+  select * into r from userbase_app_session_resolve(tok, 'coletivoxv');
+  assert r.user_id = '00000000-0000-0000-0000-000000000005', 'service_role resolve';
+  assert userbase_app_session_revoke(tok, 'coletivoxv'), 'service_role revoke';
+  update userbase_app_sessions set revoked_at = now() - interval '8 days' where token_hash = tok;
+  assert userbase_app_sessions_cleanup() >= 1, 'service_role cleanup';
+  assert (select count(*) from userbase_app_memberships m
+          join userbase_auth_methods am on am.id = m.last_auth_method_id
+          where am.identifier = 'eve@example.com') = 1, 'service_role admin read';
+end $$;
+reset role;
+SQL
+
+for role in anon authenticated; do
+  for stmt in \
+    "select * from userbase_app_login('00000000-0000-0000-0000-000000000005','coletivoxv','eve@example.com','$(printf 'a%.0s' $(seq 64))',now()+interval '1 day','email_otp')" \
+    "select * from userbase_app_session_resolve('x','coletivoxv')" \
+    "select userbase_app_session_revoke('x','coletivoxv')" \
+    "select userbase_app_sessions_cleanup()" \
+    "select * from userbase_app_sessions" \
+    "select * from userbase_app_memberships" \
+    "insert into userbase_app_memberships (user_id, app) values ('00000000-0000-0000-0000-000000000005','coletivoxv')"; do
+    if out=$(printf 'set role %s;\n%s;\n' "$role" "$stmt" | psql_run 2>&1); then
+      echo "FAIL $role was allowed: $stmt"; exit 1
+    fi
+    echo "$out" | grep -q "permission denied" || { echo "FAIL $role unexpected error: $out"; exit 1; }
+  done
+done
+psql_run <<'SQL'
+delete from userbase_users where handle = 'eve';
 SQL
 
 echo "admin email list follows the verified login, not other emails on the account"
