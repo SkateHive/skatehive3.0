@@ -14,11 +14,14 @@ import { useRef } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "@/contexts/LocaleContext";
 import SkateDiceGame from "./SkateDiceGame";
+import { OPEN_TARGETS, useOpenFromQuery } from "@/hooks/useOpenFromQuery";
 
 export default function TricksHeader() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   // Focus PLAY on open, so Space rolls instead of pressing the Back button.
   const playRef = useRef<HTMLButtonElement>(null);
+  // The mobile "+" sheet links here as /tricks?play=dice.
+  useOpenFromQuery(OPEN_TARGETS.playDice, onOpen);
   const t = useTranslations("tricks");
 
   return (

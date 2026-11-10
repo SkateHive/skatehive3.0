@@ -123,6 +123,14 @@ export const ptBR = {
     poweredBy: 'Cross-chain via LI.FI',
     poweredByTip: 'Agrega mais de 20 bridges e DEXes para a melhor rota cross-chain',
   },
+  createSheet: {
+    postTitle: 'Postar',
+    postSubtitle: 'Compartilhe um clipe com a galera',
+    spotTitle: 'Pico',
+    spotSubtitle: 'Adicione um pico de skate ao mapa',
+    playTitle: 'Jogar',
+    playSubtitle: 'Coach Fred — skate ou dados',
+  },
   navigation: {
     home: 'Home',
     magazine: 'Revista',

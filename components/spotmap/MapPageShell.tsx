@@ -19,6 +19,7 @@ import { useTranslations } from "@/contexts/LocaleContext";
 import { Discussion } from "@hiveio/dhive";
 import MapTabs, { MapTabKey } from "./MapTabs";
 import SpotSnapComposer from "./SpotSnapComposer";
+import { OPEN_TARGETS, useOpenFromQuery } from "@/hooks/useOpenFromQuery";
 import SpotList from "./SpotList";
 import { useSkatespots } from "@/hooks/useSkatespots";
 import { useAioha } from "@aioha/react-ui";
@@ -52,6 +53,8 @@ export default function MapPageShell({
     onOpen: onComposerOpen,
     onClose: onComposerClose,
   } = useDisclosure();
+  // The mobile "+" sheet links here as /map?add=spot.
+  useOpenFromQuery(OPEN_TARGETS.addSpot, onComposerOpen);
   const { spots, isLoading, hasMore, loadNextPage, error, refresh } = useSkatespots();
   const { user } = useAioha();
   const canDownloadKml =
