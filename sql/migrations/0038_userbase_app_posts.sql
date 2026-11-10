@@ -631,8 +631,14 @@ begin
       (app, hive_handle, user_id, auth_method_id, public_key, challenge_id)
     values (p_app, c.hive_handle, s.user_id, s.auth_method_id, p_public_key, c.id)
     returning * into v_row;
-  exception when check_violation then
-    raise exception 'invalid public key' using errcode = 'UB422';
+  exception
+    when check_violation then
+      raise exception 'invalid public key' using errcode = 'UB422';
+    when unique_violation then
+      -- A concurrent bind for the same handle or account won the race. Raising
+      -- aborts the whole call, so this call's challenge consumption and any
+      -- revocation above roll back with it.
+      raise exception 'binding conflict' using errcode = 'UB409';
   end;
   return v_row;
 end;
@@ -1210,7 +1216,9 @@ begin
         result = coalesce(p_result, o.result),
         done_at = case when p_ok then now() end,
         next_attempt_at = case when p_ok then o.next_attempt_at
-          else now() + make_interval(secs => least(3600, 30 * power(2, o.attempts)::integer)) end,
+          -- Exponent capped before multiplying: 30 * 2^7 already passes the
+          -- 3600 s ceiling, and max_attempts can go up to 50.
+          else now() + make_interval(secs => least(3600, (30 * power(2, least(o.attempts, 7)))::integer)) end,
         updated_at = now()
     where o.id = v_row.id
     returning * into v_row;

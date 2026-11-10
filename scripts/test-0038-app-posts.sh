@@ -326,6 +326,28 @@ begin
     perform pg_temp.expect(format($q$select userbase_app_post_outbox_requeue(%L)$q$, ob.outbox_id), 'UB409');
   end;
 
+  -- backoff never overflows: max_attempts 50, failures on attempts 27 and 50
+  declare ob record; r public.userbase_app_post_outbox; begin
+    update userbase_app_post_outbox set max_attempts = 50, attempts = 26, next_attempt_at = now(),
+      status = 'queued' where post_id = q.id and kind = 'instagram_enqueue';
+    select * into ob from userbase_app_post_outbox_claim('instagram_enqueue','w1');
+    assert ob.attempts = 27;
+    r := userbase_app_post_outbox_complete(ob.outbox_id, ob.claim_token, false, 'ig_down');
+    assert r.status = 'queued', 'attempt 27 failure is a retry, not an overflow';
+    assert r.next_attempt_at = now() + interval '3600 seconds', 'backoff capped at 3600s';
+    update userbase_app_post_outbox set attempts = 49, next_attempt_at = now() where id = r.id;
+    select * into ob from userbase_app_post_outbox_claim('instagram_enqueue','w1');
+    assert ob.attempts = 50;
+    r := userbase_app_post_outbox_complete(ob.outbox_id, ob.claim_token, false, 'ig_down');
+    assert r.status = 'failed', 'attempt 50 of 50 is terminal';
+    -- small attempt counts keep the short backoff
+    update userbase_app_post_outbox set status = 'queued', attempts = 0, max_attempts = 50,
+      next_attempt_at = now() where id = r.id;
+    select * into ob from userbase_app_post_outbox_claim('instagram_enqueue','w1');
+    r := userbase_app_post_outbox_complete(ob.outbox_id, ob.claim_token, false, 'ig_down');
+    assert r.next_attempt_at = now() + interval '60 seconds', 'attempt 1 -> 60s';
+  end;
+
   -- keyset cursor: equal timestamps never skip or repeat rows
   update userbase_app_posts set published_at = '2026-01-01T00:00:00Z'
     where status = 'published' and app = 'coletivoxv';
@@ -404,6 +426,55 @@ rm -f "$TMPD/c1" "$TMPD/c2"
 echo "  due=$DUE A=$A B=$B duplicates=$DUP"
 [ "$DUP" = 0 ] && [ "$A" -ge 1 ] && [ "$B" -ge 1 ] && [ $((A + B)) -le "$DUE" ] || { echo "FAIL concurrency"; exit 1; }
 
+echo "bind race: two accounts bind the same handle at once -> one wins, the other gets UB409 and nothing of its call stays"
+psql_run <<'SQL'
+insert into userbase_users (id, handle) values
+  ('00000000-0000-0000-0000-0000000000f1', 'race-p'), ('00000000-0000-0000-0000-0000000000f2', 'race-q');
+insert into userbase_auth_methods (id, user_id, type, identifier, verified_at) values
+  ('10000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000f1', 'email_magic', 'p@example.invalid', now()),
+  ('10000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000f2', 'email_magic', 'q@example.invalid', now());
+set role service_role;
+select count(*) from userbase_app_login('00000000-0000-0000-0000-0000000000f1','coletivoxv','p@example.invalid',encode(sha256('race-p'::bytea),'hex'),now()+interval '1 day','email_otp');
+select count(*) from userbase_app_login('00000000-0000-0000-0000-0000000000f2','coletivoxv','q@example.invalid',encode(sha256('race-q'::bytea),'hex'),now()+interval '1 day','email_otp');
+SQL
+psql_run <<'SQL'
+create table public.race_ids (who text primary key, challenge_id uuid);
+grant all on public.race_ids to service_role;
+set role service_role;
+insert into race_ids select 'p', challenge_id from userbase_app_moderator_challenge_create(encode(sha256('race-p'::bytea),'hex'),'coletivoxv','wilbor');
+insert into race_ids select 'q', challenge_id from userbase_app_moderator_challenge_create(encode(sha256('race-q'::bytea),'hex'),'coletivoxv','wilbor');
+SQL
+KEY=STM6LLegbAgLAy28EHrffBVuANFWcFgmqRMW13wBmTExqFE9SCkg4
+docker exec -i "$NAME" psql -U postgres -qAt -v ON_ERROR_STOP=1 > "$TMPD/ra" 2>&1 <<SQL &
+set role service_role;
+begin;
+select hive_handle from userbase_app_moderator_bind(encode(sha256('race-p'::bytea),'hex'),'coletivoxv',(select challenge_id from race_ids where who='p'),'$KEY');
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.7
+docker exec -i "$NAME" psql -U postgres -qAt -v VERBOSITY=verbose > "$TMPD/rb" 2>&1 <<SQL || true
+set role service_role;
+select hive_handle from userbase_app_moderator_bind(encode(sha256('race-q'::bytea),'hex'),'coletivoxv',(select challenge_id from race_ids where who='q'),'$KEY');
+SQL
+wait
+grep -q '^wilbor$' "$TMPD/ra" || { echo "FAIL race: A did not bind"; cat "$TMPD/ra"; exit 1; }
+grep -q 'UB409' "$TMPD/rb" || { echo "FAIL race: B did not get UB409"; cat "$TMPD/rb"; exit 1; }
+psql_run <<'SQL'
+do $$ begin
+  assert (select count(*) from userbase_app_moderators where hive_handle = 'wilbor' and revoked_at is null) = 1;
+  assert (select user_id from userbase_app_moderators where hive_handle = 'wilbor' and revoked_at is null)
+         = '00000000-0000-0000-0000-0000000000f1', 'A owns the binding';
+  assert (select used_at from userbase_app_moderator_challenges
+          where id = (select challenge_id from race_ids where who = 'q')) is null,
+         'loser challenge consumption rolled back';
+  assert not exists (select 1 from userbase_app_moderators
+                     where user_id = '00000000-0000-0000-0000-0000000000f2'), 'loser left no row';
+end $$;
+drop table public.race_ids;
+SQL
+echo "  race ok: winner bound, loser UB409, loser challenge still unused"
+
 echo "privileges: anon/authenticated denied on every new table and RPC"
 for role in anon authenticated; do
   for stmt in \
@@ -434,6 +505,25 @@ do $$ begin
   assert not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                      where n.nspname = 'public' and p.proname like 'userbase_app%' and p.prosecdef),
          'all SECURITY INVOKER';
+end $$;
+SQL
+
+echo "service_role: has each needed privilege (checked one at a time)"
+psql_run <<'SQL'
+do $$
+declare t text; p text;
+begin
+  foreach t in array array['userbase_app_posts','userbase_app_moderators','userbase_app_moderator_challenges',
+                           'userbase_app_moderator_allowlist','userbase_app_post_outbox'] loop
+    foreach p in array array['select','insert','update'] loop
+      assert has_table_privilege('service_role', 'public.' || t, p), t || ' ' || p;
+    end loop;
+  end loop;
+  assert has_table_privilege('service_role', 'public.userbase_app_post_events', 'select');
+  assert has_table_privilege('service_role', 'public.userbase_app_post_events', 'insert');
+  foreach p in array array['update','delete','truncate'] loop
+    assert not has_table_privilege('service_role', 'public.userbase_app_post_events', p), 'events ' || p;
+  end loop;
 end $$;
 SQL
 

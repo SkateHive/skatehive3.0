@@ -1,6 +1,8 @@
 -- 0038_postflight.sql — READ ONLY. Run right AFTER applying 0038. Every row
 -- must be ok = true. Catalog metadata + the moderator allowlist (public Hive
 -- handles); no user data. Do not call the RPCs in production to test them.
+-- Positive privilege checks test one privilege each: a list like
+-- 'select,insert' is true when ANY of them is held.
 -- If the API gets "function not found": notify pgrst, 'reload schema';
 with
 tbls(t) as (values ('public.userbase_app_moderator_allowlist'), ('public.userbase_app_moderator_challenges'),
@@ -19,7 +21,8 @@ checks(name, ok) as (
   union all select 'service_role has no DELETE/TRUNCATE ' || t, to_regclass(t) is not null
     and not has_table_privilege('service_role', t, 'delete,truncate') from tbls
   union all select 'event log: service_role select+insert only',
-    has_table_privilege('service_role','public.userbase_app_post_events','select,insert')
+    has_table_privilege('service_role','public.userbase_app_post_events','select')
+    and has_table_privilege('service_role','public.userbase_app_post_events','insert')
     and not has_table_privilege('service_role','public.userbase_app_post_events','update,delete,truncate')
   union all select 'function count = 26', (select count(*) = 26 from fns)
   union all select 'functions SECURITY INVOKER', not exists (select 1 from fns where prosecdef)
