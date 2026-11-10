@@ -50,6 +50,11 @@ create table if not exists public.userbase_app_memberships (
   last_login_at timestamptz not null default now(),
   login_count integer not null default 1
     constraint userbase_app_memberships_login_count check (login_count >= 1),
+  -- The email verified on the latest login. A pointer, not a copy, and it
+  -- outlives session cleanup — the admin list reads it
+  -- (sql/admin/app_membership_emails.sql).
+  last_auth_method_id uuid
+    references public.userbase_auth_methods(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint userbase_app_memberships_user_app_uniq unique (user_id, app)
 );
@@ -139,11 +144,12 @@ begin
       using errcode = 'P0002';
   end if;
 
-  insert into public.userbase_app_memberships as m (user_id, app)
-  values (p_user_id, p_app)
+  insert into public.userbase_app_memberships as m (user_id, app, last_auth_method_id)
+  values (p_user_id, p_app, v_auth_method_id)
   on conflict (user_id, app) do update
     set last_login_at = now(),
-        login_count = m.login_count + 1
+        login_count = m.login_count + 1,
+        last_auth_method_id = excluded.last_auth_method_id
     where m.status = 'active'
   returning m.id into v_membership_id;
 

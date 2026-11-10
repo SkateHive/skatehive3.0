@@ -215,6 +215,31 @@ do $$ begin
 end $$;
 SQL
 
+echo "admin email list follows the verified login, not other emails on the account"
+psql_run <<'SQL'
+insert into userbase_users (id, handle) values ('00000000-0000-0000-0000-000000000004', 'dana');
+-- Dana has two emails; she only ever signs in to coletivo with the second.
+insert into userbase_auth_methods (user_id, type, identifier, verified_at) values
+  ('00000000-0000-0000-0000-000000000004', 'email_magic', 'dana-old@example.com', now()),
+  ('00000000-0000-0000-0000-000000000004', 'email_magic', 'dana@coletivo.example', now());
+select count(*) from userbase_app_login('00000000-0000-0000-0000-000000000004', 'coletivoxv',
+  'dana@coletivo.example', encode(sha256('d1'::bytea), 'hex'), now() + interval '30 days',
+  'email_signup');
+-- Session cleanup must not lose the email for the membership list.
+delete from userbase_app_sessions;
+SQL
+ADMIN_OUT="$(mktemp)"
+psql_run -At < "$ROOT/sql/admin/app_membership_emails.sql" > "$ADMIN_OUT" 2>&1 || {
+  cat "$ADMIN_OUT"; exit 1; }
+grep -q 'dana@coletivo.example' "$ADMIN_OUT" || { echo "FAIL verified email missing"; exit 1; }
+if grep -q 'dana-old@example.com' "$ADMIN_OUT"; then
+  echo "FAIL admin list leaked an email not used on the app"; exit 1
+fi
+rm -f "$ADMIN_OUT"
+psql_run <<'SQL'
+delete from userbase_users where handle = 'dana';
+SQL
+
 echo "rollback twice (idempotent), userbase_sessions intact, then re-apply"
 psql_run <<'SQL'
 insert into userbase_users (id, handle) values ('00000000-0000-0000-0000-000000000003', 'carol');
