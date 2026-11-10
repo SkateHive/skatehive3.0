@@ -9,6 +9,8 @@
 begin;
 
 drop function if exists public.userbase_app_post_publish_reserve_target(uuid, uuid, text, text, text, text);
+drop function if exists public.userbase_app_post_publish_mark_legacy(uuid, uuid, text);
+drop function if exists public.userbase_app_post_reconcile_legacy_root(uuid, text, text);
 
 create or replace function public.userbase_app__post_guard()
 returns trigger

@@ -17,8 +17,13 @@
 --   failed 'target_changed' (returned, not raised, so the write sticks) and is
 --   never republished elsewhere.
 -- * A post reserved before 0041 (author set, parent null) is NOT assumed to be
---   a snap: reserve_target persists it as failed 'legacy_target_unknown' for
---   the API to reconcile on chain.
+--   a snap and is NEVER published automatically: reserve_target, or the API's
+--   userbase_app_post_publish_mark_legacy() after checking the chain, persists
+--   it as failed 'legacy_target_unknown'. A person can then confirm a root post
+--   found on chain with userbase_app_post_reconcile_legacy_root() (owner only,
+--   SQL editor, operator + note logged); that is the only way a post becomes
+--   published without a parent.
+-- * Inserts can't carry a destination; only reserve_target sets it.
 -- * userbase_app_post_publish_reserve() (0038, no parent) now refuses (UB409).
 -- * Guard trigger: the destination is immutable once set, and nothing becomes
 --   'published' without a reserved destination. Posts already published before
@@ -65,6 +70,7 @@ begin
     if not (new.status = 'pending'
             or (new.status = 'approved' and new.auto_approved and new.reviewed_at is not null))
        or new.publish_author is not null or new.publish_attempts <> 0
+       or new.publish_parent_author is not null or new.publish_parent_permlink is not null
        or new.published_at is not null or new.crosspost_queue_id is not null then
       raise exception 'new posts start pending (or auto-approved)' using errcode = 'UB422';
     end if;
@@ -89,6 +95,12 @@ begin
      (old.publish_author, old.publish_signer_kind) then
     raise exception 'hive author is fixed once reserved' using errcode = 'UB409';
   end if;
+  -- New reservations always carry the destination (0041): the author can't be
+  -- set without the parent (rows reserved before 0041 keep theirs).
+  if old.publish_author is null and new.publish_author is not null
+     and new.publish_parent_author is null then
+    raise exception 'reserve the destination with reserve_target' using errcode = 'UB409';
+  end if;
   -- Hive destination (0041): fixed once reserved, never moved.
   if old.publish_parent_author is not null and
      (new.publish_parent_author, new.publish_parent_permlink) is distinct from
@@ -96,9 +108,16 @@ begin
     raise exception 'hive destination is fixed once reserved' using errcode = 'UB409';
   end if;
   -- Nothing becomes published without a reserved destination (0041). Rows
-  -- published before 0041 keep a null parent and are not re-checked.
+  -- published before 0041 keep a null parent and are not re-checked. The one
+  -- exception is the audited operator path for a legacy root post already on
+  -- chain (userbase_app_post_reconcile_legacy_root), which sets a
+  -- transaction-local flag; nothing else can publish without a parent.
   if new.status = 'published' and old.status <> 'published'
-     and new.publish_parent_author is null then
+     and new.publish_parent_author is null
+     and not (coalesce(current_setting('userbase.reconcile_legacy_root', true), '') = 'on'
+              and current_user not in ('service_role', 'anon', 'authenticated')
+              and old.status = 'failed' and old.last_error_code = 'legacy_target_unknown'
+              and new.publish_author is not null) then
     raise exception 'hive destination not reserved' using errcode = 'UB409';
   end if;
   if old.crosspost_queue_id is not null
@@ -119,6 +138,10 @@ begin
     or (old.status = 'approved'   and new.status in ('publishing', 'failed'))
     or (old.status = 'publishing' and new.status in ('published', 'approved', 'failed'))
     or (old.status = 'failed'     and new.status = 'approved')
+    or (old.status = 'failed'     and new.status = 'published'
+        and coalesce(current_setting('userbase.reconcile_legacy_root', true), '') = 'on'
+        and current_user not in ('service_role', 'anon', 'authenticated')
+        and old.last_error_code = 'legacy_target_unknown')
   ) then
     raise exception 'transition % -> % not allowed', old.status, new.status using errcode = 'UB409';
   end if;
@@ -206,6 +229,76 @@ begin
 end;
 $$;
 
+-- API path for a post reserved before 0041 (author set, parent null): mark it
+-- terminal legacy_target_unknown under its live claim, whether or not the API
+-- found it on chain. Never published automatically, never assumed to be a
+-- snap. p_detail records what the API saw (e.g. 'root on chain: a/p').
+-- Persisted and returned, not raised.
+create or replace function public.userbase_app_post_publish_mark_legacy(
+  p_post_id uuid, p_claim_token uuid, p_detail text)
+returns public.userbase_app_posts
+language plpgsql
+volatile
+set search_path = public
+as $$
+#variable_conflict use_column
+declare v_row public.userbase_app_posts;
+begin
+  select * into v_row from public.userbase_app_posts p
+  where p.id = p_post_id and p.publish_claim_token = p_claim_token
+    and p.status = 'publishing' and p.publish_lease_until > now()
+  for update;
+  if v_row.id is null then
+    raise exception 'claim lost or expired' using errcode = 'UB409';
+  end if;
+  if v_row.publish_author is null or v_row.publish_parent_author is not null then
+    raise exception 'not a legacy reservation' using errcode = 'UB409';
+  end if;
+  update public.userbase_app_posts p
+    set status = 'failed', publish_claim_token = null, publish_lease_until = null,
+        last_error_code = 'legacy_target_unknown'
+    where p.id = v_row.id returning * into v_row;
+  perform public.userbase_app__log(v_row, null, null, 'system', 'publish_failed', 'publishing',
+    'legacy_target_unknown: ' || coalesce(left(p_detail, 400), ''));
+  return v_row;
+end;
+$$;
+
+-- Operator-only, audited: confirm that a legacy_target_unknown post is
+-- already on chain as a ROOT post under its reserved author/permlink, and
+-- record it as published with a null parent (like posts published before
+-- 0041). Run by a person from the SQL editor after checking the chain; the
+-- API can't call it (no service_role grant). Operator and note are logged.
+create or replace function public.userbase_app_post_reconcile_legacy_root(
+  p_post_id uuid, p_operator text, p_note text)
+returns public.userbase_app_posts
+language plpgsql
+volatile
+set search_path = public
+as $$
+#variable_conflict use_column
+declare v_row public.userbase_app_posts;
+begin
+  if coalesce(btrim(p_operator), '') = '' or coalesce(btrim(p_note), '') = '' then
+    raise exception 'operator and note are required' using errcode = 'UB422';
+  end if;
+  perform set_config('userbase.reconcile_legacy_root', 'on', true);
+  update public.userbase_app_posts p
+    set status = 'published', published_at = now(), last_error_code = null
+    where p.id = p_post_id and p.status = 'failed'
+      and p.last_error_code = 'legacy_target_unknown'
+      and p.publish_author is not null and p.publish_parent_author is null
+    returning * into v_row;
+  perform set_config('userbase.reconcile_legacy_root', '', true);
+  if v_row.id is null then
+    raise exception 'post is not a legacy_target_unknown reservation' using errcode = 'UB409';
+  end if;
+  perform public.userbase_app__log(v_row, null, left(btrim(p_operator), 64), 'system', 'publish_succeeded',
+    'failed', 'legacy root reconciled by operator: ' || left(p_note, 400));
+  return v_row;
+end;
+$$;
+
 create or replace function public.userbase_app_post_publish_requeue(
   p_token_hash text, p_app text, p_post_id uuid)
 returns public.userbase_app_posts
@@ -243,5 +336,13 @@ revoke all on function public.userbase_app_post_publish_reserve_target(uuid, uui
   from public, anon, authenticated, service_role;
 grant execute on function public.userbase_app_post_publish_reserve_target(uuid, uuid, text, text, text, text)
   to service_role;
+revoke all on function public.userbase_app_post_publish_mark_legacy(uuid, uuid, text)
+  from public, anon, authenticated, service_role;
+grant execute on function public.userbase_app_post_publish_mark_legacy(uuid, uuid, text)
+  to service_role;
+-- Operator path: owner only (SQL editor). No service_role grant, so the API
+-- (PostgREST with the service key) can't call it.
+revoke all on function public.userbase_app_post_reconcile_legacy_root(uuid, text, text)
+  from public, anon, authenticated, service_role;
 
 commit;

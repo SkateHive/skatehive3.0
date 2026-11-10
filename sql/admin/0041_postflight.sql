@@ -16,6 +16,22 @@ with checks(name, ok) as (values
      and not has_function_privilege('authenticated','public.userbase_app_post_publish_reserve_target(uuid,uuid,text,text,text,text)','execute')),
   ('reserve_target SECURITY INVOKER',
      not (select prosecdef from pg_proc where oid = to_regprocedure('public.userbase_app_post_publish_reserve_target(uuid,uuid,text,text,text,text)'))),
+  ('mark_legacy: service_role only, INVOKER',
+     has_function_privilege('service_role','public.userbase_app_post_publish_mark_legacy(uuid,uuid,text)','execute')
+     and not has_function_privilege('anon','public.userbase_app_post_publish_mark_legacy(uuid,uuid,text)','execute')
+     and not has_function_privilege('authenticated','public.userbase_app_post_publish_mark_legacy(uuid,uuid,text)','execute')
+     and not (select prosecdef from pg_proc where oid = to_regprocedure('public.userbase_app_post_publish_mark_legacy(uuid,uuid,text)'))),
+  ('reconcile_legacy_root: owner only (no service_role/anon/authenticated), INVOKER',
+     to_regprocedure('public.userbase_app_post_reconcile_legacy_root(uuid,text,text)') is not null
+     and not has_function_privilege('service_role','public.userbase_app_post_reconcile_legacy_root(uuid,text,text)','execute')
+     and not has_function_privilege('anon','public.userbase_app_post_reconcile_legacy_root(uuid,text,text)','execute')
+     and not has_function_privilege('authenticated','public.userbase_app_post_reconcile_legacy_root(uuid,text,text)','execute')
+     and not (select prosecdef from pg_proc where oid = to_regprocedure('public.userbase_app_post_reconcile_legacy_root(uuid,text,text)'))),
+  ('guard: no author without parent; insert carries no destination; operator flag ignored for API roles',
+     (select prosrc like '%reserve the destination with reserve_target%'
+        and prosrc like '%new.publish_parent_author is not null or new.publish_parent_permlink is not null%'
+        and prosrc like '%current_user not in (''service_role'', ''anon'', ''authenticated'')%'
+      from pg_proc where oid = to_regprocedure('public.userbase_app__post_guard()'))),
   ('old reserve refuses (raises)',
      (select prosrc like '%use userbase_app_post_publish_reserve_target%' from pg_proc
       where oid = to_regprocedure('public.userbase_app_post_publish_reserve(uuid,uuid,text,text)'))),

@@ -63,7 +63,7 @@ declare a text := encode(sha256('alice'::bytea),'hex'); x text := encode(sha256(
 begin
   select * into ch from userbase_app_moderator_challenge_create(x,'coletivoxv','xvlad');
   perform userbase_app_moderator_bind(x,'coletivoxv',ch.challenge_id,'STM6LLegbAgLAy28EHrffBVuANFWcFgmqRMW13wBmTExqFE9SCkg4');
-  foreach kk in array array['legacy_pub','legacy_res','c','d','e','f','g','h','conc','plan'] loop
+  foreach kk in array array['legacy_pub','legacy_res','legacy_mark','c','d','e','f','g','h','conc','plan'] loop
     p := userbase_app_post_create(a,'coletivoxv','key-0041-'||kk,encode(sha256(kk::bytea),'hex'),'text',null,'post '||kk,'[]',null,null,true);
     p := userbase_app_post_review(x,'coletivoxv',p.id,'approve');
     insert into t_ids values (kk, p.id);
@@ -78,6 +78,10 @@ begin
   p := userbase_app_post_publish_reserve(p.id, p.publish_claim_token, 'skateuser', 'shared_default');
   p := userbase_app_post_publish_complete(p.id, p.publish_claim_token, false, 'chain_unavailable');
   assert p.status = 'approved' and p.publish_author = 'skateuser';
+  -- legacy_mark: same legacy shape, for the API mark_legacy + operator paths
+  select * into p from userbase_app_post_publish_claim((select id from t_ids where k='legacy_mark'),'w0');
+  p := userbase_app_post_publish_reserve(p.id, p.publish_claim_token, 'skateuser', 'shared_default');
+  p := userbase_app_post_publish_complete(p.id, p.publish_claim_token, false, 'chain_unavailable');
 end $$;
 SQL
 
@@ -204,6 +208,70 @@ do $$ begin
 end $$;
 SQL
 
+echo "legacy paths, insert guard, author-without-parent guard"
+psql_run <<'SQL'
+create function pg_temp.expect(p_sql text, p_code text) returns void language plpgsql as $$
+declare v text;
+begin
+  begin execute p_sql; exception when others then
+    get stacked diagnostics v = returned_sqlstate;
+    if v <> p_code then raise exception 'expected % got %: %', p_code, v, p_sql; end if;
+    return;
+  end;
+  raise exception 'expected % but it succeeded: %', p_code, p_sql;
+end $$;
+grant execute on all functions in schema pg_temp to service_role;
+set role service_role;
+do $$
+declare p public.userbase_app_posts; q public.userbase_app_posts; tok uuid;
+begin
+  -- a new reservation can't set the author without the parent (direct UPDATE)
+  -- (plan is already claimed by the open-connection check and has no author)
+  assert (select publish_author is null from userbase_app_posts where id = (select t.id from t_ids t where k='plan'));
+  perform pg_temp.expect(format($q$update userbase_app_posts set publish_author='skateuser', publish_signer_kind='shared_default' where id=%L$q$,
+    (select t.id from t_ids t where k='plan')), 'UB409');
+  -- inserts can't carry a destination
+  perform pg_temp.expect($q$insert into userbase_app_posts (app,user_id,idempotency_key,request_hash,kind,body,consent_publish_at,publish_parent_author,publish_parent_permlink)
+    values ('coletivoxv','00000000-0000-0000-0000-00000000000a','key-0041-insert',repeat('a',64),'text','x',now(),'peak.snaps','snap-container-1')$q$, 'UB422');
+
+  -- API path: legacy reservation -> terminal legacy_target_unknown, persisted
+  select * into p from userbase_app_post_publish_claim((select t.id from t_ids t where k='legacy_mark'),'w1');
+  tok := p.publish_claim_token;
+  perform pg_temp.expect(format($q$select userbase_app_post_publish_mark_legacy(%L,%L,'x')$q$, p.id, gen_random_uuid()), 'UB409');
+  q := userbase_app_post_publish_mark_legacy(p.id, tok, 'root on chain: skateuser/' || p.publish_permlink);
+  assert q.status = 'failed' and q.last_error_code = 'legacy_target_unknown' and q.publish_parent_author is null;
+  assert (select status from userbase_app_posts where id = q.id) = 'failed', 'persisted';
+  assert (select count(*) from userbase_app_post_events where post_id = q.id and detail like 'legacy_target_unknown: root on chain:%') = 1;
+  -- not a legacy reservation -> refused
+  -- h holds a live claim from the behaviour block and has no author
+  select * into p from userbase_app_posts where id = (select t.id from t_ids t where k='h');
+  assert p.status = 'publishing' and p.publish_author is null and p.publish_claim_token is not null;
+  perform pg_temp.expect(format($q$select userbase_app_post_publish_mark_legacy(%L,%L,'x')$q$, p.id, p.publish_claim_token), 'UB409');
+  -- the API can't use the operator path, nor fake its flag
+  perform pg_temp.expect(format($q$select userbase_app_post_reconcile_legacy_root(%L,'api','x')$q$, q.id), '42501');
+  perform set_config('userbase.reconcile_legacy_root', 'on', true);
+  perform pg_temp.expect(format($q$update userbase_app_posts set status='published', published_at=now() where id=%L$q$, q.id), 'UB409');
+  perform set_config('userbase.reconcile_legacy_root', '', true);
+  -- and requeue refuses it
+  perform pg_temp.expect(format($q$select userbase_app_post_publish_requeue(%L,'coletivoxv',%L)$q$, encode(sha256('xv1'::bytea),'hex'), q.id), 'UB409');
+end $$;
+reset role;
+-- operator path (owner, SQL editor): audited, needs operator + note
+do $$
+declare q public.userbase_app_posts;
+begin
+  perform pg_temp.expect(format($q$select userbase_app_post_reconcile_legacy_root(%L,'grip','')$q$, (select id from t_ids where k='legacy_mark')), 'UB422');
+  perform pg_temp.expect(format($q$select userbase_app_post_reconcile_legacy_root(%L,'grip','checked')$q$, (select id from t_ids where k='d')), 'UB409');
+  q := userbase_app_post_reconcile_legacy_root((select id from t_ids where k='legacy_mark'), 'grip', 'root post confirmed on chain');
+  assert q.status = 'published' and q.publish_parent_author is null and q.publish_author = 'skateuser';
+  assert (select count(*) from userbase_app_post_events where post_id = q.id and actor_hive_handle = 'grip'
+          and detail like 'legacy root reconciled by operator: root post confirmed%') = 1;
+  -- the flag doesn't outlive the call: another legacy failure can't be published by hand
+  perform pg_temp.expect(format($q$update userbase_app_posts set status='published', published_at=now() where id=%L$q$,
+    (select id from t_ids where k='legacy_res')), 'UB409');
+end $$;
+SQL
+
 echo "concurrency: two calls reserve the same destination at once -> both see one reservation"
 psql_run <<'SQL'
 set role service_role;
@@ -234,6 +302,12 @@ do $$ begin
   assert not has_function_privilege('anon','public.userbase_app_post_publish_reserve_target(uuid,uuid,text,text,text,text)','execute');
   assert not has_function_privilege('authenticated','public.userbase_app_post_publish_reserve_target(uuid,uuid,text,text,text,text)','execute');
   assert not (select prosecdef from pg_proc where proname = 'userbase_app_post_publish_reserve_target');
+  assert has_function_privilege('service_role','public.userbase_app_post_publish_mark_legacy(uuid,uuid,text)','execute');
+  assert not has_function_privilege('anon','public.userbase_app_post_publish_mark_legacy(uuid,uuid,text)','execute');
+  assert not has_function_privilege('service_role','public.userbase_app_post_reconcile_legacy_root(uuid,text,text)','execute');
+  assert not has_function_privilege('anon','public.userbase_app_post_reconcile_legacy_root(uuid,text,text)','execute');
+  assert not has_function_privilege('authenticated','public.userbase_app_post_reconcile_legacy_root(uuid,text,text)','execute');
+  assert not (select bool_or(prosecdef) from pg_proc where proname in ('userbase_app_post_publish_mark_legacy','userbase_app_post_reconcile_legacy_root'));
   assert has_function_privilege('service_role','public.userbase_app_post_publish_requeue(text,text,uuid)','execute');
   assert not has_function_privilege('anon','public.userbase_app_post_publish_requeue(text,text,uuid)','execute');
   assert not has_table_privilege('service_role','public.userbase_app_posts','delete');
@@ -246,6 +320,8 @@ psql_run < "$MIG/0041_userbase_app_post_snap_target.rollback.sql" 2>/dev/null
 psql_run <<'SQL'
 do $$ begin
   assert to_regprocedure('public.userbase_app_post_publish_reserve_target(uuid,uuid,text,text,text,text)') is null;
+  assert to_regprocedure('public.userbase_app_post_publish_mark_legacy(uuid,uuid,text)') is null;
+  assert to_regprocedure('public.userbase_app_post_reconcile_legacy_root(uuid,text,text)') is null;
   assert not exists (select 1 from information_schema.columns where table_name = 'userbase_app_posts' and column_name like 'publish_parent%');
   assert (select status from userbase_app_posts where id = (select id from t_ids where k='legacy_pub')) = 'published';
   assert has_function_privilege('service_role','public.userbase_app_post_publish_reserve(uuid,uuid,text,text)','execute');
