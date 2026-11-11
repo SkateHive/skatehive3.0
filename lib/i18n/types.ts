@@ -511,12 +511,8 @@ export interface TranslationSchema {
     };
   };
   skateDice: {
-    title: string;
     coachAlt: string;
-    wannaPlay: string;
-    instructions: string;
     play: string;
-    rollAgain: string;
     skatersChoice: string;
     sentence0: string;
     sentence1: string;
@@ -536,6 +532,8 @@ export interface TranslationSchema {
     prompt0: string;
     prompt1: string;
     prompt2: string;
+    promptDesktop: string;
+    coachName: string;
   };
   trickTutorial: {
     sectionTitle: string;
