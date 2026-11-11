@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Flex, HStack, IconButton, Image, Text } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 import { FaArrowLeft, FaDice } from "react-icons/fa";
@@ -41,6 +41,7 @@ const SHAKE_G = 1.8 * 9.81;
 
 interface Props {
   onClose: () => void;
+  playRef?: RefObject<HTMLButtonElement>;
 }
 
 const Reel = memo(function Reel({ die, targetIndex, spinId, duration }: {
@@ -106,7 +107,7 @@ const Reel = memo(function Reel({ die, targetIndex, spinId, duration }: {
   );
 });
 
-export default function SkateDiceGame({ onClose }: Props) {
+export default function SkateDiceGame({ onClose, playRef }: Props) {
   const t = useTranslations();
 
   const [spinId, setSpinId] = useState(0);
@@ -260,6 +261,7 @@ export default function SkateDiceGame({ onClose }: Props) {
 
         <Box
           as="button"
+          ref={playRef}
           onClick={onPlay}
           mt="22px"
           w="100%"
@@ -284,7 +286,7 @@ export default function SkateDiceGame({ onClose }: Props) {
       </Box>
 
       {/* Stage: matrix rain, Fred slides up, speech balloon types */}
-      <Box flex="1" minH={{ base: "300px", md: "360px" }} position="relative" overflow="hidden">
+      <Box flex="1" minH={{ base: 0, md: "360px" }} position="relative" overflow="hidden">
         <MatrixRain color={GAME_GREEN} />
 
         <motion.div

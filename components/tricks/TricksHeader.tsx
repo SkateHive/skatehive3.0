@@ -10,12 +10,15 @@ import {
   Text,
   useDisclosure,
 } from "@chakra-ui/react";
+import { useRef } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "@/contexts/LocaleContext";
 import SkateDiceGame from "./SkateDiceGame";
 
 export default function TricksHeader() {
   const { isOpen, onOpen, onClose } = useDisclosure();
+  // Focus PLAY on open, so Space rolls instead of pressing the Back button.
+  const playRef = useRef<HTMLButtonElement>(null);
   const t = useTranslations("tricks");
 
   return (
@@ -82,7 +85,7 @@ export default function TricksHeader() {
         </Button>
       </Box>
 
-      <Modal isOpen={isOpen} onClose={onClose} isCentered size={{ base: "full", md: "lg" }}>
+      <Modal isOpen={isOpen} onClose={onClose} initialFocusRef={playRef} isCentered size={{ base: "full", md: "lg" }}>
         <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(4px)" />
         <ModalContent
           bg="#070709"
@@ -94,7 +97,7 @@ export default function TricksHeader() {
           position="relative"
           overflow="hidden"
         >
-          <SkateDiceGame onClose={onClose} />
+          <SkateDiceGame onClose={onClose} playRef={playRef} />
         </ModalContent>
       </Modal>
     </>
