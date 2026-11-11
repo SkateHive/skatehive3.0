@@ -75,7 +75,7 @@ declare a text := encode(sha256('alice'::bytea),'hex'); x text := encode(sha256(
 begin
   select * into ch from userbase_app_moderator_challenge_create(x,'coletivoxv','xvlad');
   perform userbase_app_moderator_bind(x,'coletivoxv',ch.challenge_id,'STM6LLegbAgLAy28EHrffBVuANFWcFgmqRMW13wBmTExqFE9SCkg4');
-  foreach kk in array array['legacy_blog','snap_pub','withdrawn','plan'] loop
+  foreach kk in array array['legacy_blog','snap_pub','withdrawn','plan','legacy_res'] loop
     p := userbase_app_post_create(a,'coletivoxv','key-0043-'||kk,encode(sha256(kk::bytea),'hex'),'text','Title '||kk,'post '||kk,'[]',null,null,true);
     p := userbase_app_post_review(x,'coletivoxv',p.id,'approve');
     insert into t_ids values (kk, p.id);
@@ -84,6 +84,10 @@ begin
   p := userbase_app_post_publish_reserve(p.id, p.publish_claim_token, 'skateuser', 'shared_default');
   p := userbase_app_post_publish_complete(p.id, p.publish_claim_token, true);
   assert p.status = 'published';
+  -- legacy_res: author reserved with 0038, no parent (becomes legacy_target_unknown later)
+  select * into p from userbase_app_post_publish_claim((select id from t_ids where k='legacy_res'),'w0');
+  p := userbase_app_post_publish_reserve(p.id, p.publish_claim_token, 'skateuser', 'shared_default');
+  p := userbase_app_post_publish_complete(p.id, p.publish_claim_token, false, 'chain_unavailable');
   select * into p from userbase_app_post_publish_claim((select id from t_ids where k='withdrawn'),'w0');
   p := userbase_app_post_publish_complete(p.id, p.publish_claim_token, false, 'withdrawn_by_author', false);
   assert p.status = 'failed';
@@ -121,7 +125,7 @@ echo "apply 0043 twice (idempotent)"
 psql_run < "$MIG/0043_userbase_app_post_publication_type.sql" 2>/dev/null
 psql_run < "$MIG/0043_userbase_app_post_publication_type.sql" 2>/dev/null
 wait
-grep -q '^after-feed|2$' "$TMPD/plan" && grep -q '^after-mine|4$' "$TMPD/plan" && [ "$(grep -c -E '^(2|4)$' "$TMPD/plan")" -ge 4 ] && ! grep -q ERROR "$TMPD/plan" || { echo "FAIL open connection"; cat "$TMPD/plan"; exit 1; }
+grep -q '^after-feed|2$' "$TMPD/plan" && grep -q '^after-mine|5$' "$TMPD/plan" && [ "$(grep -c -E '^(2|5)$' "$TMPD/plan")" -ge 4 ] && ! grep -q ERROR "$TMPD/plan" || { echo "FAIL open connection"; cat "$TMPD/plan"; exit 1; }
 echo "  open connection ok (by name and via statements prepared before the drop+create)"
 
 echo "existing rows preserved; legacy root reclassified with an event"
@@ -250,13 +254,55 @@ begin
 end $$;
 SQL
 
+echo "owner reconcile of a legacy root after 0043 marks it article (narrow guard exception)"
+psql_run <<SQL
+$EXPECT_FN
+set role service_role;
+do \$\$ declare p public.userbase_app_posts; begin
+  select * into p from userbase_app_post_publish_claim((select id from t_ids where k='legacy_res'),'w9');
+  p := userbase_app_post_publish_mark_legacy(p.id, p.publish_claim_token, 'root on chain (test)');
+  assert p.status = 'failed' and p.last_error_code = 'legacy_target_unknown' and p.publication_type = 'snap';
+  -- the API can't reconcile, nor forge the flag to flip the type
+  perform pg_temp.expect(format(\$q\$select userbase_app_post_reconcile_legacy_root(%L,'api','x')\$q\$, p.id), '42501');
+  perform set_config('userbase.reconcile_legacy_root', 'on', true);
+  perform pg_temp.expect(format(\$q\$update userbase_app_posts set publication_type='article', status='published', published_at=now() where id=%L\$q\$, p.id), 'UB409');
+  perform pg_temp.expect(format(\$q\$update userbase_app_posts set publication_type='article' where id=%L\$q\$, p.id), 'UB409');
+  perform set_config('userbase.reconcile_legacy_root', '', true);
+end \$\$;
+reset role;
+do \$\$ declare q public.userbase_app_posts; b record; begin
+  -- owner, but without the function (no flag): still refused
+  perform pg_temp.expect(format(\$q\$update userbase_app_posts set publication_type='article' where id=%L\$q\$, (select id from t_ids where k='legacy_res')), 'UB409');
+  select * into b from t_before where id = (select id from t_ids where k='legacy_res');
+  q := userbase_app_post_reconcile_legacy_root((select id from t_ids where k='legacy_res'), 'grip', 'root confirmed on chain (test)');
+  assert q.status = 'published' and q.publication_type = 'article' and q.publish_parent_author is null;
+  assert q.body_hash = b.body_hash and q.request_hash = b.request_hash and q.publish_author = b.publish_author
+     and q.publish_permlink = b.publish_permlink, 'content, hashes and destination preserved';
+  assert (select count(*) from userbase_app_post_events where post_id = q.id and action = 'reclassified') = 1;
+  assert (select count(*) from userbase_app_post_events where post_id = q.id and action = 'publish_succeeded'
+          and detail like 'legacy root reconciled by operator%') = 1;
+  -- the flag does not outlive the call
+  perform pg_temp.expect(format(\$q\$update userbase_app_posts set publication_type='article' where id=%L\$q\$, (select id from t_ids where k='snap_pub')), 'UB409');
+end \$\$;
+SQL
+psql_run < "$MIG/0043_userbase_app_post_publication_type.sql" 2>/dev/null
+psql_run <<'SQL'
+do $$ begin
+  assert (select publication_type from userbase_app_posts where id = (select id from t_ids where k='legacy_res')) = 'article';
+  assert (select count(*) from userbase_app_post_events where post_id = (select id from t_ids where k='legacy_res') and action = 'reclassified') = 1,
+    're-apply after reconcile: no duplicate event';
+  assert (select count(*) from userbase_app_post_events where post_id = (select id from t_ids where k='legacy_blog') and action = 'reclassified') = 1;
+end $$;
+SQL
+echo "  reconcile -> article ok; API role / forged flag refused; re-apply clean"
+
 echo "rollback refuses once an article is reserved; works on a clean history"
 if psql_run < "$MIG/0043_userbase_app_post_publication_type.rollback.sql" > "$TMPD/rb" 2>&1; then
   echo "FAIL rollback should refuse"; exit 1
 fi
 grep -q "0043 rollback refused" "$TMPD/rb" || { echo "FAIL unexpected rollback error"; cat "$TMPD/rb"; exit 1; }
 psql_run <<'SQL'
-do $$ begin assert (select count(*) from userbase_app_posts where publication_type = 'article') = 2, 'refused rollback changed nothing'; end $$;
+do $$ begin assert (select count(*) from userbase_app_posts where publication_type = 'article') = 3, 'refused rollback changed nothing'; end $$;
 SQL
 echo "  refused, nothing changed"
 SQL_CLEAN_NAME="sh-0043-rb-$$"
@@ -278,9 +324,30 @@ psql_run < "$MIG/0029_userbase_crosspost_queue.sql" 2>/dev/null
 psql_run < "$MIG/0036_userbase_app_memberships.sql" 2>/dev/null
 psql_run < "$MIG/0038_userbase_app_posts.sql" 2>/dev/null
 psql_run < "$MIG/0041_userbase_app_post_snap_target.sql" 2>/dev/null
+# fixture: one published legacy root (written with triggers off, test only)
+psql_run <<'SQL'
+insert into userbase_users (id, handle) values ('00000000-0000-0000-0000-0000000000c1', 'carol');
+set session_replication_role = replica;
+insert into userbase_app_posts (id, app, user_id, idempotency_key, request_hash, kind, title, body, consent_publish_at,
+  body_hash, status, reviewed_at, publish_permlink, publish_author, publish_signer_kind, published_at)
+values ('20000000-0000-0000-0000-0000000000c1', 'coletivoxv', '00000000-0000-0000-0000-0000000000c1', 'key-0043-legacy-c',
+  repeat('c', 64), 'text', 'Legacy blog', 'legacy body', now(), repeat('d', 64), 'published', now(),
+  'coletivoxv-legacyc', 'skateuser', 'shared_default', now());
+set session_replication_role = origin;
+SQL
 psql_run < "$MIG/0043_userbase_app_post_publication_type.sql" 2>/dev/null
+psql_run <<'SQL'
+do $$ begin assert (select publication_type from userbase_app_posts where id = '20000000-0000-0000-0000-0000000000c1') = 'article'; end $$;
+SQL
+# only the reclassified legacy root is an article -> rollback allowed (x2)
 psql_run < "$MIG/0043_userbase_app_post_publication_type.rollback.sql" 2>/dev/null
 psql_run < "$MIG/0043_userbase_app_post_publication_type.rollback.sql" 2>/dev/null
+psql_run <<'SQL'
+do $$ begin
+  assert (select status = 'published' and publish_author = 'skateuser' and publish_parent_author is null
+          from userbase_app_posts where id = '20000000-0000-0000-0000-0000000000c1'), 'legacy row intact after rollback';
+end $$;
+SQL
 psql_run <<'SQL'
 do $$ begin
   assert not exists (select 1 from information_schema.columns where table_name='userbase_app_posts' and column_name='publication_type');
@@ -292,6 +359,23 @@ do $$ begin
 end $$;
 SQL
 psql_run < "$MIG/0043_userbase_app_post_publication_type.sql" 2>/dev/null
-echo "  clean rollback x2 + re-apply ok"
+psql_run <<'SQL'
+do $$ begin
+  assert (select publication_type from userbase_app_posts where id = '20000000-0000-0000-0000-0000000000c1') = 'article', 're-applied';
+end $$;
+-- a NEW article that is only pending (no reservation) must block the rollback
+insert into userbase_app_posts (app, user_id, idempotency_key, request_hash, kind, publication_type, title, body, consent_publish_at)
+values ('coletivoxv', '00000000-0000-0000-0000-0000000000c1', 'key-0043-pending-art', repeat('e', 64), 'text', 'article', 'Pending article', 'body', now());
+SQL
+if psql_run < "$MIG/0043_userbase_app_post_publication_type.rollback.sql" > "$TMPD/rb2" 2>&1; then
+  echo "FAIL rollback must refuse a pending article"; exit 1
+fi
+grep -q "0043 rollback refused" "$TMPD/rb2" || { echo "FAIL unexpected"; cat "$TMPD/rb2"; exit 1; }
+psql_run <<'SQL'
+do $$ begin
+  assert (select publication_type from userbase_app_posts where idempotency_key = 'key-0043-pending-art') = 'article', 'choice preserved';
+end $$;
+SQL
+echo "  clean history: legacy-only rollback x2 + re-apply ok; pending article blocks rollback"
 
 echo "PASS 0043 ($IMAGE)"

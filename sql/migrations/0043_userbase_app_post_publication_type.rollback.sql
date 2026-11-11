@@ -3,9 +3,12 @@
 -- userbase_app_post_public, body_hash_v2, the per-type constraints and the
 -- column. Turn the API's article support off first.
 --
--- REFUSES (raises) once any article was reserved/published or any body is
--- over 5000 characters: the 0041 destination rules can't hold those rows.
--- Before that point it is safe. The 'reclassified' events stay in the
+-- REFUSES (raises) when it would lose information: any article other than a
+-- legacy root post reclassified by 0043 (published, parent NULL, with a
+-- 'reclassified' event) - including new articles still pending, approved,
+-- rejected or failed, so an author's choice is never silently turned into a
+-- snap - or any body over 5000 characters. Legacy reclassified rows lose only
+-- the label (0043 re-applies it). The 'reclassified' events stay in the
 -- append-only log (the wider action list is kept). Safe to run more than once.
 
 begin;
@@ -13,9 +16,13 @@ begin;
 do $$ begin
   if exists (select 1 from information_schema.columns where table_schema = 'public'
              and table_name = 'userbase_app_posts' and column_name = 'publication_type') then
-    if exists (select 1 from public.userbase_app_posts
-               where publish_parent_author = '' or length(body) > 5000) then
-      raise exception '0043 rollback refused: article destinations or long bodies exist' using errcode = 'UB409';
+    if exists (select 1 from public.userbase_app_posts p
+               where length(p.body) > 5000
+                  or (p.publication_type = 'article'
+                      and not (p.status = 'published' and p.publish_parent_author is null
+                               and exists (select 1 from public.userbase_app_post_events e
+                                           where e.post_id = p.id and e.action = 'reclassified')))) then
+      raise exception '0043 rollback refused: articles chosen by authors or long bodies exist' using errcode = 'UB409';
     end if;
   end if;
 end $$;
@@ -357,6 +364,39 @@ begin
   return v_row;
 end;
 $$;
+
+create or replace function public.userbase_app_post_reconcile_legacy_root(
+  p_post_id uuid, p_operator text, p_note text)
+returns public.userbase_app_posts
+language plpgsql
+volatile
+set search_path = public
+as $$
+#variable_conflict use_column
+declare v_row public.userbase_app_posts;
+begin
+  if coalesce(btrim(p_operator), '') = '' or coalesce(btrim(p_note), '') = '' then
+    raise exception 'operator and note are required' using errcode = 'UB422';
+  end if;
+  perform set_config('userbase.reconcile_legacy_root', 'on', true);
+  update public.userbase_app_posts p
+    set status = 'published', published_at = now(), last_error_code = null
+    where p.id = p_post_id and p.status = 'failed'
+      and p.last_error_code = 'legacy_target_unknown'
+      and p.publish_author is not null and p.publish_parent_author is null
+    returning * into v_row;
+  perform set_config('userbase.reconcile_legacy_root', '', true);
+  if v_row.id is null then
+    raise exception 'post is not a legacy_target_unknown reservation' using errcode = 'UB409';
+  end if;
+  perform public.userbase_app__log(v_row, null, left(btrim(p_operator), 64), 'system', 'publish_succeeded',
+    'failed', 'legacy root reconciled by operator: ' || left(p_note, 400));
+  return v_row;
+end;
+$$;
+
+revoke all on function public.userbase_app_post_reconcile_legacy_root(uuid, text, text)
+  from public, anon, authenticated, service_role;
 
 alter table public.userbase_app_posts drop constraint if exists userbase_app_posts_parent_format;
 alter table public.userbase_app_posts add constraint userbase_app_posts_parent_format

@@ -17,6 +17,9 @@
 --     snap    -> peak.snaps + ^snap-container-[a-z0-9-]+$
 --     article -> parent_author '' (EMPTY STRING) + parent_permlink 'hive-173115'
 --   A NULL parent still means "reserved/published before 0041" (legacy).
+-- * The owner-only legacy reconcile (0041) now also marks the post 'article'
+--   (+ a 'reclassified' event): the guard allows that one transition only
+--   under its flag, never for API roles, with every other column unchanged.
 --   target_changed, legacy_target_unknown, mark_legacy, the owner-only
 --   reconcile, requeue refusals and the guard rules are unchanged.
 -- * body_hash: snaps keep the exact old formula; articles also hash the type.
@@ -124,6 +127,8 @@ returns trigger
 language plpgsql
 set search_path = public
 as $$
+declare
+  v_old_type text;
 begin
   new.updated_at := now();
 
@@ -141,13 +146,30 @@ begin
     return new;
   end if;
 
+  -- publication_type is immutable, with ONE narrow exception (0043): the
+  -- owner-only userbase_app_post_reconcile_legacy_root confirming a legacy
+  -- root post (failed legacy_target_unknown, author set, parent NULL ->
+  -- published, parent still NULL) may also mark it 'article'. Only under that
+  -- function's transaction-local flag, never for API roles; every other
+  -- column, including body_hash, must stay identical.
+  v_old_type := old.publication_type;
+  if old.publication_type = 'snap' and new.publication_type = 'article'
+     and coalesce(current_setting('userbase.reconcile_legacy_root', true), '') = 'on'
+     and current_user not in ('service_role', 'anon', 'authenticated')
+     and old.status = 'failed' and old.last_error_code = 'legacy_target_unknown'
+     and new.status = 'published'
+     and old.publish_author is not null
+     and old.publish_parent_author is null and new.publish_parent_author is null then
+    v_old_type := 'article';
+  end if;
+
   -- Everything that defines the post, its consent and its Hive destination.
   if (new.id, new.app, new.user_id, new.idempotency_key, new.request_hash, new.kind, new.publication_type,
       new.title, new.body, new.media, new.context_kind, new.context_slug,
       new.consent_publish_at, new.body_hash, new.publish_permlink, new.auto_approved,
       new.created_at)
      is distinct from
-     (old.id, old.app, old.user_id, old.idempotency_key, old.request_hash, old.kind, old.publication_type,
+     (old.id, old.app, old.user_id, old.idempotency_key, old.request_hash, old.kind, v_old_type,
       old.title, old.body, old.media, old.context_kind, old.context_slug,
       old.consent_publish_at, old.body_hash, old.publish_permlink, old.auto_approved,
       old.created_at) then
@@ -285,6 +307,43 @@ begin
   return v_row;
 end;
 $$;
+
+-- 8b. Owner reconcile of a legacy root post also marks it 'article' -------
+-- (A root post on chain is an article; before 0043 it would stay 'snap'.)
+create or replace function public.userbase_app_post_reconcile_legacy_root(
+  p_post_id uuid, p_operator text, p_note text)
+returns public.userbase_app_posts
+language plpgsql
+volatile
+set search_path = public
+as $$
+#variable_conflict use_column
+declare v_row public.userbase_app_posts;
+begin
+  if coalesce(btrim(p_operator), '') = '' or coalesce(btrim(p_note), '') = '' then
+    raise exception 'operator and note are required' using errcode = 'UB422';
+  end if;
+  perform set_config('userbase.reconcile_legacy_root', 'on', true);
+  update public.userbase_app_posts p
+    set status = 'published', published_at = now(), last_error_code = null,
+        publication_type = 'article'
+    where p.id = p_post_id and p.status = 'failed'
+      and p.last_error_code = 'legacy_target_unknown'
+      and p.publish_author is not null and p.publish_parent_author is null
+    returning * into v_row;
+  perform set_config('userbase.reconcile_legacy_root', '', true);
+  if v_row.id is null then
+    raise exception 'post is not a legacy_target_unknown reservation' using errcode = 'UB409';
+  end if;
+  perform public.userbase_app__log(v_row, null, left(btrim(p_operator), 64), 'system', 'publish_succeeded',
+    'failed', 'legacy root reconciled by operator: ' || left(p_note, 400));
+  perform public.userbase_app__log(v_row, null, left(btrim(p_operator), 64), 'system', 'reclassified',
+    'failed', 'publication_type snap -> article (legacy root confirmed by operator; nothing changed on chain)');
+  return v_row;
+end;
+$$;
+revoke all on function public.userbase_app_post_reconcile_legacy_root(uuid, text, text)
+  from public, anon, authenticated, service_role;
 
 -- 9. post_create: + p_publication_type (default 'snap', last) ----------------
 drop function if exists public.userbase_app_post_create(text, text, text, text, text, text, text, jsonb, text, text, boolean);

@@ -44,6 +44,13 @@ checks(name, ok) as (
      from pg_proc where oid = to_regprocedure('public.userbase_app_post_publish_requeue(text,text,uuid)'))
     and to_regprocedure('public.userbase_app_post_publish_mark_legacy(uuid,uuid,text)') is not null
     and not has_function_privilege('service_role','public.userbase_app_post_reconcile_legacy_root(uuid,text,text)','execute')
+  union all select 'owner reconcile marks legacy roots article (+ reclassified event), still owner-only',
+    (select prosrc like '%publication_type = ''article''%' and prosrc like '%''reclassified''%'
+     from pg_proc where oid = to_regprocedure('public.userbase_app_post_reconcile_legacy_root(uuid,text,text)'))
+    and not has_function_privilege('service_role','public.userbase_app_post_reconcile_legacy_root(uuid,text,text)','execute')
+  union all select 'guard: narrow reconcile exception for publication_type',
+    (select prosrc like '%v_old_type%' and prosrc like '%current_user not in (''service_role'', ''anon'', ''authenticated'')%'
+     from pg_proc where oid = to_regprocedure('public.userbase_app__post_guard()'))
   union all select 'every reclassified post is a published legacy root',
     not exists (select 1 from public.userbase_app_posts where publication_type = 'article'
                 and not (status = 'published' and publish_author is not null and publish_parent_author is null)
