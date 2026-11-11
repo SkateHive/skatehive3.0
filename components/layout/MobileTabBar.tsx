@@ -25,6 +25,8 @@ import { useFarcasterMiniapp } from "@/hooks/useFarcasterMiniapp";
 import { FarcasterAuthIsland, useFarcasterAuthMethods } from "@/components/farcaster/FarcasterAuthIsland";
 import { useTranslations } from "@/lib/i18n/hooks";
 import ConnectionModal from "./ConnectionModal";
+import CreateSheet from "./CreateSheet";
+import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
 import {
   FiHome,
   FiBell,
@@ -58,6 +60,7 @@ export default function MobileTabBar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, aioha } = useAioha();
+  const { user: userbaseUser } = useUserbaseAuth();
   const [modalDisplayed, setModalDisplayed] = useState(false);
   const toast = useToast();
   const t = useTranslations("navigation");
@@ -119,6 +122,7 @@ export default function MobileTabBar() {
 
   // Drawer + connection modal state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
   const [isModalTransitioning, setIsModalTransitioning] = useState(false);
 
@@ -290,7 +294,7 @@ export default function MobileTabBar() {
   const tabs = [
     { icon: FiHome, href: "/", name: t("home") },
     { icon: FiTarget, href: "/bounties", name: t("bounties") },
-    { icon: FiPlus, href: "/compose", name: t("create"), center: true },
+    { icon: FiPlus, name: t("create"), center: true },
     { icon: FiMap, href: "/map", name: t("map") },
     { icon: FiMenu, name: t("menu"), menu: true, badge: newNotificationCount },
   ] as const;
@@ -395,17 +399,22 @@ export default function MobileTabBar() {
           const handlePress = () => {
             if ("menu" in tab && tab.menu) {
               setIsDrawerOpen(true);
+            } else if ("center" in tab && tab.center) {
+              setIsCreateOpen(true);
             } else if ("href" in tab && tab.href) {
               router.push(tab.href);
             }
           };
 
           if ("center" in tab && tab.center) {
+            const lit = isCreateOpen || isActive("/compose");
             return (
               <Box
                 key={tab.name}
                 as="button"
                 aria-label={tab.name}
+                aria-haspopup="dialog"
+                aria-expanded={isCreateOpen}
                 onClick={handlePress}
                 display="flex"
                 alignItems="center"
@@ -414,7 +423,7 @@ export default function MobileTabBar() {
                 h="52px"
                 mb="18px"
                 borderRadius="full"
-                bg={active ? "primary" : "background"}
+                bg={lit ? "primary" : "background"}
                 border="3px solid"
                 borderColor="primary"
                 boxShadow="0 0 8px var(--chakra-colors-primary)"
@@ -424,7 +433,7 @@ export default function MobileTabBar() {
                 <Icon
                   as={tab.icon}
                   boxSize={6}
-                  color={active ? "background" : "primary"}
+                  color={lit ? "background" : "primary"}
                 />
               </Box>
             );
@@ -608,6 +617,11 @@ export default function MobileTabBar() {
         </DrawerContent>
       </Drawer>
 
+      <CreateSheet
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        handle={typeof user === "string" ? user : userbaseUser?.handle}
+      />
       <HiveLoginModal
         isOpen={modalDisplayed}
         onClose={() => setModalDisplayed(false)}

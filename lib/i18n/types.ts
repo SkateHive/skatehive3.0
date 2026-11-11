@@ -75,6 +75,14 @@ export interface TranslationSchema {
     distributeFailed: string;
     footnote: string;
   };
+  createSheet: {
+    postTitle: string;
+    postSubtitle: string;
+    spotTitle: string;
+    spotSubtitle: string;
+    playTitle: string;
+    playSubtitle: string;
+  };
   navigation: {
     home: string;
     magazine: string;

@@ -124,6 +124,14 @@ export const lg = {
     poweredBy: 'Cross-chain via LI.FI',
     poweredByTip: 'Routes across 20+ bridges and DEXes for the best cross-chain path',
   },
+  createSheet: {
+    postTitle: 'Post',
+    postSubtitle: 'Share a clip with the crew',
+    spotTitle: 'Spot',
+    spotSubtitle: 'Add a skate spot to the map',
+    playTitle: 'Play',
+    playSubtitle: 'Coach Fred — skate or dice',
+  },
   navigation: {
     home: 'Akaaga',
     magazine: 'Maggazini',
