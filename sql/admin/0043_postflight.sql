@@ -51,13 +51,18 @@ checks(name, ok) as (
   union all select 'guard: narrow reconcile exception for publication_type',
     (select prosrc like '%v_old_type%' and prosrc like '%current_user not in (''service_role'', ''anon'', ''authenticated'')%'
      from pg_proc where oid = to_regprocedure('public.userbase_app__post_guard()'))
-  union all select 'every reclassified post is a published legacy root',
-    not exists (select 1 from public.userbase_app_posts where publication_type = 'article'
-                and not (status = 'published' and publish_author is not null and publish_parent_author is null)
-                and publish_parent_author is distinct from '')
-  union all select 'one reclassified event per reclassified legacy root',
-    (select count(*) from public.userbase_app_posts where publication_type = 'article' and publish_parent_author is null)
-    = (select count(distinct post_id) from public.userbase_app_post_events where action = 'reclassified')
+  union all select 'every reclassified post is a published legacy root (author, parent NULL, article)',
+    not exists (select 1 from public.userbase_app_post_events e
+                join public.userbase_app_posts p on p.id = e.post_id
+                where e.action = 'reclassified'
+                  and not (p.publication_type = 'article' and p.status = 'published'
+                           and p.publish_author is not null and p.publish_parent_author is null))
+  union all select 'published legacy roots (parent NULL) are all articles, one reclassified event each',
+    not exists (select 1 from public.userbase_app_posts p
+                where p.status = 'published' and p.publish_author is not null and p.publish_parent_author is null
+                  and (p.publication_type <> 'article'
+                       or (select count(*) from public.userbase_app_post_events e
+                           where e.post_id = p.id and e.action = 'reclassified') <> 1))
   union all select 'service_role still has no DELETE on posts', not has_table_privilege('service_role','public.userbase_app_posts','delete')
 )
 select 'check' as kind, name, ok::text as value from checks
