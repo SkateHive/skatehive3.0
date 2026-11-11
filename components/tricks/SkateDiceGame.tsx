@@ -220,9 +220,16 @@ export default function SkateDiceGame({ onClose, playRef }: Props) {
   const typing = typed < total;
 
   return (
-    <Flex direction="column" h="100%" bg="#070709" color="white">
+    // Only very short screens (phones in landscape) scroll; taller ones keep the fixed layout.
+    <Flex
+      direction="column"
+      h="100%"
+      sx={{ "@media (max-height: 500px)": { overflowY: "auto", overscrollBehavior: "contain" } }}
+      bg="#070709"
+      color="white"
+    >
       {/* Header */}
-      <HStack justify="space-between" px={4} pt={4} pb={2}>
+      <HStack justify="space-between" px={4} pt={4} pb={2} flexShrink={0}>
         <IconButton
           aria-label={t("common.back")}
           icon={<FaArrowLeft />}
@@ -239,7 +246,7 @@ export default function SkateDiceGame({ onClose, playRef }: Props) {
       </HStack>
 
       {/* Reels + PLAY */}
-      <Box px={5} pt={3} pb={5} position="relative" zIndex={3}>
+      <Box px={5} pt={3} pb={5} position="relative" zIndex={3} flexShrink={0}>
         <Box
           bg="#0F0E11"
           borderRadius="22px"
@@ -286,7 +293,14 @@ export default function SkateDiceGame({ onClose, playRef }: Props) {
       </Box>
 
       {/* Stage: matrix rain, Fred slides up, speech balloon types */}
-      <Box flex="1" minH={{ base: 0, md: "360px" }} position="relative" overflow="hidden">
+      <Box
+        flex="1"
+        minH={{ base: 0, md: "360px" }}
+        // On very short screens keep Fred visible and let the modal scroll to him.
+        sx={{ "@media (max-height: 500px)": { minHeight: "260px" } }}
+        position="relative"
+        overflow="hidden"
+      >
         <MatrixRain color={GAME_GREEN} />
 
         <motion.div
