@@ -74,7 +74,11 @@ insert into public.userbase_app_post_events
   (post_id, app, actor_user_id, actor_hive_handle, actor_kind, action, from_status, to_status, detail)
 select r.id, r.app, null, null, 'system', 'reclassified', 'published', 'published',
        'publication_type snap -> article (0043): legacy root post, nothing changed on chain'
-from r;
+from r
+-- One audit event per post, ever: after a rollback (which keeps the
+-- append-only log) a re-apply updates the type again but adds no event.
+where not exists (select 1 from public.userbase_app_post_events e
+                  where e.post_id = r.id and e.action = 'reclassified');
 
 -- 4. Content rules per type ---------------------------------------------------
 alter table public.userbase_app_posts drop constraint if exists userbase_app_posts_body_len;
@@ -337,8 +341,11 @@ begin
   end if;
   perform public.userbase_app__log(v_row, null, left(btrim(p_operator), 64), 'system', 'publish_succeeded',
     'failed', 'legacy root reconciled by operator: ' || left(p_note, 400));
-  perform public.userbase_app__log(v_row, null, left(btrim(p_operator), 64), 'system', 'reclassified',
-    'failed', 'publication_type snap -> article (legacy root confirmed by operator; nothing changed on chain)');
+  if not exists (select 1 from public.userbase_app_post_events e
+                 where e.post_id = v_row.id and e.action = 'reclassified') then
+    perform public.userbase_app__log(v_row, null, left(btrim(p_operator), 64), 'system', 'reclassified',
+      'failed', 'publication_type snap -> article (legacy root confirmed by operator; nothing changed on chain)');
+  end if;
   return v_row;
 end;
 $$;

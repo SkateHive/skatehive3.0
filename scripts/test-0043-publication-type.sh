@@ -23,6 +23,15 @@ sleep 1
 
 psql_run() { docker exec -i "$NAME" psql -U postgres -v ON_ERROR_STOP=1 -q "$@"; }
 
+postflight_all_true() {
+  { echo "begin transaction read only;"; cat "$ROOT/sql/admin/0043_postflight.sql"; echo "rollback;"; } \
+    | docker exec -i "$NAME" psql -U postgres -qAt -F ' | ' -v ON_ERROR_STOP=1 > "$TMPD/pf" 2>&1
+  if grep -q -E '^check .*\| false$|ERROR' "$TMPD/pf" || ! grep -q '^check' "$TMPD/pf"; then
+    echo "FAIL postflight ($1)"; grep -E 'false|ERROR' "$TMPD/pf"; exit 1
+  fi
+  echo "  postflight all true ($1): $(grep -c '^check' "$TMPD/pf") checks"
+}
+
 echo "fixture: Supabase-like roles, 0001, 0029 (crosspost queue), 0036"
 psql_run <<'SQL'
 create role anon nologin; create role authenticated nologin;
@@ -295,6 +304,7 @@ do $$ begin
 end $$;
 SQL
 echo "  reconcile -> article ok; API role / forged flag refused; re-apply clean"
+postflight_all_true "main history after reconcile + re-apply"
 
 echo "rollback refuses once an article is reserved; works on a clean history"
 if psql_run < "$MIG/0043_userbase_app_post_publication_type.rollback.sql" > "$TMPD/rb" 2>&1; then
@@ -362,7 +372,21 @@ psql_run < "$MIG/0043_userbase_app_post_publication_type.sql" 2>/dev/null
 psql_run <<'SQL'
 do $$ begin
   assert (select publication_type from userbase_app_posts where id = '20000000-0000-0000-0000-0000000000c1') = 'article', 're-applied';
+  assert (select count(*) from userbase_app_post_events where post_id = '20000000-0000-0000-0000-0000000000c1' and action = 'reclassified') = 1,
+    'apply -> rollback -> re-apply: still exactly one reclassified event';
 end $$;
+SQL
+postflight_all_true "apply -> rollback x2 -> re-apply with a published legacy root"
+psql_run < "$MIG/0043_userbase_app_post_publication_type.rollback.sql" 2>/dev/null
+psql_run < "$MIG/0043_userbase_app_post_publication_type.sql" 2>/dev/null
+psql_run <<'SQL'
+do $$ begin
+  assert (select count(*) from userbase_app_post_events where post_id = '20000000-0000-0000-0000-0000000000c1' and action = 'reclassified') = 1,
+    'second rollback/re-apply cycle: still one event';
+end $$;
+SQL
+postflight_all_true "second rollback/re-apply cycle"
+psql_run <<'SQL'
 -- a NEW article that is only pending (no reservation) must block the rollback
 insert into userbase_app_posts (app, user_id, idempotency_key, request_hash, kind, publication_type, title, body, consent_publish_at)
 values ('coletivoxv', '00000000-0000-0000-0000-0000000000c1', 'key-0043-pending-art', repeat('e', 64), 'text', 'article', 'Pending article', 'body', now());
