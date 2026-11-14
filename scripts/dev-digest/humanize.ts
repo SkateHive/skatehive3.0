@@ -160,9 +160,12 @@ export async function humanizeCommits(
 
   try {
     const response = await client.messages.create({
-      model: "claude-opus-5",
+      model: "claude-opus-5-5",
       max_tokens: 16000,
       thinking: { type: "adaptive" },
+      // Opus 5.5 defaults to medium; a weekly rewrite of ~20 subjects does
+      // not need more, so pin it rather than inherit future default changes.
+      output_config: { effort: "medium" },
       system: SYSTEM,
       messages: [
         {
