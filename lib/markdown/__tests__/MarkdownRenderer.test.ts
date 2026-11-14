@@ -1,4 +1,4 @@
-import { processMediaContent } from "../MarkdownRenderer";
+import { mentionIsInsideMarkup, processMediaContent } from "../MarkdownRenderer";
 
 const tests: Array<() => void | Promise<void>> = [];
 let hasFailures = false;
@@ -86,6 +86,33 @@ describe("processMediaContent YouTube autoembed", () => {
 
     assertIncludes(result, "[[YOUTUBE:s:dQw4w9WgXcQ]]");
     assertNotIncludes(result, "[short]");
+  });
+});
+
+describe("mentionIsInsideMarkup", () => {
+  const at = (s: string) => s.indexOf("@brumest");
+  const check = (s: string, expected: boolean) => {
+    if (mentionIsInsideMarkup(s, at(s)) !== expected) {
+      throw new Error(`expected ${expected} for ${JSON.stringify(s)}`);
+    }
+  };
+
+  it("leaves a curated-by href alone", () => {
+    check('<b>Curated by <a href="/@brumest">brumest</a></b>', true);
+  });
+
+  it("leaves a markdown link target alone", () => {
+    check("[brumest](/@brumest)", true);
+  });
+
+  it("leaves a mention inside any tag attribute alone", () => {
+    check('<img alt="@brumest" src="x.png">', true);
+  });
+
+  it("still rewrites plain mentions", () => {
+    check("thanks @brumest", false);
+    check("<b>thanks</b> @brumest", false);
+    check("1 < 2 and @brumest", false);
   });
 });
 
