@@ -81,6 +81,8 @@ const ContentViews = memo(function ContentViews({
     hideAuthorInfo: boolean;
     isLoading: boolean;
     hasMore: boolean;
+    error?: string | null;
+    onRetry?: () => void;
   };
   videoPartsProps: {
     profileData: ProfileData;
@@ -353,6 +355,8 @@ const ContentViewsWithData = memo(function ContentViewsWithData({
     posts: hivePosts,
     fetchPosts: fetchHivePosts,
     isLoading: postsLoading,
+    hasMore,
+    error: postsError,
   } = useProfilePosts(hivePostsHandle, needsHivePosts);
 
   const combinedPosts = useMemo(() => {
@@ -374,6 +378,7 @@ const ContentViewsWithData = memo(function ContentViewsWithData({
         hideAuthorInfo: true,
         isLoading: false,
         hasMore: false,
+        error: null,
       };
     }
 
@@ -383,8 +388,10 @@ const ContentViewsWithData = memo(function ContentViewsWithData({
       viewMode: viewMode as "grid" | "list",
       context: "profile" as const,
       hideAuthorInfo: true,
-      isLoading: postsLoading || softPostsLoading,
-      hasMore: Boolean(hivePostsHandle),
+      isLoading: (hivePostsHandle ? postsLoading : false) || softPostsLoading,
+      hasMore: hivePostsHandle ? hasMore : false,
+      error: hivePostsHandle ? postsError : null,
+      onRetry: hivePostsHandle ? fetchHivePosts : undefined,
     };
   }, [
     combinedPosts,
@@ -393,6 +400,8 @@ const ContentViewsWithData = memo(function ContentViewsWithData({
     postsLoading,
     softPostsLoading,
     hivePostsHandle,
+    hasMore,
+    postsError,
   ]);
 
   return (
@@ -833,7 +842,11 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
   }, []);
 
   useEffect(() => {
-    // Redirect from Hive-only views if user doesn't have Hive
+    // Redirect from Hive-only views if user doesn't have Hive.
+    // Wait until the account lookup settles. On a cold cache isLoading
+    // starts true; treating that gap as "not a Hive profile" rewrites a
+    // snap permalink onto the posts grid before the snap can open.
+    if (isLoading) return;
     if (canShowHiveViews || hasSoftSnaps) return;
     if (["snaps", "videoparts", "magazine"].includes(viewMode)) {
       // Prefer casts if Farcaster available, otherwise grid
@@ -844,6 +857,7 @@ const ProfilePage = memo(function ProfilePage({ username }: ProfilePageProps) {
       }
     }
   }, [
+    isLoading,
     canShowHiveViews,
     hasSoftSnaps,
     viewMode,

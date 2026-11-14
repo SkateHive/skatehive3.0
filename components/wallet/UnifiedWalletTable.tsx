@@ -1,5 +1,6 @@
 "use client";
 
+import { useHbdSavingsRate, formatRate } from "@/hooks/wallet/useHbdSavingsRate";
 import {
   Box,
   Alert,
@@ -455,6 +456,7 @@ export default function UnifiedWalletTable({
   btcBalance,
   btcPrice,
 }: UnifiedWalletTableProps) {
+  const hbdRate = useHbdSavingsRate();
   const { isConnected, address } = useAccount();
   const { isAuthenticated: isFarcasterConnected } = useFarcasterSession();
   const { aggregatedPortfolio, isLoading, error, refetch } = usePortfolioContext();
@@ -576,11 +578,11 @@ export default function UnifiedWalletTable({
 
     // HBD Savings
     if (hbdSavingsBalance && hbdSavingsBalance !== "N/A" && parseFloat(hbdSavingsBalance) > 0) {
-      tokens.push(makeSyntheticToken("HBDS", "HBD Savings (15% APR)", hbdSavingsBalance, hbdPrice, "hbd-savings"));
+      tokens.push(makeSyntheticToken("HBDS", `HBD Savings (${formatRate(hbdRate)} APR)`, hbdSavingsBalance, hbdPrice, "hbd-savings"));
     }
 
     return tokens;
-  }, [hiveUser, hiveBalance, hivePower, hbdBalance, hbdSavingsBalance, hivePrice, hbdPrice]);
+  }, [hiveUser, hiveBalance, hivePower, hbdBalance, hbdSavingsBalance, hivePrice, hbdPrice, hbdRate]);
 
   // Synthetic BTC token — ALWAYS shown (discovery). When the user hasn't set up
   // a BTC payout yet, it's a 0-balance placeholder rendered greyed + clickable

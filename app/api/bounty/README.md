@@ -296,4 +296,4 @@ Errors:
 
 ---
 
-**Questions?** Ask in [Skatehive Discord](https://discord.gg/skatehive) #dev channel
+**Questions?** Ask in [Skatehive Discord](https://discord.gg/gJxxSxswUv) #dev channel

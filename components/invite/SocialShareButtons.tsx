@@ -34,7 +34,7 @@ const SocialShareButtons = ({
     text,
 }: SocialShareButtonsProps) => {
     const t = useTranslations();
-    const shareText = text || t("invite.socialShareDefault");
+    const shareText = text || t("common.socialShareDefault");
     const { onCopy } = useClipboard(url);
     const toast = useToast();
 

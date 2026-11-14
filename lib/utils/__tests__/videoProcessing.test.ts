@@ -67,6 +67,42 @@ async function run() {
     globalThis.fetch = async (_input, init) => init?.method === 'POST'
       ? reply({ gatewayUrl: 'https://example.com/video' }) : reply(goodHealth);
     assert.equal((await processVideoOnServer(file)).success, false);
+
+    // The worker poster is optional and must survive the upload result.
+    storage.clear();
+    const poster = 'https://ipfs.skatehive.app/ipfs/bafybeiposter';
+    globalThis.fetch = async (_input, init) => init?.method === 'POST'
+      ? reply({ cid: 'QmWithPoster', thumbnailUrl: `  ${poster}  ` })
+      : reply(goodHealth);
+    const withPoster = await processVideoOnServer(file);
+    assert.equal(withPoster.hash, 'QmWithPoster');
+    assert.equal(withPoster.thumbnailUrl, poster);
+
+    // Older workers omit the field. Do not invent a poster.
+    storage.clear();
+    globalThis.fetch = async (_input, init) => init?.method === 'POST'
+      ? reply({ cid: 'QmNoPoster' }) : reply(goodHealth);
+    const withoutPoster = await processVideoOnServer(file);
+    assert.equal(withoutPoster.success, true);
+    assert.equal(withoutPoster.thumbnailUrl, undefined);
+
+    // A non-URL thumbnail must not be forwarded for on-chain metadata.
+    storage.clear();
+    globalThis.fetch = async (_input, init) => init?.method === 'POST'
+      ? reply({ cid: 'QmBadPoster', thumbnailUrl: 'not-a-url' }) : reply(goodHealth);
+    assert.equal((await processVideoOnServer(file)).thumbnailUrl, undefined);
+
+    // Scheme-only and non-numeric ports are not durable poster URLs.
+    storage.clear();
+    globalThis.fetch = async (_input, init) => init?.method === 'POST'
+      ? reply({ cid: 'QmBarePoster', thumbnailUrl: 'https://' }) : reply(goodHealth);
+    assert.equal((await processVideoOnServer(file)).thumbnailUrl, undefined);
+
+    storage.clear();
+    globalThis.fetch = async (_input, init) => init?.method === 'POST'
+      ? reply({ cid: 'QmBadPort', thumbnailUrl: 'https://example.com:invalid/poster.jpg' }) : reply(goodHealth);
+    assert.equal((await processVideoOnServer(file)).thumbnailUrl, undefined);
+
     console.log('PASS: offline, busy, invalid health, stalled body and invalid result');
   } finally {
     globalThis.fetch = originalFetch;

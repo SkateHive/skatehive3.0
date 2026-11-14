@@ -62,6 +62,7 @@ import { useSponsorshipStatus } from "@/hooks/useSponsorshipStatus";
 
 // Lazy load heavy modals
 const EditPostModal = dynamic(() => import("./EditPostModal"), { ssr: false });
+const DeletePostDialog = dynamic(() => import("@/components/shared/DeletePostDialog"), { ssr: false });
 const SponsorshipModal = dynamic(() => import("@/components/userbase/SponsorshipModal"), { ssr: false });
 import { useViewerHiveIdentity } from "@/hooks/useViewerHiveIdentity";
 import { FaGift } from "react-icons/fa";
@@ -170,16 +171,13 @@ const Snap = React.memo(function Snap({
   } = usePostEdit(discussion);
 
   const [isDeleted, setIsDeleted] = useState(false);
-  const { isDeleting, handleDelete, handleSoftDelete } = usePostDelete(
-    discussion,
-    () => {
-      setIsDeleted(true);
-      onDelete?.(discussion.permlink);
-    }
-  );
-  const hasRepliesOrVotes =
-    (discussion.children ?? 0) > 0 ||
-    (discussion.active_votes?.length ?? 0) > 0;
+  const deletion = usePostDelete(discussion, {
+    softPostUserId: softPost?.user.id,
+    onDeleted: () => setIsDeleted(true),
+    onRestored: () => setIsDeleted(false),
+    // Only drop it from the parent list once "Undo" is no longer possible.
+    onDeleteSettled: () => onDelete?.(discussion.permlink),
+  });
 
   const [showSlider, setShowSlider] = useState(false);
   const [activeVotes, setActiveVotes] = useState(discussion.active_votes || []);
@@ -458,14 +456,6 @@ const Snap = React.memo(function Snap({
     viewerHiveUsername &&
     effectiveUser !== discussion.author;
 
-  const handleDeleteClick = () => {
-    if (hasRepliesOrVotes) {
-      handleSoftDelete();
-    } else {
-      handleDelete();
-    }
-  };
-
   if (isDeleted) {
     return null;
   }
@@ -565,12 +555,12 @@ const Snap = React.memo(function Snap({
                       Edit
                     </MenuItem>
                   )}
-                  {walletUser === discussion.author && (
+                  {deletion.canDeleteThisPost && (
                     <MenuItem
-                      onClick={handleDeleteClick}
+                      onClick={deletion.requestDelete}
                       bg={"background"}
                       color={"error"}
-                      isDisabled={isDeleting}
+                      isDisabled={deletion.isDeleting}
                     >
                       <DeleteIcon style={{ marginRight: "8px" }} />
                       Delete
@@ -887,6 +877,8 @@ const Snap = React.memo(function Snap({
         onSave={handleSaveEdit}
         isSaving={isSaving}
       />
+
+      {deletion.canDeleteThisPost && <DeletePostDialog deletion={deletion} />}
 
       {/* Sponsorship Modal */}
       {showSponsorCTA && softPost?.user && softPost.user.handle && viewerHiveUsername && (

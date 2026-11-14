@@ -350,8 +350,12 @@ const nextConfig = {
                     },
                 ],
             },
-            {
-                // Cache JS and CSS chunks for 1 year (Next.js adds hash to filenames)
+            // Cache JS and CSS chunks for 1 year (Next.js adds hash to filenames).
+            // Production only: `next dev` serves unhashed names (app/layout.js), so
+            // an immutable cache pins a stale layout chunk against a fresh webpack
+            // runtime after any rebuild → "Cannot read properties of undefined
+            // (reading 'call')" in next/dynamic chunks.
+            ...(process.env.NODE_ENV === 'production' ? [{
                 source: '/_next/static/:path*',
                 headers: [
                     {
@@ -359,7 +363,7 @@ const nextConfig = {
                         value: 'public, max-age=31536000, immutable',
                     },
                 ],
-            },
+            }] : []),
             {
                 // Build manifests are not content-hashed — bust cache on every deploy
                 source: '/_next/static/:buildId/_buildManifest.js',

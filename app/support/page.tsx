@@ -368,7 +368,7 @@ export default function SupportPage() {
                 {t('documentationLink')} <Icon as={FaExternalLinkAlt} ml={1} boxSize={3} />
               </Link>
               <Link
-                href="https://discord.gg/skatehive"
+                href="https://discord.gg/gJxxSxswUv"
                 isExternal
                 color="primary"
                 fontWeight="medium"

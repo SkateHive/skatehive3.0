@@ -27,6 +27,7 @@ export async function GET() {
     { path: '/dao', freq: 'weekly', prio: 0.7 },
     { path: '/map/near-me', freq: 'weekly', prio: 0.9 },
     { path: '/games', freq: 'weekly', prio: 0.8 },
+    { path: '/download', freq: 'monthly', prio: 0.7 },
     { path: '/games/quest-for-stoken', freq: 'monthly', prio: 0.7 },
     { path: '/games/lougnar', freq: 'monthly', prio: 0.7 },
   ];

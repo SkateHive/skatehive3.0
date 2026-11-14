@@ -9,6 +9,7 @@ import { validateHiveUsernameFormat } from "@/lib/utils/hiveAccountUtils";
 import { HIVE_CONFIG } from "@/config/app.config";
 import { useLinkedIdentities } from "@/contexts/LinkedIdentityContext";
 import { useUserbaseAuth } from "@/contexts/UserbaseAuthContext";
+import { useComposeIdentity } from "@/hooks/useComposeIdentity";
 
 export const useComposeForm = () => {
     const [markdown, setMarkdown] = useState("");
@@ -47,8 +48,7 @@ export const useComposeForm = () => {
         insertAtCursor(content, markdown, setMarkdown);
     };
 
-    const effectiveUser =
-      user || userbaseHiveIdentity?.handle || userbaseUser?.handle || null;
+    const { handle: effectiveUser } = useComposeIdentity();
 
     const handleSubmit = async () => {
         const canSubmit = !!user || !!userbaseHiveIdentity?.handle || !!userbaseUser;

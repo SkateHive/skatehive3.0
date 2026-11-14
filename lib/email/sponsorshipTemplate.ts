@@ -208,7 +208,7 @@ export function getSponsorshipEmailTemplate(
           Questions about your new account? Join our community:
         </p>
         <ul style="padding-left: 20px; line-height: 1.8; margin: 10px 0;">
-          <li><a href="https://discord.gg/skatehive" style="color: #4CAF50;">Discord</a> - Live chat with the community</li>
+          <li><a href="https://discord.gg/gJxxSxswUv" style="color: #4CAF50;">Discord</a> - Live chat with the community</li>
           <li><a href="${APP_CONFIG.BASE_URL}/docs/hive-guide" style="color: #4CAF50;">Hive Getting Started Guide</a> - Learn the basics</li>
           <li><a href="https://peakd.com/@${username}" style="color: #4CAF50;">View Your Hive Profile</a> - See how it looks</li>
         </ul>
@@ -311,7 +311,7 @@ IMPORT TO HIVE KEYCHAIN:
 4. Import keys from attached file
 
 NEED HELP?
-Discord: https://discord.gg/skatehive
+Discord: https://discord.gg/gJxxSxswUv
 Hive Guide: ${APP_CONFIG.BASE_URL}/docs/hive-guide
 Your Profile: https://peakd.com/@${username}
 

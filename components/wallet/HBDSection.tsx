@@ -17,6 +17,7 @@ import { useTheme } from "@/app/themeProvider";
 import useIsMobile from "@/hooks/useIsMobile";
 import { SendHBDModal, DepositSavingsModal } from "./modals";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { useHbdSavingsRate, formatRate } from "@/hooks/wallet/useHbdSavingsRate";
 
 interface HBDSectionProps {
     hbdBalance: string;
@@ -52,6 +53,7 @@ const HBDSection = memo(function HBDSection({
     const [showInfo, setShowInfo] = useState(false);
     const isMobile = useIsMobile();
     const t = useTranslations();
+  const hbdRate = useHbdSavingsRate();
 
     const { isOpen: isSendOpen, onOpen: onSendOpen, onClose: onSendClose } = useDisclosure();
     const { isOpen: isDepositOpen, onOpen: onDepositOpen, onClose: onDepositClose } = useDisclosure();
@@ -134,8 +136,7 @@ const HBDSection = memo(function HBDSection({
                 {showInfo && (
                     <Box mt={3} p={3} bg="muted">
                         <Text color="dim" fontSize="sm">
-                            Liquid HBD ready for transactions. Convert to Savings in SkateBank
-                            to earn 15% APR!
+                            {t("wallet.savingsRate.hbdInfo").replace("{rate}", formatRate(hbdRate))}
                         </Text>
                     </Box>
                 )}

@@ -13,11 +13,11 @@ import SkateModal from "@/components/shared/SkateModal";
 import useIsMobile from "@/hooks/useIsMobile";
 import { useTranslations, useLocale } from "@/contexts/LocaleContext";
 import { tVars } from "@/lib/i18n/format";
+import { useHbdSavingsRate, formatRate } from "@/hooks/wallet/useHbdSavingsRate";
 import { jarProgress } from "@/hooks/wallet/useSavingsJars";
 import type { SavingsJar, JarEvent } from "@/hooks/wallet/useSavingsJars";
 
 /** Hive HBD savings APR used for the display-only monthly yield estimate. */
-const SAVINGS_APR = 0.15;
 
 interface JarDetailModalProps {
   isOpen: boolean;
@@ -54,6 +54,7 @@ export function JarDetailModal({
   onDelete,
 }: JarDetailModalProps) {
   const t = useTranslations("cofrinhos");
+  const hbdRate = useHbdSavingsRate();
   const { locale } = useLocale();
   const isMobile = useIsMobile();
 
@@ -91,7 +92,7 @@ export function JarDetailModal({
 
   const goalDone = progress !== null && progress >= 100;
   const missing = jar.target_hbd ? Math.max(0, jar.target_hbd - allocated) : 0;
-  const monthlyYield = (allocated * SAVINGS_APR) / 12;
+  const monthlyYield = (allocated * hbdRate) / 12;
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString(locale, {
@@ -183,7 +184,7 @@ export function JarDetailModal({
           {!jar.is_wishlist && allocated > 0 && (
             <Box p={2} bg="panel" border="1px solid" borderColor="border" mb={3}>
               <Text fontSize="xs" color="dim" fontFamily="mono" lineHeight="tall">
-                ✦ {tVars(t("yieldLine"), { amount: monthlyYield.toFixed(3) })}
+                ✦ {tVars(t("yieldLine"), { amount: monthlyYield.toFixed(3), rate: formatRate(hbdRate) })}
               </Text>
             </Box>
           )}

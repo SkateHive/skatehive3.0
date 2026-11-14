@@ -4,6 +4,7 @@ import { BaseWalletModal } from "./BaseWalletModal";
 import { AmountInput } from "./components";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { tVars } from "@/lib/i18n/format";
+import { useHbdSavingsRate, formatRate } from "@/hooks/wallet/useHbdSavingsRate";
 import type { SavingsJar } from "@/hooks/wallet/useSavingsJars";
 
 export type AllocateMode = "add" | "take";
@@ -51,6 +52,7 @@ export function JarAllocateModal({
   onDone,
 }: JarAllocateModalProps) {
   const t = useTranslations("cofrinhos");
+  const hbdRate = useHbdSavingsRate();
   // "savings" = instant metadata move; "wallet" = real on-chain transfer.
   const [source, setSource] = useState<"savings" | "wallet">("savings");
   const [amount, setAmount] = useState("");
@@ -121,7 +123,7 @@ export function JarAllocateModal({
         {
           key: "wallet" as const,
           label: t("srcWallet"),
-          hint: tVars(t("srcWalletHint"), { amount: walletBalance.toFixed(3) }),
+          hint: tVars(t("srcWalletHint"), { amount: walletBalance.toFixed(3), rate: formatRate(hbdRate) }),
         },
       ]
     : [
@@ -236,7 +238,7 @@ export function JarAllocateModal({
         {adding && source === "wallet" && (
           <Box p={2} bg="muted" borderLeft="3px solid" borderColor="success">
             <Text fontSize="xs" color="success" fontFamily="mono" lineHeight="tall">
-              {t("depositNote")}
+              {tVars(t("depositNote"), { rate: formatRate(hbdRate) })}
             </Text>
           </Box>
         )}

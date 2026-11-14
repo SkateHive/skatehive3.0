@@ -2,6 +2,7 @@ import HiveClient from '@/lib/hive/hiveclient';
 import { Discussion } from '@hiveio/dhive';
 import { useState, useEffect, useRef } from 'react';
 import { HIVE_CONFIG } from '@/config/app.config';
+import { fetchWithTimeout, loadWithFallback } from '@/lib/feed/feedApiFallback';
 
 interface lastContainerInfo {
   permlink: string;
@@ -145,16 +146,17 @@ export const useSnaps = () => {
   }
 
 
-  async function fetchFromNewApi(): Promise<Discussion[]> {
-    const tag = HIVE_CONFIG.COMMUNITY_TAG;
+  // One page from the feed API, or null when the API answers with an error.
+  // Rejects when the request times out (see FEED_API_TIMEOUT_MS) or fails.
+  async function fetchFromNewApi(): Promise<Discussion[] | null> {
     const limit = 10;
     const apiUrl = `https://api.skatehive.app/api/v2/feed?limit=${limit}&page=${currentPage}`;
     // const apiUrl = `http://localhost:3001/api/v2/feed?limit=${limit}&page=${currentPage}`;
 
-    const response = await fetch(apiUrl);
+    const response = await fetchWithTimeout(apiUrl);
     if (!response.ok) {
       console.error('API fetch failed');
-      return await getMoreSnaps();
+      return null;
     }
 
     const apiData = await response.json();
@@ -173,15 +175,12 @@ export const useSnaps = () => {
 
         // API first in all environments (faster), blockchain fallback
         try {
-          newSnaps = await fetchFromNewApi();
-        } catch (apiError) {
-          console.warn('API fetch failed, falling back to Hive blockchain:', apiError);
-          try {
-            newSnaps = await getMoreSnaps();
-          } catch (hiveError) {
-            console.error('Both API and Hive blockchain fetch methods failed:', hiveError);
-            return;
-          }
+          newSnaps = await loadWithFallback(fetchFromNewApi, getMoreSnaps, (reason) =>
+            console.warn('API fetch failed, falling back to Hive blockchain:', reason)
+          );
+        } catch (hiveError) {
+          console.error('Both API and Hive blockchain fetch methods failed:', hiveError);
+          return;
         }
 
         // console.dir(newSnaps)

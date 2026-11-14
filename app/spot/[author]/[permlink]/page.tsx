@@ -31,7 +31,6 @@ async function getKmlSpot(permlink: string): Promise<SpotmapRow | null> {
 }
 
 const DOMAIN_URL = APP_CONFIG.BASE_URL;
-const FALLBACK_IMAGE = `${APP_CONFIG.BASE_URL}/ogimage.png`;
 
 // ISR: cache HTML for a day. A spot's body is immutable after publish;
 // making this static cuts serverless invocations (was a top cache-MISS
@@ -72,7 +71,9 @@ export async function generateMetadata({
     const description = kml.kml_description
       ? parseKmlDescription(kml.kml_description).text.slice(0, 200)
       : `Community-mapped skate spot at ${kml.lat.toFixed(4)}, ${kml.lng.toFixed(4)}.`;
-    const image = kml.thumbnail || FALLBACK_IMAGE;
+    // Real 1200×630 card. The KML thumbnail is a source photo, so it
+    // cannot carry those dimensions.
+    const ogImage = `${DOMAIN_URL}/api/og/spot/${SYNTHETIC_KML_AUTHOR}/${decodedPermlink}`;
     return {
       title: `${kml.name} — Skate spot on Skatehive`,
       description,
@@ -83,13 +84,13 @@ export async function generateMetadata({
         url,
         siteName: "Skatehive",
         type: "article",
-        images: [{ url: image, width: 1200, height: 630, alt: kml.name }],
+        images: [{ url: ogImage, width: 1200, height: 630, alt: kml.name }],
       },
       twitter: {
         card: "summary_large_image",
         title: `${kml.name} — Skate spot on Skatehive`,
         description,
-        images: [image],
+        images: [ogImage],
         site: "@skatehive",
       },
     };
@@ -122,8 +123,10 @@ export async function generateMetadata({
       descSnippet ? " " + descSnippet : ""
     }`.trim();
 
-  const image = spot.images[0]?.url || FALLBACK_IMAGE;
   const spotUrl = `${DOMAIN_URL}/spot/${cleanedAuthor}/${decodedPermlink}`;
+  // Same pattern as /post and /user: a real 1200×630 card from /api/og.
+  const ogImage = `${DOMAIN_URL}/api/og/spot/${cleanedAuthor}/${decodedPermlink}`;
+  const frameOgImage = `${DOMAIN_URL}/api/og/spot/${cleanedAuthor}/${decodedPermlink}?format=frame`;
 
   return {
     title,
@@ -142,7 +145,7 @@ export async function generateMetadata({
       title,
       description,
       url: spotUrl,
-      images: [{ url: image, width: 1200, height: 630, alt: spotName }],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: spotName }],
       siteName: "Skatehive",
       type: "article",
       publishedTime: post.created ? new Date(post.created + "Z").toISOString() : undefined,
@@ -152,21 +155,21 @@ export async function generateMetadata({
       card: "summary_large_image",
       title,
       description,
-      images: [image],
+      images: [ogImage],
       site: "@skatehive",
       creator: `@${cleanedAuthor}`,
     },
     other: {
       "fc:frame": JSON.stringify({
         version: "next",
-        imageUrl: image,
+        imageUrl: frameOgImage,
         button: {
           title: "View spot",
           action: { type: "launch_frame", name: "Skatehive", url: spotUrl },
         },
         postUrl: spotUrl,
       }),
-      "fc:frame:image": image,
+      "fc:frame:image": frameOgImage,
       "fc:frame:post_url": spotUrl,
     },
   };

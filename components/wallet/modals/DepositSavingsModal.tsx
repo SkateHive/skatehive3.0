@@ -5,9 +5,10 @@ import { AmountInput } from "./components";
 import { DepositHBDSavingsModalProps } from "./types";
 import { useBankActions } from "@/hooks/wallet";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { useHbdSavingsRate, formatRate } from "@/hooks/wallet/useHbdSavingsRate";
 
 /**
- * Modal for depositing HBD to savings (15% APR)
+ * Modal for depositing HBD to savings (live witness-set APR)
  */
 export function DepositSavingsModal({
     isOpen,
@@ -18,6 +19,7 @@ export function DepositSavingsModal({
     const { depositToSavings } = useBankActions();
     const toast = useToast();
     const t = useTranslations();
+  const hbdRate = useHbdSavingsRate();
 
     const handleConfirm = async () => {
         const parsedAmount = parseFloat(amount);
@@ -65,20 +67,21 @@ export function DepositSavingsModal({
         >
             <VStack spacing={4} align="stretch">
                 <Text fontSize="sm" color="text">
-                    Deposit HBD to your savings account and earn 15% APR!
+                    {t("wallet.savingsRate.depositIntro").replace("{rate}", formatRate(hbdRate))}
                 </Text>
 
                 <Box p={3} bg="green.900" borderRadius="md" borderLeft="4px solid" borderColor="green.500">
                     <Text fontSize="sm" fontWeight="bold" color="green.200" mb={2}>
-                        💰 Earn 15% APR
+                        {t("wallet.savingsRate.depositHeading").replace("{rate}", formatRate(hbdRate))}
                     </Text>
                     <Text fontSize="xs" color="green.100">
-                        • Guaranteed 15% annual interest on HBD savings
+                        {t("wallet.savingsRate.depositRate").replace("{rate}", formatRate(hbdRate))}
                         <br />
-                        • Interest paid monthly
+                        {t("wallet.savingsRate.depositMonthly")}
                         <br />
-                        • Completely safe and secure
-                        <br />• Backed by the Hive blockchain
+                        {t("wallet.savingsRate.depositWithdrawal")}
+                        <br />
+                        {t("wallet.savingsRate.depositBacked")}
                     </Text>
                 </Box>
 

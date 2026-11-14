@@ -18,9 +18,11 @@ import { useRouter } from "next/navigation";
 import { FaFileAlt, FaPen, FaRegClock, FaTrash } from "react-icons/fa";
 import { FiCopy } from "react-icons/fi";
 import { useLocale, useTranslations } from "@/contexts/LocaleContext";
+import { useComposeIdentity } from "@/hooks/useComposeIdentity";
 import {
   ComposeDraft,
   deleteComposeDraft,
+  migrateComposeDrafts,
   getComposeTemplates,
   readComposeDrafts,
   ComposeTemplate,
@@ -42,13 +44,29 @@ export default function ComposeWorkspacePage() {
   const t = useTranslations();
   const { locale } = useLocale();
   const router = useRouter();
-  const [drafts, setDrafts] = useState<ComposeDraft[]>([]);
+  const { draftKey, draftAliasKeys, isReady } = useComposeIdentity();
+  // Drafts are tagged with the namespace they were read from so a previous
+  // account's list is never rendered while the identity is switching.
+  const [loadedDrafts, setLoadedDrafts] = useState<{
+    key: string | null;
+    drafts: ComposeDraft[];
+  } | null>(null);
   const [templates, setTemplates] = useState<ComposeTemplate[]>([]);
 
   useEffect(() => {
-    setDrafts(readComposeDrafts());
     setTemplates(getComposeTemplates());
   }, []);
+
+  useEffect(() => {
+    if (!isReady) return;
+    migrateComposeDrafts(draftKey, draftAliasKeys);
+    setLoadedDrafts({ key: draftKey, drafts: readComposeDrafts(draftKey) });
+  }, [draftAliasKeys, draftKey, isReady]);
+
+  const drafts = useMemo(
+    () => (loadedDrafts && loadedDrafts.key === draftKey ? loadedDrafts.drafts : []),
+    [draftKey, loadedDrafts]
+  );
 
   const sortedDrafts = useMemo(() => {
     return [...drafts].sort(
@@ -57,8 +75,8 @@ export default function ComposeWorkspacePage() {
   }, [drafts]);
 
   const handleDeleteDraft = (id: string) => {
-    deleteComposeDraft(id);
-    setDrafts(readComposeDrafts());
+    deleteComposeDraft(id, draftKey);
+    setLoadedDrafts({ key: draftKey, drafts: readComposeDrafts(draftKey) });
   };
 
   return (

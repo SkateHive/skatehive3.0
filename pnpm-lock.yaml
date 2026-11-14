@@ -19,9 +19,6 @@ importers:
       '@aioha/react-ui':
         specifier: ^1.6.0
         version: 1.8.2(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(lit@3.3.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@anthropic-ai/sdk':
-        specifier: ^0.124.0
-        version: 0.124.0(zod@4.3.6)
       '@apollo/client':
         specifier: ^3.13.8
         version: 3.14.1(@types/react@18.3.28)(graphql@16.13.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -296,6 +293,9 @@ importers:
         specifier: ^2.16.0
         version: 2.19.5(@tanstack/query-core@5.90.20)(@tanstack/react-query@5.90.21(react@18.3.1))(@types/react@18.3.28)(bufferutil@4.1.0)(immer@11.1.4)(react@18.3.1)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.47.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.3.6))(zod@4.3.6)
     devDependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.124.0
+        version: 0.124.0(zod@4.3.6)
       '@tailwindcss/postcss':
         specifier: ^4.1.8
         version: 4.2.1

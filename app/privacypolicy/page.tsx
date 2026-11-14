@@ -316,7 +316,7 @@ export default function PrivacyPolicyPage() {
                     <strong>Hive:</strong> @skatehive
                   </Text>
                   <Text>
-                    <strong>Discord:</strong> discord.gg/skatehive
+                    <strong>Discord:</strong> discord.gg/gJxxSxswUv
                   </Text>
                 </VStack>
               </Box>

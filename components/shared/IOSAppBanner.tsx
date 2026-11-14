@@ -10,8 +10,9 @@ import {
   Image,
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
+import { APP_CONFIG } from "@/config/app.config";
 
-const APP_STORE_URL = "https://apps.apple.com/br/app/skatehive/id6751173076";
+const APP_STORE_URL = APP_CONFIG.APP_STORE_URL;
 const BANNER_DISMISSED_KEY = "ios_app_banner_dismissed_until";
 const DISMISS_DURATION_DAYS = 7;
 

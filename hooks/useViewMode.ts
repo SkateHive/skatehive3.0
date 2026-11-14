@@ -34,6 +34,16 @@ export default function useViewMode() {
     useEffect(() => {
         if (isInitialMount.current) {
             isInitialMount.current = false;
+            // The useState initializer runs during SSR, where `window` is
+            // missing, so a direct visit to ?view=grid hydrated as "snaps".
+            // Apply the query once on the client before we start writing the
+            // URL from state.
+            if (typeof window !== "undefined") {
+                const viewParam = new URLSearchParams(window.location.search).get("view") ?? "";
+                if ((VIEW_MODES as readonly string[]).includes(viewParam) && viewParam !== viewMode) {
+                    setViewMode(viewParam as ViewMode);
+                }
+            }
             return;
         }
 

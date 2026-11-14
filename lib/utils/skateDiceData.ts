@@ -36,6 +36,3 @@ export function trickFromFaces(faces: string[]): string {
   return words.length === 0 ? SKATERS_CHOICE_SENTINEL : words.join(" ");
 }
 
-export function randomFace(die: SkateDie): string {
-  return die.faces[Math.floor(Math.random() * die.faces.length)];
-}
