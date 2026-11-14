@@ -47,7 +47,7 @@ const NOISE = [
   /^(chore(\([^)]*\))?:\s*)?(bump|release|v?\d+\.\d+\.\d+)/i, // version-bump-only
 ];
 
-interface Commit {
+export interface Commit {
   type: string;
   subject: string;
   hash: string;
@@ -112,14 +112,14 @@ function formatRange(): string {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
-export function buildDigest(commits: Commit[]): string {
-  if (commits.length === 0) return "";
-
-  const body = SECTIONS.flatMap(({ title, types }) => {
-    const items = commits.filter((c) => types.includes(c.type));
-    if (items.length === 0) return [];
-    return [title, ...items.map((c) => `- ${c.subject} (${c.hash})`), ""];
-  });
+/** Wraps pre-built sections in the heading, banner and date range. */
+export function renderDigest(
+  sections: { title: string; items: string[] }[]
+): string {
+  const body = sections.flatMap(({ title, items }) =>
+    items.length === 0 ? [] : [title, ...items.map((i) => `- ${i}`), ""]
+  );
+  if (body.length === 0) return "";
 
   return [
     `## 🛹 Skatehive Dev Update — Week of ${formatRange()}`,
@@ -130,6 +130,18 @@ export function buildDigest(commits: Commit[]): string {
   ]
     .join("\n")
     .trimEnd();
+}
+
+/** Raw commit subjects with hashes -- the fallback when no rewrite happens. */
+export function buildDigest(commits: Commit[]): string {
+  return renderDigest(
+    SECTIONS.map(({ title, types }) => ({
+      title,
+      items: commits
+        .filter((c) => types.includes(c.type))
+        .map((c) => `${c.subject} (${c.hash})`),
+    }))
+  );
 }
 
 /*
@@ -170,7 +182,16 @@ if (process.argv[1]?.endsWith("generateDigest.ts")) {
   if (process.argv.includes("--print-days")) {
     console.log(DAYS);
   } else {
-    const digest = buildDigest(parse(gitLog()));
-    if (digest) console.log(digest);
+    const commits = parse(gitLog());
+    if (commits.length > 0) {
+      // Rewritten prose when ANTHROPIC_API_KEY is configured; raw subjects
+      // otherwise, so the digest still works with no key and no network.
+      void (async () => {
+        const { humanizeCommits } = await import("./humanize");
+        const sections = await humanizeCommits(commits);
+        const digest = sections ? renderDigest(sections) : buildDigest(commits);
+        if (digest) console.log(digest);
+      })();
+    }
   }
 }
