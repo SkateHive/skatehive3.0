@@ -16,6 +16,7 @@ import VideoPreview from "./VideoPreview";
 import SnapModal, { type SnapWithMedia } from "./SnapModal";
 import { preloadThumbnails } from "@/hooks/useVideoThumbnail";
 import { useHeicFallback } from "@/hooks/useHeicFallback";
+import { isYouTubeUrl } from "@/lib/utils/youtube";
 
 interface SnapsGridProps {
   username: string;
@@ -104,9 +105,9 @@ export default function SnapsGrid({ username, hasSoftSnaps }: SnapsGridProps) {
         .filter((snap) => snap.media.videos.length > 0)
         .slice(0, 6) // Only preload first 6 videos
         .map((snap) => snap.media.videos[0])
-        // Skip Odysee embed pages — preloadThumbnails resolves posters via the
-        // IPFS metadata route, which 404s for platform embed URLs.
-        .filter((url) => !/(^|\.)odysee\.com/i.test(url));
+        // Skip platform embed pages — preloadThumbnails resolves posters via the
+        // IPFS metadata route, which 404s for Odysee and YouTube URLs.
+        .filter((url) => !/(^|\.)odysee\.com/i.test(url) && !isYouTubeUrl(url));
 
       if (videoUrls.length > 0) {
         preloadThumbnails(videoUrls).catch((error) => {
