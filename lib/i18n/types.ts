@@ -766,6 +766,12 @@ export interface TranslationSchema {
     postingAuthorityCardTitle: string;
     postingAuthorityCardDescription: string;
     postingAuthorityCardCta: string;
+    whatsappCardTitle: string;
+    whatsappCardDescription: string;
+    whatsappGenerateCode: string;
+    whatsappCodeInstructions: string;
+    whatsappCodeExpires: string;
+    whatsappCodeError: string;
     mergeTitle: string;
     mergeDescription: string;
     mergeTypeLabel: string;
