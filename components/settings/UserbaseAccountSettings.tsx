@@ -149,7 +149,7 @@ export default function UserbaseAccountSettings() {
       </Box>
 
       <Box id="whatsapp-panel" border="1px solid" borderColor="muted" p={4}>
-        <UserbaseWhatsappPanel />
+        <UserbaseWhatsappPanel key={user.id} />
       </Box>
 
       {/* Newsletter subscription — proxied to the marketing portal/Paragraph */}

@@ -76,6 +76,19 @@ revoke all on public.userbase_whatsapp_links from anon, authenticated;
 revoke all on public.userbase_whatsapp_link_codes from anon, authenticated;
 revoke all on public.userbase_whatsapp_posts from anon, authenticated;
 
+-- service_role: least privilege for what the API does directly (RLS has no
+-- policies; service_role bypasses RLS but still needs table privileges).
+--   link_codes: insert (POST link/code)
+--   links:      select (lookup by phone), delete (unlink)
+--   posts:      none — only through the security definer RPCs below.
+-- Everything else (consuming codes, writing links, the snap ledger) happens
+-- inside the RPCs, which run as the migration owner.
+revoke all on public.userbase_whatsapp_links from service_role;
+revoke all on public.userbase_whatsapp_link_codes from service_role;
+revoke all on public.userbase_whatsapp_posts from service_role;
+grant insert on public.userbase_whatsapp_link_codes to service_role;
+grant select, delete on public.userbase_whatsapp_links to service_role;
+
 -- Consume a link code and bind the phone to the code's user, atomically.
 -- Returns the user id, or raises UB410 (unknown / expired / used code).
 create or replace function public.userbase_whatsapp_link_confirm(
@@ -89,7 +102,8 @@ as $$
 declare
   v_user uuid;
 begin
-  if p_code_hash !~ '^[0-9a-f]{64}$' or p_phone_hash !~ '^[0-9a-f]{64}$' then
+  if p_code_hash is null or p_phone_hash is null
+     or p_code_hash !~ '^[0-9a-f]{64}$' or p_phone_hash !~ '^[0-9a-f]{64}$' then
     raise exception 'invalid input' using errcode = 'UB422';
   end if;
 
@@ -135,6 +149,7 @@ declare
   v_id bigint;
 begin
   if p_user_id is null or p_limit is null or p_limit < 1
+     or p_author is null or p_permlink is null
      or p_author !~ '^[a-z][a-z0-9.-]{2,15}$'
      or p_permlink !~ '^[a-z0-9-]{1,255}$' then
     raise exception 'invalid input' using errcode = 'UB422';
@@ -174,7 +189,7 @@ as $$
 declare
   v_rows integer;
 begin
-  if p_status not in ('published', 'failed') then
+  if p_id is null or p_status is null or p_status not in ('published', 'failed') then
     raise exception 'invalid input' using errcode = 'UB422';
   end if;
   update public.userbase_whatsapp_posts

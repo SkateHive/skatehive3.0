@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Button, Code, Heading, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { LinkCodeRequestGuard } from "@/lib/userbase/linkCodeRequest";
 
 type CodeState = { code: string; expiresAt: string; botNumber: string | null };
 
@@ -14,20 +15,31 @@ export default function UserbaseWhatsappPanel() {
   const [state, setState] = useState<CodeState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  // The parent keys this panel by user id, so an account switch remounts it;
+  // the guard also drops a response that lands after unmount or a newer click.
+  const guard = useRef(new LinkCodeRequestGuard());
+  useEffect(() => {
+    const g = guard.current;
+    return () => g.invalidate();
+  }, []);
 
   const getCode = useCallback(async () => {
+    const token = guard.current.begin();
     setLoading(true);
     setError(false);
+    setState(null);
     try {
       const res = await fetch("/api/userbase/whatsapp/link-code", { method: "POST" });
       const data = await res.json().catch(() => null);
+      if (!guard.current.isCurrent(token)) return;
       if (!res.ok || !data?.code) throw new Error("link_code_failed");
       setState({ code: data.code, expiresAt: data.expires_at, botNumber: data.bot_number ?? null });
     } catch {
+      if (!guard.current.isCurrent(token)) return;
       setState(null);
       setError(true);
     } finally {
-      setLoading(false);
+      if (guard.current.isCurrent(token)) setLoading(false);
     }
   }, []);
 

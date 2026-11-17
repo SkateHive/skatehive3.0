@@ -11,7 +11,12 @@ sleep 1
 psql() { docker exec -i "$NAME" psql -v ON_ERROR_STOP=1 -U postgres -qAt "$@"; }
 
 psql <<'SQL'
-create role anon; create role authenticated; create role service_role;
+create role anon; create role authenticated; create role service_role bypassrls;
+-- Emulate Supabase default privileges: new tables are fully granted to the API roles.
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
+grant usage on schema public to anon, authenticated, service_role;
 create table public.userbase_users (id uuid primary key default gen_random_uuid());
 insert into public.userbase_users (id) values
   ('00000000-0000-0000-0000-00000000000a'), ('00000000-0000-0000-0000-00000000000b');
@@ -60,7 +65,31 @@ psql -c "select userbase_whatsapp_snap_reserve('$A','skateuser','wa-60',5)" >/de
 expect_err "select userbase_whatsapp_snap_reserve('$A','BAD','wa-61',5)" "invalid input" || fail "author validation"
 echo "ok settle + day window + validation"
 
+# --- NULL arguments are UB422, never a constraint error ------------------------
+expect_err "select userbase_whatsapp_link_confirm(null,'$(H 9)')" "invalid input" || fail "null code"
+expect_err "select userbase_whatsapp_link_confirm('$(H 1)',null)" "invalid input" || fail "null phone"
+expect_err "select userbase_whatsapp_snap_reserve('$A',null,'wa-70',5)" "invalid input" || fail "null author"
+expect_err "select userbase_whatsapp_snap_reserve('$A','skateuser',null,5)" "invalid input" || fail "null permlink"
+expect_err "select userbase_whatsapp_snap_settle(null,'failed')" "invalid input" || fail "null id"
+expect_err "select userbase_whatsapp_snap_settle(1,null)" "invalid input" || fail "null status"
+for st in "select userbase_whatsapp_link_confirm(null,'$(H 9)')" "select userbase_whatsapp_snap_settle(1,null)"; do
+  out=$(psql -c "$st" 2>&1 || true); grep -q "UB422\|invalid input" <<<"$out" || fail "sqlstate $st"
+done
+echo "ok null validation"
+
 # --- privileges ---------------------------------------------------------------
+# service_role does exactly what the API does directly, and nothing more.
+sr() { psql -c "set role service_role; $1"; }
+sr "insert into userbase_whatsapp_link_codes (code_hash,user_id,expires_at) values ('$(H 5)','$A',now()+interval '1 min')" >/dev/null || fail "service_role insert code"
+sr "select count(*) from userbase_whatsapp_links" >/dev/null || fail "service_role select links"
+sr "delete from userbase_whatsapp_links where phone_hash='$(H 7)'" >/dev/null || fail "service_role delete links"
+sr "select userbase_whatsapp_snap_reserve('$A','skateuser','wa-80',99)" >/dev/null || fail "service_role reserve"
+sr "select userbase_whatsapp_link_confirm('$(H 5)','$(H 6)')" >/dev/null || fail "service_role confirm"
+expect_err "set role service_role; select * from userbase_whatsapp_link_codes" "permission denied" || fail "service_role read codes"
+expect_err "set role service_role; update userbase_whatsapp_links set linked_at=now()" "permission denied" || fail "service_role update links"
+expect_err "set role service_role; insert into userbase_whatsapp_links values ('$(H 4)','$A',now())" "permission denied" || fail "service_role insert links"
+expect_err "set role service_role; select * from userbase_whatsapp_posts" "permission denied" || fail "service_role read posts"
+expect_err "set role service_role; update userbase_whatsapp_posts set status='failed'" "permission denied" || fail "service_role update posts"
 [ "$(psql -c "select has_function_privilege('anon','userbase_whatsapp_snap_reserve(uuid,text,text,integer)','execute')")" = f ] || fail "anon can reserve"
 [ "$(psql -c "select has_table_privilege('authenticated','userbase_whatsapp_links','select')")" = f ] || fail "authenticated can read links"
 echo "ok privileges"
