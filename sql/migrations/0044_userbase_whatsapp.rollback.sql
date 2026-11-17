@@ -4,6 +4,8 @@
 
 begin;
 
+drop function if exists public.userbase_whatsapp_snap_settle(bigint, text);
+drop function if exists public.userbase_whatsapp_snap_reserve(uuid, text, text, integer);
 drop function if exists public.userbase_whatsapp_link_confirm(text, text);
 drop table if exists public.userbase_whatsapp_posts;
 drop table if exists public.userbase_whatsapp_link_codes;

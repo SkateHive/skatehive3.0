@@ -46,13 +46,22 @@ create table if not exists public.userbase_whatsapp_link_codes (
 create index if not exists userbase_whatsapp_link_codes_user_idx
   on public.userbase_whatsapp_link_codes (user_id, created_at desc);
 
+-- Daily snap ledger. A row is RESERVED before the broadcast (atomically, under
+-- a per-user lock) and is the authoritative daily count: 'reserved' and
+-- 'published' rows are charged; only a broadcast proven absent from the chain
+-- is released to 'failed'. A row whose outcome is unknown stays 'reserved'
+-- (charged) — the cap fails closed.
 create table if not exists public.userbase_whatsapp_posts (
   id bigserial primary key,
   user_id uuid not null
     references public.userbase_users(id) on delete cascade,
   author text not null,
   permlink text not null,
+  status text not null default 'reserved'
+    constraint userbase_whatsapp_posts_status
+      check (status in ('reserved', 'published', 'failed')),
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   constraint userbase_whatsapp_posts_unique unique (author, permlink)
 );
 
@@ -107,5 +116,78 @@ $$;
 
 revoke all on function public.userbase_whatsapp_link_confirm(text, text) from public, anon, authenticated;
 grant execute on function public.userbase_whatsapp_link_confirm(text, text) to service_role;
+
+-- Reserve one snap slot for today (UTC). Serialized per user with a
+-- transaction-scoped advisory lock, so concurrent requests cannot both take
+-- the last slot. Raises UB429 when the day is full. Returns the ledger id.
+create or replace function public.userbase_whatsapp_snap_reserve(
+  p_user_id uuid,
+  p_author text,
+  p_permlink text,
+  p_limit integer
+) returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_used integer;
+  v_id bigint;
+begin
+  if p_user_id is null or p_limit is null or p_limit < 1
+     or p_author !~ '^[a-z][a-z0-9.-]{2,15}$'
+     or p_permlink !~ '^[a-z0-9-]{1,255}$' then
+    raise exception 'invalid input' using errcode = 'UB422';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('userbase_whatsapp_snap:' || p_user_id::text, 0));
+
+  select count(*) into v_used
+    from public.userbase_whatsapp_posts
+   where user_id = p_user_id
+     and status in ('reserved', 'published')
+     and created_at >= (date_trunc('day', now() at time zone 'utc') at time zone 'utc');
+
+  if v_used >= p_limit then
+    raise exception 'daily limit' using errcode = 'UB429';
+  end if;
+
+  insert into public.userbase_whatsapp_posts (user_id, author, permlink, status)
+  values (p_user_id, p_author, p_permlink, 'reserved')
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+-- Settle a reservation: 'published' (broadcast confirmed) or 'failed' (proven
+-- absent from the chain — releases the slot). Only moves rows out of
+-- 'reserved'; returns false when nothing changed.
+create or replace function public.userbase_whatsapp_snap_settle(
+  p_id bigint,
+  p_status text
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rows integer;
+begin
+  if p_status not in ('published', 'failed') then
+    raise exception 'invalid input' using errcode = 'UB422';
+  end if;
+  update public.userbase_whatsapp_posts
+     set status = p_status, updated_at = now()
+   where id = p_id and status = 'reserved';
+  get diagnostics v_rows = row_count;
+  return v_rows > 0;
+end;
+$$;
+
+revoke all on function public.userbase_whatsapp_snap_reserve(uuid, text, text, integer) from public, anon, authenticated;
+grant execute on function public.userbase_whatsapp_snap_reserve(uuid, text, text, integer) to service_role;
+revoke all on function public.userbase_whatsapp_snap_settle(bigint, text) from public, anon, authenticated;
+grant execute on function public.userbase_whatsapp_snap_settle(bigint, text) to service_role;
 
 commit;
