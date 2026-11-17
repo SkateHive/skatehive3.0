@@ -17,6 +17,7 @@ import UserbaseIdentityLinker from "@/components/layout/UserbaseIdentityLinker";
 import UserbasePostingKeyPanel from "@/components/userbase/UserbasePostingKeyPanel";
 import UserbaseMergePanel from "@/components/userbase/UserbaseMergePanel";
 import UserbaseNewsletterPanel from "@/components/userbase/UserbaseNewsletterPanel";
+import UserbaseWhatsappPanel from "@/components/userbase/UserbaseWhatsappPanel";
 import HiveSponsorshipInfo from "@/components/userbase/HiveSponsorshipInfo";
 import HiveLoginModal from "@/components/layout/HiveLoginModal";
 import ConnectionModal from "@/components/layout/ConnectionModal";
@@ -145,6 +146,10 @@ export default function UserbaseAccountSettings() {
           scroll the user down to this anchor. */}
       <Box id="identity-linker-section">
         <UserbaseIdentityLinker />
+      </Box>
+
+      <Box id="whatsapp-panel" border="1px solid" borderColor="muted" p={4}>
+        <UserbaseWhatsappPanel />
       </Box>
 
       {/* Newsletter subscription — proxied to the marketing portal/Paragraph */}
