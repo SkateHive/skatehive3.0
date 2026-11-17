@@ -214,6 +214,8 @@ export default function Sidebar() {
           "&:focus": { textDecoration: "none !important", outline: "none !important" },
           "&:active": { textDecoration: "none !important" },
           "&:visited": { textDecoration: "none !important", color: "inherit !important" },
+          // :focus above drops the outline; keyboard focus gets the hover highlight instead.
+          "&:focus-visible > div": { bg: "primary", color: hoverTextColor },
         }}
       >
         <Box
