@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   Box,
   Text,
@@ -48,8 +48,10 @@ import {
   FiFlag,
   FiPlus,
   FiMenu,
+  FiSearch,
 } from "react-icons/fi";
 import { useReport } from "@/contexts/ReportContext";
+import { openGlobalSearch } from "@/lib/search/openSearch";
 
 // Fixed bottom tab bar for mobile. Mirrors the native app's 5-slot bar
 // (Home · Videos · Create · Leaderboard · Menu). Secondary routes and the
@@ -122,6 +124,9 @@ export default function MobileTabBar() {
 
   // Drawer + connection modal state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  // Search opens once the drawer has finished closing; opening it earlier lets
+  // the drawer hand focus back to the menu tab and steal it from the search input.
+  const openSearchAfterDrawerRef = useRef(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
   const [isModalTransitioning, setIsModalTransitioning] = useState(false);
@@ -482,6 +487,11 @@ export default function MobileTabBar() {
       <Drawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
+        onCloseComplete={() => {
+          if (!openSearchAfterDrawerRef.current) return;
+          openSearchAfterDrawerRef.current = false;
+          openGlobalSearch();
+        }}
         placement="left"
         size="xs"
       >
@@ -499,6 +509,36 @@ export default function MobileTabBar() {
               cursor="pointer"
               onClick={() => navigateTo("/")}
             />
+          </Box>
+
+          {/* Global search: skaters, tricks and pages */}
+          <Box px={4} pb={3}>
+            <Box
+              as="button"
+              type="button"
+              w="full"
+              display="flex"
+              alignItems="center"
+              gap={3}
+              px={3}
+              py={2.5}
+              border="1px solid"
+              borderColor="primary"
+              color="text"
+              textAlign="left"
+              _hover={{ bg: "primary", color: "background" }}
+              _active={{ bg: "primary", color: "background" }}
+              transition="all 0.15s ease"
+              onClick={() => {
+                openSearchAfterDrawerRef.current = true;
+                setIsDrawerOpen(false);
+              }}
+            >
+              <Icon as={FiSearch} boxSize={4} />
+              <Text fontSize="sm" opacity={0.8}>
+                {t("search")}
+              </Text>
+            </Box>
           </Box>
 
           <DrawerBody px={0} overflowY="auto">

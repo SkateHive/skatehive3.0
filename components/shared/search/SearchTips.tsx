@@ -23,6 +23,9 @@ export default function SearchTips({ show }: SearchTipsProps) {
             {t("searchOverlay.tips.usernames")}
           </Text>
           <Text fontSize="sm" color="secondary">
+            {t("searchOverlay.tips.tricks")}
+          </Text>
+          <Text fontSize="sm" color="secondary">
             {t("searchOverlay.tips.pagesAndCommands")}
           </Text>
           <Text fontSize="sm" color="secondary">

@@ -18,6 +18,7 @@ import { Providers } from "./providers";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import InitFrameSDK from "@/hooks/init-frame-sdk";
 import { SkaterData } from "@/types/leaderboard";
+import { OPEN_SEARCH_EVENT } from "@/lib/search/openSearch";
 
 // Deferred — not needed for first paint
 const SearchOverlay = dynamic(() => import("@/components/shared/SearchOverlay"), { ssr: false });
@@ -77,8 +78,14 @@ export default function RootLayoutClient({
       }
     };
 
+    const handleOpenSearch = () => setIsSearchOpen(true);
+
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener(OPEN_SEARCH_EVENT, handleOpenSearch);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(OPEN_SEARCH_EVENT, handleOpenSearch);
+    };
   }, []);
 
   useEffect(() => {

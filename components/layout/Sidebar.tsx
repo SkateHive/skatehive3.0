@@ -27,6 +27,7 @@ import {
   FiFilm,
   FiUsers,
   FiMail,
+  FiSearch,
 } from "react-icons/fi";
 import { useTheme } from "@/app/themeProvider";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -34,6 +35,7 @@ import SidebarLogo from "../graphics/SidebarLogo";
 import AuthButton from "./AuthButton";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { useSoundSettings } from "@/contexts/SoundSettingsContext";
+import { openGlobalSearch } from "@/lib/search/openSearch";
 
 
 interface NavItemDef {
@@ -106,6 +108,7 @@ export default function Sidebar() {
       label: "PRIMARY",
       items: [
         { href: "/", icon: FiHome, label: t("home") },
+        { icon: FiSearch, label: t("search"), onClick: openGlobalSearch },
         { href: "/blog", icon: FiBook, label: t("magazine") },
         {
           href: "/leaderboard",
@@ -186,6 +189,10 @@ export default function Sidebar() {
 
     const inner = (
       <Box
+        // Action items (no href) are buttons so they get focus and Enter/Space.
+        as={onClick ? "button" : undefined}
+        type={onClick ? "button" : undefined}
+        textAlign="left"
         display="flex"
         alignItems="center"
         px={1}
