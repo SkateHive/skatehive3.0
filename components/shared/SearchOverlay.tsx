@@ -10,6 +10,7 @@ import React, {
 import {
   VStack,
   Box,
+  VisuallyHidden,
 } from "@chakra-ui/react";
 import { FaUser, FaHome, FaBolt, FaCompass } from "react-icons/fa";
 import { useRouter, usePathname } from "next/navigation";
@@ -20,6 +21,7 @@ import SearchInput from "./search/SearchInput";
 import LoadingState from "./search/LoadingState";
 import SkaterResult from "./search/SkaterResult";
 import TrickResult from "./search/TrickResult";
+import { SEARCH_LISTBOX_ID, searchOptionId, searchSectionId } from "./search/a11y";
 import PageResult from "./search/PageResult";
 import SectionHeader from "./search/SectionHeader";
 import SearchTips from "./search/SearchTips";
@@ -194,21 +196,39 @@ export default function SearchOverlay({
     }
   }, [onClose, onOpenAirdrop, onOpenReport, router]);
 
+  // Everything the arrow keys walk through, in the order it is rendered.
+  const allResults: SearchResult[] = useMemo(
+    () =>
+      query
+        ? [...filteredSkaters, ...filteredTricks, ...filteredCommands, ...filteredPages]
+        : [...popularPages, ...popularCommands],
+    [query, filteredSkaters, filteredTricks, filteredCommands, filteredPages, popularPages, popularCommands]
+  );
+
+  const activeOptionId =
+    highlightedIndex >= 0 && highlightedIndex < allResults.length
+      ? searchOptionId(highlightedIndex)
+      : undefined;
+
+  // Keep the highlighted result visible while moving through a long list.
+  useEffect(() => {
+    if (!activeOptionId) return;
+    document.getElementById(activeOptionId)?.scrollIntoView({ block: "nearest" });
+  }, [activeOptionId]);
+
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!isOpen) return;
 
-    const allResults: SearchResult[] = query
-      ? [
-          ...filteredSkaters,
-          ...filteredTricks,
-          ...filteredCommands,
-          ...filteredPages,
-        ]
-      : [
-          ...popularPages,
-          ...popularCommands,
-        ];
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+      return;
+    }
+
+    // Arrows and Enter drive the results only from the search input; elsewhere
+    // (window buttons such as Close) they keep their native behaviour.
+    if (e.target !== searchInputRef.current) return;
 
     switch (e.key) {
       case "ArrowDown":
@@ -227,12 +247,8 @@ export default function SearchOverlay({
           handleSelect(allResults[highlightedIndex]);
         }
         break;
-      case "Escape":
-        e.preventDefault();
-        onClose();
-        break;
     }
-  }, [isOpen, query, filteredPages, filteredCommands, filteredSkaters, filteredTricks, popularPages, popularCommands, highlightedIndex, handleSelect, onClose]);
+  }, [isOpen, allResults, highlightedIndex, handleSelect, onClose]);
 
   // Keyboard event listeners
   useEffect(() => {
@@ -245,6 +261,13 @@ export default function SearchOverlay({
   }, [isOpen, handleKeyDown]);
 
   if (!isOpen) return null;
+
+  // Read out by screen readers whenever the result count changes.
+  const statusMessage = !query
+    ? ""
+    : allResults.length > 0
+    ? t("searchOverlay.resultsCount").replace("{count}", String(allResults.length))
+    : `${t("searchOverlay.noResults.heading")} "${query}"`;
 
   return (
     <SkateModal
@@ -264,7 +287,13 @@ export default function SearchOverlay({
             onQueryChange={setQuery}
             inputRef={searchInputRef}
             isLoading={isLoadingTopSkaters}
+            isExpanded={allResults.length > 0}
+            activeOptionId={activeOptionId}
           />
+
+          <VisuallyHidden role="status" aria-live="polite" aria-atomic="true">
+            {statusMessage}
+          </VisuallyHidden>
 
           {/* Results Area */}
           {query || popularPages.length > 0 || popularCommands.length > 0 || isLoadingTopSkaters ? (
@@ -285,15 +314,21 @@ export default function SearchOverlay({
                 },
               }}
             >
-              <VStack spacing={0} align="stretch">
-                {!query && popularPages.length > 0 && (
-                  <SectionHeader icon={FaHome} title={t("searchOverlay.sections.popularPages")} />
-                )}
-
-                {/* Results, one section per kind, in keyboard order */}
+              <VStack
+                spacing={0}
+                align="stretch"
+                id={SEARCH_LISTBOX_ID}
+                role="listbox"
+                aria-label={t("searchOverlay.resultsLabel")}
+              >
+                {/* Results, one group per kind, in keyboard order */}
                 {filteredSkaters.length > 0 && (
-                  <>
-                    <SectionHeader icon={FaUser} title={t("searchOverlay.sections.skaters")} />
+                  <Box role="group" aria-labelledby={searchSectionId("skaters")}>
+                    <SectionHeader
+                      id={searchSectionId("skaters")}
+                      icon={FaUser}
+                      title={t("searchOverlay.sections.skaters")}
+                    />
                     {filteredSkaters.map((skater, index) => (
                       <SkaterResult
                         key={`skater-${skater.hive_author}`}
@@ -304,12 +339,16 @@ export default function SearchOverlay({
                         onHover={playHoverSound}
                       />
                     ))}
-                  </>
+                  </Box>
                 )}
 
                 {filteredTricks.length > 0 && (
-                  <>
-                    <SectionHeader icon={FaBolt} title={t("searchOverlay.sections.tricks")} />
+                  <Box role="group" aria-labelledby={searchSectionId("tricks")}>
+                    <SectionHeader
+                      id={searchSectionId("tricks")}
+                      icon={FaBolt}
+                      title={t("searchOverlay.sections.tricks")}
+                    />
                     {filteredTricks.map((trick, index) => (
                       <TrickResult
                         key={`trick-${trick.slug}`}
@@ -320,15 +359,16 @@ export default function SearchOverlay({
                         onHover={playHoverSound}
                       />
                     ))}
-                  </>
+                  </Box>
                 )}
 
                 {(filteredCommands.length > 0 || filteredPages.length > 0) && (
-                  <SectionHeader icon={FaCompass} title={t("searchOverlay.sections.pagesAndCommands")} />
-                )}
-
-                {filteredCommands.length > 0 && (
-                  <>
+                  <Box role="group" aria-labelledby={searchSectionId("pages")}>
+                    <SectionHeader
+                      id={searchSectionId("pages")}
+                      icon={FaCompass}
+                      title={t("searchOverlay.sections.pagesAndCommands")}
+                    />
                     {filteredCommands.map((command, index) => (
                       <PageResult
                         key={`command-${command.path}`}
@@ -339,11 +379,6 @@ export default function SearchOverlay({
                         onHover={playHoverSound}
                       />
                     ))}
-                  </>
-                )}
-
-                {filteredPages.length > 0 && (
-                  <>
                     {filteredPages.map((page, index) => (
                       <PageResult
                         key={`page-${page.path}`}
@@ -359,12 +394,17 @@ export default function SearchOverlay({
                         onHover={playHoverSound}
                       />
                     ))}
-                  </>
+                  </Box>
                 )}
 
                 {/* Show popular pages when no query */}
                 {!query && popularPages.length > 0 && (
-                  <>
+                  <Box role="group" aria-labelledby={searchSectionId("popular-pages")}>
+                    <SectionHeader
+                      id={searchSectionId("popular-pages")}
+                      icon={FaHome}
+                      title={t("searchOverlay.sections.popularPages")}
+                    />
                     {popularPages.map((page, index) => (
                       <PageResult
                         key={`popular-${page.path}`}
@@ -375,13 +415,17 @@ export default function SearchOverlay({
                         onHover={playHoverSound}
                       />
                     ))}
-                  </>
+                  </Box>
                 )}
 
                 {/* Show popular commands when no query */}
                 {!query && popularCommands.length > 0 && (
-                  <>
-                    <SectionHeader icon={FaBolt} title={t("searchOverlay.popularCommands")} />
+                  <Box role="group" aria-labelledby={searchSectionId("popular-commands")}>
+                    <SectionHeader
+                      id={searchSectionId("popular-commands")}
+                      icon={FaBolt}
+                      title={t("searchOverlay.popularCommands")}
+                    />
                     {popularCommands.map((command, index) => (
                       <PageResult
                         key={`popular-command-${command.path}`}
@@ -392,19 +436,19 @@ export default function SearchOverlay({
                         onHover={playHoverSound}
                       />
                     ))}
-                  </>
+                  </Box>
                 )}
-
-                <NoResults
-                  query={query}
-                  hasPages={filteredPages.length > 0}
-                  hasSkaters={
-                    filteredSkaters.length > 0 ||
-                    filteredTricks.length > 0 ||
-                    filteredCommands.length > 0
-                  }
-                />
               </VStack>
+
+              <NoResults
+                query={query}
+                hasPages={filteredPages.length > 0}
+                hasSkaters={
+                  filteredSkaters.length > 0 ||
+                  filteredTricks.length > 0 ||
+                  filteredCommands.length > 0
+                }
+              />
             </Box>
           ) : (
             <VStack spacing={0} align="stretch">

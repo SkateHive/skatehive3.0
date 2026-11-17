@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Box, HStack, VStack, Text, Icon } from "@chakra-ui/react";
+import { searchOptionId } from "./a11y";
 import { FaBolt } from "react-icons/fa";
 import type { TrickSearchResult } from "@/lib/tricks/catalog";
 
@@ -34,6 +35,9 @@ export default function TrickResult({
       onClick={() => onSelect(trick)}
       onMouseEnter={onHover}
       data-index={index}
+      id={searchOptionId(index)}
+      role="option"
+      aria-selected={highlightedIndex === index}
     >
       <HStack spacing={3}>
         <Box

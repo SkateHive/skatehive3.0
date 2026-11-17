@@ -1876,6 +1876,8 @@ export const es = {
     },
     popularCommands: 'Comandos Populares',
     inputPlaceholder: 'Buscar skaters, trucos, páginas...',
+    resultsCount: '{count} resultados',
+    resultsLabel: 'Resultados de búsqueda',
     sections: {
       popularPages: 'Páginas Populares',
       skaters: 'Skaters',

@@ -11,12 +11,17 @@ import {
 } from "@chakra-ui/react";
 import { FaSearch } from "react-icons/fa";
 import { useTranslations } from "@/contexts/LocaleContext";
+import { SEARCH_LISTBOX_ID } from "./a11y";
 
 interface SearchInputProps {
   query: string;
   onQueryChange: (query: string) => void;
   inputRef?: React.RefObject<HTMLInputElement>;
   isLoading?: boolean;
+  /** Whether the results listbox is showing (combobox aria-expanded). */
+  isExpanded?: boolean;
+  /** id of the highlighted result, for aria-activedescendant. */
+  activeOptionId?: string;
 }
 
 export default function SearchInput({
@@ -24,6 +29,8 @@ export default function SearchInput({
   onQueryChange,
   inputRef,
   isLoading,
+  isExpanded = false,
+  activeOptionId,
 }: SearchInputProps) {
   const t = useTranslations();
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -65,6 +72,13 @@ export default function SearchInput({
           color="primary"
           _placeholder={{ color: "accent", opacity: 0.7 }}
           _focus={{ outline: "none" }}
+          role="combobox"
+          aria-label={t("searchOverlay.inputPlaceholder")}
+          aria-autocomplete="list"
+          aria-expanded={isExpanded}
+          aria-controls={SEARCH_LISTBOX_ID}
+          aria-activedescendant={activeOptionId}
+          autoComplete="off"
           aria-busy={!!isLoading}
           opacity={isLoading ? 0.6 : 1}
         />

@@ -1877,6 +1877,8 @@ export const lg = {
     },
     popularCommands: 'Ebiragiro Ebisinga Okukozesebwa',
     inputPlaceholder: 'Noonyereza abakozesa, emipapula oba ebiragiro...',
+    resultsCount: '{count} results',
+    resultsLabel: 'Search results',
     sections: {
       popularPages: 'Popular Pages',
       skaters: 'Skaters',

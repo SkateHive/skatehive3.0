@@ -1863,6 +1863,8 @@ export const en = {
     },
     popularCommands: 'Popular Commands',
     inputPlaceholder: 'Search skaters, tricks, pages...',
+    resultsCount: '{count} results',
+    resultsLabel: 'Search results',
     sections: {
       popularPages: 'Popular Pages',
       skaters: 'Skaters',
