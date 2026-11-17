@@ -79,7 +79,7 @@ export default function MainWallet({ username }: MainWalletProps) {
   const [chainFilter, setChainFilter] = useState<ChainFilter>("all");
   const [hivePower, setHivePower] = useState<string | undefined>(undefined);
 
-  const { hivePrice, hbdPrice, btcPrice, isPriceLoading } = useMarketPrices();
+  const { hivePrice, hbdPrice, btcPrice } = useMarketPrices();
 
   // Self-claimed BTC address — prefer on-chain Hive metadata, fall back to the
   // userbase DB so any save path is honored by the swap / Claim-to-BTC flows.
@@ -510,11 +510,7 @@ export default function MainWallet({ username }: MainWalletProps) {
               justifyContent="flex-start"
               minW={0}
             >
-              <UnifiedSwapSection
-                hivePrice={hivePrice}
-                hbdPrice={hbdPrice}
-                isPriceLoading={isPriceLoading}
-              />
+              <UnifiedSwapSection />
               {user && (
                 <ClaimRewards
                   reward_hbd_balance={hiveAccount?.reward_hbd_balance}
