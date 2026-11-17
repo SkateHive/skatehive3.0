@@ -198,7 +198,6 @@ export default function Sidebar() {
         px={1}
         py={0.5}
         cursor="pointer"
-        role="group"
         width="100%"
         pl={4}
         textDecoration="none"
