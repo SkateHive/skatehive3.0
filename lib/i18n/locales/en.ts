@@ -133,6 +133,7 @@ export const en = {
   },
   navigation: {
     home: 'Home',
+    search: 'Search',
     magazine: 'Magazine',
     leaderboard: 'Leaderboard',
     skatespots: 'Skatespots',
@@ -1814,15 +1815,22 @@ export const en = {
     tips: {
       title: 'Search Tips',
       usernames: 'Type usernames to find skaters',
+      tricks: 'Type a trick name, like kickflip or tre flip',
       pagesAndCommands: 'Search pages and commands by name',
       navigate: 'Navigate with ↑↓, select with Enter',
     },
     noResults: {
       heading: 'No results found for',
-      hint: 'Try searching for a username, page or command',
+      hint: 'Try searching for a username, trick, page or command',
     },
     popularCommands: 'Popular Commands',
-    inputPlaceholder: 'Search users, pages or commands...',
+    inputPlaceholder: 'Search skaters, tricks, pages...',
+    sections: {
+      popularPages: 'Popular Pages',
+      skaters: 'Skaters',
+      tricks: 'Tricks',
+      pagesAndCommands: 'Pages & Commands',
+    },
   },
   onboarding: {
     welcomeTitle: 'welcome.sh',

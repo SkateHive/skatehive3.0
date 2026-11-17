@@ -45,6 +45,17 @@ describe("resolveSearchPath", () => {
     assertEqual(resolveSearchPath("skate hive"), "/blog/tag/skate-hive");
   });
 
+  it("opens the trick page when the query names a trick", () => {
+    assertEqual(resolveSearchPath("kickflip"), "/tricks/kickflip");
+    assertEqual(resolveSearchPath("Tre Flip"), "/tricks/tre-flip");
+    assertEqual(resolveSearchPath("360 flip"), "/tricks/tre-flip");
+  });
+
+  it("keeps generic words that are only trick tags on the tag listing", () => {
+    assertEqual(resolveSearchPath("grind"), "/blog/tag/grind");
+    assertEqual(resolveSearchPath("rock"), "/blog/tag/rock");
+  });
+
   it("drops characters that would escape the path", () => {
     assertEqual(resolveSearchPath("../admin"), "/blog/tag/admin");
     assertEqual(resolveSearchPath("skate?x=1"), "/blog/tag/skatex1");

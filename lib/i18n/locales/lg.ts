@@ -133,6 +133,7 @@ export const lg = {
     playSubtitle: 'Coach Fred — skate or dice',
   },
   navigation: {
+    search: 'Noonyereza',
     home: 'Akaaga',
     magazine: 'Maggazini',
     leaderboard: 'Olukalala lw\'Okusinga',
@@ -1828,6 +1829,7 @@ export const lg = {
     tips: {
       title: 'Amagezi g\'Okunoonyereza',
       usernames: 'Wandika erinnya ery\'omukozesa okufuna abaskater',
+      tricks: 'Type a trick name, like kickflip or tre flip',
       pagesAndCommands: 'Noonyereza emipapula n\'ebiragiro mu linnya',
       navigate: 'Tambula n\'↑↓, londa n\'Enter',
     },
@@ -1837,6 +1839,12 @@ export const lg = {
     },
     popularCommands: 'Ebiragiro Ebisinga Okukozesebwa',
     inputPlaceholder: 'Noonyereza abakozesa, emipapula oba ebiragiro...',
+    sections: {
+      popularPages: 'Popular Pages',
+      skaters: 'Skaters',
+      tricks: 'Tricks',
+      pagesAndCommands: 'Pages & Commands',
+    },
   },
   onboarding: {
     welcomeTitle: 'welcome.sh',
