@@ -8,6 +8,7 @@ import TrickCard from "@/components/tricks/TrickCard";
 import TricksHeader from "@/components/tricks/TricksHeader";
 import { extractPostThumbnail } from "@/lib/utils/postThumbnail";
 import { TRICK_TUTORIALS } from "@/lib/utils/trickTutorials";
+import { TRICK_CATEGORIES } from "@/lib/tricks/catalog";
 
 function extractYouTubeId(url: string): string | null {
     const match = url.match(/(?:[?&]v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
@@ -69,64 +70,6 @@ export const metadata: Metadata = {
         canonical: `${BASE_URL}/tricks`,
     },
 };
-
-// Trick categories with their tags for Hive lookup
-const TRICK_CATEGORIES = [
-    {
-        name: "Flip Tricks",
-        tricks: [
-            { name: "Kickflip", slug: "kickflip", tags: ["kickflip"] },
-            { name: "Heelflip", slug: "heelflip", tags: ["heelflip"] },
-            { name: "Varial Kickflip", slug: "varial-kickflip", tags: ["varial", "varialkickflip"] },
-            { name: "Tre Flip (360 Flip)", slug: "tre-flip", tags: ["treflip", "360flip"] },
-            { name: "Hardflip", slug: "hardflip", tags: ["hardflip"] },
-            { name: "Frontside Flip", slug: "frontside-flip", tags: ["frontsideflip", "fsflip"] },
-            { name: "Backside Flip", slug: "backside-flip", tags: ["backsideflip", "bsflip"] },
-            { name: "Varial Heelflip", slug: "varial-heelflip", tags: ["varialheel", "varialheelflip"] },
-            { name: "Laser Flip", slug: "laser-flip", tags: ["laserflip"] },
-        ],
-    },
-    {
-        name: "Flatground",
-        tricks: [
-            { name: "Ollie", slug: "ollie", tags: ["ollie"] },
-            { name: "Nollie", slug: "nollie", tags: ["nollie"] },
-            { name: "Pop Shove-it", slug: "pop-shove-it", tags: ["shove", "shoveit", "popshove"] },
-            { name: "Frontside Shuvit", slug: "frontside-shuvit", tags: ["frontsideshove", "fsshoveit"] },
-            { name: "Backside 180", slug: "backside-180", tags: ["backside180", "bs180"] },
-            { name: "Frontside 180", slug: "frontside-180", tags: ["frontside180", "fs180"] },
-            { name: "360 Pop Shuvit", slug: "360-pop-shuvit", tags: ["360shove", "3shove"] },
-            { name: "One-Foot Ollie", slug: "one-foot-ollie", tags: ["onefootollie", "onefoot"] },
-            { name: "Backside Bigspin", slug: "backside-bigspin", tags: ["backsidebigspin", "bsbigspin", "bigspin"] },
-            { name: "Manual", slug: "manual", tags: ["manual"] },
-            { name: "No Comply", slug: "no-comply", tags: ["nocomply"] },
-            { name: "Boneless", slug: "boneless", tags: ["boneless"] },
-        ],
-    },
-    {
-        name: "Grinds & Slides",
-        tricks: [
-            { name: "50-50 Grind", slug: "50-50", tags: ["5050", "grind"] },
-            { name: "Boardslide", slug: "boardslide", tags: ["boardslide"] },
-            { name: "Nosegrind", slug: "nosegrind", tags: ["nosegrind"] },
-            { name: "Smith Grind", slug: "smith-grind", tags: ["smithgrind"] },
-            { name: "Feeble Grind", slug: "feeble", tags: ["feeble", "feeblegrind"] },
-            { name: "Crooked Grind", slug: "crooked-grind", tags: ["crooks", "crookedgrind"] },
-            { name: "Blunt to Fakie", slug: "blunt-to-fakie", tags: ["blunttofakie", "blunt", "bluntfakie"] },
-            { name: "Wallride", slug: "wallride", tags: ["wallride"] },
-        ],
-    },
-    {
-        name: "Transition",
-        tricks: [
-            { name: "Drop In", slug: "drop-in", tags: ["dropin"] },
-            { name: "Rock to Fakie", slug: "rock-to-fakie", tags: ["rocktofakie", "rock"] },
-            { name: "Axle Stall", slug: "axle-stall", tags: ["axlestall"] },
-            { name: "Frontside Air", slug: "frontside-air", tags: ["frontsideair"] },
-            { name: "Backside Air", slug: "backside-air", tags: ["backsideair"] },
-        ],
-    },
-];
 
 type HivePost = {
     author?: string;

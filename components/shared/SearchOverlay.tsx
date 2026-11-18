@@ -11,7 +11,7 @@ import {
   VStack,
   Box,
 } from "@chakra-ui/react";
-import { FaSearch, FaUser, FaHome, FaTrophy, FaGift, FaBolt } from "react-icons/fa";
+import { FaUser, FaHome, FaBolt, FaCompass } from "react-icons/fa";
 import { useRouter, usePathname } from "next/navigation";
 import { useSoundSettings } from "@/contexts/SoundSettingsContext";
 
@@ -19,6 +19,7 @@ import { useSoundSettings } from "@/contexts/SoundSettingsContext";
 import SearchInput from "./search/SearchInput";
 import LoadingState from "./search/LoadingState";
 import SkaterResult from "./search/SkaterResult";
+import TrickResult from "./search/TrickResult";
 import PageResult from "./search/PageResult";
 import SectionHeader from "./search/SectionHeader";
 import SearchTips from "./search/SearchTips";
@@ -38,6 +39,9 @@ import {
   getPopularCommands,
 } from "./search/constants";
 import { SkaterData } from "@/types/leaderboard";
+import { searchTricks, type TrickSearchResult } from "@/lib/tricks/catalog";
+
+type SearchResult = SkaterData | PageResultType | TrickSearchResult;
 
 export default function SearchOverlay({
   isOpen,
@@ -51,6 +55,7 @@ export default function SearchOverlay({
   const [filteredPages, setFilteredPages] = useState<PageResultType[]>([]);
   const [filteredCommands, setFilteredCommands] = useState<PageResultType[]>([]);
   const [filteredSkaters, setFilteredSkaters] = useState<SkaterData[]>([]);
+  const [filteredTricks, setFilteredTricks] = useState<TrickSearchResult[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isLoadingTopSkaters, setIsLoadingTopSkaters] = useState(false);
 
@@ -128,6 +133,7 @@ export default function SearchOverlay({
       setFilteredPages([]);
       setFilteredCommands([]);
       setFilteredSkaters([]);
+      setFilteredTricks([]);
       setHighlightedIndex(-1);
       return;
     }
@@ -153,13 +159,18 @@ export default function SearchOverlay({
       skater.hive_author.toLowerCase().includes(searchTerm)
     );
     setFilteredSkaters(filteredSkaterResults);
+    setFilteredTricks(searchTricks(query));
 
     setHighlightedIndex(-1);
   }, [query, skaters]);
 
   // Handle result selection
-  const handleSelect = useCallback((result: any) => {
-    if ("path" in result) {
+  const handleSelect = useCallback((result: SearchResult) => {
+    if ("slug" in result) {
+      // Trick result
+      router.push(`/tricks/${result.slug}`);
+      onClose();
+    } else if ("path" in result) {
       // Page or command result
       if (result.path.startsWith("command:")) {
         // Command
@@ -187,9 +198,10 @@ export default function SearchOverlay({
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!isOpen) return;
 
-    const allResults = query
+    const allResults: SearchResult[] = query
       ? [
           ...filteredSkaters,
+          ...filteredTricks,
           ...filteredCommands,
           ...filteredPages,
         ]
@@ -220,7 +232,7 @@ export default function SearchOverlay({
         onClose();
         break;
     }
-  }, [isOpen, query, filteredPages, filteredCommands, filteredSkaters, popularPages, highlightedIndex, handleSelect, onClose]);
+  }, [isOpen, query, filteredPages, filteredCommands, filteredSkaters, filteredTricks, popularPages, popularCommands, highlightedIndex, handleSelect, onClose]);
 
   // Keyboard event listeners
   useEffect(() => {
@@ -274,35 +286,14 @@ export default function SearchOverlay({
               }}
             >
               <VStack spacing={0} align="stretch">
-                {/* Results Header */}
-                <SectionHeader
-                  icon={
-                    query
-                      ? query.startsWith("/")
-                        ? FaSearch
-                        : filteredCommands.length > 0 &&
-                          filteredSkaters.length === 0
-                        ? FaGift
-                        : FaUser
-                      : FaHome
-                  }
-                  title={
-                    query
-                      ? query.startsWith("/")
-                        ? "Pages & Features"
-                        : filteredCommands.length > 0 &&
-                          filteredSkaters.length === 0
-                        ? "Commands"
-                        : filteredCommands.length > 0
-                        ? "Users & Commands"
-                        : "Skatehive Users"
-                      : "Popular Pages"
-                  }
-                />
+                {!query && popularPages.length > 0 && (
+                  <SectionHeader icon={FaHome} title={t("searchOverlay.sections.popularPages")} />
+                )}
 
-                {/* Results */}
+                {/* Results, one section per kind, in keyboard order */}
                 {filteredSkaters.length > 0 && (
                   <>
+                    <SectionHeader icon={FaUser} title={t("searchOverlay.sections.skaters")} />
                     {filteredSkaters.map((skater, index) => (
                       <SkaterResult
                         key={`skater-${skater.hive_author}`}
@@ -316,13 +307,33 @@ export default function SearchOverlay({
                   </>
                 )}
 
+                {filteredTricks.length > 0 && (
+                  <>
+                    <SectionHeader icon={FaBolt} title={t("searchOverlay.sections.tricks")} />
+                    {filteredTricks.map((trick, index) => (
+                      <TrickResult
+                        key={`trick-${trick.slug}`}
+                        trick={trick}
+                        index={filteredSkaters.length + index}
+                        highlightedIndex={highlightedIndex}
+                        onSelect={handleSelect}
+                        onHover={playHoverSound}
+                      />
+                    ))}
+                  </>
+                )}
+
+                {(filteredCommands.length > 0 || filteredPages.length > 0) && (
+                  <SectionHeader icon={FaCompass} title={t("searchOverlay.sections.pagesAndCommands")} />
+                )}
+
                 {filteredCommands.length > 0 && (
                   <>
                     {filteredCommands.map((command, index) => (
                       <PageResult
                         key={`command-${command.path}`}
                         page={command}
-                        index={filteredSkaters.length + index}
+                        index={filteredSkaters.length + filteredTricks.length + index}
                         highlightedIndex={highlightedIndex}
                         onSelect={handleSelect}
                         onHover={playHoverSound}
@@ -337,7 +348,12 @@ export default function SearchOverlay({
                       <PageResult
                         key={`page-${page.path}`}
                         page={page}
-                        index={filteredSkaters.length + filteredCommands.length + index}
+                        index={
+                          filteredSkaters.length +
+                          filteredTricks.length +
+                          filteredCommands.length +
+                          index
+                        }
                         highlightedIndex={highlightedIndex}
                         onSelect={handleSelect}
                         onHover={playHoverSound}
@@ -384,6 +400,7 @@ export default function SearchOverlay({
                   hasPages={filteredPages.length > 0}
                   hasSkaters={
                     filteredSkaters.length > 0 ||
+                    filteredTricks.length > 0 ||
                     filteredCommands.length > 0
                   }
                 />

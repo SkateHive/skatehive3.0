@@ -171,6 +171,7 @@ export const ptBR = {
   },
   navigation: {
     home: 'Home',
+    search: 'Buscar',
     magazine: 'Revista',
     leaderboard: 'Placar',
     skatespots: 'Picos',
@@ -1866,15 +1867,22 @@ export const ptBR = {
     tips: {
       title: 'Dicas de Busca',
       usernames: 'Digite nomes de usuário para encontrar skaters',
+      tricks: 'Digite o nome de uma manobra, como kickflip ou tre flip',
       pagesAndCommands: 'Busque páginas e comandos pelo nome',
       navigate: 'Navegue com ↑↓, selecione com Enter',
     },
     noResults: {
       heading: 'Nenhum resultado encontrado para',
-      hint: 'Tente buscar um usuário, página ou comando',
+      hint: 'Tente buscar um usuário, manobra, página ou comando',
     },
     popularCommands: 'Comandos Populares',
-    inputPlaceholder: 'Buscar usuários, páginas ou comandos...',
+    inputPlaceholder: 'Buscar skaters, manobras, páginas...',
+    sections: {
+      popularPages: 'Páginas Populares',
+      skaters: 'Skaters',
+      tricks: 'Manobras',
+      pagesAndCommands: 'Páginas e Comandos',
+    },
   },
   onboarding: {
     welcomeTitle: 'welcome.sh',

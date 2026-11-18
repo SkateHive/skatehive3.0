@@ -170,6 +170,7 @@ export const es = {
     playSubtitle: 'Coach Fred — skate o dados',
   },
   navigation: {
+    search: 'Buscar',
     home: 'Inicio',
     magazine: 'Revista',
     leaderboard: 'Tabla de clasificación',
@@ -1865,15 +1866,22 @@ export const es = {
     tips: {
       title: 'Consejos de Búsqueda',
       usernames: 'Escribe nombres de usuario para encontrar skaters',
+      tricks: 'Escribe el nombre de un truco, como kickflip o tre flip',
       pagesAndCommands: 'Busca páginas y comandos por nombre',
       navigate: 'Navega con ↑↓, selecciona con Enter',
     },
     noResults: {
       heading: 'No se encontraron resultados para',
-      hint: 'Intenta buscar un nombre de usuario, página o comando',
+      hint: 'Intenta buscar un nombre de usuario, truco, página o comando',
     },
     popularCommands: 'Comandos Populares',
-    inputPlaceholder: 'Buscar usuarios, páginas o comandos...',
+    inputPlaceholder: 'Buscar skaters, trucos, páginas...',
+    sections: {
+      popularPages: 'Páginas Populares',
+      skaters: 'Skaters',
+      tricks: 'Trucos',
+      pagesAndCommands: 'Páginas y Comandos',
+    },
   },
   onboarding: {
     welcomeTitle: 'welcome.sh',

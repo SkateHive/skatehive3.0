@@ -1,4 +1,5 @@
 import { VALID_QUERIES } from "@/config/blog.config";
+import { findTrickByName } from "@/lib/tricks/catalog";
 
 /**
  * Public `/search` target.
@@ -6,7 +7,8 @@ import { VALID_QUERIES } from "@/config/blog.config";
  * Blog sorting lives at `/blog?query=` (`created`, `trending`, `hot`, …).
  * A free-text query is not one of those sorts — `/blog?query=skate` would
  * ignore the word and show the default feed. Tag listings at `/blog/tag/`
- * are the existing post search, so `q=skate` goes there.
+ * are the existing post search, so `q=skate` goes there. A query that names a
+ * trick exactly (`q=kickflip`, `q=tre flip`) opens that trick's page instead.
  */
 export function resolveSearchPath(raw: string | null | undefined): string {
   const trimmed = (raw ?? "").trim();
@@ -15,6 +17,9 @@ export function resolveSearchPath(raw: string | null | undefined): string {
   if ((VALID_QUERIES as readonly string[]).includes(trimmed)) {
     return `/blog?query=${encodeURIComponent(trimmed)}`;
   }
+
+  const trick = findTrickByName(trimmed);
+  if (trick) return `/tricks/${trick.slug}`;
 
   const tag = trimmed
     .replace(/^#/, "")
