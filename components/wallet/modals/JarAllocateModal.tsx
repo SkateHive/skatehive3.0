@@ -4,7 +4,8 @@ import { BaseWalletModal } from "./BaseWalletModal";
 import { AmountInput } from "./components";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { tVars } from "@/lib/i18n/format";
-import { useHbdSavingsRate, formatRate } from "@/hooks/wallet/useHbdSavingsRate";
+import { formatRate } from "@/hooks/wallet/useHbdSavingsRate";
+import { useJarRate } from "@/hooks/wallet/useJarRate";
 import type { SavingsJar } from "@/hooks/wallet/useSavingsJars";
 
 export type AllocateMode = "add" | "take";
@@ -16,10 +17,15 @@ interface JarAllocateModalProps {
   onClose: () => void;
   jar: SavingsJar | null;
   mode: AllocateMode;
-  /** Savings not yet assigned to any jar. */
+  /** Savings not yet assigned to any jar, in the jar's currency. */
   unallocated: number;
-  /** Liquid wallet HBD balance (string like "12.345"). */
-  walletHbd: string;
+  /** Liquid wallet balance in the jar's currency (HBD, or USDC on Base). */
+  walletBalance: number;
+  /**
+   * Most that can go back to the wallet right now. USDC: what the Morpho vault
+   * can pay out (its liquidity). Omitted for HBD (no on-chain limit beyond the jar).
+   */
+  walletWithdrawLimit?: number;
   allocate: (
     id: string,
     delta: number,
@@ -36,7 +42,7 @@ interface JarAllocateModalProps {
 /**
  * "Guardar / Resgatar" bottom-sheet-style flow: quick amounts, source and
  * destination in the user's words, and the Hive 3-day delay explained only at
- * the exact moment it applies.
+ * the exact moment it applies (HBD only; USDC leaves the Morpho vault at once).
  */
 export function JarAllocateModal({
   isOpen,
@@ -44,7 +50,8 @@ export function JarAllocateModal({
   jar,
   mode,
   unallocated,
-  walletHbd,
+  walletBalance,
+  walletWithdrawLimit,
   allocate,
   fundFromWallet,
   withdrawToWallet,
@@ -52,7 +59,10 @@ export function JarAllocateModal({
   onDone,
 }: JarAllocateModalProps) {
   const t = useTranslations("cofrinhos");
-  const hbdRate = useHbdSavingsRate();
+  const currency = jar?.currency ?? "HBD";
+  const usdc = currency === "USDC";
+  const rate = useJarRate(currency);
+  const rateLabel = rate != null ? formatRate(rate) : "—";
   // "savings" = instant metadata move; "wallet" = real on-chain transfer.
   const [source, setSource] = useState<"savings" | "wallet">("savings");
   const [amount, setAmount] = useState("");
@@ -60,18 +70,31 @@ export function JarAllocateModal({
   useEffect(() => {
     if (isOpen) {
       setAmount("");
-      setSource("savings");
+      // Nothing free to move: start from the wallet, which deposits first
+      // (HBD to Hive savings, USDC to the Morpho vault).
+      setSource(mode === "add" && unallocated <= 0 && walletBalance > 0 ? "wallet" : "savings");
     }
+    // Pick the default only when the sheet opens, not on every balance refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, mode]);
 
   const adding = mode === "add";
-  const walletBalance = parseFloat(walletHbd) || 0;
-
   const max = useMemo(() => {
     if (!jar) return 0;
     if (adding) return source === "savings" ? Math.max(0, unallocated) : walletBalance;
-    return Number(jar.allocated_hbd);
-  }, [jar, adding, source, unallocated, walletBalance]);
+    const inJar = Number(jar.allocated_hbd);
+    if (source === "wallet" && walletWithdrawLimit != null) {
+      return Math.max(0, Math.min(inJar, walletWithdrawLimit));
+    }
+    return inJar;
+  }, [jar, adding, source, unallocated, walletBalance, walletWithdrawLimit]);
+  // The vault can't pay out the whole jar right now (Morpho liquidity).
+  const vaultLimited =
+    !adding &&
+    source === "wallet" &&
+    walletWithdrawLimit != null &&
+    !!jar &&
+    walletWithdrawLimit < Number(jar.allocated_hbd);
 
   const value = parseFloat(amount);
   const isValid = Number.isFinite(value) && value > 0 && value <= max + 1e-6;
@@ -86,7 +109,7 @@ export function JarAllocateModal({
         source === "savings"
           ? await allocate(jar.id, value)
           : await fundFromWallet(jar.id, value);
-      doneMessage = tVars(t("savedToast"), { amount: value.toFixed(3), name: jar.name });
+      doneMessage = tVars(t("savedToast"), { amount: value.toFixed(3), name: jar.name, currency });
     } else {
       result =
         source === "savings"
@@ -94,8 +117,8 @@ export function JarAllocateModal({
           : await withdrawToWallet(jar.id, value);
       doneMessage =
         source === "wallet"
-          ? tVars(t("withdrawnToast"), { amount: value.toFixed(3) })
-          : tVars(t("returnedToast"), { amount: value.toFixed(3) });
+          ? tVars(t(usdc ? "withdrawnToastUsdc" : "withdrawnToast"), { amount: value.toFixed(3) })
+          : tVars(t("returnedToast"), { amount: value.toFixed(3), currency });
     }
 
     if (!result.success) throw new Error(result.error || "Operation failed");
@@ -118,21 +141,24 @@ export function JarAllocateModal({
         {
           key: "savings" as const,
           label: t("srcFree"),
-          hint: tVars(t("srcFreeHint"), { amount: Math.max(0, unallocated).toFixed(3) }),
+          hint: tVars(t("srcFreeHint"), { amount: Math.max(0, unallocated).toFixed(3), currency }),
         },
         {
           key: "wallet" as const,
-          label: t("srcWallet"),
-          hint: tVars(t("srcWalletHint"), { amount: walletBalance.toFixed(3), rate: formatRate(hbdRate) }),
+          label: tVars(t("srcWallet"), { currency }),
+          hint: tVars(t(usdc ? "srcWalletHintUsdc" : "srcWalletHint"), {
+            amount: walletBalance.toFixed(3),
+            rate: rateLabel,
+          }),
         },
       ]
     : [
         { key: "savings" as const, label: t("dstFree"), hint: t("dstFreeHint") },
-        { key: "wallet" as const, label: t("dstWallet"), hint: t("dstWalletHint") },
+        { key: "wallet" as const, label: t("dstWallet"), hint: t(usdc ? "dstWalletHintUsdc" : "dstWalletHint") },
       ];
 
   const cta = isValid
-    ? tVars(t(adding ? "ctaSave" : "ctaWithdraw"), { amount: value.toFixed(3) })
+    ? tVars(t(adding ? "ctaSave" : "ctaWithdraw"), { amount: value.toFixed(3), currency })
     : t(adding ? "save" : "withdraw");
 
   return (
@@ -184,12 +210,12 @@ export function JarAllocateModal({
             value={amount}
             onChange={setAmount}
             balance={max.toFixed(3)}
-            currency="HBD"
+            currency={currency}
             placeholder="0.000"
             onMaxClick={() => setAmount(max.toFixed(3))}
           />
           <Text fontSize="2xs" color="dim" fontFamily="mono" mt={1} textAlign="center">
-            {tVars(t("upTo"), { amount: max.toFixed(3) })}
+            {tVars(t("upTo"), { amount: max.toFixed(3), currency })}
           </Text>
         </Box>
 
@@ -238,11 +264,19 @@ export function JarAllocateModal({
         {adding && source === "wallet" && (
           <Box p={2} bg="muted" borderLeft="3px solid" borderColor="success">
             <Text fontSize="xs" color="success" fontFamily="mono" lineHeight="tall">
-              {tVars(t("depositNote"), { rate: formatRate(hbdRate) })}
+              {tVars(t(usdc ? "depositNoteUsdc" : "depositNote"), { rate: rateLabel })}
             </Text>
           </Box>
         )}
-        {!adding && source === "wallet" && (
+        {vaultLimited && (
+          <Box p={2} bg="muted" borderLeft="3px solid" borderColor="warning">
+            <Text fontSize="xs" color="warning" fontFamily="mono" lineHeight="tall">
+              {tVars(t("vaultLimitNote"), { amount: (walletWithdrawLimit ?? 0).toFixed(3) })}
+            </Text>
+          </Box>
+        )}
+        {/* Hive's 3-day savings withdrawal; the Morpho vault pays out at once. */}
+        {!adding && source === "wallet" && !usdc && (
           <Box p={2} bg="muted" borderLeft="3px solid" borderColor="warning">
             <Text fontSize="xs" color="warning" fontFamily="mono" lineHeight="tall">
               {t("delayNote")}

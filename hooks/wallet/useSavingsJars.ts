@@ -1,13 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAioha } from "@aioha/react-ui";
 import { KeyTypes } from "@aioha/aioha";
+import { useAccount, useSignMessage } from "wagmi";
 import { useBankActions } from "./useBankActions";
+import { ChainSwitchError, useMorphoUsdcVault } from "./useMorphoUsdcVault";
+import { friendlyError, isUserRejection } from "@/lib/evm/txErrors";
+import { selectOwnJars, toUsdcUnits, type JarCurrency } from "@/lib/cofrinhos/clientState";
+
+/** HBD jars belong to a Hive account; USDC jars to a wallet (Morpho on Base). */
+export type { JarCurrency };
+export const JAR_CURRENCIES: JarCurrency[] = ["HBD", "USDC"];
 
 export interface SavingsJar {
   id: string;
-  hive_account: string;
+  hive_account: string | null;
+  evm_address: string | null;
+  currency: JarCurrency;
   name: string;
   target_hbd: number | null;
   allocated_hbd: number;
@@ -26,6 +36,15 @@ export interface JarsSummary {
   over_allocated: boolean;
 }
 
+/** One signed-in currency, reconciled against its own on-chain balance. */
+export interface CurrencyBalance {
+  owner: string;
+  /** HBD savings, or the USDC position in the Morpho vault. */
+  savings: number;
+  savings_available: boolean;
+  summary: JarsSummary;
+}
+
 /**
  * A jar's funding progress as a 0–100 percentage, or null when it has no
  * target to measure against (open-ended / wishlist jars).
@@ -36,6 +55,8 @@ export function jarProgress(jar: SavingsJar): number | null {
 }
 
 export interface JarInput {
+  /** Only on create; a jar's currency never changes. */
+  currency?: JarCurrency;
   name?: string;
   target_hbd?: number | null;
   deadline?: string | null;
@@ -100,83 +121,124 @@ async function withAllocateRetry(opFn: () => Promise<OpResult>): Promise<OpResul
   return result;
 }
 
+/** Turn a wallet/vault error into the hook's result. */
+function txFailure(e: unknown): OpResult {
+  if (e instanceof ChainSwitchError) return { success: false, error: e.message };
+  if (isUserRejection(e)) return { success: false, error: "Cancelled in the wallet" };
+  return { success: false, error: friendlyError(e) };
+}
+
 /**
- * Cofrinhos (savings jars) client hook.
+ * Cofrinhos (savings jars) client hook, for both currencies.
  *
- * Jar metadata lives off-chain (Supabase) and is authed with a Hive signature
- * (one Keychain/aioha popup per ~7 days). Real money moves reuse useBankActions:
- * funding from the wallet deposits to savings first, withdrawing to the wallet
- * cashes out of savings after, and moving between jars is pure metadata.
+ * Jar metadata lives off-chain (Supabase). Each owner unlocks with a signature:
+ * the Hive account (Keychain/aioha) for HBD jars, the wallet for USDC jars.
+ * Both sessions can be active at once and the list shows every jar.
+ *
+ * Real money moves:
+ * - HBD: useBankActions (deposit to / withdraw from Hive savings; withdrawals
+ *   take Hive's 3 days).
+ * - USDC: the Earn Morpho vault on Base (deposit / withdraw, both instant).
+ * Moving money between a jar and the free balance is metadata only.
  */
 export function useSavingsJars() {
   const { user, aioha } = useAioha();
+  const { address } = useAccount();
+  const { signMessageAsync } = useSignMessage();
   const { depositToSavings, withdrawFromSavings } = useBankActions();
+  const {
+    usdcBalance: walletUsdc,
+    maxWithdraw: vaultMaxWithdraw,
+    refetch: refetchVault,
+    deposit: vaultDeposit,
+    withdraw: vaultWithdraw,
+  } = useMorphoUsdcVault();
 
-  // Latest Aioha user, so in-flight requests can tell they became stale after
-  // an account switch and must not write the previous account's data to state.
-  const userRef = useRef(user);
-  userRef.current = user;
+  const hiveUser = user ? user.toLowerCase() : null;
+  const evmAddress = address ? address.toLowerCase() : null;
+
+  // Latest identities, so in-flight requests can tell they became stale after
+  // an account/wallet switch and must not write the previous owner's data.
+  const identityRef = useRef({ hiveUser, evmAddress });
+  identityRef.current = { hiveUser, evmAddress };
 
   const [jars, setJars] = useState<SavingsJar[]>([]);
-  const [savingsHbd, setSavingsHbd] = useState(0);
-  const [summary, setSummary] = useState<JarsSummary>({
-    allocated_total: 0,
-    unallocated: 0,
-    over_allocated: false,
-  });
-  const [authed, setAuthed] = useState(false);
+  const [balances, setBalances] = useState<Partial<Record<JarCurrency, CurrencyBalance>>>({});
   const [loading, setLoading] = useState(false);
-  const [unlocking, setUnlocking] = useState(false);
+  const [unlocking, setUnlocking] = useState<JarCurrency | null>(null);
 
-  /** Prove Hive account ownership and set the cofrinhos session cookie. */
-  const ensureAuth = useCallback(async (): Promise<boolean> => {
-    if (!user) return false;
+  /** Prove ownership for one currency and set its session cookie. */
+  const ensureAuth = useCallback(
+    async (currency: JarCurrency): Promise<boolean> => {
+      const sessionRes = await fetch("/api/cofrinhos/auth/session");
+      const session = sessionRes.ok ? await sessionRes.json() : null;
 
-    const sessionRes = await fetch("/api/cofrinhos/auth/session");
-    if (sessionRes.ok) {
-      const data = await sessionRes.json();
-      if (data?.account === user.toLowerCase()) return true;
-    }
+      if (currency === "HBD") {
+        if (!hiveUser) return false;
+        if (session?.account === hiveUser) return true;
+        const challengeRes = await fetch("/api/cofrinhos/auth/challenge", {
+          method: "POST",
+          headers: JSON_HEADERS,
+          body: JSON.stringify({ account: hiveUser }),
+        });
+        if (!challengeRes.ok) return false;
+        const { message } = await challengeRes.json();
+        const signResult = await aioha.signMessage(message, KeyTypes.Posting);
+        if (!signResult?.success) return false;
+        const verifyRes = await fetch("/api/cofrinhos/auth/verify", {
+          method: "POST",
+          headers: JSON_HEADERS,
+          body: JSON.stringify({
+            account: hiveUser,
+            message,
+            signature: signResult.result,
+            public_key: signResult.publicKey,
+          }),
+        });
+        return verifyRes.ok;
+      }
 
-    const challengeRes = await fetch("/api/cofrinhos/auth/challenge", {
-      method: "POST",
-      headers: JSON_HEADERS,
-      body: JSON.stringify({ account: user }),
-    });
-    if (!challengeRes.ok) return false;
-    const { message } = await challengeRes.json();
+      if (!evmAddress) return false;
+      if (session?.evm_address === evmAddress) return true;
+      const challengeRes = await fetch("/api/cofrinhos/auth/challenge", {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ evm_address: evmAddress }),
+      });
+      if (!challengeRes.ok) return false;
+      const { message } = await challengeRes.json();
+      let signature: string;
+      try {
+        signature = await signMessageAsync({ message });
+      } catch {
+        return false;
+      }
+      const verifyRes = await fetch("/api/cofrinhos/auth/verify", {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ evm_address: evmAddress, message, signature }),
+      });
+      return verifyRes.ok;
+    },
+    [hiveUser, evmAddress, aioha, signMessageAsync]
+  );
 
-    const signResult = await aioha.signMessage(message, KeyTypes.Posting);
-    if (!signResult?.success) return false;
-
-    const verifyRes = await fetch("/api/cofrinhos/auth/verify", {
-      method: "POST",
-      headers: JSON_HEADERS,
-      body: JSON.stringify({
-        account: user,
-        message,
-        signature: signResult.result,
-        public_key: signResult.publicKey,
-      }),
-    });
-    return verifyRes.ok;
-  }, [user, aioha]);
-
-  /** Fetch the latest jars + summary. Silently flags auth state on 401. */
+  /** Fetch the latest jars + balances. Silently flags auth state on 401. */
   const refresh = useCallback(async (): Promise<boolean> => {
-    if (!user) {
+    if (!hiveUser && !evmAddress) {
       setJars([]);
-      setAuthed(false);
+      setBalances({});
       return false;
     }
+    const stale = () =>
+      identityRef.current.hiveUser !== hiveUser || identityRef.current.evmAddress !== evmAddress;
     setLoading(true);
     try {
       const res = await fetch("/api/cofrinhos");
-      // Account switched while this request was in flight — drop the response.
-      if (userRef.current !== user) return false;
+      if (stale()) return false;
       if (res.status === 401) {
-        setAuthed(false);
         setJars([]);
+        setBalances({});
         return false;
       }
       if (!res.ok) {
@@ -184,49 +246,54 @@ export function useSavingsJars() {
         return false;
       }
       const data = await res.json();
-      if (userRef.current !== user) return false;
-      if (data.account !== user.toLowerCase()) {
-        // The session cookie belongs to a previously connected account. Kill
-        // it and show the locked state instead of another account's jars.
-        await fetch("/api/cofrinhos/auth/session", { method: "DELETE" });
-        setJars([]);
-        setAuthed(false);
-        return false;
+      if (stale()) return false;
+
+      // A session cookie can belong to a previously connected account or
+      // wallet. Drop that side (cookie included) instead of showing someone
+      // else's jars.
+      const own = selectOwnJars<SavingsJar, CurrencyBalance>(data, hiveUser, evmAddress);
+      if (own.staleHive) {
+        await fetch("/api/cofrinhos/auth/session?kind=hive", { method: "DELETE" });
       }
-      setJars(data.jars || []);
-      setSavingsHbd(data.savings_hbd || 0);
-      setSummary(data.summary);
-      setAuthed(true);
-      return true;
+      if (own.staleEvm) {
+        await fetch("/api/cofrinhos/auth/session?kind=evm", { method: "DELETE" });
+      }
+      if (stale()) return false;
+      setJars(own.jars);
+      setBalances(own.balances);
+      return own.hiveOk || own.evmOk;
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [hiveUser, evmAddress]);
 
-  // Try a silent load on mount / account change (uses existing cookie if any).
+  // Try a silent load on mount / identity change (uses existing cookies).
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  /** User-initiated unlock: sign the challenge, then load. */
-  const connect = useCallback(async (): Promise<boolean> => {
-    setUnlocking(true);
-    try {
-      const ok = await ensureAuth();
-      if (!ok) return false;
-      // Surface load failures too — a signed-in user staring at the locked
-      // state with no feedback is how bugs hide.
-      return await refresh();
-    } finally {
-      setUnlocking(false);
-    }
-  }, [ensureAuth, refresh]);
+  /** User-initiated unlock for one currency: sign the challenge, then load. */
+  const connect = useCallback(
+    async (currency: JarCurrency): Promise<boolean> => {
+      setUnlocking(currency);
+      try {
+        const ok = await ensureAuth(currency);
+        if (!ok) return false;
+        // Surface load failures too — a signed-in user staring at the locked
+        // state with no feedback is how bugs hide.
+        return await refresh();
+      } finally {
+        setUnlocking(null);
+      }
+    },
+    [ensureAuth, refresh]
+  );
 
-  /** Fetch that re-authenticates once on 401. */
+  /** Fetch that re-authenticates `currency` once on 401. */
   const authedFetch = useCallback(
-    async (path: string, init: RequestInit): Promise<Response> => {
+    async (currency: JarCurrency, path: string, init: RequestInit): Promise<Response> => {
       let res = await fetch(path, init);
-      if (res.status === 401 && (await ensureAuth())) {
+      if (res.status === 401 && (await ensureAuth(currency))) {
         res = await fetch(path, init);
       }
       return res;
@@ -234,12 +301,18 @@ export function useSavingsJars() {
     [ensureAuth]
   );
 
+  const currencyOf = useCallback(
+    (id: string): JarCurrency => jars.find((jar) => jar.id === id)?.currency ?? "HBD",
+    [jars]
+  );
+
   const createJar = useCallback(
     async (input: JarInput): Promise<OpResult> => {
-      const res = await authedFetch("/api/cofrinhos", {
+      const currency = input.currency ?? "HBD";
+      const res = await authedFetch(currency, "/api/cofrinhos", {
         method: "POST",
         headers: JSON_HEADERS,
-        body: JSON.stringify(input),
+        body: JSON.stringify({ ...input, currency }),
       });
       if (!res.ok) return { success: false, error: await parseError(res, "Failed to create jar") };
       await refresh();
@@ -250,120 +323,153 @@ export function useSavingsJars() {
 
   const updateJar = useCallback(
     async (id: string, input: JarInput): Promise<OpResult> => {
-      const res = await authedFetch(`/api/cofrinhos/${id}`, {
+      // The currency is fixed at creation; never send it on update.
+      const { currency: _ignored, ...fields } = input;
+      const res = await authedFetch(currencyOf(id), `/api/cofrinhos/${id}`, {
         method: "PATCH",
         headers: JSON_HEADERS,
-        body: JSON.stringify(input),
+        body: JSON.stringify(fields),
       });
       if (!res.ok) return { success: false, error: await parseError(res, "Failed to update jar") };
       await refresh();
       return { success: true };
     },
-    [authedFetch, refresh]
+    [authedFetch, currencyOf, refresh]
   );
 
   const deleteJar = useCallback(
     async (id: string): Promise<OpResult> => {
-      const res = await authedFetch(`/api/cofrinhos/${id}`, { method: "DELETE" });
+      const res = await authedFetch(currencyOf(id), `/api/cofrinhos/${id}`, { method: "DELETE" });
       if (!res.ok) return { success: false, error: await parseError(res, "Failed to delete jar") };
       await refresh();
       return { success: true };
     },
-    [authedFetch, refresh]
+    [authedFetch, currencyOf, refresh]
   );
 
-  /** Move HBD between a jar and unallocated savings (metadata only, no tx). */
+  /** Move money between a jar and the free balance (metadata only, no tx). */
   const allocate = useCallback(
-    async (id: string, deltaHbd: number, options: AllocateOptions = {}): Promise<OpResult> => {
-      const res = await authedFetch(`/api/cofrinhos/${id}/allocate`, {
+    async (id: string, delta: number, options: AllocateOptions = {}): Promise<OpResult> => {
+      const res = await authedFetch(currencyOf(id), `/api/cofrinhos/${id}/allocate`, {
         method: "POST",
         headers: JSON_HEADERS,
-        body: JSON.stringify({ delta_hbd: deltaHbd, via: options.via ?? "savings" }),
+        body: JSON.stringify({ delta, via: options.via ?? "savings" }),
       });
       if (!res.ok) return { success: false, error: await parseError(res, "Failed to allocate") };
       if (!options.skipRefresh) await refresh();
       return { success: true };
     },
-    [authedFetch, refresh]
+    [authedFetch, currencyOf, refresh]
   );
 
   /**
-   * Add wallet HBD into a jar: deposit to savings (real tx), then allocate.
-   * The tx is broadcast exactly once; if the follow-up allocate keeps failing
-   * after retrying, the deposit itself already succeeded and the HBD is safe
-   * in the account's on-chain savings — surface that distinctly instead of
-   * reading as a failed deposit.
+   * Add wallet money into a jar: a real deposit first (HBD to Hive savings,
+   * USDC to the Morpho vault), then allocate. The tx is sent exactly once; if
+   * the follow-up allocate keeps failing after retrying, the deposit itself
+   * already succeeded and the money is safe — surface that distinctly instead
+   * of reading as a failed deposit.
    */
   const fundFromWallet = useCallback(
     async (id: string, amount: number): Promise<OpResult> => {
-      const tx = await depositToSavings(amount, "HBD", "SkateHive cofrinho");
-      if (!tx.success) return { success: false, error: tx.error };
+      const currency = currencyOf(id);
+      if (currency === "HBD") {
+        const tx = await depositToSavings(amount, "HBD", "SkateHive cofrinho");
+        if (!tx.success) return { success: false, error: tx.error };
+      } else {
+        try {
+          await vaultDeposit(toUsdcUnits(amount));
+        } catch (e) {
+          return txFailure(e);
+        } finally {
+          refetchVault();
+        }
+      }
 
-      const result = await withAllocateRetry(() =>
-        allocate(id, amount, { via: "wallet" })
-      );
+      const result = await withAllocateRetry(() => allocate(id, amount, { via: "wallet" }));
       if (!result.success) {
         return {
           success: false,
           error:
-            "Deposit succeeded, but the jar wasn't updated yet. Your HBD is safe in savings — try Save again in a minute.",
+            currency === "HBD"
+              ? "Deposit succeeded, but the jar wasn't updated yet. Your HBD is safe in savings — try Save again in a minute."
+              : "Deposit succeeded, but the jar wasn't updated yet. Your USDC is safe in Morpho — try Save again in a minute.",
         };
       }
       return result;
     },
-    [depositToSavings, allocate]
+    [currencyOf, depositToSavings, vaultDeposit, refetchVault, allocate]
   );
 
   /**
-   * Cash a jar out to the liquid wallet: withdraw on-chain first, then
-   * de-allocate. `transfer_from_savings` only queues the transfer (Hive's
-   * 3-day delay), so on terminal allocate failure the jar is left claiming
-   * money that a real withdrawal is already in flight to remove — surfaced
-   * distinctly so the user knows to recheck the jar once it settles.
+   * Cash a jar out to the wallet: the real withdrawal first, then de-allocate,
+   * so a cancelled signature never empties the jar or logs a phantom event.
+   * HBD: `transfer_from_savings` only queues the transfer (Hive's 3 days).
+   * USDC: the vault pays out in the same transaction.
    */
   const withdrawToWallet = useCallback(
     async (id: string, amount: number): Promise<OpResult> => {
-      // Mirror fundFromWallet: do the real on-chain move first, and only touch
-      // the jar (and its ledger) once it succeeds. Doing it the other way round
-      // would empty the jar and log a phantom "withdrew to wallet" event even
-      // when the user cancels the Keychain popup.
-      const tx = await withdrawFromSavings(amount, "HBD", "SkateHive cofrinho");
-      if (!tx.success) return { success: false, error: tx.error };
+      const currency = currencyOf(id);
+      if (currency === "HBD") {
+        const tx = await withdrawFromSavings(amount, "HBD", "SkateHive cofrinho");
+        if (!tx.success) return { success: false, error: tx.error };
+      } else {
+        try {
+          await vaultWithdraw(toUsdcUnits(amount));
+        } catch (e) {
+          return txFailure(e);
+        } finally {
+          refetchVault();
+        }
+      }
 
-      const result = await withAllocateRetry(() =>
-        allocate(id, -amount, { via: "wallet" })
-      );
+      const result = await withAllocateRetry(() => allocate(id, -amount, { via: "wallet" }));
       if (!result.success) {
         return {
           success: false,
           error:
-            "Withdrawal was submitted, but the jar wasn't updated. It settles in ~3 days — reopen this jar afterward to fix the balance.",
+            currency === "HBD"
+              ? "Withdrawal was submitted, but the jar wasn't updated. It settles in ~3 days — reopen this jar afterward to fix the balance."
+              : "The USDC is in your wallet, but the jar wasn't updated. Reopen this jar and withdraw the same amount to free savings to fix it.",
         };
       }
       return result;
     },
-    [withdrawFromSavings, allocate]
+    [currencyOf, withdrawFromSavings, vaultWithdraw, refetchVault, allocate]
   );
 
   /** Load a jar's movement history (newest first). */
   const fetchEvents = useCallback(
     async (id: string): Promise<JarEvent[]> => {
-      const res = await authedFetch(`/api/cofrinhos/${id}/events`, { method: "GET" });
+      const res = await authedFetch(currencyOf(id), `/api/cofrinhos/${id}/events`, { method: "GET" });
       if (!res.ok) return [];
       const data = await res.json();
       return (data.events as JarEvent[]) || [];
     },
-    [authedFetch]
+    [authedFetch, currencyOf]
+  );
+
+  /** Currencies this user can hold jars in (has the identity for). */
+  const available = useMemo(
+    () => JAR_CURRENCIES.filter((c) => (c === "HBD" ? !!hiveUser : !!evmAddress)),
+    [hiveUser, evmAddress]
+  );
+  /** Currencies whose session is unlocked. */
+  const authed = useMemo(
+    () => JAR_CURRENCIES.filter((c) => !!balances[c]),
+    [balances]
   );
 
   return {
     jars,
-    savingsHbd,
-    summary,
+    balances,
+    available,
     authed,
     loading,
     unlocking,
-    isConnected: !!user,
+    isConnected: available.length > 0,
+    /** Wallet USDC and how much the vault can pay out now (base units). */
+    walletUsdc,
+    vaultMaxWithdraw,
     connect,
     refresh,
     createJar,

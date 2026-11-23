@@ -10,18 +10,20 @@ import {
   Box, Button, HStack, Input, InputGroup, InputRightElement, Link, Text, VStack, useToast,
 } from "@chakra-ui/react";
 import {
-  useAccount, useBalance, useChainId, usePublicClient, useReadContract, useReadContracts, useSwitchChain, useWriteContract,
+  useAccount, useBalance, usePublicClient, useReadContract, useWriteContract,
 } from "wagmi";
 import { formatUnits, parseEther, parseUnits } from "viem";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { LIDO_ABI, LIDO_REFERRAL, LIDO_STETH } from "@/lib/evm/lido";
-import { isChainBoundWallet, chainBoundSwitchMessage } from "@/lib/evm/walletChain";
 import { friendlyError, isTransportError, isUserRejection } from "@/lib/evm/txErrors";
 import {
-  BASESCAN_TX, EARN_CHAIN_ID, ERC20_EARN_ABI, ERC4626_ABI, LIDO_URL, MORPHO_USDC_VAULT, USDC_BASE, USDC_DECIMALS,
+  BASESCAN_TX, EARN_CHAIN_ID, ERC20_EARN_ABI, ERC4626_ABI, LIDO_URL, MORPHO_USDC_VAULT, USDC_DECIMALS,
   fetchLidoApr, fetchMorphoSharePrices, fetchMorphoVaultActivity, fetchMorphoVaultApy, type VaultActivity,
 } from "@/lib/evm/earn";
 import { buildVaultSeries } from "@/lib/wallet/yieldSeries";
+import {
+  ChainSwitchError, useEnsureChain, useMorphoUsdcVault, waitForSuccess,
+} from "@/hooks/wallet/useMorphoUsdcVault";
 import { YieldChartCard, shortAddress } from "./YieldChart";
 
 const MAINNET_ID = 1;
@@ -43,50 +45,6 @@ function safeParse(value: string, decimals: number): bigint | null {
   } catch {
     return null;
   }
-}
-
-type EarnClient = NonNullable<ReturnType<typeof usePublicClient>>;
-
-/** viem resolves the receipt of a reverted tx instead of throwing — make it throw. */
-async function waitForSuccess(client: EarnClient, hash: `0x${string}`, revertedMessage: string) {
-  const receipt = await client.waitForTransactionReceipt({ hash });
-  if (receipt.status !== "success") throw new Error(revertedMessage);
-}
-
-/** Run a pre-sign simulation; only a contract revert blocks, RPC hiccups don't. */
-async function preflight(simulate: () => Promise<unknown>) {
-  try {
-    await simulate();
-  } catch (e) {
-    if (!isTransportError(e)) throw e;
-  }
-}
-
-/** Switch the wallet to `target` if needed. Returns false when it couldn't. */
-function useEnsureChain() {
-  const chainId = useChainId();
-  const { connector } = useAccount();
-  const { switchChainAsync } = useSwitchChain();
-  const toast = useToast();
-  const t = useTranslations();
-  return useCallback(
-    async (target: number) => {
-      if (chainId === target) return true;
-      if (isChainBoundWallet(connector)) {
-        toast({ title: t("wallet.earn.switchFailed"), description: chainBoundSwitchMessage(target), status: "warning", duration: 8000, isClosable: true });
-        return false;
-      }
-      try {
-        await switchChainAsync({ chainId: target });
-        return true;
-      } catch (e) {
-        if (isUserRejection(e)) toast({ title: t("wallet.earn.cancelled"), status: "info", duration: 2000, isClosable: true });
-        else toast({ title: t("wallet.earn.switchFailed"), description: friendlyError(e), status: "error", duration: 4000, isClosable: true });
-        return false;
-      }
-    },
-    [chainId, connector, switchChainAsync, toast, t],
-  );
 }
 
 function AmountInput({ value, onChange, onMax, placeholder }: { value: string; onChange: (v: string) => void; onMax: () => void; placeholder: string }) {
@@ -164,9 +122,6 @@ function MorphoUsdcCard({ owner }: { owner?: string }) {
   const t = useTranslations();
   const toast = useToast();
   const { address } = useAccount();
-  const ensureChain = useEnsureChain();
-  const client = usePublicClient({ chainId: EARN_CHAIN_ID });
-  const { writeContractAsync } = useWriteContract();
   const vault = MORPHO_USDC_VAULT.address;
 
   const [mode, setMode] = useState<"deposit" | "withdraw">("deposit");
@@ -220,21 +175,7 @@ function MorphoUsdcCard({ owner }: { owner?: string }) {
     return () => ctrl.abort();
   }, [vault, firstTs]);
 
-  const { data, refetch } = useReadContracts({
-    contracts: address
-      ? [
-          { address: USDC_BASE, abi: ERC20_EARN_ABI, functionName: "balanceOf", args: [address], chainId: EARN_CHAIN_ID },
-          { address: USDC_BASE, abi: ERC20_EARN_ABI, functionName: "allowance", args: [address, vault], chainId: EARN_CHAIN_ID },
-          { address: vault, abi: ERC4626_ABI, functionName: "balanceOf", args: [address], chainId: EARN_CHAIN_ID },
-          { address: vault, abi: ERC4626_ABI, functionName: "maxWithdraw", args: [address], chainId: EARN_CHAIN_ID },
-        ]
-      : [],
-    query: { enabled: !!address },
-  });
-  const usdcBalance = data?.[0]?.result as bigint | undefined;
-  const allowance = data?.[1]?.result as bigint | undefined;
-  const shares = data?.[2]?.result as bigint | undefined;
-  const maxWithdraw = data?.[3]?.result as bigint | undefined;
+  const { usdcBalance, shares, maxWithdraw, refetch, deposit, withdraw } = useMorphoUsdcVault();
 
   const { data: positionAssets, refetch: refetchPosition } = useReadContract({
     address: vault, abi: ERC4626_ABI, functionName: "convertToAssets", args: [shares ?? 0n], chainId: EARN_CHAIN_ID,
@@ -271,46 +212,20 @@ function MorphoUsdcCard({ owner }: { owner?: string }) {
   };
 
   const run = async () => {
-    if (!address || !client || parsed == null || insufficient) return;
-    if (!(await ensureChain(EARN_CHAIN_ID))) return;
+    if (!address || parsed == null || insufficient) return;
     try {
       if (mode === "deposit") {
-        if ((allowance ?? 0n) < parsed) {
-          setStep("approving");
-          // Exact amount, never an unlimited approval.
-          const approveHash = await writeContractAsync({
-            address: USDC_BASE, abi: ERC20_EARN_ABI, functionName: "approve", args: [vault, parsed], chainId: EARN_CHAIN_ID,
-          });
-          await waitForSuccess(client, approveHash, t("wallet.earn.reverted"));
-        }
-        setStep("depositing");
-        // A paused vault or a reached supply cap reverts here, before the user signs.
-        await preflight(() =>
-          client.simulateContract({ address: vault, abi: ERC4626_ABI, functionName: "deposit", args: [parsed, address], account: address }),
-        );
-        const hash = await writeContractAsync({
-          address: vault, abi: ERC4626_ABI, functionName: "deposit", args: [parsed, address], chainId: EARN_CHAIN_ID,
-        });
-        await waitForSuccess(client, hash, t("wallet.earn.reverted"));
+        const hash = await deposit(parsed, setStep);
         toast({ title: t("wallet.earn.successDeposit"), description: hash, status: "success", duration: 6000, isClosable: true });
       } else {
-        setStep("withdrawing");
-        const redeemAll = isMax && canRedeemAll && !!shares;
-        // Missing vault liquidity reverts here, before the user signs.
-        await preflight(() =>
-          redeemAll
-            ? client.simulateContract({ address: vault, abi: ERC4626_ABI, functionName: "redeem", args: [shares!, address, address], account: address })
-            : client.simulateContract({ address: vault, abi: ERC4626_ABI, functionName: "withdraw", args: [parsed, address, address], account: address }),
-        );
-        const hash = redeemAll
-          ? await writeContractAsync({ address: vault, abi: ERC4626_ABI, functionName: "redeem", args: [shares!, address, address], chainId: EARN_CHAIN_ID })
-          : await writeContractAsync({ address: vault, abi: ERC4626_ABI, functionName: "withdraw", args: [parsed, address, address], chainId: EARN_CHAIN_ID });
-        await waitForSuccess(client, hash, t("wallet.earn.reverted"));
+        const hash = await withdraw(parsed, { redeemAll: isMax && canRedeemAll, onStep: setStep });
         toast({ title: t("wallet.earn.successWithdraw"), description: hash, status: "success", duration: 6000, isClosable: true });
       }
       setAmount("");
       setIsMax(false);
     } catch (e) {
+      // The chain-switch hook already told the user why.
+      if (e instanceof ChainSwitchError) return;
       if (isUserRejection(e)) toast({ title: t("wallet.earn.cancelled"), status: "info", duration: 2000, isClosable: true });
       else toast({ title: t("wallet.earn.failed"), description: friendlyError(e), status: "error", duration: 6000, isClosable: true });
     } finally {

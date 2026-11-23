@@ -13,7 +13,8 @@ import {
 import SkateModal from "@/components/shared/SkateModal";
 import useIsMobile from "@/hooks/useIsMobile";
 import { useTranslations } from "@/contexts/LocaleContext";
-import type { JarInput, SavingsJar } from "@/hooks/wallet/useSavingsJars";
+import { tVars } from "@/lib/i18n/format";
+import type { JarCurrency, JarInput, SavingsJar } from "@/hooks/wallet/useSavingsJars";
 
 interface SavingsJarModalProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ interface SavingsJarModalProps {
   /** Existing jar when editing; omit to create a new one. */
   jar?: SavingsJar | null;
   onSave: (input: JarInput) => Promise<{ success: boolean; error?: string }>;
+  /** Currencies a new jar can use (unlocked ones). Ignored when editing. */
+  currencies?: JarCurrency[];
 }
 
 const EMOJI_PRESETS = ["🫙", "🐷", "🛹", "✈️", "🏆", "🎯", "🛼", "👟", "📷", "💸", "🏠"];
@@ -41,7 +44,7 @@ type Step = 1 | 2 | 3;
  * 1. what are you saving for? (templates) → 2. name/goal/deadline → 3. cover.
  * Editing an existing jar starts at step 2.
  */
-export function SavingsJarModal({ isOpen, onClose, jar, onSave }: SavingsJarModalProps) {
+export function SavingsJarModal({ isOpen, onClose, jar, onSave, currencies = ["HBD"] }: SavingsJarModalProps) {
   const t = useTranslations("cofrinhos");
   const isMobile = useIsMobile();
   const toast = useToast();
@@ -55,6 +58,9 @@ export function SavingsJarModal({ isOpen, onClose, jar, onSave }: SavingsJarModa
   const [color, setColor] = useState("#34d399");
   const [isWishlist, setIsWishlist] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [currency, setCurrency] = useState<JarCurrency>(currencies[0] ?? "HBD");
+  // An existing jar keeps its currency; a new one picks among the unlocked ones.
+  const jarCurrency: JarCurrency = jar?.currency ?? currency;
 
   useEffect(() => {
     if (isOpen) {
@@ -65,7 +71,10 @@ export function SavingsJarModal({ isOpen, onClose, jar, onSave }: SavingsJarModa
       setIcon(jar?.icon ?? "🫙");
       setColor(jar?.color ?? "#34d399");
       setIsWishlist(jar?.is_wishlist ?? false);
+      setCurrency(currencies[0] ?? "HBD");
     }
+    // `currencies` is read only when the modal opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, jar]);
 
   const pickTemplate = (template: (typeof TEMPLATES)[number]) => {
@@ -80,6 +89,7 @@ export function SavingsJarModal({ isOpen, onClose, jar, onSave }: SavingsJarModa
     setSaving(true);
     try {
       const input: JarInput = {
+        ...(editing ? {} : { currency }),
         name: name.trim(),
         target_hbd: target ? parseFloat(target) : null,
         deadline: deadline || null,
@@ -92,7 +102,7 @@ export function SavingsJarModal({ isOpen, onClose, jar, onSave }: SavingsJarModa
         throw new Error(result.error || "Failed to save jar");
       }
       if (!editing) {
-        toast({ title: t("createdToast"), status: "success", duration: 3500, isClosable: true });
+        toast({ title: tVars(t("createdToast"), { currency }), status: "success", duration: 3500, isClosable: true });
       }
       onClose();
     } catch (error: any) {
@@ -237,6 +247,42 @@ export function SavingsJarModal({ isOpen, onClose, jar, onSave }: SavingsJarModa
             <Text fontSize="md" fontWeight="black" color="text" fontFamily="mono">
               {t("nameTitle")}
             </Text>
+            {!editing && currencies.length > 1 && (
+              <Box>
+                {fieldLabel(t("currencyLabel"))}
+                <HStack spacing={2} role="radiogroup" aria-label={t("currencyLabel")}>
+                  {currencies.map((c) => {
+                    const selected = currency === c;
+                    return (
+                      <Button
+                        key={c}
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setCurrency(c)}
+                        flex={1}
+                        h="auto"
+                        py={2}
+                        variant="unstyled"
+                        bg={selected ? "muted" : "panel"}
+                        border="1px solid"
+                        borderColor={selected ? "primary" : "border"}
+                        borderRadius="none"
+                        display="flex"
+                        flexDirection="column"
+                        _focusVisible={{ outline: "2px solid", outlineColor: "primary", outlineOffset: "2px" }}
+                      >
+                        <Text fontSize="sm" fontWeight="black" fontFamily="mono" color={selected ? "primary" : "text"}>
+                          {c}
+                        </Text>
+                        <Text fontSize="2xs" color="dim" fontFamily="mono">
+                          {t(c === "HBD" ? "currencyHbdHint" : "currencyUsdcHint")}
+                        </Text>
+                      </Button>
+                    );
+                  })}
+                </HStack>
+              </Box>
+            )}
             <Box>
               {fieldLabel(t("nameLabel"))}
               <Input
@@ -252,7 +298,7 @@ export function SavingsJarModal({ isOpen, onClose, jar, onSave }: SavingsJarModa
               />
             </Box>
             <Box>
-              {fieldLabel(t("goalLabel"))}
+              {fieldLabel(tVars(t("goalLabel"), { currency: jarCurrency }))}
               <Input
                 type="number"
                 value={target}
@@ -353,7 +399,7 @@ export function SavingsJarModal({ isOpen, onClose, jar, onSave }: SavingsJarModa
                   0.000{" "}
                   {target ? `/ ${parseFloat(target).toFixed(3)} ` : ""}
                   <Text as="span" fontSize="2xs" color="dim" fontWeight="normal">
-                    HBD
+                    {jarCurrency}
                   </Text>
                 </Text>
               </Box>
