@@ -1,34 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthedAccount } from "@/lib/cofrinhos/auth";
+import { getAuthedOwners } from "@/lib/cofrinhos/auth";
 import { getCofrinhosSupabase, type SavingsJarRow } from "@/lib/cofrinhos/supabase";
 import { logJarEvent, type JarEventVia } from "@/lib/cofrinhos/events";
-import {
-  getOnChainHbdSavings,
-  round3,
-  summarize,
-} from "@/lib/cofrinhos/service";
+import { getOnChainSavings, round3, summarize } from "@/lib/cofrinhos/service";
+import { ownerKey, type JarOwner } from "@/lib/cofrinhos/owner";
 
 /**
  * POST /api/cofrinhos/[id]/allocate
- * Body: { delta_hbd: number }  (positive = move unallocated savings into the jar,
- *                               negative = return savings from the jar)
+ * Body: { delta: number }  (positive = move unallocated savings into the jar,
+ *                           negative = return savings from the jar)
+ *       `delta_hbd` is accepted as an alias (current wallet UI).
  *
- * This only re-labels money that already sits in the single on-chain HBD savings
- * balance — no blockchain transaction happens here. Adding real money to savings
- * (transfer_to_savings) or cashing out (transfer_from_savings) is done client-side
- * around this call. The invariant Σ(allocated) <= on-chain savings is enforced.
+ * This only re-labels money that already sits in the owner's single on-chain
+ * balance — HBD savings for HBD jars, the Morpho USDC position for USDC jars.
+ * No blockchain transaction happens here; real deposits/withdrawals happen
+ * client-side around this call. The invariant Σ(allocated) <= on-chain balance
+ * is enforced per owner.
  *
- * The read + check + write is delegated to the cofrinhos_allocate Postgres
- * function (sql/migrations/0028_cofrinhos_allocate_rpc.sql), which runs in one
- * transaction with the account's jar rows locked — two concurrent allocate
- * calls for the same account can no longer race past the same stale snapshot.
+ * The jar's owner (and so its currency) comes from the jar row, looked up
+ * within the signed-in owners — never from the request body. The read + check
+ * + write runs in the cofrinhos_allocate_owner Postgres function
+ * (sql/migrations/0045), in one transaction with the owner's jar rows locked.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const account = getAuthedAccount(request);
-  if (!account) {
+  const owners = getAuthedOwners(request);
+  if (owners.length === 0) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -49,10 +48,10 @@ export async function POST(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const delta = round3(Number(body?.delta_hbd));
+  const delta = round3(Number(body?.delta ?? body?.delta_hbd));
   if (!Number.isFinite(delta) || delta === 0) {
     return NextResponse.json(
-      { error: "delta_hbd must be a non-zero number" },
+      { error: "delta must be a non-zero number" },
       { status: 400 }
     );
   }
@@ -62,12 +61,30 @@ export async function POST(
   // 'wallet' = the client wrapped this call in a real on-chain transfer.
   const via: JarEventVia = body?.via === "wallet" ? "wallet" : "savings";
 
+  const { data: found, error: findError } = await supabase
+    .from("userbase_savings_jars")
+    .select("owner_key")
+    .eq("id", id)
+    .in("owner_key", owners.map(ownerKey))
+    .maybeSingle();
+  if (findError) {
+    console.error("Failed to load jar for allocate:", findError.message);
+    return NextResponse.json({ error: "Failed to allocate" }, { status: 500 });
+  }
+  const owner: JarOwner | undefined = found
+    ? owners.find((o) => ownerKey(o) === found.owner_key)
+    : undefined;
+  if (!owner) {
+    return NextResponse.json({ error: "Jar not found" }, { status: 404 });
+  }
+  const key = ownerKey(owner);
+
   // Only funding needs the on-chain balance, to bound the invariant check
-  // inside the RPC. Read it before calling in — Postgres can't reach Hive.
+  // inside the RPC. Read it before calling in — Postgres can't reach the chain.
   let savings = 0;
   if (delta > 0) {
     try {
-      savings = await getOnChainHbdSavings(account);
+      savings = await getOnChainSavings(owner);
     } catch (err: any) {
       console.error("Failed to read savings for allocate:", err?.message || err);
       return NextResponse.json(
@@ -77,8 +94,8 @@ export async function POST(
     }
   }
 
-  const { data, error } = await supabase.rpc("cofrinhos_allocate", {
-    p_account: account,
+  const { data, error } = await supabase.rpc("cofrinhos_allocate_owner", {
+    p_owner_key: key,
     p_jar_id: id,
     p_delta: delta,
     p_on_chain_savings: savings,
@@ -104,7 +121,7 @@ export async function POST(
     }
     if (message.includes("Not enough unallocated")) {
       return NextResponse.json(
-        { error: "Not enough unallocated savings", savings_hbd: savings },
+        { error: "Not enough unallocated savings", savings, savings_hbd: savings },
         { status: 400 }
       );
     }
@@ -113,20 +130,19 @@ export async function POST(
   }
 
   const jar = data as SavingsJarRow;
-
   await logJarEvent(supabase, {
     jar_id: jar.id,
-    hive_account: account,
+    owner,
     type: delta > 0 ? "fund" : "withdraw",
     amount_hbd: Math.abs(delta),
     via,
   });
 
-  // Recompute the summary against the post-write state.
+  // Recompute this owner's summary against the post-write state.
   const { data: jarsData } = await supabase
     .from("userbase_savings_jars")
     .select("*")
-    .eq("hive_account", account);
+    .eq("owner_key", key);
   const jars = (jarsData as SavingsJarRow[]) || [jar];
 
   // Funding already read a fresh balance for the invariant check above —
@@ -135,7 +151,7 @@ export async function POST(
   let savingsAvailable = true;
   if (delta <= 0) {
     try {
-      savingsForSummary = await getOnChainHbdSavings(account);
+      savingsForSummary = await getOnChainSavings(owner);
     } catch (err: any) {
       console.error("Failed to read savings for allocate summary:", err?.message || err);
       savingsAvailable = false;
@@ -145,14 +161,14 @@ export async function POST(
   const summary = summarize(jars, savingsForSummary);
   if (!savingsAvailable) {
     // A transient RPC failure reads as savings = 0, which would fabricate an
-    // over-allocated state. Don't cry wolf: report the reconciliation as
-    // unknown instead (mirrors GET /api/cofrinhos).
+    // over-allocated state. Report the reconciliation as unknown instead.
     summary.over_allocated = false;
     summary.unallocated = 0;
   }
 
   return NextResponse.json({
     jar,
+    currency: jar.currency,
     savings_available: savingsAvailable,
     summary,
   });
