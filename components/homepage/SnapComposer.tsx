@@ -87,6 +87,7 @@ import ImageCompressor from "@/lib/utils/ImageCompressor";
 import { ImageCompressorRef } from "@/lib/utils/ImageCompressor";
 import imageCompression from "browser-image-compression";
 import { isHeicFile, convertHeicIfNeeded } from "@/lib/utils/heicToJpeg";
+import { mediaKind, withMediaType } from "@/lib/utils/mediaType";
 
 import type { GIFMakerRef as GIFMakerWithSelectorRef } from "./GIFMakerWithSelector";
 // FFmpeg (loaded inside this component) touches browser-only globals at
@@ -501,7 +502,10 @@ const SnapComposer = React.memo(function SnapComposer({
   // clip is held un-uploaded and a local preview is shown. Trim + cover + the
   // transcoder upload all happen in the "prepare & publish" dialog when the
   // user posts (so everything is edited in one place before publishing).
-  const handleVideoFile = async (file: File) => {
+  const handleVideoFile = async (rawFile: File) => {
+    // Carry a real MIME type (inferred from the extension when the browser left
+    // it empty) so the uploader's video check doesn't reject it later.
+    const file = withMediaType(rawFile);
     try {
       // Revoke any previous local preview URL to avoid leaks.
       if (videoUrl && videoUrl.startsWith("blob:")) URL.revokeObjectURL(videoUrl);
@@ -1762,7 +1766,7 @@ const SnapComposer = React.memo(function SnapComposer({
             });
           }
         }
-      } else if (file.type.startsWith("video/")) {
+      } else if (mediaKind(file) === "video") {
         // For video, use our new video handling logic with trimming
         try {
           await handleVideoFile(file);
@@ -2089,7 +2093,7 @@ const SnapComposer = React.memo(function SnapComposer({
                 )}
                 <input
                   type="file"
-                  accept=".jpg,.jpeg,.png,.heic,.gif,.webp,video/*"
+                  accept=".jpg,.jpeg,.png,.heic,.gif,.webp,video/*,.mov,.mp4,.m4v,.webm"
                   style={{ display: "none" }}
                   ref={imageUploadInputRef}
                   onChange={(event) => {
@@ -2100,7 +2104,7 @@ const SnapComposer = React.memo(function SnapComposer({
                       return;
                     }
                     console.log('📸 [SnapComposer] File selected:', file.name, 'type:', file.type);
-                    if (file.type.startsWith("video/")) {
+                    if (mediaKind(file) === "video") {
                       console.log('📸 [SnapComposer] Handling as video');
                       handleVideoUpload(event);
                     } else {
