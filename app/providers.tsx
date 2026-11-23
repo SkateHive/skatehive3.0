@@ -25,6 +25,8 @@ import { ClickSoundProvider } from "./clickSoundProvider";
 import { SoundSettingsProvider } from "@/contexts/SoundSettingsContext";
 import UserbaseWalletBootstrapper from "@/components/userbase/UserbaseWalletBootstrapper";
 import { FarcasterFrameInit } from "@/components/providers/FarcasterFrameInit";
+import HiveAuthRequestModal from "@/components/layout/HiveAuthRequestModal";
+import { installHiveAuthRequestTracking } from "@/lib/hive/hiveAuthRequests";
 
 const aioha = new Aioha();
 
@@ -36,6 +38,7 @@ if (typeof window !== "undefined") {
     name: APP_CONFIG.NAME.toLowerCase(),
     description: "",
   });
+  installHiveAuthRequestTracking(aioha);
   aioha.loadAuth();
 }
 
@@ -132,6 +135,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                               <CSSReset />
                               <FarcasterFrameInit />
                               <UserbaseWalletBootstrapper />
+                              <HiveAuthRequestModal />
                               <ReportProvider>
                                 <PostingKeyDialogProvider>
                                   {children}

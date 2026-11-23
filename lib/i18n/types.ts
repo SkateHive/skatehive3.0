@@ -42,6 +42,19 @@ export interface TranslationSchema {
     imported: string;
     noResults: string;
   };
+  hiveAuth: {
+    titleLogin: string;
+    titleChallenge: string;
+    titleSign: string;
+    mobileHint: string;
+    desktopHint: string;
+    openApp: string;
+    qrAlt: string;
+    waiting: string;
+    cancel: string;
+    keychainApp: string;
+    keychainAppDescription: string;
+  };
   hiveSwap: {
     youPay: string;
     youReceive: string;

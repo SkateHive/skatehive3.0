@@ -14,7 +14,7 @@ importers:
   .:
     dependencies:
       '@aioha/aioha':
-        specifier: ^1.6.0
+        specifier: ^1.8.0
         version: 1.8.2(webextension-polyfill@0.10.0)
       '@aioha/react-ui':
         specifier: ^1.6.0
