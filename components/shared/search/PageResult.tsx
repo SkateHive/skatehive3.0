@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Box, HStack, VStack, Text, Icon } from "@chakra-ui/react";
+import { searchOptionId } from "./a11y";
 
 import { type PageResult } from "./types";
 
@@ -32,6 +33,9 @@ export default function PageResult({
       onClick={() => onSelect(page)}
       onMouseEnter={onHover}
       data-index={index}
+      id={searchOptionId(index)}
+      role="option"
+      aria-selected={highlightedIndex === index}
     >
       <HStack spacing={3}>
         <Box

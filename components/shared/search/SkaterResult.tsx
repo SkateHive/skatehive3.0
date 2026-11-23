@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Box, HStack, VStack, Text, Avatar, Icon } from "@chakra-ui/react";
+import { searchOptionId } from "./a11y";
 import { SkaterData } from "@/types/leaderboard";
 
 interface SkaterResultProps {
@@ -31,6 +32,9 @@ export default function SkaterResult({
       onClick={() => onSelect(skater)}
       onMouseEnter={onHover}
       data-index={index}
+      id={searchOptionId(index)}
+      role="option"
+      aria-selected={highlightedIndex === index}
     >
       <HStack spacing={3}>
         <Avatar

@@ -1877,6 +1877,9 @@ export const ptBR = {
     },
     popularCommands: 'Comandos Populares',
     inputPlaceholder: 'Buscar skaters, manobras, páginas...',
+    resultsCount: '{count} resultados',
+    resultsLabel: 'Resultados da busca',
+    searching: 'Buscando…',
     sections: {
       popularPages: 'Páginas Populares',
       skaters: 'Skaters',
