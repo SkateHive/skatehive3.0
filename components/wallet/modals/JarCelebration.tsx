@@ -122,6 +122,7 @@ export function JarCelebration({ jar, onClose }: JarCelebrationProps) {
               {tVars(t("celebrationBody"), {
                 name: jar.name,
                 target: (jar.target_hbd ?? 0).toFixed(3),
+                currency: jar.currency,
               })}
             </Text>
             <VStack spacing={2} w="100%" pt={2}>

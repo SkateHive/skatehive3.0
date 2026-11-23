@@ -329,7 +329,8 @@ export default function MainWallet({ username }: MainWalletProps) {
                       { key: "overview", show: true },
                       { key: "art", show: isConnected },
                       { key: "earn", show: isConnected },
-                      { key: "skatebank", show: !!user },
+                      // Wallet-only users get it too, for their USDC savings jars.
+                      { key: "skatebank", show: !!user || isConnected },
                       { key: "pix", show: !!user },
                     ] as const
                   )
@@ -448,36 +449,40 @@ export default function MainWallet({ username }: MainWalletProps) {
                   )}
 
                   {/* ── SKATEBANK ── */}
-                  {user && (
+                  {(user || isConnected) && (
                     <TabPanel p={0}>
                       <VStack spacing={4} align="stretch">
-                        <HivePowerSection
-                          hivePower={hivePower}
-                          hivePrice={hivePrice}
-                          hiveBalance={hiveBalances.balance}
-                        />
-                        <SkateBankSection
-                          hbdBalance={hiveBalances.hbdBalance}
-                          hbdSavingsBalance={hiveBalances.hbdSavingsBalance}
-                          hbdPrice={hbdPrice}
-                          estimatedClaimableInterest={
-                            hbdInterestData.estimatedClaimableInterest
-                          }
-                          daysUntilClaim={hbdInterestData.daysUntilClaim}
-                          lastInterestPayment={
-                            hbdInterestData.lastInterestPayment
-                          }
-                          savings_withdraw_requests={
-                            hiveAccount?.savings_withdraw_requests || 0
-                          }
-                          onClaimInterest={handleClaimHbdInterest}
-                        />
-                        <SavingsYieldChart
-                          username={user}
-                          savingsBalance={hbdInterestData.savingsHbdBalance}
-                          accruedInterest={hbdInterestData.estimatedClaimableInterest}
-                          apr={hbdRate}
-                        />
+                        {user && (
+                          <>
+                            <HivePowerSection
+                              hivePower={hivePower}
+                              hivePrice={hivePrice}
+                              hiveBalance={hiveBalances.balance}
+                            />
+                            <SkateBankSection
+                              hbdBalance={hiveBalances.hbdBalance}
+                              hbdSavingsBalance={hiveBalances.hbdSavingsBalance}
+                              hbdPrice={hbdPrice}
+                              estimatedClaimableInterest={
+                                hbdInterestData.estimatedClaimableInterest
+                              }
+                              daysUntilClaim={hbdInterestData.daysUntilClaim}
+                              lastInterestPayment={
+                                hbdInterestData.lastInterestPayment
+                              }
+                              savings_withdraw_requests={
+                                hiveAccount?.savings_withdraw_requests || 0
+                              }
+                              onClaimInterest={handleClaimHbdInterest}
+                            />
+                            <SavingsYieldChart
+                              username={user}
+                              savingsBalance={hbdInterestData.savingsHbdBalance}
+                              accruedInterest={hbdInterestData.estimatedClaimableInterest}
+                              apr={hbdRate}
+                            />
+                          </>
+                        )}
                         <SavingsJarsSection
                           hbdBalance={hiveBalances.hbdBalance}
                           hbdPrice={hbdPrice}

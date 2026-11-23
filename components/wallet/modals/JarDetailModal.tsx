@@ -13,11 +13,11 @@ import SkateModal from "@/components/shared/SkateModal";
 import useIsMobile from "@/hooks/useIsMobile";
 import { useTranslations, useLocale } from "@/contexts/LocaleContext";
 import { tVars } from "@/lib/i18n/format";
-import { useHbdSavingsRate, formatRate } from "@/hooks/wallet/useHbdSavingsRate";
+import { formatRate } from "@/hooks/wallet/useHbdSavingsRate";
+import { useJarRate } from "@/hooks/wallet/useJarRate";
 import { jarProgress } from "@/hooks/wallet/useSavingsJars";
 import type { SavingsJar, JarEvent } from "@/hooks/wallet/useSavingsJars";
 
-/** Hive HBD savings APR used for the display-only monthly yield estimate. */
 
 interface JarDetailModalProps {
   isOpen: boolean;
@@ -54,7 +54,8 @@ export function JarDetailModal({
   onDelete,
 }: JarDetailModalProps) {
   const t = useTranslations("cofrinhos");
-  const hbdRate = useHbdSavingsRate();
+  // Display-only monthly yield: HBD savings APR or Morpho USDC APY.
+  const rate = useJarRate(jar?.currency);
   const { locale } = useLocale();
   const isMobile = useIsMobile();
 
@@ -92,7 +93,8 @@ export function JarDetailModal({
 
   const goalDone = progress !== null && progress >= 100;
   const missing = jar.target_hbd ? Math.max(0, jar.target_hbd - allocated) : 0;
-  const monthlyYield = (allocated * hbdRate) / 12;
+  const currency = jar.currency;
+  const monthlyYield = rate != null ? (allocated * rate) / 12 : null;
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString(locale, {
@@ -155,7 +157,7 @@ export function JarDetailModal({
               {allocated.toFixed(3)}
             </Text>
             <Text fontSize="2xs" color="dim" fontFamily="mono" textTransform="uppercase" letterSpacing="widest" mt={1}>
-              {t("hbdSaved")}
+              {tVars(t("hbdSaved"), { currency })}
             </Text>
           </VStack>
 
@@ -163,10 +165,11 @@ export function JarDetailModal({
             <Box>
               <Text fontSize="xs" color="text" fontFamily="mono" textAlign="center" mb={2} lineHeight="tall">
                 {goalDone
-                  ? tVars(t("goalDoneCopy"), { target: jar.target_hbd!.toFixed(3) })
+                  ? tVars(t("goalDoneCopy"), { target: jar.target_hbd!.toFixed(3), currency })
                   : tVars(t("progressCopy"), {
                       pct: Math.round(progress),
                       missing: missing.toFixed(3),
+                      currency,
                     })}
               </Text>
               <Progress
@@ -181,10 +184,13 @@ export function JarDetailModal({
         </Box>
 
         <Box px={4} py={3}>
-          {!jar.is_wishlist && allocated > 0 && (
+          {!jar.is_wishlist && allocated > 0 && monthlyYield != null && rate != null && (
             <Box p={2} bg="panel" border="1px solid" borderColor="border" mb={3}>
               <Text fontSize="xs" color="dim" fontFamily="mono" lineHeight="tall">
-                ✦ {tVars(t("yieldLine"), { amount: monthlyYield.toFixed(3), rate: formatRate(hbdRate) })}
+                ✦ {tVars(t(currency === "USDC" ? "yieldLineUsdc" : "yieldLine"), {
+                  amount: monthlyYield.toFixed(3),
+                  rate: formatRate(rate),
+                })}
               </Text>
             </Box>
           )}

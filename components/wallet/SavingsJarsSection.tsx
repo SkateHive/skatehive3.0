@@ -11,7 +11,13 @@ import {
   SimpleGrid,
 } from "@chakra-ui/react";
 import { FaPlus, FaLock } from "react-icons/fa";
-import { useSavingsJars, jarProgress, type SavingsJar } from "@/hooks/wallet";
+import {
+  useSavingsJars,
+  jarProgress,
+  type JarCurrency,
+  type SavingsJar,
+} from "@/hooks/wallet";
+import { usdcUnitsToJarAmount } from "@/lib/cofrinhos/clientState";
 import { useTranslations } from "@/contexts/LocaleContext";
 import { tVars } from "@/lib/i18n/format";
 import {
@@ -29,19 +35,23 @@ interface SavingsJarsSectionProps {
 }
 
 /**
- * Cofrinhos — virtual savings jars layered over the account's HBD savings,
- * presented Nubank-Caixinhas-style: cover cards with progress, a per-jar
- * detail screen, and guided save/withdraw flows.
+ * Cofrinhos — virtual savings jars, presented Nubank-Caixinhas-style: cover
+ * cards with progress, a per-jar detail screen, and guided save/withdraw flows.
+ * HBD jars sit over the Hive account's HBD savings; USDC jars over the
+ * wallet's position in the Earn Morpho vault. One list for both.
  * See docs/COFRINHOS_SAVINGS_JARS_CONCEPT.md
  */
 export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJarsSectionProps) {
   const {
     jars,
-    summary,
+    balances,
+    available,
     authed,
     loading,
     unlocking,
     isConnected,
+    walletUsdc,
+    vaultMaxWithdraw,
     connect,
     createJar,
     updateJar,
@@ -106,8 +116,8 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
     [deleteJar, toast, t]
   );
 
-  const handleUnlock = useCallback(async () => {
-    const ok = await connect();
+  const handleUnlock = useCallback(async (currency: JarCurrency) => {
+    const ok = await connect(currency);
     if (!ok) {
       toast({
         title: t("unlockFailedTitle"),
@@ -121,10 +131,19 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
 
   if (!isConnected) return null;
 
-  const totalUsd =
-    hbdPrice && summary.allocated_total > 0
-      ? (summary.allocated_total * hbdPrice).toFixed(2)
-      : null;
+  const anyAuthed = authed.length > 0;
+  const locked = available.filter((c) => !authed.includes(c));
+  const totals = authed.map((c) => ({ currency: c, amount: balances[c]?.summary.allocated_total ?? 0 }));
+  // USDC counts as $1; HBD needs its price.
+  const totalUsdValue = totals.reduce<number | null>((sum, { currency, amount }) => {
+    if (sum == null) return null;
+    if (currency === "USDC") return sum + amount;
+    return hbdPrice ? sum + amount * hbdPrice : null;
+  }, 0);
+  const totalUsd = totalUsdValue && totalUsdValue > 0 ? totalUsdValue.toFixed(2) : null;
+
+  const allocCurrency = allocJar?.currency ?? "HBD";
+  const allocSummary = balances[allocCurrency]?.summary;
 
   return (
     <>
@@ -144,7 +163,7 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
               {t("title")}
             </Text>
           </HStack>
-          {authed && (
+          {anyAuthed && (
             <VStack spacing={0} align="end">
               <Text
                 fontSize="xl"
@@ -152,9 +171,10 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
                 color="background"
                 fontFamily="mono"
                 lineHeight={1.2}
+                textAlign="right"
                 sx={{ fontVariantNumeric: "tabular-nums" }}
               >
-                {summary.allocated_total.toFixed(3)} HBD
+                {totals.map((total) => `${total.amount.toFixed(3)} ${total.currency}`).join(" · ")}
               </Text>
               <Text fontSize="2xs" color="background" opacity={0.75} fontFamily="mono" textTransform="uppercase">
                 {totalUsd ? `$${totalUsd} · ` : ""}
@@ -167,43 +187,77 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
         {/* Body */}
         <Box px={3} py={3}>
           {/* Locked state */}
-          {!authed && (
+          {!anyAuthed && (
             <VStack spacing={3} py={4}>
               <Text fontSize="sm" color="dim" fontFamily="mono" textAlign="center" lineHeight="tall">
                 {t("unlockTitle")}
               </Text>
-              <Button
-                leftIcon={<FaLock />}
-                onClick={handleUnlock}
-                isLoading={unlocking}
-                bg="primary"
-                color="background"
-                borderRadius="none"
-                fontFamily="mono"
-                fontWeight="black"
-                letterSpacing="wide"
-                _hover={{ bg: "accent" }}
-              >
-                {t("unlockCta")}
-              </Button>
+              {locked.map((currency) => (
+                <Button
+                  key={currency}
+                  leftIcon={<FaLock />}
+                  onClick={() => handleUnlock(currency)}
+                  isLoading={unlocking === currency}
+                  isDisabled={!!unlocking && unlocking !== currency}
+                  bg="primary"
+                  color="background"
+                  borderRadius="none"
+                  fontFamily="mono"
+                  fontWeight="black"
+                  letterSpacing="wide"
+                  _hover={{ bg: "accent" }}
+                >
+                  {available.length > 1
+                    ? t(currency === "HBD" ? "unlockWithHive" : "unlockWithWallet")
+                    : t("unlockCta")}
+                </Button>
+              ))}
             </VStack>
           )}
 
-          {authed && (
+          {anyAuthed && (
             <>
-              <Text fontSize="xs" color="dim" fontFamily="mono" mb={3} lineHeight="tall">
-                {tVars(t("freeSavings"), {
-                  amount: Math.max(0, summary.unallocated).toFixed(3),
-                })}
-              </Text>
+              {authed.map((currency) => {
+                const summary = balances[currency]?.summary;
+                if (!summary) return null;
+                return (
+                  <Box key={currency} mb={2}>
+                    <Text fontSize="xs" color="dim" fontFamily="mono" lineHeight="tall">
+                      {tVars(t("freeSavings"), {
+                        amount: Math.max(0, summary.unallocated).toFixed(3),
+                        currency,
+                      })}
+                    </Text>
+                    {summary.over_allocated && (
+                      <Box p={2} bg="muted" mt={2} borderLeft="3px solid" borderColor="error">
+                        <Text color="error" fontSize="xs" fontFamily="mono" lineHeight="tall">
+                          {t("overAllocated")}
+                        </Text>
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
 
-              {summary.over_allocated && (
-                <Box p={2} bg="muted" mb={3} borderLeft="3px solid" borderColor="error">
-                  <Text color="error" fontSize="xs" fontFamily="mono" lineHeight="tall">
-                    {t("overAllocated")}
-                  </Text>
-                </Box>
-              )}
+              {/* Second identity not unlocked yet (e.g. Hive + wallet). */}
+              {locked.map((currency) => (
+                <Button
+                  key={currency}
+                  leftIcon={<FaLock />}
+                  onClick={() => handleUnlock(currency)}
+                  isLoading={unlocking === currency}
+                  variant="link"
+                  size="xs"
+                  color="primary"
+                  fontFamily="mono"
+                  mb={2}
+                  whiteSpace="normal"
+                  textAlign="left"
+                >
+                  {t(currency === "HBD" ? "unlockMoreHive" : "unlockMoreWallet")}
+                </Button>
+              ))}
+              <Box mb={1} />
 
               {loading && jars.length === 0 && (
                 <HStack justify="center" py={4}>
@@ -290,12 +344,12 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
                         {jar.target_hbd ? (
                           <Text as="span" fontSize="2xs" color="dim" fontWeight="normal">
                             {jar.is_wishlist ? "" : " / "}
-                            {jar.target_hbd.toFixed(3)} HBD
+                            {jar.target_hbd.toFixed(3)} {jar.currency}
                           </Text>
                         ) : (
                           <Text as="span" fontSize="2xs" color="dim" fontWeight="normal">
                             {" "}
-                            HBD
+                            {jar.currency}
                           </Text>
                         )}
                       </Text>
@@ -366,14 +420,20 @@ export default function SavingsJarsSection({ hbdBalance, hbdPrice }: SavingsJars
         onClose={() => setJarModalOpen(false)}
         jar={editingJar}
         onSave={handleSave}
+        currencies={authed}
       />
       <JarAllocateModal
         isOpen={allocOpen}
         onClose={() => setAllocOpen(false)}
         jar={allocJar}
         mode={allocMode}
-        unallocated={summary.unallocated}
-        walletHbd={hbdBalance === "N/A" ? "0" : hbdBalance}
+        unallocated={allocSummary?.unallocated ?? 0}
+        walletBalance={
+          allocCurrency === "USDC"
+            ? usdcUnitsToJarAmount(walletUsdc)
+            : parseFloat(hbdBalance === "N/A" ? "0" : hbdBalance) || 0
+        }
+        walletWithdrawLimit={allocCurrency === "USDC" ? usdcUnitsToJarAmount(vaultMaxWithdraw) : undefined}
         allocate={allocate}
         fundFromWallet={fundFromWallet}
         withdrawToWallet={withdrawToWallet}

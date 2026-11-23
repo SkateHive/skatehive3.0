@@ -1411,6 +1411,19 @@ export interface TranslationSchema {
     celebrationBody: string;
     celebrationShare: string;
     celebrationKeep: string;
+    unlockWithHive: string;
+    unlockWithWallet: string;
+    unlockMoreHive: string;
+    unlockMoreWallet: string;
+    currencyLabel: string;
+    currencyHbdHint: string;
+    currencyUsdcHint: string;
+    yieldLineUsdc: string;
+    srcWalletHintUsdc: string;
+    dstWalletHintUsdc: string;
+    depositNoteUsdc: string;
+    withdrawnToastUsdc: string;
+    vaultLimitNote: string;
   };
   hiveSettings: {
     authorityTitle: string;
