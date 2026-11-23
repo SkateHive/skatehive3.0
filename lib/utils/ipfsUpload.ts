@@ -17,10 +17,37 @@ const DIRECT_UPLOAD_THRESHOLD = 4 * 1024 * 1024; // 4MB
  */
 async function getSignedJwt(): Promise<string> {
   const res = await fetch('/api/pinata/signed-url');
-  if (!res.ok) throw new Error('Failed to get upload credentials');
+  if (!res.ok) {
+    throw new Error(
+      res.status === 429
+        ? 'Too many uploads in a short time. Wait a minute and try again.'
+        : `Could not start the upload (${res.status}).`
+    );
+  }
   const data = await res.json();
   if (!data.jwt) throw new Error('No JWT returned from signed-url');
   return data.jwt;
+}
+
+/**
+ * Turns a failed upload response into a message a user can act on. Pinata and
+ * /api/pinata answer with JSON ({ error } or { error: { reason, details } }).
+ */
+export function uploadErrorMessage(status: number, responseText: string): string {
+  if (status === 413) return 'File is too large to upload.';
+  if (status === 429) return 'Too many uploads in a short time. Wait a minute and try again.';
+  let detail = '';
+  try {
+    const body = JSON.parse(responseText);
+    const err = body?.error;
+    detail =
+      typeof err === 'string'
+        ? err
+        : err?.details || err?.reason || body?.message || '';
+  } catch {
+    /* not JSON */
+  }
+  return detail ? `Upload failed (${status}): ${detail}` : `Upload failed (${status}).`;
 }
 
 export interface IpfsUploadResult {
@@ -120,12 +147,12 @@ export async function uploadToIpfsSmart(
           console.log('⚠️ Proxy returned 413, retrying with direct upload...');
           doUpload(true).then(resolve, reject);
         } else {
-          reject(new Error(`Upload failed: ${xhr.status}`));
+          reject(new Error(uploadErrorMessage(xhr.status, xhr.responseText)));
         }
       });
 
       xhr.addEventListener('error', () => {
-        reject(new Error(`Network error: ${xhr.statusText || 'Unknown'}`));
+        reject(new Error('Network error during upload. Check your connection and keep this tab open until it finishes.'));
       });
 
       xhr.addEventListener('timeout', () => {

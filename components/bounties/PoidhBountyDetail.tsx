@@ -31,6 +31,7 @@ import ImageCompressor, { ImageCompressorRef } from '@/lib/utils/ImageCompressor
 // VideoUploader removed — bounty claims use direct IPFS upload via uploadToIpfsSmart
 import imageCompression from 'browser-image-compression';
 import { uploadToIpfsSmart } from '@/lib/utils/ipfsUpload';
+import { mediaKind, withMediaType } from '@/lib/utils/mediaType';
 import { generateVideoIframeMarkdown, generatePermlink } from '@/lib/markdown/composeUtils';
 import type { PoidhBounty } from '@/types/poidh';
 import { CHAIN_LABEL, CHAIN_PATH } from '@/lib/poidh-constants';
@@ -111,6 +112,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   const [claimDescription, setClaimDescription] = useState('');
   const [claimUri, setClaimUri] = useState('');
   const [isUploadingProof, setIsUploadingProof] = useState(false);
+  const [proofUploadProgress, setProofUploadProgress] = useState<number | null>(null);
   const [isDragOverProof, setIsDragOverProof] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [submittedClaimUrl, setSubmittedClaimUrl] = useState('');
@@ -226,6 +228,18 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   };
 
   // ── Proof upload handlers ──
+  const showProofUploadError = (e: unknown) => {
+    toast({
+      title: 'Upload failed',
+      description:
+        (e instanceof Error && e.message) ||
+        'Could not upload the file. Try again, or paste a link to the video below.',
+      status: 'error',
+      duration: 8000,
+      isClosable: true,
+    });
+  };
+
   const handleProofImageUpload = async (compressedUrl: string | null, fileName?: string) => {
     if (!compressedUrl) return;
     setIsUploadingProof(true);
@@ -240,6 +254,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
       }
     } catch (e) {
       console.error('Image upload failed:', e);
+      showProofUploadError(e);
     } finally {
       setIsUploadingProof(false);
     }
@@ -259,10 +274,12 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
   // (proof videos don't need to be converted, raw upload is fine)
   const handleProofVideoFile = async (file: File) => {
     setIsUploadingProof(true);
+    setProofUploadProgress(0);
     try {
-      const result = await uploadToIpfsSmart(file, {
+      const result = await uploadToIpfsSmart(withMediaType(file), {
         fileName: file.name,
         creator: 'bounty-claim',
+        onProgress: setProofUploadProgress,
       });
       if (result?.url) {
         setClaimUri(result.url);
@@ -272,8 +289,45 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
       }
     } catch (e) {
       console.error('Video upload failed:', e);
+      showProofUploadError(e);
     } finally {
       setIsUploadingProof(false);
+      setProofUploadProgress(null);
+    }
+  };
+
+  // One entry point for both drop and click-to-pick. Uses the extension when
+  // the browser leaves File.type empty (e.g. an iPhone .MOV on some desktops),
+  // which used to skip the file without a word.
+  const handleProofFile = async (file: File) => {
+    const kind = mediaKind(file);
+    if (kind === 'image') {
+      setIsUploadingProof(true);
+      try {
+        const compressed = await imageCompression(withMediaType(file), {
+          maxSizeMB: 2,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        });
+        const url = URL.createObjectURL(compressed);
+        await handleProofImageUpload(url, compressed.name);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.error('Image compression failed:', e);
+        showProofUploadError(e);
+      } finally {
+        setIsUploadingProof(false);
+      }
+    } else if (kind === 'video') {
+      await handleProofVideoFile(file);
+    } else {
+      toast({
+        title: 'Unsupported file',
+        description: `${file.name} is not an image or video.`,
+        status: 'warning',
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
@@ -283,23 +337,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
     setIsDragOverProof(false);
     const files = Array.from(e.dataTransfer.files);
     for (const file of files) {
-      if (file.type.startsWith('image/')) {
-        setIsUploadingProof(true);
-        try {
-          const compressed = await imageCompression(file, {
-            maxSizeMB: 2,
-            maxWidthOrHeight: 1920,
-            useWebWorker: true,
-          });
-          const url = URL.createObjectURL(compressed);
-          await handleProofImageUpload(url, compressed.name);
-          URL.revokeObjectURL(url);
-        } catch { /* ignore */ } finally {
-          setIsUploadingProof(false);
-        }
-      } else if (file.type.startsWith('video/')) {
-        await handleProofVideoFile(file);
-      }
+      await handleProofFile(file);
     }
   };
 
@@ -1118,19 +1156,7 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                                 input.onchange = async (e) => {
                                   const file = (e.target as HTMLInputElement).files?.[0];
                                   if (!file) return;
-                                  if (file.type.startsWith('image/')) {
-                                    setIsUploadingProof(true);
-                                    try {
-                                      const compressed = await imageCompression(file, {
-                                        maxSizeMB: 2, maxWidthOrHeight: 1920, useWebWorker: true,
-                                      });
-                                      const url = URL.createObjectURL(compressed);
-                                      await handleProofImageUpload(url, compressed.name);
-                                      URL.revokeObjectURL(url);
-                                    } catch { /* ignore */ } finally { setIsUploadingProof(false); }
-                                  } else if (file.type.startsWith('video/')) {
-                                    await handleProofVideoFile(file);
-                                  }
+                                  await handleProofFile(file);
                                 };
                                 input.click();
                               }}
@@ -1138,7 +1164,13 @@ export function PoidhBountyDetail({ chainId, id }: PoidhBountyDetailProps) {
                               {isUploadingProof ? (
                                 <VStack spacing={1}>
                                   <Spinner size="sm" color="primary" />
-                                  <Text fontSize="xs" fontFamily="mono" color="primary">UPLOADING...</Text>
+                                  <Text fontSize="xs" fontFamily="mono" color="primary" role="status">
+                                    {proofUploadProgress !== null && proofUploadProgress < 100
+                                      ? `UPLOADING... ${proofUploadProgress}%`
+                                      : proofUploadProgress === 100
+                                      ? 'FINISHING UPLOAD...'
+                                      : 'UPLOADING...'}
+                                  </Text>
                                 </VStack>
                               ) : (
                                 <VStack spacing={1}>
