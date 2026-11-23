@@ -1865,6 +1865,7 @@ export const en = {
     inputPlaceholder: 'Search skaters, tricks, pages...',
     resultsCount: '{count} results',
     resultsLabel: 'Search results',
+    searching: 'Searching…',
     sections: {
       popularPages: 'Popular Pages',
       skaters: 'Skaters',

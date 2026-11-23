@@ -267,6 +267,8 @@ export default function SearchOverlay({
     ? ""
     : allResults.length > 0
     ? t("searchOverlay.resultsCount").replace("{count}", String(allResults.length))
+    : isLoadingTopSkaters
+    ? t("searchOverlay.searching")
     : `${t("searchOverlay.noResults.heading")} "${query}"`;
 
   return (
@@ -274,6 +276,7 @@ export default function SearchOverlay({
       isOpen={isOpen}
       onClose={onClose}
       title="global-search"
+      initialFocusRef={searchInputRef}
       size="xl"
       blockScrollOnMount={false}
       resizable

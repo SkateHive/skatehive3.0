@@ -32,6 +32,9 @@ interface SkateModalProps {
    *  Requires the modal to be detached from Chakra's flex layout via position:fixed.
    *  Do not enable for modals whose inner content constrains its own height (e.g. AirdropModal). */
   preciseResize?: boolean;
+  /** Element to focus when the modal opens. Without it Chakra focuses the first
+   *  tabbable element, which is one of the window buttons. */
+  initialFocusRef?: React.RefObject<HTMLElement>;
 }
 
 const SkateModal: React.FC<SkateModalProps> = ({
@@ -48,6 +51,7 @@ const SkateModal: React.FC<SkateModalProps> = ({
   motionPreset,
   windowId: customWindowId,
   resizable = false,
+  initialFocusRef,
   preciseResize = false,
 }) => {
   const theme = useTheme();
@@ -205,6 +209,7 @@ const SkateModal: React.FC<SkateModalProps> = ({
       onCloseComplete={onCloseComplete}
       closeOnOverlayClick={closeOnOverlayClick}
       motionPreset={motionPreset}
+      initialFocusRef={initialFocusRef}
     >
       <ModalOverlay bg="blackAlpha.600" />
       <ModalContent
