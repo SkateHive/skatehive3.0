@@ -18,6 +18,8 @@ import { Providers, KeyTypes } from "@aioha/aioha";
 import { FaHive } from "react-icons/fa";
 import { SiHiveBlockchain } from "react-icons/si";
 import { TbKey, TbDeviceUsb, TbShieldCheck } from "react-icons/tb";
+import { isMobileBrowser } from "@/lib/hive/hiveAuthRequests";
+import { useTranslations } from "@/contexts/LocaleContext";
 
 // Type for provider values (workaround for enum type usage)
 type HiveProvider = (typeof Providers)[keyof typeof Providers];
@@ -128,6 +130,7 @@ export default function HiveLoginModal({
 }: HiveLoginModalProps) {
   const { aioha } = useAioha();
   const toast = useToast();
+  const tHiveAuth = useTranslations("hiveAuth");
   
   const [step, setStep] = useState<'providers' | 'username'>('providers');
   const [selectedProvider, setSelectedProvider] = useState<HiveProvider | null>(null);
@@ -142,6 +145,9 @@ export default function HiveLoginModal({
     ledger: true, // Always available (requires device)
     peakvault: typeof window !== 'undefined' && !!(window as any).peakvault,
   };
+  // Phone/tablet browsers have no Keychain extension: the Keychain app is
+  // reached through HiveAuth, so present it as the Keychain option.
+  const keychainAppViaHiveAuth = !availableProviders.keychain && isMobileBrowser();
 
   const handleClose = useCallback(() => {
     setStep('providers');
@@ -208,7 +214,9 @@ export default function HiveLoginModal({
         });
         onSuccess?.(uname);
         handleClose();
-      } else {
+      } else if (result.errorCode !== 4001) {
+        // 4001 = the user cancelled or rejected the request themselves; that
+        // is not a failure worth an error toast.
         toast({
           status: "error",
           title: "connection failed",
@@ -231,7 +239,7 @@ export default function HiveLoginModal({
   const getProviderName = (provider: HiveProvider) => {
     switch (provider) {
       case Providers.Keychain: return "Keychain";
-      case Providers.HiveAuth: return "HiveAuth";
+      case Providers.HiveAuth: return keychainAppViaHiveAuth ? tHiveAuth("keychainApp") : "HiveAuth";
       case Providers.Ledger: return "Ledger";
       case Providers.PeakVault: return "PeakVault";
       default: return provider;
@@ -284,13 +292,18 @@ export default function HiveLoginModal({
                 />
               )}
               
-              {/* HiveAuth - Universal */}
+              {/* HiveAuth - Universal (the Keychain app on phones) */}
               <ProviderOption
-                name="HiveAuth"
-                icon={TbShieldCheck}
-                description="mobile app · scan qr code"
+                name={keychainAppViaHiveAuth ? tHiveAuth("keychainApp") : "HiveAuth"}
+                icon={keychainAppViaHiveAuth ? TbKey : TbShieldCheck}
+                description={
+                  keychainAppViaHiveAuth
+                    ? tHiveAuth("keychainAppDescription")
+                    : "mobile app · scan qr code"
+                }
                 onClick={() => handleProviderSelect(Providers.HiveAuth)}
                 isLoading={loadingProvider === Providers.HiveAuth}
+                isPopular={keychainAppViaHiveAuth}
               />
               
               {/* Ledger */}
