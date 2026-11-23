@@ -12,6 +12,7 @@ import {
   validateVideo,
   EnhancedUploadOptions,
 } from "@/lib/utils/videoUpload";
+import { withMediaType } from "@/lib/utils/mediaType";
 import {
   processVideoOnServer,
   EnhancedProcessingOptions,
@@ -264,7 +265,9 @@ const VideoUploader = forwardRef<VideoUploaderRef, VideoUploaderProps>(
 
       // Unwrap TrimmedVideoFile wrapper
       const isTrimmed = "fromTrimModal" in input && input.fromTrimModal === true;
-      const file = isTrimmed ? (input as TrimmedVideoFile).file : (input as File);
+      // Some browsers leave File.type empty (e.g. an iPhone .MOV on desktop);
+      // infer it from the extension so validateVideo doesn't reject a real video.
+      const file = withMediaType(isTrimmed ? (input as TrimmedVideoFile).file : (input as File));
       const existingThumbnail = isTrimmed ? (input as TrimmedVideoFile).thumbnailUrl : null;
 
       setIsProcessing(true);
