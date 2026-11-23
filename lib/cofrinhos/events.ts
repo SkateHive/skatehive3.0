@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ownerColumns, type JarOwner } from "./owner";
 
 export type JarEventType = "create" | "fund" | "withdraw";
 export type JarEventVia = "savings" | "wallet";
@@ -7,8 +8,11 @@ export type JarEventVia = "savings" | "wallet";
 export interface SavingsJarEventRow {
   id: string;
   jar_id: string;
-  hive_account: string;
+  hive_account: string | null;
+  evm_address: string | null;
+  owner_key: string;
   type: JarEventType;
+  /** Amount in the jar currency (column name kept for compatibility). */
   amount_hbd: number;
   via: JarEventVia | null;
   created_at: string;
@@ -24,7 +28,7 @@ export async function logJarEvent(
   supabase: SupabaseClient,
   event: {
     jar_id: string;
-    hive_account: string;
+    owner: JarOwner;
     type: JarEventType;
     amount_hbd?: number;
     via?: JarEventVia | null;
@@ -32,7 +36,7 @@ export async function logJarEvent(
 ): Promise<void> {
   const { error } = await supabase.from(EVENTS_TABLE).insert({
     jar_id: event.jar_id,
-    hive_account: event.hive_account,
+    ...ownerColumns(event.owner),
     type: event.type,
     amount_hbd: event.amount_hbd ?? 0,
     via: event.via ?? null,
@@ -42,18 +46,18 @@ export async function logJarEvent(
   }
 }
 
-/** List a jar's recent movements, newest first. */
+/** List a jar's recent movements, newest first, scoped to the given owners. */
 export async function listJarEvents(
   supabase: SupabaseClient,
   jarId: string,
-  account: string,
+  ownerKeys: string[],
   limit = 30
 ): Promise<SavingsJarEventRow[] | null> {
   const { data, error } = await supabase
     .from(EVENTS_TABLE)
     .select("*")
     .eq("jar_id", jarId)
-    .eq("hive_account", account)
+    .in("owner_key", ownerKeys)
     .order("created_at", { ascending: false })
     .limit(limit);
 

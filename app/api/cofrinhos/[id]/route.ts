@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthedAccount } from "@/lib/cofrinhos/auth";
+import { getAuthedOwners } from "@/lib/cofrinhos/auth";
+import { ownerKey } from "@/lib/cofrinhos/owner";
 import { getCofrinhosSupabase, type SavingsJarRow } from "@/lib/cofrinhos/supabase";
 import { validateJarInput } from "@/lib/cofrinhos/service";
 
@@ -12,8 +13,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const account = getAuthedAccount(request);
-  if (!account) {
+  const ownerKeys = getAuthedOwners(request).map(ownerKey);
+  if (ownerKeys.length === 0) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -50,7 +51,7 @@ export async function PATCH(
       .from("userbase_savings_jars")
       .select("allocated_hbd")
       .eq("id", id)
-      .eq("hive_account", account)
+      .in("owner_key", ownerKeys)
       .maybeSingle();
     if (current && Number(current.allocated_hbd) > 0) {
       return NextResponse.json(
@@ -60,12 +61,12 @@ export async function PATCH(
     }
   }
 
-  // Scope the update to the owning account so one user can't edit another's jar.
+  // Scope the update to the signed-in owners so one user can't edit another's jar.
   const { data, error } = await supabase
     .from("userbase_savings_jars")
     .update(validation.value)
     .eq("id", id)
-    .eq("hive_account", account)
+    .in("owner_key", ownerKeys)
     .select("*")
     .maybeSingle();
 
@@ -89,8 +90,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const account = getAuthedAccount(request);
-  if (!account) {
+  const ownerKeys = getAuthedOwners(request).map(ownerKey);
+  if (ownerKeys.length === 0) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -108,7 +109,7 @@ export async function DELETE(
     .from("userbase_savings_jars")
     .delete()
     .eq("id", id)
-    .eq("hive_account", account)
+    .in("owner_key", ownerKeys)
     .select("id")
     .maybeSingle();
 

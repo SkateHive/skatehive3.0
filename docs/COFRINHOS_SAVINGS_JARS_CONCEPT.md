@@ -190,6 +190,7 @@ Suggested child issues to open from this exploration:
 5b. ✅ **`[cofrinhos] UX redesign (Nubank Caixinhas patterns)`** — cover cards + total saved ([SavingsJarsSection.tsx](../components/wallet/SavingsJarsSection.tsx)), per-jar detail screen with history and monthly-yield estimate ([JarDetailModal.tsx](../components/wallet/modals/JarDetailModal.tsx)), quick-amount save/withdraw flow with the 3-day delay explained in context, 3-step guided create with goal templates, and a goal-reached celebration with a social hook. **Done.**
 6. **`[cofrinhos] Phase 2: auto-save rules`** — recurring / reward-% / round-up funding.
 7. **`[cofrinhos] Phase 3: lite-account & HIVE support`** — extend beyond Full Accounts / HBD-only.
+7a. 🚧 **`[cofrinhos] USDC jars`** — same virtual-jar model over a wallet's USDC position in the Earn Morpho vault (`lib/evm/earn.ts`). A jar's owner fixes its currency: Hive account → HBD, EVM address → USDC (`lib/cofrinhos/owner.ts`). Wallet-signature auth with its own session cookie (`lib/cofrinhos/auth.ts`, `lib/cofrinhos/evm.ts`), `owner_key` scoping and `cofrinhos_allocate_owner` (`sql/migrations/0045_*`, tested by `scripts/test-0045-savings-jars-usdc.sh`). **Data model + API done; UI next.**
 8. **`[cofrinhos] (stretch) PIX cash-out`** — tie a completed jar into the planned PIX flow.
 
 **MVP = issues 1–5.** Issues 1–4 are implemented; 5 (i18n) is the immediate follow-up. Everything else is incremental and safe to defer.

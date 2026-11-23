@@ -1,5 +1,7 @@
 import fetchAccount from "@/lib/hive/fetchAccount";
 import type { SavingsJarInput, SavingsJarRow } from "./supabase";
+import { getOnChainUsdcSavings } from "./evm";
+import type { JarOwner } from "./owner";
 
 /** Parse a Hive asset string/number like "12.345 HBD" into a number. */
 export function parseHbdAmount(value: unknown): number {
@@ -17,6 +19,17 @@ export function round3(n: number): number {
 export async function getOnChainHbdSavings(account: string): Promise<number> {
   const { account: acc } = await fetchAccount(account.toLowerCase());
   return parseHbdAmount((acc as any).savings_hbd_balance);
+}
+
+/**
+ * The real balance an owner's jars are carved out of: HBD savings for a Hive
+ * account, the Morpho USDC position for a wallet. Throws when the chain can't
+ * be read.
+ */
+export async function getOnChainSavings(owner: JarOwner): Promise<number> {
+  return owner.kind === "hive"
+    ? getOnChainHbdSavings(owner.account)
+    : getOnChainUsdcSavings(owner.address);
 }
 
 export interface JarsSummary {

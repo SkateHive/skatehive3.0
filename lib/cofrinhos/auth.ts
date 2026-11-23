@@ -3,6 +3,7 @@ import crypto from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PublicKey, Signature, cryptoUtils, type Authority } from "@hiveio/dhive";
 import fetchAccount from "@/lib/hive/fetchAccount";
+import { evmOwner, hiveOwner, ownerColumns, type JarOwner } from "./owner";
 
 /**
  * Cofrinhos auth.
@@ -21,9 +22,16 @@ import fetchAccount from "@/lib/hive/fetchAccount";
  * on successful verification, so a captured message+signature cannot be
  * replayed to mint additional sessions within the 10-min challenge window.
  * The session cookie lasts 7 days.
+ *
+ * USDC jars are owned by an EVM address instead. The flow is the same with a
+ * wallet signature (lib/cofrinhos/evm.ts) and its own cookie, so someone with
+ * both a Hive account and a wallet holds two independent sessions. Challenge
+ * stamps and session tokens are HMAC'd under different labels per owner kind,
+ * so a Hive token can never be read as a wallet one or the other way round.
  */
 
 export const COFRINHOS_COOKIE = "cofrinhos_session";
+export const COFRINHOS_EVM_COOKIE = "cofrinhos_evm_session";
 const CHALLENGE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -54,12 +62,25 @@ function timingSafeEqualStr(a: string, b: string): boolean {
 // Challenge (stateless, account + time bound)
 // ---------------------------------------------------------------------------
 
-function buildChallengeText(account: string, ts: number, nonce: string): string {
-  const stamp = hmac(`challenge:${account}:${ts}:${nonce}`).toString("hex");
+function buildChallengeText(owner: JarOwner, ts: number, nonce: string): string {
+  if (owner.kind === "evm") {
+    const stamp = hmac(`challenge:evm:${owner.address}:${ts}:${nonce}`).toString("hex");
+    return [
+      "SkateHive Cofrinhos — prove you control this wallet.",
+      "",
+      `Wallet: ${owner.address}`,
+      `Issued: ${ts}`,
+      `Nonce: ${nonce}`,
+      `Stamp: ${stamp}`,
+      "",
+      "Signing this only proves wallet ownership. It does not move any funds.",
+    ].join("\n");
+  }
+  const stamp = hmac(`challenge:${owner.account}:${ts}:${nonce}`).toString("hex");
   return [
     "SkateHive Cofrinhos — prove you control this Hive account.",
     "",
-    `Hive: @${account}`,
+    `Hive: @${owner.account}`,
     `Issued: ${ts}`,
     `Nonce: ${nonce}`,
     `Stamp: ${stamp}`,
@@ -68,11 +89,20 @@ function buildChallengeText(account: string, ts: number, nonce: string): string 
   ].join("\n");
 }
 
-/** Build a fresh challenge message for the given account. */
-export function buildChallenge(account: string): { message: string } {
+function newChallenge(owner: JarOwner): { message: string } {
   const ts = Date.now();
   const nonce = crypto.randomBytes(12).toString("hex");
-  return { message: buildChallengeText(account.toLowerCase(), ts, nonce) };
+  return { message: buildChallengeText(owner, ts, nonce) };
+}
+
+/** Build a fresh challenge message for the given Hive account. */
+export function buildChallenge(account: string): { message: string } {
+  return newChallenge(hiveOwner(account));
+}
+
+/** Build a fresh challenge message for the given (validated) EVM address. */
+export function buildEvmChallenge(address: string): { message: string } {
+  return newChallenge(evmOwner(address));
 }
 
 /** Fields parsed out of a valid challenge, needed to consume its nonce. */
@@ -91,13 +121,25 @@ export function verifyChallenge(
   account: string,
   message: string
 ): ChallengeFields | null {
+  return verifyOwnerChallenge(hiveOwner(account), message);
+}
+
+/** Wallet counterpart of verifyChallenge, for an EVM address. */
+export function verifyEvmChallenge(
+  address: string,
+  message: string
+): ChallengeFields | null {
+  return verifyOwnerChallenge(evmOwner(address), message);
+}
+
+function verifyOwnerChallenge(
+  owner: JarOwner,
+  message: string
+): ChallengeFields | null {
   if (typeof message !== "string") return null;
-  const acct = account.toLowerCase();
   const tsMatch = message.match(/^Issued: (\d+)$/m);
   const nonceMatch = message.match(/^Nonce: ([0-9a-f]+)$/m);
-  const handleMatch = message.match(/^Hive: @([a-z0-9.\-]+)$/m);
-  if (!tsMatch || !nonceMatch || !handleMatch) return null;
-  if (handleMatch[1] !== acct) return null;
+  if (!tsMatch || !nonceMatch) return null;
 
   const ts = Number(tsMatch[1]);
   if (!Number.isFinite(ts)) return null;
@@ -105,7 +147,9 @@ export function verifyChallenge(
     return null;
   }
 
-  const expected = buildChallengeText(acct, ts, nonceMatch[1]);
+  // Rebuilding the canonical text binds the owner line too: a challenge issued
+  // for another account/address (or another owner kind) never matches.
+  const expected = buildChallengeText(owner, ts, nonceMatch[1]);
   if (!timingSafeEqualStr(expected, message)) return null;
   return { ts, nonce: nonceMatch[1] };
 }
@@ -118,7 +162,7 @@ export function verifyChallenge(
  */
 export async function consumeChallenge(
   supabase: SupabaseClient,
-  account: string,
+  owner: JarOwner,
   fields: ChallengeFields
 ): Promise<boolean> {
   const nowIso = new Date().toISOString();
@@ -134,7 +178,7 @@ export async function consumeChallenge(
     .from("userbase_cofrinhos_used_challenges")
     .insert({
       nonce: fields.nonce,
-      hive_account: account.toLowerCase(),
+      ...ownerColumns(owner),
       expires_at: new Date(fields.ts + CHALLENGE_TTL_MS).toISOString(),
     });
   if (error) {
@@ -256,6 +300,60 @@ export function verifySessionToken(token: string | undefined): string | null {
 /** Read the authenticated Hive account from the request cookie, or null. */
 export function getAuthedAccount(request: NextRequest): string | null {
   return verifySessionToken(request.cookies.get(COFRINHOS_COOKIE)?.value);
+}
+
+interface EvmSessionPayload {
+  evm: string;
+  exp: number;
+}
+
+/** Create a signed wallet session token for the address (valid 7 days). */
+export function createEvmSessionToken(address: string): string {
+  const payload: EvmSessionPayload = {
+    evm: address.toLowerCase(),
+    exp: Date.now() + SESSION_TTL_MS,
+  };
+  const body = b64url(JSON.stringify(payload));
+  const sig = b64url(hmac(`session-evm:${body}`));
+  return `${body}.${sig}`;
+}
+
+/** Verify a wallet session token and return its address, or null. */
+export function verifyEvmSessionToken(token: string | undefined): string | null {
+  if (!token) return null;
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  const expected = b64url(hmac(`session-evm:${body}`));
+  if (!timingSafeEqualStr(expected, sig)) return null;
+  try {
+    const payload = JSON.parse(
+      Buffer.from(body, "base64url").toString("utf8")
+    ) as EvmSessionPayload;
+    if (typeof payload.evm !== "string" || typeof payload.exp !== "number") return null;
+    if (!/^0x[0-9a-f]{40}$/.test(payload.evm)) return null;
+    if (payload.exp < Date.now()) return null;
+    return payload.evm;
+  } catch {
+    return null;
+  }
+}
+
+/** Read the authenticated wallet address from the request cookie, or null. */
+export function getAuthedEvmAddress(request: NextRequest): string | null {
+  return verifyEvmSessionToken(request.cookies.get(COFRINHOS_EVM_COOKIE)?.value);
+}
+
+/**
+ * Every jar owner this request is authenticated as: the Hive account, the
+ * wallet, both, or none. Routes scope every query to these owners' keys.
+ */
+export function getAuthedOwners(request: NextRequest): JarOwner[] {
+  const owners: JarOwner[] = [];
+  const account = getAuthedAccount(request);
+  if (account) owners.push(hiveOwner(account));
+  const address = getAuthedEvmAddress(request);
+  if (address) owners.push(evmOwner(address));
+  return owners;
 }
 
 export const SESSION_COOKIE_MAX_AGE = Math.floor(SESSION_TTL_MS / 1000);

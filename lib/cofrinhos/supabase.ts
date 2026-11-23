@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { JarCurrency } from "./owner";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -18,9 +19,17 @@ export function getCofrinhosSupabase(): SupabaseClient | null {
 /** A savings jar row as stored in userbase_savings_jars. */
 export interface SavingsJarRow {
   id: string;
-  hive_account: string;
+  /** Owner of an HBD jar; null for USDC jars. */
+  hive_account: string | null;
+  /** Owner of a USDC jar (lowercase 0x address); null for HBD jars. */
+  evm_address: string | null;
+  /** 'hive:<account>' | 'evm:<address>' (generated column). */
+  owner_key: string;
+  currency: JarCurrency;
   name: string;
+  /** Goal, in the jar currency (column name kept for compatibility). */
   target_hbd: number | null;
+  /** Allocation, in the jar currency (column name kept for compatibility). */
   allocated_hbd: number;
   deadline: string | null;
   icon: string;
