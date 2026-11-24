@@ -1,5 +1,6 @@
 export const lg = {
   postEmbed: {
+    voteOnSkatehive: "Londa ku Skatehive",
     "comments": "Ebirowoozo",
     "account": "Erinnya lya Hive",
     "vote": "Londa 100%",

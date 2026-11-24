@@ -21,3 +21,5 @@
 .card footer button:disabled { opacity: .55; }
 .card :focus-visible { outline: 2px solid #ffd700; outline-offset: 2px; }
 .card [role="status"]:empty { display: none; }
+
+.card footer a:global(.voteFallback) { background: #8cff00; color: #020602; padding: 4px 10px; text-decoration: none; }

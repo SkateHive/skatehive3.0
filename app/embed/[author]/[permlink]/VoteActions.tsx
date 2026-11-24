@@ -57,6 +57,7 @@ export default function VoteActions({ author, permlink, fullUrl, allowVotes, com
   }
 
   return <footer>
+    {allowVotes && !available && <a className="voteFallback" href={fullUrl} target="_blank" rel="noopener noreferrer">{t("voteOnSkatehive")}</a>}
     {allowVotes && available && <>
       <input aria-label={t("account")} placeholder={t("account")} value={account}
         disabled={locked.current} onChange={event => setAccount(event.target.value)} />

@@ -14,13 +14,13 @@ For example, `https://skatehive.app/embed/skateuser/example-post`. The regular `
 
 ## Metadata and framing
 
-The route emits a Player Card with a 640 × 480 player URL. Metadata is rendered server-side so X can read it without running client JavaScript. The app's existing Content Security Policy includes broad iframe framing permission; verify the deployed response headers and X's current sandbox behavior before relying on the card in production.
+The route emits a Player Card with a 640 × 520 player URL. Metadata is rendered server-side so X can read it without running client JavaScript. The app's existing Content Security Policy includes broad iframe framing permission; verify the deployed response headers and X's current sandbox behavior before relying on the card in production.
 
 Player Cards are a legacy X feature and may render differently across web, iOS, Android, and X Articles. Test a regular post on desktop web and the target mobile clients. X caches card metadata independently from the app deployment, so changed previews may take time to appear.
 
 ## Voting
 
-When voting is enabled and Keychain is available, enter your public Hive username and choose **Upvote 100%**. The card calls the [Keychain vote API](https://github.com/hive-keychain/hive-keychain-extension/blob/master/documentation/README.md#requestvote) and displays success only after the wallet confirms. If Keychain is unavailable, choose **Open on Skatehive** to vote on the full page. X's sandbox and mobile clients may not expose the extension or wallet bridge. Never place private Hive keys or signing credentials in card metadata or URLs. Keep the post page as the fallback when Keychain is unavailable.
+When voting is enabled and Keychain is available, enter your public Hive username and choose **Upvote 100%**. The card calls the [Keychain vote API](https://github.com/hive-keychain/hive-keychain-extension/blob/master/documentation/README.md#requestvote) and displays success only after the wallet confirms. If Keychain is unavailable, choose **Upvote on Skatehive** to vote on the full page. X's sandbox and mobile clients may not expose the extension or wallet bridge. Never place private Hive keys or signing credentials in card metadata or URLs. Keep the post page as the fallback when Keychain is unavailable.
 
 ## Implementation
 

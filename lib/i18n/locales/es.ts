@@ -1,5 +1,6 @@
 export const es = {
   postEmbed: {
+    voteOnSkatehive: "Votar en Skatehive",
     "comments": "Comentarios",
     "account": "Usuario de Hive",
     "vote": "Votar al 100%",
