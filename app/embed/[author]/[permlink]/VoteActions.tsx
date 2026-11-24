@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "@/contexts/LocaleContext";
 
 type Wallet = {
-  requestVote(account: string, permlink: string, author: string, weight: number,
+  requestVote(account: null, permlink: string, author: string, weight: number,
     done: (response: { success: boolean }) => void): void;
 };
 
@@ -17,7 +17,6 @@ export default function VoteActions({ author, permlink, fullUrl, allowVotes, com
 }) {
   const t = useTranslations("postEmbed");
   const [available, setAvailable] = useState(false);
-  const [account, setAccount] = useState("");
   const [status, setStatus] = useState<"idle" | "pending" | "success" | "failed">("idle");
   const locked = useRef(false);
   useEffect(() => {
@@ -41,8 +40,7 @@ export default function VoteActions({ author, permlink, fullUrl, allowVotes, com
   function upvote() {
     const provider = wallet();
     if (!provider?.requestVote) return setAvailable(false);
-    const voter = account.trim().replace(/^@/, "").toLowerCase();
-    if (!voter || locked.current) return;
+    if (locked.current) return;
     locked.current = true;
     setStatus("pending");
     const finish = (success: boolean) => {
@@ -50,7 +48,7 @@ export default function VoteActions({ author, permlink, fullUrl, allowVotes, com
       setStatus(success ? "success" : "failed");
     };
     try {
-      provider.requestVote(voter, permlink, author, 10000, response => finish(response?.success === true));
+      provider.requestVote(null, permlink, author, 10000, response => finish(response?.success === true));
     } catch {
       finish(false);
     }
@@ -59,9 +57,7 @@ export default function VoteActions({ author, permlink, fullUrl, allowVotes, com
   return <footer>
     {allowVotes && !available && <a className="voteFallback" href={fullUrl} target="_blank" rel="noopener noreferrer">{t("voteOnSkatehive")}</a>}
     {allowVotes && available && <>
-      <input aria-label={t("account")} placeholder={t("account")} value={account}
-        disabled={locked.current} onChange={event => setAccount(event.target.value)} />
-      <button type="button" onClick={upvote} disabled={!account.trim() || locked.current}>
+      <button type="button" onClick={upvote} disabled={locked.current}>
         {t("vote")}
       </button>
       <span role="status">{status !== "idle" && t(status)}</span>

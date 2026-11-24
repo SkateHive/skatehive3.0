@@ -20,7 +20,7 @@ Player Cards are a legacy X feature and may render differently across web, iOS, 
 
 ## Voting
 
-When voting is enabled and Keychain is available, enter your public Hive username and choose **Upvote 100%**. The card calls the [Keychain vote API](https://github.com/hive-keychain/hive-keychain-extension/blob/master/documentation/README.md#requestvote) and displays success only after the wallet confirms. If Keychain is unavailable, choose **Upvote on Skatehive** to vote on the full page. X's sandbox and mobile clients may not expose the extension or wallet bridge. Never place private Hive keys or signing credentials in card metadata or URLs. Keep the post page as the fallback when Keychain is unavailable.
+When voting is enabled and Keychain is available, choose **Upvote 100%** and select the voting account in your wallet. The card calls the [Keychain vote API](https://github.com/hive-keychain/hive-keychain-extension/blob/master/documentation/README.md#requestvote) and displays success only after the wallet confirms. If Keychain is unavailable, choose **Upvote on Skatehive** to vote on the full page. X's sandbox and mobile clients may not expose the extension or wallet bridge. Never place private Hive keys or signing credentials in card metadata or URLs. Keep the post page as the fallback when Keychain is unavailable.
 
 ## Implementation
 
