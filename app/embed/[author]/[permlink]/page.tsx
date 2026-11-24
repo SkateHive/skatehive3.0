@@ -32,6 +32,11 @@ async function load(params: Props["params"]) {
 
 function cover(post: Parameters<typeof extractPostThumbnail>[0]) {
   const url = extractPostThumbnail(post);
+  // Local JPEG of the verified IPFS image, available to crawlers without the gateway.
+  const localPhoto = "bafkreifx67chnes2pzo7tb24t5kw3lpdpiuumwiylgf7j6jiz6qctumjiu";
+  if (url?.split("?")[0].endsWith("/" + localPhoto)) {
+    return APP_CONFIG.ORIGIN + "/embed-brand/" + localPhoto + ".jpg";
+  }
   return url?.startsWith("https://") ? url : APP_CONFIG.ORIGIN + "/ogimage.png";
 }
 
@@ -45,6 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: post.title || `Post by @${post.author}`,
     description,
+    alternates: { canonical: page },
     openGraph: { title: post.title || `Post by @${post.author}`, description, url: page, images: [image], siteName: "Skatehive", type: "article" },
     twitter: {
       card: "player",
@@ -52,7 +58,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: post.title || `Post by @${post.author}`,
       description,
       images: [image],
-      players: [{ playerUrl: page, streamUrl: "", width: 640, height: 520 }],
+      players: [{ playerUrl: page + "/player", streamUrl: "", width: 640, height: 520 }],
     },
   };
 }

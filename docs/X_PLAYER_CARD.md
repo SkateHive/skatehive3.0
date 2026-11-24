@@ -1,6 +1,6 @@
 # X Player Card for Skatehive posts
 
-Skatehive post previews for X use the `twitter:card=player` metadata type. The public share URL is `/embed/{author}/{permlink}`. X reads its title, description, image, and `twitter:player` URL, then loads that URL in a sandboxed player frame when the reader opens the card.
+Skatehive post previews for X use the `twitter:card=player` metadata type. The public share URL is `/embed/{author}/{permlink}`. X reads its title, description, image, and `twitter:player` URL, then loads the dedicated `/embed/{author}/{permlink}/player` URL in a sandboxed player frame when the reader opens the card.
 
 ## Share a post
 
