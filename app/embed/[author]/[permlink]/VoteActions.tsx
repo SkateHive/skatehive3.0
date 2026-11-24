@@ -56,10 +56,9 @@ export default function VoteActions({ author, permlink, fullUrl, allowVotes, com
     }
   }
 
-  return <footer style={{ padding: 16, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+  return <footer>
     {allowVotes && available && <>
       <input aria-label={t("account")} placeholder={t("account")} value={account}
-        style={{ color: "CanvasText", background: "Canvas", padding: 6 }}
         disabled={locked.current} onChange={event => setAccount(event.target.value)} />
       <button type="button" onClick={upvote} disabled={!account.trim() || locked.current}>
         {t("vote")}

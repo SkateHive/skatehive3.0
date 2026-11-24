@@ -1,3 +1,4 @@
+import styles from "./card.module.css";
 import type { Metadata } from "next";
 import VoteActions from "./VoteActions";
 import { extractPostThumbnail } from "@/lib/utils/postThumbnail";
@@ -51,7 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: post.title || `Post by @${post.author}`,
       description,
       images: [image],
-      players: [{ playerUrl: page, streamUrl: "", width: 640, height: 480 }],
+      players: [{ playerUrl: page, streamUrl: "", width: 640, height: 520 }],
     },
   };
 }
@@ -62,13 +63,18 @@ export default async function PostEmbedPage({ params }: Props) {
   const excerpt = cleanExcerpt(post.body || "") || "Open the post to read the full story.";
 
   return (
-    <main style={{ minHeight: "100dvh", background: "#11131a", color: "#f5f6fa", padding: 20, fontFamily: "system-ui, sans-serif", boxSizing: "border-box" }}>
-      <article style={{ maxWidth: 680, margin: "0 auto", border: "1px solid #343946", borderRadius: 16, overflow: "hidden", background: "#1b1e27" }}>
-        <header style={{ padding: "16px 18px 10px", color: "#aeb6c8", fontSize: 14 }}>@{post.author}</header>
-        <img src={cover(post)} alt="" style={{ width: "100%", height: "clamp(90px, 32vh, 160px)", objectFit: "cover" }} />
-        <section style={{ padding: "4px 18px 18px" }}>
-          <h1 style={{ fontSize: 22, lineHeight: 1.25, margin: "0 0 10px", color: "#fff" }}>{post.title || `Post by @${post.author}`}</h1>
-          <p style={{ color: "#c2c8d5", lineHeight: 1.55, margin: 0 }}>{excerpt}</p>
+    <main className={styles.canvas}>
+      <article className={styles.card}>
+        <header>
+          <div className={styles.brand}><img src="/embed-brand/logo.svg" alt="" />Skatehive</div>
+          <span className={styles.author}>@{post.author}</span>
+        </header>
+        <a href={fullUrl} target="_blank" rel="noopener noreferrer" aria-label={post.title || post.permlink}>
+          <img className={styles.cover} src={cover(post)} alt="" />
+        </a>
+        <section>
+          <h1>{post.title || post.permlink}</h1>
+          {excerpt && <p>{excerpt}</p>}
         </section>
         <VoteActions author={post.author} permlink={post.permlink} fullUrl={fullUrl} comments={post.children} allowVotes={post.allow_votes} />
       </article>

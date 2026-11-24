@@ -1,0 +1,23 @@
+@font-face { font-family: CardPixel; src: url("/embed-brand/joystix.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: CardTerminal; src: url("/embed-brand/vt323.woff2") format("woff2"); font-display: swap; }
+.canvas { min-height: 100dvh; display: grid; place-items: center; background: #020602; color: #d8ffd8; padding: clamp(0px,1vw,12px); }
+.card { width: min(100%, 640px); min-width: 0; background: #061006; border: 2px solid #0e5a24; font: 20px/1.1 CardTerminal, monospace; }
+.card header,.card footer,.brand { display: flex; align-items: center; }
+.card header { justify-content: space-between; gap: 8px; padding: 5px 14px; border-bottom: 2px solid #8cff00; }
+.brand { gap: 9px; font: clamp(12px,3vw,18px)/1 CardPixel, monospace; color: #8cff00; }
+.brand img { width: 34px; height: 34px; }
+.author { color: #5fd37a; overflow-wrap: anywhere; }
+.cover { display: block; width: 100%; height: clamp(92px,36dvh,220px); object-fit: cover; }
+.card section { padding: 12px 14px; }
+.card h1,.card p { margin: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.card h1 { color: #d8ffd8; font: clamp(14px,3.2vw,20px)/1.32 CardPixel, monospace; }
+.card p { margin-top: 6px; color: #adcfad; font: 15px/1.4 system-ui, sans-serif; }
+.card footer { flex-wrap: wrap; gap: 6px 12px; padding: 8px 14px; border-top: 1px solid #0e5a24; }
+.card footer a,.card footer button,.card footer input { font: inherit; min-height: 34px; display: inline-flex; align-items: center; }
+.card footer input { min-width: 0; width: 8em; background: #020602; border: 1px solid #5fd37a; padding: 3px 6px; color: #d8ffd8; }
+.card footer a { color: #d8ffd8; text-decoration: underline; }
+.card footer a:last-child,.card footer button { background: #8cff00; padding: 4px 10px; color: #020602; text-decoration: none; }
+.card footer a:last-child { margin-left: auto; }
+.card footer button:disabled { opacity: .55; }
+.card :focus-visible { outline: 2px solid #ffd700; outline-offset: 2px; }
+.card [role="status"]:empty { display: none; }
