@@ -1,4 +1,13 @@
 export const ptBR = {
+  postEmbed: {
+    "comments": "Comentários",
+    "account": "Usuário Hive",
+    "vote": "Votar 100%",
+    "open": "Abrir no Skatehive",
+    "pending": "Confirme no Keychain",
+    "success": "Voto enviado",
+    "failed": "Voto não confirmado"
+},
   tip: {
     title: 'Tip para',
     tabHive: 'Hive',

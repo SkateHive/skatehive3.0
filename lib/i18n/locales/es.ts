@@ -1,4 +1,13 @@
 export const es = {
+  postEmbed: {
+    "comments": "Comentarios",
+    "account": "Usuario de Hive",
+    "vote": "Votar al 100%",
+    "open": "Abrir en Skatehive",
+    "pending": "Confirma en Keychain",
+    "success": "Voto enviado",
+    "failed": "Voto sin confirmar"
+},
   tip: {
     title: 'Propina para',
     tabHive: 'Hive',

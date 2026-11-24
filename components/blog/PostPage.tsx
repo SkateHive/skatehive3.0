@@ -114,6 +114,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
             <PostDetails post={post} onOpenConversation={onOpen} />
           </Box>
           <Box
+            id="comments"
             width={{ base: "100%", md: "35%" }}
             h={{ base: "auto", md: "100vh" }}
             overflowY="auto"

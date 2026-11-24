@@ -192,7 +192,7 @@ const ShareMenuButtons = ({ comment }: ShareMenuButtonsProps) => {
       let shareUrl = "";
       if (platform === "x") {
         shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(
-          postLink
+          postLink.replace("/post/", "/embed/")
         )}`;
       } else if (platform === "facebook") {
         shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(

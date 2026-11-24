@@ -1,4 +1,13 @@
 export const en = {
+  postEmbed: {
+    "comments": "Comments",
+    "account": "Hive username",
+    "vote": "Upvote 100%",
+    "open": "Open on Skatehive",
+    "pending": "Confirm in Keychain",
+    "success": "Vote sent",
+    "failed": "Vote was not confirmed"
+},
   tip: {
     title: 'Tip',
     tabHive: 'Hive',

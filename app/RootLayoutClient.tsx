@@ -31,7 +31,20 @@ const IOSAppBanner = dynamic(() => import("@/components/shared/IOSAppBanner"), {
 const HZCEasterEgg = dynamic(() => import("@/components/shared/HZCEasterEgg"), { ssr: false });
 const WindowDock = dynamic(() => import("@/components/shared/WindowDock"), { ssr: false });
 
-export default function RootLayoutClient({
+import { LocaleProvider } from "@/contexts/LocaleContext";
+
+export default function RootLayoutClient({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  if (pathname?.startsWith("/embed/")) {
+    return <LocaleProvider>
+      <style>{`#splash-root { display: none !important } #app-root { display: block !important }`}</style>
+      {children}
+    </LocaleProvider>;
+  }
+  return <SiteLayout>{children}</SiteLayout>;
+}
+
+function SiteLayout({
   children,
 }: {
   children: React.ReactNode;

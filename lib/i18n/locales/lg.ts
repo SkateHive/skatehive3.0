@@ -1,4 +1,13 @@
 export const lg = {
+  postEmbed: {
+    "comments": "Ebirowoozo",
+    "account": "Erinnya lya Hive",
+    "vote": "Londa 100%",
+    "open": "Ggulawo ku Skatehive",
+    "pending": "Kakasa mu Keychain",
+    "success": "Akalulu kaweerezeddwa",
+    "failed": "Akalulu tekakakasiddwa"
+},
   // TRANSLATION NEEDED: these are English fallbacks, not Luganda. See notes to Vlad.
   tip: {
     title: 'Tip',

@@ -201,3 +201,7 @@ When updating documentation:
 
 **Last updated:** January 31, 2026
 🛹 Happy coding!
+
+## X post previews
+
+- **[X Player Card for Skatehive posts](./X_PLAYER_CARD.md)** — share URLs, metadata, framing, client limitations, and the Hive Keychain voting requirements.
