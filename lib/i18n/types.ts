@@ -1443,4 +1443,18 @@ export interface TranslationSchema {
     scheduledFor: string;
     backToSettings: string;
   };
+  walletConnect: {
+    skateWalletHiveDesc: string;
+    recommended: string;
+    getSkateWallet: string;
+    skateWalletEvmDesc: string;
+    connected: string;
+    keepKeyDesc: string;
+    keepKeyMissingDesc: string;
+    notDetected: string;
+    connectedToast: string;
+    connectFailed: string;
+    keepKeyHiveTitle: string;
+    keepKeyHiveBody: string;
+  };
 }
