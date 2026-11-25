@@ -15,9 +15,22 @@ import { keyframes } from "@emotion/react";
 import SkateModal from "@/components/shared/SkateModal";
 import { useAioha } from "@aioha/react-ui";
 import { Providers, KeyTypes } from "@aioha/aioha";
-import { FaHive } from "react-icons/fa";
+import { FaEthereum, FaHive } from "react-icons/fa";
 import { SiHiveBlockchain } from "react-icons/si";
-import { TbKey, TbDeviceUsb, TbShieldCheck } from "react-icons/tb";
+import { TbKey, TbDeviceUsb, TbShieldCheck, TbSkateboard, TbWallet } from "react-icons/tb";
+import { useAccount, useConnect, useConnectors, type Connector } from "wagmi";
+import { useInjectedWallets } from "@/hooks/useInjectedWallets";
+import {
+  isKeepKeyHiveUnsupportedError,
+  isKeepKeyIdentity,
+  isSkateWalletIdentity,
+} from "@/lib/wallet/injectedWallets";
+
+const SKATE_WALLET_INSTALL_URL =
+  "https://chromewebstore.google.com/detail/skate-wallet/cjliamjehanfbhakipngddcpnpaijnbi";
+const KEEPKEY_GET_STARTED_URL = "https://www.keepkey.com";
+const KEEPKEY_HIVE_LOGIN_UNAVAILABLE =
+  "Hive login with a KeepKey-only account isn't available yet. KeepKey signs Hive transfers for now; log in with an account that has a posting key, or use HiveAuth.";
 
 // Type for provider values (workaround for enum type usage)
 type HiveProvider = (typeof Providers)[keyof typeof Providers];
@@ -44,6 +57,7 @@ function ProviderOption({
   onClick,
   isLoading,
   isPopular,
+  badge,
 }: {
   name: string;
   icon: any;
@@ -51,7 +65,9 @@ function ProviderOption({
   onClick: () => void;
   isLoading?: boolean;
   isPopular?: boolean;
+  badge?: string;
 }) {
+  const badgeText = badge ?? (isPopular ? "popular" : undefined);
   return (
     <HStack
       as="button"
@@ -85,7 +101,7 @@ function ProviderOption({
           <Text fontFamily="mono" fontSize="sm" color="text" textTransform="lowercase">
             {name}
           </Text>
-          {isPopular && (
+          {badgeText && (
             <Text 
               fontFamily="mono" 
               fontSize="2xs" 
@@ -95,7 +111,7 @@ function ProviderOption({
               py={0.5}
               borderRadius="sm"
             >
-              popular
+              {badgeText}
             </Text>
           )}
         </HStack>
@@ -134,6 +150,18 @@ export default function HiveLoginModal({
   const [username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<HiveProvider | null>(null);
+  // Which wallet the user picked for the Keychain provider (Skate Wallet shares its API).
+  const [keychainLabel, setKeychainLabel] = useState<"Keychain" | "Skate Wallet">("Keychain");
+  const [evmConnecting, setEvmConnecting] = useState<string | null>(null);
+
+  const { skateWalletDetected } = useInjectedWallets(isOpen);
+  const connectors = useConnectors();
+  const { connectAsync } = useConnect();
+  const { connector: activeConnector, isConnected: isEvmConnected } = useAccount();
+
+  // wagmi turns every EIP-6963 announcement into a connector (id = rdns).
+  const skateWalletConnector = connectors.find((c) => isSkateWalletIdentity(c));
+  const keepKeyConnector = connectors.find((c) => isKeepKeyIdentity(c));
 
   // Check which providers are available
   const availableProviders = {
@@ -149,6 +177,7 @@ export default function HiveLoginModal({
     setUsername("");
     setIsLoading(false);
     setLoadingProvider(null);
+    setEvmConnecting(null);
     onClose();
   }, [onClose]);
 
@@ -158,8 +187,12 @@ export default function HiveLoginModal({
     setUsername("");
   }, []);
 
-  const handleProviderSelect = useCallback(async (provider: HiveProvider) => {
+  const handleProviderSelect = useCallback(async (
+    provider: HiveProvider,
+    label: "Keychain" | "Skate Wallet" = "Keychain"
+  ) => {
     // All providers need username input first
+    setKeychainLabel(label);
     setSelectedProvider(provider);
     setStep('username');
   }, []);
@@ -208,6 +241,17 @@ export default function HiveLoginModal({
         });
         onSuccess?.(uname);
         handleClose();
+      } else if (
+        selectedProvider === Providers.Keychain &&
+        isKeepKeyHiveUnsupportedError(result.error)
+      ) {
+        toast({
+          status: "warning",
+          title: "keepkey hive login not available yet",
+          description: KEEPKEY_HIVE_LOGIN_UNAVAILABLE,
+          duration: 9000,
+          isClosable: true,
+        });
       } else {
         toast({
           status: "error",
@@ -217,20 +261,47 @@ export default function HiveLoginModal({
         });
       }
     } catch (error: any) {
+      const keepKeyUnsupported =
+        selectedProvider === Providers.Keychain && isKeepKeyHiveUnsupportedError(error);
       toast({
-        status: "error",
-        title: "connection error",
-        description: error?.message || "Unknown error",
-        duration: 5000,
+        status: keepKeyUnsupported ? "warning" : "error",
+        title: keepKeyUnsupported ? "keepkey hive login not available yet" : "connection error",
+        description: keepKeyUnsupported
+          ? KEEPKEY_HIVE_LOGIN_UNAVAILABLE
+          : error?.message || "Unknown error",
+        duration: keepKeyUnsupported ? 9000 : 5000,
+        isClosable: keepKeyUnsupported,
       });
     } finally {
       setIsLoading(false);
     }
   }, [aioha, selectedProvider, username, toast, onSuccess, handleClose]);
 
+  const handleEvmConnect = useCallback(async (connector: Connector | undefined, label: string) => {
+    if (!connector) return;
+    setEvmConnecting(connector.id);
+    try {
+      await connectAsync({ connector });
+      toast({ status: "success", title: `connected: ${label}`, duration: 3000 });
+      handleClose();
+    } catch (error: any) {
+      toast({
+        status: "error",
+        title: `${label.toLowerCase()} connection failed`,
+        description: error?.shortMessage || error?.message || "Unknown error",
+        duration: 5000,
+      });
+    } finally {
+      setEvmConnecting(null);
+    }
+  }, [connectAsync, toast, handleClose]);
+
+  const isEvmConnectedWith = (connector?: Connector) =>
+    !!connector && isEvmConnected && activeConnector?.id === connector.id;
+
   const getProviderName = (provider: HiveProvider) => {
     switch (provider) {
-      case Providers.Keychain: return "Keychain";
+      case Providers.Keychain: return keychainLabel;
       case Providers.HiveAuth: return "HiveAuth";
       case Providers.Ledger: return "Ledger";
       case Providers.PeakVault: return "PeakVault";
@@ -272,8 +343,21 @@ export default function HiveLoginModal({
 
             {/* Provider Options */}
             <VStack spacing={2} align="stretch">
+              {/* Skate Wallet - drives the same window.hive_keychain API through
+                  Aioha's Keychain provider, so it replaces the generic entry. */}
+              {availableProviders.keychain && skateWalletDetected && (
+                <ProviderOption
+                  name="Skate Wallet"
+                  icon={TbSkateboard}
+                  description="browser extension · detected"
+                  onClick={() => handleProviderSelect(Providers.Keychain, "Skate Wallet")}
+                  isLoading={loadingProvider === Providers.Keychain}
+                  badge="recommended"
+                />
+              )}
+
               {/* Keychain - Most Popular */}
-              {availableProviders.keychain && (
+              {availableProviders.keychain && !skateWalletDetected && (
                 <ProviderOption
                   name="Keychain"
                   icon={TbKey}
@@ -312,6 +396,73 @@ export default function HiveLoginModal({
                   isLoading={loadingProvider === Providers.PeakVault}
                 />
               )}
+
+              {/* Skate Wallet not installed: discreet install hint */}
+              {!skateWalletDetected && (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  fontFamily="mono"
+                  color="gray.500"
+                  leftIcon={<Icon as={TbSkateboard} />}
+                  onClick={() => window.open(SKATE_WALLET_INSTALL_URL, "_blank", "noopener,noreferrer")}
+                  _hover={{ color: "primary", bg: "whiteAlpha.50" }}
+                  justifyContent="center"
+                  textTransform="lowercase"
+                  fontSize="2xs"
+                >
+                  get skate wallet
+                </Button>
+              )}
+            </VStack>
+
+            {/* EVM wallets */}
+            <VStack spacing={2} align="stretch">
+              <HStack spacing={2} justify="center" pt={1}>
+                <Icon as={FaEthereum} boxSize={4} color="blue.300" />
+                <Text fontFamily="mono" fontSize="sm" color="primary">
+                  evm
+                </Text>
+              </HStack>
+
+              {skateWalletConnector && (
+                <ProviderOption
+                  name="Skate Wallet"
+                  icon={TbSkateboard}
+                  description={
+                    isEvmConnectedWith(skateWalletConnector)
+                      ? "connected"
+                      : "browser extension · ethereum & base"
+                  }
+                  onClick={() =>
+                    isEvmConnectedWith(skateWalletConnector)
+                      ? handleClose()
+                      : handleEvmConnect(skateWalletConnector, "Skate Wallet")
+                  }
+                  isLoading={evmConnecting === skateWalletConnector.id}
+                />
+              )}
+
+              <ProviderOption
+                name="KeepKey"
+                icon={TbWallet}
+                description={
+                  keepKeyConnector
+                    ? isEvmConnectedWith(keepKeyConnector)
+                      ? "connected"
+                      : "hardware wallet · via keepkey client"
+                    : "hardware wallet · install keepkey client / open keepkey vault"
+                }
+                onClick={() =>
+                  keepKeyConnector
+                    ? isEvmConnectedWith(keepKeyConnector)
+                      ? handleClose()
+                      : handleEvmConnect(keepKeyConnector, "KeepKey")
+                    : window.open(KEEPKEY_GET_STARTED_URL, "_blank", "noopener,noreferrer")
+                }
+                isLoading={!!keepKeyConnector && evmConnecting === keepKeyConnector.id}
+                badge={keepKeyConnector ? undefined : "not detected"}
+              />
             </VStack>
 
             {/* Help link */}
