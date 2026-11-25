@@ -2099,4 +2099,18 @@ export const es = {
     apkNote: 'Instala el APK solo desde esta página. Avisaremos cuando la app esté en Google Play.',
     releaseNotes: 'Notas de la versión',
   },
+  walletConnect: {
+    skateWalletHiveDesc: "extensión del navegador · detectada",
+    recommended: "recomendada",
+    getSkateWallet: "obtener skate wallet",
+    skateWalletEvmDesc: "extensión del navegador · ethereum y base",
+    connected: "conectada",
+    keepKeyDesc: "billetera de hardware · vía keepkey client",
+    keepKeyMissingDesc: "billetera de hardware · instala keepkey client / abre keepkey vault",
+    notDetected: "no detectada",
+    connectedToast: "conectado: {name}",
+    connectFailed: "falló la conexión con {name}",
+    keepKeyHiveTitle: "login de hive con keepkey aún no disponible",
+    keepKeyHiveBody: "El login de Hive con una cuenta solo en KeepKey aún no está disponible. Por ahora KeepKey firma transferencias de Hive; inicia sesión con una cuenta que tenga posting key o usa HiveAuth.",
+  },
 };

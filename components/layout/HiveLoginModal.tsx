@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   Button,
   HStack,
@@ -20,6 +20,7 @@ import { SiHiveBlockchain } from "react-icons/si";
 import { TbKey, TbDeviceUsb, TbShieldCheck, TbSkateboard, TbWallet } from "react-icons/tb";
 import { useAccount, useConnect, useConnectors, type Connector } from "wagmi";
 import { useInjectedWallets } from "@/hooks/useInjectedWallets";
+import { useTranslations } from "@/lib/i18n/hooks";
 import {
   isKeepKeyHiveUnsupportedError,
   isKeepKeyIdentity,
@@ -29,8 +30,6 @@ import {
 const SKATE_WALLET_INSTALL_URL =
   "https://chromewebstore.google.com/detail/skate-wallet/cjliamjehanfbhakipngddcpnpaijnbi";
 const KEEPKEY_GET_STARTED_URL = "https://www.keepkey.com";
-const KEEPKEY_HIVE_LOGIN_UNAVAILABLE =
-  "Hive login with a KeepKey-only account isn't available yet. KeepKey signs Hive transfers for now; log in with an account that has a posting key, or use HiveAuth.";
 
 // Type for provider values (workaround for enum type usage)
 type HiveProvider = (typeof Providers)[keyof typeof Providers];
@@ -154,7 +153,15 @@ export default function HiveLoginModal({
   const [keychainLabel, setKeychainLabel] = useState<"Keychain" | "Skate Wallet">("Keychain");
   const [evmConnecting, setEvmConnecting] = useState<string | null>(null);
 
+  const tw = useTranslations("walletConnect");
   const { skateWalletDetected } = useInjectedWallets(isOpen);
+
+  // Bumped on every open/close so an EVM connect that resolves after the
+  // modal was closed (and maybe reopened) can't close or reset the new opening.
+  const openingRef = useRef(0);
+  useEffect(() => {
+    openingRef.current += 1;
+  }, [isOpen]);
   const connectors = useConnectors();
   const { connectAsync } = useConnect();
   const { connector: activeConnector, isConnected: isEvmConnected } = useAccount();
@@ -247,8 +254,8 @@ export default function HiveLoginModal({
       ) {
         toast({
           status: "warning",
-          title: "keepkey hive login not available yet",
-          description: KEEPKEY_HIVE_LOGIN_UNAVAILABLE,
+          title: tw("keepKeyHiveTitle"),
+          description: tw("keepKeyHiveBody"),
           duration: 9000,
           isClosable: true,
         });
@@ -265,9 +272,9 @@ export default function HiveLoginModal({
         selectedProvider === Providers.Keychain && isKeepKeyHiveUnsupportedError(error);
       toast({
         status: keepKeyUnsupported ? "warning" : "error",
-        title: keepKeyUnsupported ? "keepkey hive login not available yet" : "connection error",
+        title: keepKeyUnsupported ? tw("keepKeyHiveTitle") : "connection error",
         description: keepKeyUnsupported
-          ? KEEPKEY_HIVE_LOGIN_UNAVAILABLE
+          ? tw("keepKeyHiveBody")
           : error?.message || "Unknown error",
         duration: keepKeyUnsupported ? 9000 : 5000,
         isClosable: keepKeyUnsupported,
@@ -275,26 +282,32 @@ export default function HiveLoginModal({
     } finally {
       setIsLoading(false);
     }
-  }, [aioha, selectedProvider, username, toast, onSuccess, handleClose]);
+  }, [aioha, selectedProvider, username, toast, onSuccess, handleClose, tw]);
 
   const handleEvmConnect = useCallback(async (connector: Connector | undefined, label: string) => {
     if (!connector) return;
+    const opening = openingRef.current;
+    const isCurrentOpening = () => openingRef.current === opening;
     setEvmConnecting(connector.id);
     try {
       await connectAsync({ connector });
-      toast({ status: "success", title: `connected: ${label}`, duration: 3000 });
-      handleClose();
+      toast({
+        status: "success",
+        title: tw("connectedToast").replace("{name}", label),
+        duration: 3000,
+      });
+      if (isCurrentOpening()) handleClose();
     } catch (error: any) {
       toast({
         status: "error",
-        title: `${label.toLowerCase()} connection failed`,
+        title: tw("connectFailed").replace("{name}", label),
         description: error?.shortMessage || error?.message || "Unknown error",
         duration: 5000,
       });
     } finally {
-      setEvmConnecting(null);
+      if (isCurrentOpening()) setEvmConnecting(null);
     }
-  }, [connectAsync, toast, handleClose]);
+  }, [connectAsync, toast, handleClose, tw]);
 
   const isEvmConnectedWith = (connector?: Connector) =>
     !!connector && isEvmConnected && activeConnector?.id === connector.id;
@@ -349,10 +362,10 @@ export default function HiveLoginModal({
                 <ProviderOption
                   name="Skate Wallet"
                   icon={TbSkateboard}
-                  description="browser extension · detected"
+                  description={tw("skateWalletHiveDesc")}
                   onClick={() => handleProviderSelect(Providers.Keychain, "Skate Wallet")}
                   isLoading={loadingProvider === Providers.Keychain}
-                  badge="recommended"
+                  badge={tw("recommended")}
                 />
               )}
 
@@ -411,7 +424,7 @@ export default function HiveLoginModal({
                   textTransform="lowercase"
                   fontSize="2xs"
                 >
-                  get skate wallet
+                  {tw("getSkateWallet")}
                 </Button>
               )}
             </VStack>
@@ -431,8 +444,8 @@ export default function HiveLoginModal({
                   icon={TbSkateboard}
                   description={
                     isEvmConnectedWith(skateWalletConnector)
-                      ? "connected"
-                      : "browser extension · ethereum & base"
+                      ? tw("connected")
+                      : tw("skateWalletEvmDesc")
                   }
                   onClick={() =>
                     isEvmConnectedWith(skateWalletConnector)
@@ -449,9 +462,9 @@ export default function HiveLoginModal({
                 description={
                   keepKeyConnector
                     ? isEvmConnectedWith(keepKeyConnector)
-                      ? "connected"
-                      : "hardware wallet · via keepkey client"
-                    : "hardware wallet · install keepkey client / open keepkey vault"
+                      ? tw("connected")
+                      : tw("keepKeyDesc")
+                    : tw("keepKeyMissingDesc")
                 }
                 onClick={() =>
                   keepKeyConnector
@@ -461,7 +474,7 @@ export default function HiveLoginModal({
                     : window.open(KEEPKEY_GET_STARTED_URL, "_blank", "noopener,noreferrer")
                 }
                 isLoading={!!keepKeyConnector && evmConnecting === keepKeyConnector.id}
-                badge={keepKeyConnector ? undefined : "not detected"}
+                badge={keepKeyConnector ? undefined : tw("notDetected")}
               />
             </VStack>
 
