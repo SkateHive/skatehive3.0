@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   hasSkateWalletHiveFlag,
+  isKeepKeyHiveKeychain,
   isKeepKeyIdentity,
   isSkateWalletIdentity,
   type Eip6963ProviderInfo,
@@ -20,6 +21,8 @@ export interface InjectedWallets {
   skateWalletDetected: boolean;
   /** A KeepKey extension (KeepKey Client) announced itself. */
   keepKey: Eip6963ProviderInfo | null;
+  /** `window.hive_keychain` is the KeepKey Client's, so Hive login goes to the KeepKey. */
+  keepKeyHiveDetected: boolean;
 }
 
 /**
@@ -29,6 +32,7 @@ export interface InjectedWallets {
 export function useInjectedWallets(enabled = true): InjectedWallets {
   const [announced, setAnnounced] = useState<Eip6963ProviderInfo[]>([]);
   const [hiveFlag, setHiveFlag] = useState(false);
+  const [keepKeyHive, setKeepKeyHive] = useState({ flagged: false, shimShaped: false });
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
@@ -44,6 +48,10 @@ export function useInjectedWallets(enabled = true): InjectedWallets {
     window.addEventListener("eip6963:announceProvider", onAnnounce);
     window.dispatchEvent(new Event("eip6963:requestProvider"));
     setHiveFlag(hasSkateWalletHiveFlag(window));
+    setKeepKeyHive({
+      flagged: isKeepKeyHiveKeychain(window),
+      shimShaped: isKeepKeyHiveKeychain(window, true),
+    });
 
     return () => window.removeEventListener("eip6963:announceProvider", onAnnounce);
   }, [enabled]);
@@ -56,5 +64,7 @@ export function useInjectedWallets(enabled = true): InjectedWallets {
     skateWallet,
     skateWalletDetected: hiveFlag || !!skateWallet,
     keepKey,
+    // Without the flag, the shim's shape only counts once KeepKey announced itself.
+    keepKeyHiveDetected: keepKeyHive.flagged || (!!keepKey && keepKeyHive.shimShaped),
   };
 }

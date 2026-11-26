@@ -7,6 +7,7 @@ import {
   KEEPKEY_HIVE_UNSUPPORTED_ERROR,
   SKATE_WALLET_RDNS,
   hasSkateWalletHiveFlag,
+  isKeepKeyHiveKeychain,
   isKeepKeyHiveUnsupportedError,
   isKeepKeyIdentity,
   isSkateWalletIdentity,
@@ -65,6 +66,18 @@ it("recognises the KeepKey Hive sign error by key or translated text", () => {
   );
   ok(!isKeepKeyHiveUnsupportedError("Request was canceled by the user."), "user cancel");
   ok(!isKeepKeyHiveUnsupportedError(undefined), "undefined");
+});
+
+it("tells the KeepKey Client's hive_keychain shim apart from real Keychains", () => {
+  const shim = { current_id: 1, requestHandshake: () => {} };
+  const keychain = { current_id: 1, requests: {}, requestHandshake: () => {} };
+  ok(isKeepKeyHiveKeychain({ hive_keychain: { ...shim, isKeepKey: true } }), "flagged shim");
+  ok(isKeepKeyHiveKeychain({ hive_keychain: shim }, true), "unflagged shim, KeepKey announced");
+  ok(!isKeepKeyHiveKeychain({ hive_keychain: shim }), "unflagged shim, no KeepKey on EVM");
+  ok(!isKeepKeyHiveKeychain({ hive_keychain: keychain }, true), "real Keychain next to KeepKey");
+  ok(!isKeepKeyHiveKeychain({ hive_keychain: { ...shim, isSkateWallet: true } }, true), "Skate Wallet");
+  ok(!isKeepKeyHiveKeychain({}, true), "no keychain");
+  ok(!isKeepKeyHiveKeychain(undefined, true), "no window");
 });
 
 console.log("injectedWallets");

@@ -2106,6 +2106,7 @@ export const ptBR = {
     getSkateWallet: "baixar skate wallet",
     skateWalletEvmDesc: "extensão do navegador · ethereum e base",
     connected: "conectada",
+    keepKeyHiveDesc: "carteira de hardware · login hive",
     keepKeyDesc: "carteira de hardware · via keepkey client",
     keepKeyMissingDesc: "carteira de hardware · instale o keepkey client / abra o keepkey vault",
     notDetected: "não detectada",
