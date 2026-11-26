@@ -482,8 +482,11 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
           const data = await res.json().catch(() => ({}));
           if (res.ok && data?.success) {
             broadcasted = true;
-          } else if (res.status === 403) {
+          } else if (res.status === 403 && aiohaUser !== username) {
             // Soft-post account (no own Hive account yet) — nothing to sign.
+            // When this Hive account is logged in with a wallet (Keychain, Skate
+            // Wallet, KeepKey), the userbase session just isn't its owner: let
+            // the wallet sign below instead.
             setError(
               data?.error ||
                 "You need your own Hive account to edit this profile — get sponsored first."
@@ -635,6 +638,7 @@ const EditProfile: React.FC<EditProfileProps> = React.memo(
       username,
       onClose,
       user,
+      aiohaUser,
     ]);
 
     // Memoized Ethereum wallet section
