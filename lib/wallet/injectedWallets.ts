@@ -10,7 +10,10 @@
  *   It also sets `isMetaMask = true` on its EVM provider for compatibility, so
  *   never use `window.ethereum.isMetaMask` to tell wallets apart.
  * - KeepKey is reached on EVM through the KeepKey Client extension, matched by
- *   rdns/name containing "keepkey".
+ *   rdns/name containing "keepkey". The same extension also injects a partial
+ *   `window.hive_keychain` (only when no real Keychain is installed), so on the
+ *   Hive side it is driven through Aioha's Keychain provider too. Newer builds
+ *   set `window.hive_keychain.isKeepKey = true`; see isKeepKeyHiveKeychain.
  */
 
 export const SKATE_WALLET_RDNS = "app.skatehive.wallet";
@@ -50,6 +53,23 @@ export function hasSkateWalletHiveFlag(win: unknown): boolean {
   const keychain = (win as { hive_keychain?: { isSkateWallet?: unknown } } | undefined)
     ?.hive_keychain;
   return keychain?.isSkateWallet === true;
+}
+
+/**
+ * True when `window.hive_keychain` is the KeepKey Client's shim.
+ *
+ * Newer KeepKey builds flag it with `isKeepKey`. Older ones carry no flag, so
+ * when a KeepKey extension announced itself on EVM we also accept a keychain
+ * that is not the Skate Wallet's and lacks the `requests` map every real
+ * Keychain (and the Skate Wallet, its fork) keeps; the shim has none.
+ */
+export function isKeepKeyHiveKeychain(win: unknown, keepKeyAnnounced = false): boolean {
+  const keychain = (win as { hive_keychain?: Record<string, unknown> } | undefined)
+    ?.hive_keychain;
+  if (!keychain || typeof keychain !== "object") return false;
+  if (keychain.isKeepKey === true) return true;
+  if (keychain.isSkateWallet === true) return false;
+  return keepKeyAnnounced && !("requests" in keychain);
 }
 
 /**

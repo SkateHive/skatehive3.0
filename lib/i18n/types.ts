@@ -1449,6 +1449,7 @@ export interface TranslationSchema {
     getSkateWallet: string;
     skateWalletEvmDesc: string;
     connected: string;
+    keepKeyHiveDesc: string;
     keepKeyDesc: string;
     keepKeyMissingDesc: string;
     notDetected: string;

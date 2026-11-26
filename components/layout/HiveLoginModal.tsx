@@ -29,6 +29,9 @@ import {
 
 const SKATE_WALLET_INSTALL_URL =
   "https://chromewebstore.google.com/detail/skate-wallet/cjliamjehanfbhakipngddcpnpaijnbi";
+/** What the Keychain provider is called in the modal, after the extension behind it. */
+type KeychainLabel = "Keychain" | "Skate Wallet" | "KeepKey";
+
 const KEEPKEY_GET_STARTED_URL = "https://www.keepkey.com";
 
 // Type for provider values (workaround for enum type usage)
@@ -150,11 +153,13 @@ export default function HiveLoginModal({
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<HiveProvider | null>(null);
   // Which wallet the user picked for the Keychain provider (Skate Wallet shares its API).
-  const [keychainLabel, setKeychainLabel] = useState<"Keychain" | "Skate Wallet">("Keychain");
+  const [keychainLabel, setKeychainLabel] = useState<KeychainLabel>("Keychain");
   const [evmConnecting, setEvmConnecting] = useState<string | null>(null);
 
   const tw = useTranslations("walletConnect");
-  const { skateWalletDetected } = useInjectedWallets(isOpen);
+  const { skateWalletDetected, keepKeyHiveDetected } = useInjectedWallets(isOpen);
+  // The Skate Wallet replaces KeepKey's shim when both are installed, so it wins.
+  const keepKeyHiveEntry = keepKeyHiveDetected && !skateWalletDetected;
 
   // Bumped on every open/close so an EVM connect that resolves after the
   // modal was closed (and maybe reopened) can't close or reset the new opening.
@@ -196,7 +201,7 @@ export default function HiveLoginModal({
 
   const handleProviderSelect = useCallback(async (
     provider: HiveProvider,
-    label: "Keychain" | "Skate Wallet" = "Keychain"
+    label: KeychainLabel = "Keychain"
   ) => {
     // All providers need username input first
     setKeychainLabel(label);
@@ -250,6 +255,7 @@ export default function HiveLoginModal({
         handleClose();
       } else if (
         selectedProvider === Providers.Keychain &&
+        keychainLabel !== "KeepKey" &&
         isKeepKeyHiveUnsupportedError(result.error)
       ) {
         toast({
@@ -268,8 +274,13 @@ export default function HiveLoginModal({
         });
       }
     } catch (error: any) {
+      // The warning is about the Skate Wallet refusing KeepKey-held accounts. The
+      // KeepKey Client's own errors (no Hive account yet, wrong account) also name
+      // "KeepKey", so show those as they are.
       const keepKeyUnsupported =
-        selectedProvider === Providers.Keychain && isKeepKeyHiveUnsupportedError(error);
+        selectedProvider === Providers.Keychain &&
+        keychainLabel !== "KeepKey" &&
+        isKeepKeyHiveUnsupportedError(error);
       toast({
         status: keepKeyUnsupported ? "warning" : "error",
         title: keepKeyUnsupported ? tw("keepKeyHiveTitle") : "connection error",
@@ -282,7 +293,7 @@ export default function HiveLoginModal({
     } finally {
       setIsLoading(false);
     }
-  }, [aioha, selectedProvider, username, toast, onSuccess, handleClose, tw]);
+  }, [aioha, selectedProvider, keychainLabel, username, toast, onSuccess, handleClose, tw]);
 
   const handleEvmConnect = useCallback(async (connector: Connector | undefined, label: string) => {
     if (!connector) return;
@@ -369,8 +380,19 @@ export default function HiveLoginModal({
                 />
               )}
 
+              {/* KeepKey Client - its window.hive_keychain shim signs on the device. */}
+              {availableProviders.keychain && keepKeyHiveEntry && (
+                <ProviderOption
+                  name="KeepKey"
+                  icon={TbWallet}
+                  description={tw("keepKeyHiveDesc")}
+                  onClick={() => handleProviderSelect(Providers.Keychain, "KeepKey")}
+                  isLoading={loadingProvider === Providers.Keychain}
+                />
+              )}
+
               {/* Keychain - Most Popular */}
-              {availableProviders.keychain && !skateWalletDetected && (
+              {availableProviders.keychain && !skateWalletDetected && !keepKeyHiveEntry && (
                 <ProviderOption
                   name="Keychain"
                   icon={TbKey}
