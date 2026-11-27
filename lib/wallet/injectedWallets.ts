@@ -90,3 +90,38 @@ export function isKeepKeyHiveUnsupportedError(error: unknown): boolean {
     (v) => typeof v === "string" && isKeepKeyHiveUnsupportedError(v)
   );
 }
+
+const KEEPKEY_ACCOUNT_TIMEOUT_MS = 120_000;
+const HIVE_ACCOUNT_NAME = /^[a-z][a-z0-9.-]{2,15}$/;
+
+/**
+ * Asks the KeepKey Client which Hive account it holds (`requestAccount`, shown
+ * to the user once per site). Resolves the account name, or null when the
+ * extension lacks the method, the user refuses, or nothing comes back in time:
+ * the modal then falls back to typing the name.
+ */
+export function requestKeepKeyHiveAccount(win: unknown): Promise<string | null> {
+  const keychain = (win as {
+    hive_keychain?: {
+      isKeepKey?: unknown;
+      requestAccount?: (callback: (response: { success?: boolean; result?: unknown }) => void) => void;
+    };
+  } | undefined)?.hive_keychain;
+  if (keychain?.isKeepKey !== true || typeof keychain.requestAccount !== "function") {
+    return Promise.resolve(null);
+  }
+  const requestAccount = keychain.requestAccount;
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), KEEPKEY_ACCOUNT_TIMEOUT_MS);
+    try {
+      requestAccount.call(keychain, (response) => {
+        clearTimeout(timer);
+        const name = typeof response?.result === "string" ? response.result.trim().toLowerCase() : "";
+        resolve(response?.success && HIVE_ACCOUNT_NAME.test(name) ? name : null);
+      });
+    } catch {
+      clearTimeout(timer);
+      resolve(null);
+    }
+  });
+}

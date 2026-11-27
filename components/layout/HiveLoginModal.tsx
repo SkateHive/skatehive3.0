@@ -25,6 +25,7 @@ import {
   isKeepKeyHiveUnsupportedError,
   isKeepKeyIdentity,
   isSkateWalletIdentity,
+  requestKeepKeyHiveAccount,
 } from "@/lib/wallet/injectedWallets";
 
 const SKATE_WALLET_INSTALL_URL =
@@ -155,6 +156,9 @@ export default function HiveLoginModal({
   // Which wallet the user picked for the Keychain provider (Skate Wallet shares its API).
   const [keychainLabel, setKeychainLabel] = useState<KeychainLabel>("Keychain");
   const [evmConnecting, setEvmConnecting] = useState<string | null>(null);
+  const submitLoginRef = useRef<
+    (name?: string, provider?: HiveProvider, label?: KeychainLabel) => Promise<void>
+  >(async () => {});
 
   const tw = useTranslations("walletConnect");
   const { skateWalletDetected, keepKeyHiveDetected } = useInjectedWallets(isOpen);
@@ -207,14 +211,31 @@ export default function HiveLoginModal({
     setKeychainLabel(label);
     setSelectedProvider(provider);
     setStep('username');
+    if (label !== "KeepKey") return;
+    // The KeepKey Client can share its account name once the user approves
+    // this site; then there is nothing to type. Older builds lack the method.
+    const keepKeyAccount = await requestKeepKeyHiveAccount(window);
+    if (keepKeyAccount) {
+      setUsername(keepKeyAccount);
+      void submitLoginRef.current(keepKeyAccount, provider, label);
+    }
   }, []);
 
-  const handleUsernameSubmit = useCallback(async () => {
-    if (!username.trim() || !selectedProvider) return;
+  // Takes the account and provider directly when called right after a state
+  // change (KeepKey hands over its account name), else reads them from state.
+  const submitLogin = useCallback(async (
+    nameArg?: string,
+    providerArg?: HiveProvider,
+    labelArg?: KeychainLabel,
+  ) => {
+    const provider = providerArg ?? selectedProvider;
+    const label = labelArg ?? keychainLabel;
+    const name = nameArg ?? username;
+    if (!name.trim() || !provider) return;
     
     setIsLoading(true);
     
-    const uname = username.trim().toLowerCase();
+    const uname = name.trim().toLowerCase();
     try {
       // aioha rejects login() with 4901 "Already logged in" when this account
       // is already in its session store. That happens after connecting an EVM
@@ -240,7 +261,7 @@ export default function HiveLoginModal({
         aioha.removeOtherLogin(uname);
       }
 
-      const result = await aioha.login(selectedProvider, uname, {
+      const result = await aioha.login(provider, uname, {
         msg: "Login to Skatehive",
         keyType: KeyTypes.Posting,
       });
@@ -254,8 +275,8 @@ export default function HiveLoginModal({
         onSuccess?.(uname);
         handleClose();
       } else if (
-        selectedProvider === Providers.Keychain &&
-        keychainLabel !== "KeepKey" &&
+        provider === Providers.Keychain &&
+        label !== "KeepKey" &&
         isKeepKeyHiveUnsupportedError(result.error)
       ) {
         toast({
@@ -278,8 +299,8 @@ export default function HiveLoginModal({
       // KeepKey Client's own errors (no Hive account yet, wrong account) also name
       // "KeepKey", so show those as they are.
       const keepKeyUnsupported =
-        selectedProvider === Providers.Keychain &&
-        keychainLabel !== "KeepKey" &&
+        provider === Providers.Keychain &&
+        label !== "KeepKey" &&
         isKeepKeyHiveUnsupportedError(error);
       toast({
         status: keepKeyUnsupported ? "warning" : "error",
@@ -294,6 +315,9 @@ export default function HiveLoginModal({
       setIsLoading(false);
     }
   }, [aioha, selectedProvider, keychainLabel, username, toast, onSuccess, handleClose, tw]);
+
+  const handleUsernameSubmit = useCallback(() => submitLogin(), [submitLogin]);
+  submitLoginRef.current = submitLogin;
 
   const handleEvmConnect = useCallback(async (connector: Connector | undefined, label: string) => {
     if (!connector) return;
