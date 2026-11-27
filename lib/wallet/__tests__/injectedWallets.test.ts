@@ -11,6 +11,7 @@ import {
   isKeepKeyHiveUnsupportedError,
   isKeepKeyIdentity,
   isSkateWalletIdentity,
+  requestKeepKeyHiveAccount,
 } from "../injectedWallets";
 
 const tests: Array<() => void> = [];
@@ -80,6 +81,35 @@ it("tells the KeepKey Client's hive_keychain shim apart from real Keychains", ()
   ok(!isKeepKeyHiveKeychain(undefined, true), "no window");
 });
 
+const asyncTests: Array<() => Promise<void>> = [];
+const itAsync = (name: string, fn: () => Promise<void>) =>
+  asyncTests.push(async () => {
+    try {
+      await fn();
+      console.log(`  ✅ ${name}`);
+    } catch (error) {
+      console.error(`  ❌ ${name}\n     ${error}`);
+      hasFailures = true;
+    }
+  });
+
+itAsync("reads the account the KeepKey Client shares, and nothing from other keychains", async () => {
+  const keepKey = (result: unknown, success = true) => ({
+    hive_keychain: { isKeepKey: true, requestAccount: (cb: (r: object) => void) => cb({ success, result }) },
+  });
+  ok((await requestKeepKeyHiveAccount(keepKey("SopaDevs"))) === "sopadevs", "account name");
+  ok((await requestKeepKeyHiveAccount(keepKey("sopadevs", false))) === null, "user refused");
+  ok((await requestKeepKeyHiveAccount(keepKey("not a name!"))) === null, "invalid name");
+  ok((await requestKeepKeyHiveAccount({ hive_keychain: { isKeepKey: true } })) === null, "older build");
+  ok(
+    (await requestKeepKeyHiveAccount({ hive_keychain: { requestAccount: (cb: (r: object) => void) => cb({ success: true, result: "x" }) } })) === null,
+    "not KeepKey",
+  );
+});
+
 console.log("injectedWallets");
 tests.forEach((t) => t());
-if (hasFailures) process.exit(1);
+(async () => {
+  for (const t of asyncTests) await t();
+  if (hasFailures) process.exit(1);
+})();
